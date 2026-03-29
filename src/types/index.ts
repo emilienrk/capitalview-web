@@ -282,7 +282,7 @@ export type CryptoCompositeTransactionType =
   | 'FIAT_WITHDRAW'
   | 'SELL_TO_FIAT'
   | 'FEE'
-  | 'NON_TAXABLE_EXIT'
+  | 'EXIT'
 
 // Kept as public alias for existing imports across the app.
 export type CryptoTransactionType = CryptoAtomicTransactionType
