@@ -160,13 +160,13 @@ const feeMode = ref<'none' | 'included' | 'separate' | 'token'>('none')
 const feeInputMode = ref<'eur' | 'percent'>('eur')
 
 const showQuoteStep = computed(() => txForm.type === 'BUY_FIAT' || txForm.type === 'BUY_SPOT')
-const showFeeStep = computed(() => txForm.type === 'BUY_FIAT' || txForm.type === 'BUY_SPOT' || txForm.type === 'NON_TAXABLE_EXIT' || txForm.type === 'SELL_TO_FIAT' || txForm.type === 'TRANSFER_TO_ACCOUNT')
+const showFeeStep = computed(() => txForm.type === 'BUY_FIAT' || txForm.type === 'BUY_SPOT' || txForm.type === 'EXIT' || txForm.type === 'SELL_TO_FIAT' || txForm.type === 'TRANSFER_TO_ACCOUNT')
 
 const wizardStep = ref(1)
 const WIZARD_STEPS = 3
 const wizardVisibleSteps = computed(() => {
   if (txForm.type === 'BUY_FIAT' || txForm.type === 'BUY_SPOT') return 3
-  if (txForm.type === 'NON_TAXABLE_EXIT' || txForm.type === 'SELL_TO_FIAT' || txForm.type === 'TRANSFER_TO_ACCOUNT') return 2 // step1 + fee (skip quote)
+  if (txForm.type === 'EXIT' || txForm.type === 'SELL_TO_FIAT' || txForm.type === 'TRANSFER_TO_ACCOUNT') return 2 // step1 + fee (skip quote)
   return 1
 })
 const isLastStep = computed(() =>
@@ -338,7 +338,7 @@ const txTypeOptions = computed(() => {
     { label: 'Dépôt · Crypto avec PRU', value: 'CRYPTO_DEPOSIT' },
     { label: 'Frais · Gaz on-chain', value: 'FEE' },
     { label: 'Vente · Crypto → EUR', value: 'SELL_TO_FIAT' },
-    { label: 'Sortie · Don / Envoi hors périmètre', value: 'NON_TAXABLE_EXIT' },
+    { label: 'Sortie · Don / Envoi hors périmètre', value: 'EXIT' },
   ]
   if (!isSingleMode.value) {
     base.push({ label: 'Transfert · Vers un autre portefeuille', value: 'TRANSFER_TO_ACCOUNT' })
@@ -355,7 +355,7 @@ const txTypeDescriptions: Record<string, string> = {
   CRYPTO_DEPOSIT: 'Réception de crypto achetée hors périmètre. Enregistre un dépôt EUR, un achat crypto et une sortie EUR pour refléter l\'investissement réel.',
   FEE: 'Frais de réseau payés on-chain (ex : gaz Ethereum).',
   SELL_TO_FIAT: 'Vente de crypto contre une devise fiat (ex: EUR).',
-  NON_TAXABLE_EXIT: 'Don, envoi ou perte — aucune contrepartie EUR, valeur de cession nulle.',
+  EXIT: 'Don, envoi ou perte — aucune contrepartie EUR, valeur de cession nulle.',
   TRANSFER_TO_ACCOUNT: 'Déplacement de crypto vers un autre de vos portefeuilles — neutre fiscalement.',
 }
 
@@ -782,7 +782,7 @@ async function handleSubmitTransaction(): Promise<void> {
     return
   }
 
-  if (feeMode.value === 'separate' && txForm.type !== 'BUY_SPOT' && txForm.type !== 'NON_TAXABLE_EXIT' && txForm.type !== 'TRANSFER_TO_ACCOUNT') {
+  if (feeMode.value === 'separate' && txForm.type !== 'BUY_SPOT' && txForm.type !== 'EXIT' && txForm.type !== 'TRANSFER_TO_ACCOUNT') {
     if (!txForm.fee_eur && !txForm.fee_percentage) {
       alert('Frais séparés : veuillez renseigner le montant en euros ou le pourcentage.')
       return
@@ -2017,7 +2017,7 @@ onMounted(async () => {
               (txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw) ? 'Montant (€)'
               : txForm.type === 'FEE' ? 'Quantité de gaz brûlée'
               : txForm.type === 'SELL_TO_FIAT' ? 'Quantité vendue / dépensée'
-              : txForm.type === 'NON_TAXABLE_EXIT' ? 'Quantité envoyée / donnée'
+              : txForm.type === 'EXIT' ? 'Quantité envoyée / donnée'
               : txForm.type === 'TRANSFER_TO_ACCOUNT' ? 'Quantité à transférer'
               : 'Quantité reçue'
             "
@@ -2046,7 +2046,7 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div v-if="txForm.type === 'NON_TAXABLE_EXIT'" class="flex items-start gap-2 px-3 py-2 rounded-secondary bg-warning/5 dark:bg-warning/10 border border-warning/20">
+          <div v-if="txForm.type === 'EXIT'" class="flex items-start gap-2 px-3 py-2 rounded-secondary bg-warning/5 dark:bg-warning/10 border border-warning/20">
             <Circle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
             <span class="text-xs text-warning leading-relaxed">Sortie non-imposable — aucun euro crédité, valeur de cession nulle. En cas de réception d’euros, utiliser <strong>Sortie imposable</strong>.</span>
           </div>
@@ -2082,7 +2082,7 @@ onMounted(async () => {
           />
 
           <BaseInput
-            v-if="!showQuoteStep && !['CRYPTO_DEPOSIT', 'SELL_TO_FIAT', 'FIAT_DEPOSIT', 'FIAT_WITHDRAW', 'FEE', 'BUY_SPOT', 'NON_TAXABLE_EXIT', 'TRANSFER_TO_ACCOUNT'].includes(txForm.type)"
+            v-if="!showQuoteStep && !['CRYPTO_DEPOSIT', 'SELL_TO_FIAT', 'FIAT_DEPOSIT', 'FIAT_WITHDRAW', 'FEE', 'BUY_SPOT', 'EXIT', 'TRANSFER_TO_ACCOUNT'].includes(txForm.type)"
             v-model="txForm.price_per_unit!"
             label="Prix unitaire (€)"
             type="number"
@@ -2224,7 +2224,7 @@ onMounted(async () => {
             <p class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">Configurez les frais éventuels liés à cette transaction.</p>
           </div>
 
-          <template v-if="txForm.type !== 'BUY_SPOT' && txForm.type !== 'NON_TAXABLE_EXIT' && txForm.type !== 'TRANSFER_TO_ACCOUNT'">
+          <template v-if="txForm.type !== 'BUY_SPOT' && txForm.type !== 'EXIT' && txForm.type !== 'TRANSFER_TO_ACCOUNT'">
             <div class="inline-flex items-center gap-0.5 bg-surface dark:bg-surface-dark p-1 rounded-button border border-surface-border dark:border-surface-dark-border">
               <button
                 type="button"

@@ -9,7 +9,7 @@ export type CryptoUiTransactionType =
   | 'SELL_TO_FIAT'
   | 'CRYPTO_DEPOSIT'
   | 'FEE'
-  | 'NON_TAXABLE_EXIT'
+  | 'EXIT'
   | 'TRANSFER_TO_ACCOUNT'
 
 export const CRYPTO_COMPOSITE_ALLOWED_IMPORT_TYPES: ReadonlyArray<string> = [
@@ -21,7 +21,7 @@ export const CRYPTO_COMPOSITE_ALLOWED_IMPORT_TYPES: ReadonlyArray<string> = [
   'FIAT_WITHDRAW',
   'SELL_TO_FIAT',
   'FEE',
-  'NON_TAXABLE_EXIT',
+  'EXIT',
 ]
 
 export function normalizeCompositeImportType(rawType: string): CryptoCompositeTransactionType | null {
@@ -37,7 +37,7 @@ export function normalizeCompositeImportType(rawType: string): CryptoCompositeTr
     normalized === 'FIAT_WITHDRAW' ||
     normalized === 'SELL_TO_FIAT' ||
     normalized === 'FEE' ||
-    normalized === 'NON_TAXABLE_EXIT'
+    normalized === 'EXIT'
   ) {
     return normalized
   }
