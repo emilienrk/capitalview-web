@@ -165,7 +165,19 @@ async function sendPreview(csvContent: string): Promise<void> {
 
     // Init price-per-unit map & excluded set
     for (const g of previewGroups.value) {
-      groupPricePerUnit[g.group_index] = ''
+      // If the backend pre-filled eur_amount, reverse-compute the price per unit
+      // so the input field shows a meaningful value the user can edit.
+      if (g.needs_eur_input && g.eur_amount !== null && g.eur_amount > 0) {
+        const buySummary = getMainBuySummary(g)
+        if (buySummary && buySummary.totalAmount > 0) {
+          const pricePerUnit = g.eur_amount / buySummary.totalAmount
+          groupPricePerUnit[g.group_index] = String(Math.round(pricePerUnit * 100000) / 100000)
+        } else {
+          groupPricePerUnit[g.group_index] = ''
+        }
+      } else {
+        groupPricePerUnit[g.group_index] = ''
+      }
     }
     excludedGroups.clear()
 
