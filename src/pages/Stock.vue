@@ -73,7 +73,7 @@ const accountForm = reactive<StockAccountCreate>({
 const txForm = reactive<StockTransactionCreate>({
   account_id: '',
   symbol: '',
-  isin: '',
+  asset_key: '',
   exchange: '',
   type: 'BUY',
   amount: 0,
@@ -102,7 +102,7 @@ const sortedBankAccounts = computed(() => {
 // ── Unified asset search ─────────────────────────────────────
 interface AssetOption {
   symbol: string
-  isin: string | null
+  asset_key: string | null
   name: string | null
   exchange: string | null
   _source: 'known' | 'api'
@@ -172,12 +172,12 @@ const selectedAccountSummary = computed(() => stocks.currentAccount)
 const knownAssetOptions = computed((): AssetOption[] => {
   const seen = new Map<string, AssetOption>()
   for (const tx of stocks.transactions) {
-    if (tx.isin === 'EUR') continue  // EUR cash is not a tradable asset
-    const key = tx.isin || `${tx.symbol}__${tx.exchange ?? ''}`
+    if (tx.asset_key === 'EUR') continue  // EUR cash is not a tradable asset
+    const key = tx.asset_key || `${tx.symbol}__${tx.exchange ?? ''}`
     if (!seen.has(key)) {
       seen.set(key, {
         symbol: tx.symbol,
-        isin: tx.isin,
+        asset_key: tx.asset_key,
         name: tx.name,
         exchange: tx.exchange,
         _source: 'known',
@@ -195,7 +195,7 @@ function formatAssetOption(opt: AssetOption): string {
 
 async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
   txForm.symbol = asset.symbol
-  txForm.isin = asset.isin ?? ''
+  txForm.asset_key = asset.asset_key ?? ''
   txForm.exchange = asset.exchange ?? ''
   if (asset.name) txForm.name = asset.name
   assetQuery.value = formatAssetOption(asset)
@@ -204,16 +204,16 @@ async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
 
   // API search results never include ISIN (Yahoo Finance search doesn't return it).
   // When no ISIN is available, do a follow-up info call to resolve it.
-  if (!asset.isin) {
+  if (!asset.asset_key) {
     const selectedSymbol = asset.symbol
     try {
       const info = await stocks.getAssetsInfo([selectedSymbol])
       const firstInfo = info[0]
       // Guard: don't overwrite if the user already changed the asset
-      if (txForm.symbol === selectedSymbol && firstInfo?.isin) {
-        txForm.isin = firstInfo.isin
+      if (txForm.symbol === selectedSymbol && firstInfo?.asset_key) {
+        txForm.asset_key = firstInfo.asset_key
         // Update the search field to reflect the resolved ISIN
-        assetQuery.value = formatAssetOption({ ...asset, isin: firstInfo.isin })
+        assetQuery.value = formatAssetOption({ ...asset, asset_key: firstInfo.asset_key })
       }
     } catch (e) {
       console.error('[ISIN lookup] error:', e)
@@ -275,16 +275,16 @@ const sortedTransactions = computed(() => {
   )
 })
 
-/** EUR cash position (isin='EUR') from account summary, if any. */
+/** EUR cash position (asset_key='EUR') from account summary, if any. */
 const eurPosition = computed(() =>
-  selectedAccountSummary.value?.positions?.find(p => p.isin === 'EUR') ?? null
+  selectedAccountSummary.value?.positions?.find(p => p.asset_key === 'EUR') ?? null
 )
 
 /** Positions sorted by total invested (descending) — EUR cash excluded, shown separately. */
 const sortedPositions = computed(() => {
   if (!selectedAccountSummary.value?.positions) return []
   return [...selectedAccountSummary.value.positions]
-    .filter(p => p.isin !== 'EUR')
+    .filter(p => p.asset_key !== 'EUR')
     .sort((a, b) => Number(b.total_invested ?? 0) - Number(a.total_invested ?? 0))
 })
 
@@ -378,9 +378,9 @@ const allocationSegmentsAtDate = computed(() => {
   for (const tx of accountTransactions.value) {
     const executedAt = new Date(tx.executed_at)
     if (Number.isNaN(executedAt.getTime()) || executedAt > endOfDay) continue
-    if (tx.isin === 'EUR') continue
+    if (tx.asset_key === 'EUR') continue
 
-    const key = tx.isin || tx.symbol
+    const key = tx.asset_key || tx.symbol
     const label = tx.name || tx.symbol
     const amount = Number(tx.amount)
     const price = Number(tx.price_per_unit)
@@ -493,10 +493,10 @@ async function loadStockChartHistories(force = false): Promise<void> {
 const ownedAssetOptions = computed((): AssetOption[] => {
   if (!selectedAccountSummary.value?.positions) return []
   return selectedAccountSummary.value.positions
-    .filter(p => p.isin !== 'EUR' && Number(p.total_amount) > 0)
+    .filter(p => p.asset_key !== 'EUR' && Number(p.total_amount) > 0)
     .map(p => ({
       symbol: p.symbol ?? '',
-      isin: p.isin ?? null,
+      asset_key: p.asset_key ?? null,
       name: p.name ?? null,
       exchange: p.exchange ?? null,
       _source: 'known' as const,
@@ -506,8 +506,8 @@ const ownedAssetOptions = computed((): AssetOption[] => {
 
 /** Maximum quantity available for the currently selected asset when selling. */
 const sellMaxAmount = computed((): number | null => {
-  if (txForm.type !== 'SELL' || !txForm.isin) return null
-  const pos = selectedAccountSummary.value?.positions?.find(p => p.isin === txForm.isin)
+  if (txForm.type !== 'SELL' || !txForm.asset_key) return null
+  const pos = selectedAccountSummary.value?.positions?.find(p => p.asset_key === txForm.asset_key)
   return pos ? Number(pos.total_amount) : null
 })
 
@@ -536,8 +536,8 @@ watch(() => txForm.type, (newType) => {
     // Restrict to owned positions
     assetOptions.value = ownedAssetOptions.value
     // If the currently selected asset is not in owned positions, clear it
-    if (txForm.isin && !ownedAssetOptions.value.some(a => a.isin === txForm.isin)) {
-      txForm.isin = ''
+    if (txForm.asset_key && !ownedAssetOptions.value.some(a => a.asset_key === txForm.asset_key)) {
+      txForm.asset_key = ''
       txForm.symbol = ''
       assetQuery.value = ''
     }
@@ -586,7 +586,7 @@ function openAddTransaction(accountId: string): void {
   editingTxId.value = null
   txForm.account_id = accountId
   txForm.symbol = ''
-  txForm.isin = ''
+  txForm.asset_key = ''
   txForm.exchange = ''
   txForm.type = 'BUY'
   txForm.amount = 0
@@ -735,7 +735,7 @@ function openEditTransaction(tx: any): void {
   editingTxId.value = tx.id
   txForm.account_id = selectedAccountId.value!
   txForm.symbol = tx.symbol
-  txForm.isin = tx.isin || ''
+  txForm.asset_key = tx.asset_key || ''
   txForm.exchange = tx.exchange
   txForm.type = tx.type
   txForm.amount = tx.amount
@@ -746,7 +746,7 @@ function openEditTransaction(tx: any): void {
   // Pre-fill unified asset field
   const sourcePool = (tx.type === 'SELL' || tx.type === 'DIVIDEND') ? ownedAssetOptions.value : knownAssetOptions.value
   const knownMatch = sourcePool.find(k =>
-    (tx.isin && k.isin === tx.isin) || k.symbol === tx.symbol
+    (tx.asset_key && k.asset_key === tx.asset_key) || k.symbol === tx.symbol
   )
   assetQuery.value = knownMatch
     ? formatAssetOption(knownMatch)
@@ -758,13 +758,13 @@ function openEditTransaction(tx: any): void {
 }
 
 async function handleSubmitTransaction(): Promise<void> {
-  if (!txForm.isin || txForm.isin.trim() === '') {
+  if (!txForm.asset_key || txForm.asset_key.trim() === '') {
     alert("L'ISIN est obligatoire.")
     return
   }
 
   // Basic ISIN format check (2 letters + 9 alphanum + 1 digit/char check) - length 12
-  if (txForm.isin.length !== 12) {
+  if (txForm.asset_key.length !== 12) {
       alert("Format ISIN invalide (doit faire 12 caractères).")
       return
   }
@@ -783,7 +783,7 @@ async function handleSubmitTransaction(): Promise<void> {
     // Shares dividend: stored as BUY at €0 — lowers PRU without cash outflow
     const payload: StockTransactionCreate = {
       account_id: txForm.account_id,
-      isin: txForm.isin,
+      asset_key: txForm.asset_key,
       symbol: txForm.symbol,
       name: txForm.name,
       exchange: txForm.exchange,
@@ -892,7 +892,7 @@ function badgeVariant(type: string): 'primary' | 'info' | 'warning' {
 }
 
 function transactionDisplayedTotal(tx: TransactionResponse): number {
-  if (tx.isin === 'EUR') {
+  if (tx.asset_key === 'EUR') {
     if (tx.type === 'DEPOSIT') return Number(tx.amount) - Number(tx.fees ?? 0)
     return Number(tx.amount)
   }
@@ -930,7 +930,7 @@ async function handleAssetInput(value: string): Promise<void> {
       : ownedAssetOptions.value.filter(a =>
           a.symbol.toLowerCase().includes(q) ||
           (a.name?.toLowerCase().includes(q) ?? false) ||
-          (a.isin?.toLowerCase().includes(q) ?? false)
+          (a.asset_key?.toLowerCase().includes(q) ?? false)
         )
     return
   }
@@ -941,7 +941,7 @@ async function handleAssetInput(value: string): Promise<void> {
     : knownAssetOptions.value.filter(a =>
         a.symbol.toLowerCase().includes(q) ||
         (a.name?.toLowerCase().includes(q) ?? false) ||
-        (a.isin?.toLowerCase().includes(q) ?? false)
+        (a.asset_key?.toLowerCase().includes(q) ?? false)
       )
 
   // Decide whether to also call the API:
@@ -966,11 +966,11 @@ async function handleAssetInput(value: string): Promise<void> {
       const apiRaw: AssetSearchResult[] = await stocks.searchAssets(value)
       // Deduplicate: skip API results already covered by known assets or EUR
       const apiExtra: AssetOption[] = apiRaw
-        .filter(r => r.isin !== 'EUR' && r.symbol !== 'EUR')
+        .filter(r => r.asset_key !== 'EUR' && r.symbol !== 'EUR')
         .filter(r => !knownMatches.some(k =>
-          (r.isin && r.isin === k.isin) || r.symbol === k.symbol
+          (r.asset_key && r.asset_key === k.asset_key) || r.symbol === k.symbol
         ))
-        .map(r => ({ symbol: r.symbol, isin: r.isin ?? null, name: r.name, exchange: r.exchange, _source: 'api' as const }))
+        .map(r => ({ symbol: r.symbol, asset_key: r.asset_key ?? null, name: r.name, exchange: r.exchange, _source: 'api' as const }))
       assetOptions.value = [...knownMatches, ...apiExtra]
     } catch {
       // keep current known matches on error
@@ -1364,21 +1364,21 @@ onMounted(async () => {
                 </thead>
                 <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
                   <tr v-for="tx in sortedTransactions" :key="tx.id"
-                    :class="['transition-colors', tx.isin === 'EUR' ? 'bg-info/5 dark:bg-info/10' : 'hover:bg-surface-hover dark:hover:bg-surface-dark-hover']">
+                    :class="['transition-colors', tx.asset_key === 'EUR' ? 'bg-info/5 dark:bg-info/10' : 'hover:bg-surface-hover dark:hover:bg-surface-dark-hover']">
                     <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted">{{ new Date(tx.executed_at).toLocaleDateString() }}</td>
                     <td class="px-4 py-2.5">
-                      <BaseBadge :variant="tx.isin === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
+                      <BaseBadge :variant="tx.asset_key === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
                         {{ tx.type }}
                       </BaseBadge>
                     </td>
                     <td class="px-4 py-2.5 font-medium text-text-main dark:text-text-dark-main">{{ tx.symbol || '-' }}</td>
-                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.isin === 'EUR' ? '—' : (tx.isin || '-') }}</td>
+                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.asset_key === 'EUR' ? '—' : (tx.asset_key || '-') }}</td>
                     <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.exchange || '—' }}</td>
-                    <td class="px-4 py-2.5 text-right font-mono">{{ tx.isin === 'EUR' ? '—' : formatNumber(tx.amount, 4) }}</td>
-                    <td class="px-4 py-2.5 text-right">{{ tx.isin === 'EUR' ? '—' : formatCurrency(tx.price_per_unit) }}</td>
+                    <td class="px-4 py-2.5 text-right font-mono">{{ tx.asset_key === 'EUR' ? '—' : formatNumber(tx.amount, 4) }}</td>
+                    <td class="px-4 py-2.5 text-right">{{ tx.asset_key === 'EUR' ? '—' : formatCurrency(tx.price_per_unit) }}</td>
                     <td class="px-4 py-2.5 text-right font-medium">{{ maskValue(formatCurrency(transactionDisplayedTotal(tx))) }}</td>
                     <td class="px-4 py-2.5 text-right">
-                      <BaseButton v-if="tx.isin !== 'EUR'" size="sm" variant="ghost" @click="openEditTransaction(tx)">
+                      <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" @click="openEditTransaction(tx)">
                         <Pencil class="w-4 h-4" />
                       </BaseButton>
                       <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" @click="openEditDeposit(tx)">
@@ -1519,7 +1519,7 @@ onMounted(async () => {
                 <div class="min-w-0">
                   <span class="font-medium">{{ item.symbol }}</span>
                   <span v-if="item.name" class="text-text-muted dark:text-text-dark-muted text-xs ml-1.5">{{ item.name }}</span>
-                  <span v-if="item.isin" class="text-text-muted dark:text-text-dark-muted text-xs ml-1">({{ item.isin }})</span>
+                  <span v-if="item.asset_key" class="text-text-muted dark:text-text-dark-muted text-xs ml-1">({{ item.asset_key }})</span>
                 </div>  
                 <span
                   :class="[
@@ -1544,7 +1544,7 @@ onMounted(async () => {
         <!-- ISIN pré-rempli (confirmation / correction) + place de marché optionnelle -->
         <div :class="showExchange ? 'grid grid-cols-2 gap-4' : ''">
           <BaseInput
-            v-model="txForm.isin!"
+            v-model="txForm.asset_key!"
             label="ISIN"
             placeholder="Obligatoire"
             required

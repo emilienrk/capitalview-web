@@ -176,7 +176,7 @@ export interface StockAccountBasicResponse {
 export interface StockTransactionCreate {
   account_id: string
   symbol: string
-  isin?: string
+  asset_key?: string
   name?: string
   exchange?: string
   type: StockTransactionType
@@ -203,7 +203,7 @@ export interface StockTransactionBasicResponse {
 
 export interface StockTransactionUpdate {
   symbol?: string
-  isin?: string
+  asset_key?: string
   name?: string
   exchange?: string
   type?: StockTransactionType
@@ -216,7 +216,7 @@ export interface StockTransactionUpdate {
 
 export interface AssetSearchResult {
   symbol: string
-  isin?: string | null
+  asset_key?: string | null
   name: string | null
   exchange: string | null
   type: string | null
@@ -225,7 +225,7 @@ export interface AssetSearchResult {
 
 export interface AssetInfoResponse {
   symbol: string
-  isin?: string | null
+  asset_key?: string | null
   name: string | null
   price: number | null
   currency: string | null
@@ -235,7 +235,7 @@ export interface AssetInfoResponse {
 }
 
 export interface StockTransactionBulkCreate {
-  isin: string
+  asset_key: string
   type: StockTransactionType
   amount: number
   price_per_unit: number
@@ -511,7 +511,7 @@ export interface TransactionResponse {
   id: string
   name: string | null
   symbol: string
-  isin: string | null
+  asset_key: string | null
   exchange: string | null
   type: string
   amount: number
@@ -532,7 +532,7 @@ export interface TransactionResponse {
 export interface PositionResponse {
   symbol: string
   name: string | null
-  isin: string | null
+  asset_key: string | null
   exchange: string | null
   total_amount: number
   average_buy_price: number
@@ -720,7 +720,7 @@ export interface CommunitySettingsUpdate {
   is_private: boolean
   display_name?: string | null
   bio?: string | null
-  shared_stock_isins: string[]
+  shared_stock_asset_keys: string[]
   shared_crypto_symbols: string[]
 }
 
@@ -729,7 +729,7 @@ export interface CommunitySettingsResponse {
   is_private: boolean
   display_name: string | null
   bio: string | null
-  shared_stock_isins: string[]
+  shared_stock_asset_keys: string[]
   shared_crypto_symbols: string[]
   positions_count: number
 }

@@ -176,7 +176,7 @@ function parseCSV(text: string): void {
 
 function validateTransaction(transaction: any): void {
   if (transaction.symbol) transaction.symbol = String(transaction.symbol).trim().toUpperCase()
-  if (transaction.isin) transaction.isin = String(transaction.isin).trim()
+  if (transaction.asset_key) transaction.asset_key = String(transaction.asset_key).trim()
   if (transaction.type) transaction.type = String(transaction.type).trim().toUpperCase()
   if (transaction.quote_symbol) transaction.quote_symbol = String(transaction.quote_symbol).trim().toUpperCase()
   if (transaction.fee_symbol) transaction.fee_symbol = String(transaction.fee_symbol).trim().toUpperCase()
@@ -202,7 +202,7 @@ function validateTransaction(transaction: any): void {
     }
 
     if (transaction.type === 'DEPOSIT') {
-      if (transaction.isin && transaction.isin !== 'EUR') {
+      if (transaction.asset_key && transaction.asset_key !== 'EUR') {
         throw new Error('Pour un dépôt, ISIN doit être vide ou EUR')
       }
 
@@ -214,12 +214,12 @@ function validateTransaction(transaction: any): void {
       }
 
       // Normalize deposit to EUR source of truth and store only the net value.
-      transaction.isin = 'EUR'
+      transaction.asset_key = 'EUR'
       transaction.price_per_unit = 1
       transaction.amount = netAmount
       transaction.fees = 0
     } else {
-      if (!transaction.isin || transaction.isin.length !== 12) {
+      if (!transaction.asset_key || transaction.asset_key.length !== 12) {
         throw new Error('Format ISIN invalide (doit faire 12 caractères)')
       }
 

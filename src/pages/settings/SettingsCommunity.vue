@@ -37,16 +37,16 @@ onMounted(async () => {
     isPrivate.value = communityStore.settings.is_private
     displayName.value = communityStore.settings.display_name ?? ''
     bio.value = communityStore.settings.bio ?? ''
-    selectedStockIsins.value = new Set(communityStore.settings.shared_stock_isins)
+    selectedStockIsins.value = new Set(communityStore.settings.shared_stock_asset_keys)
     selectedCryptoSymbols.value = new Set(communityStore.settings.shared_crypto_symbols)
   }
 })
 
-function toggleStock(isin: string): void {
-  if (selectedStockIsins.value.has(isin)) {
-    selectedStockIsins.value.delete(isin)
+function toggleStock(asset_key: string): void {
+  if (selectedStockIsins.value.has(asset_key)) {
+    selectedStockIsins.value.delete(asset_key)
   } else {
-    selectedStockIsins.value.add(isin)
+    selectedStockIsins.value.add(asset_key)
   }
   // Force reactivity
   selectedStockIsins.value = new Set(selectedStockIsins.value)
@@ -87,7 +87,7 @@ async function save(): Promise<void> {
     is_private: isPrivate.value,
     display_name: displayName.value.trim() || null,
     bio: bio.value.trim() || null,
-    shared_stock_isins: [...selectedStockIsins.value],
+    shared_stock_asset_keys: [...selectedStockIsins.value],
     shared_crypto_symbols: [...selectedCryptoSymbols.value],
   })
   isSaving.value = false
