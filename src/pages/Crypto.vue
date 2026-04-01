@@ -212,7 +212,7 @@ function eurBaseAmount(): number {
   if (txForm.type === 'BUY_SPOT') return (Number(txForm.price_per_unit) || 0) * (Number(txForm.amount) || 0)
   if (txForm.type === 'TRANSFER_TO_ACCOUNT') {
     const sym = (txForm.symbol || '').toUpperCase()
-    const pos = crypto.currentAccount?.positions?.find(p => p.symbol === sym)
+    const pos = crypto.currentAccount?.positions?.find((p) => p.asset_key.toUpperCase() === sym)
     const pru = pos?.average_buy_price ?? 0
     return (Number(txForm.amount) || 0) * pru
   }
@@ -593,7 +593,7 @@ const fiatDepositNegativeEurBalance = computed<number | null>(() => {
   if (!showTxModal.value || txForm.type !== 'FIAT_DEPOSIT') return null
   if (!crypto.currentAccount || selectedAccountId.value !== txForm.account_id) return null
 
-  const eurPosition = crypto.currentAccount.positions?.find((p) => p.symbol === 'EUR')
+  const eurPosition = crypto.currentAccount.positions?.find((p) => p.asset_key === 'EUR')
   if (!eurPosition) return null
 
   const eurBalance = Number(eurPosition.total_amount ?? 0)
@@ -685,9 +685,9 @@ const allocationSegments = computed(() => {
   const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
 
   return positions
-    .filter((position) => !fiat.has((position.symbol || '').toUpperCase()))
+    .filter((position) => !fiat.has(position.asset_key.toUpperCase()))
     .map((position) => ({
-      name: position.symbol || position.name || 'Inconnu',
+      name: position.asset_key || position.name || 'Inconnu',
       value: Number(position.current_value ?? 0),
     }))
     .filter((segment) => segment.value > 0)
@@ -761,7 +761,8 @@ function rowTooltip(tx: TransactionResponse): string | null {
 }
 
 function formatAssetDisplay(asset: AssetSearchResult): string {
-  return asset.name ? `${asset.name} (${asset.symbol})` : asset.symbol
+  const key = asset.asset_key ?? asset.symbol
+  return asset.name ? `${asset.name} (${key})` : key
 }
 
 const FIAT_SYMBOLS = new Set(['EUR','USD','GBP','CHF','JPY','CAD','AUD','CNY','NZD','SEK','NOK','DKK'])
@@ -1253,15 +1254,15 @@ onMounted(async () => {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-                    <tr v-for="pos in sortedPositions" :key="pos.symbol" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                    <tr v-for="pos in sortedPositions" :key="pos.asset_key" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                       <td class="px-4 py-3">
-                        <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</p>
-                        <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</p>
+                        <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
+                        <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                       </td>
                       <td class="px-4 py-3 text-right font-mono text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 6) }}</td>
-                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.average_buy_price) }}</td>
-                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : maskAmount(pos.total_invested) }}</td>
-                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.current_price) }}</td>
+                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.average_buy_price) }}</td>
+                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : maskAmount(pos.total_invested) }}</td>
+                      <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.current_price) }}</td>
                       <td class="px-4 py-3 text-right font-semibold text-text-main dark:text-text-dark-main">{{ maskAmount(pos.current_value) }}</td>
                       <td class="px-4 py-3 text-right">
                         <span :class="['font-semibold', profitLossClass(pos.profit_loss)]">{{ formatPercent(pos.profit_loss_percentage) }}</span>
@@ -1274,13 +1275,13 @@ onMounted(async () => {
               <div class="md:hidden space-y-3">
                 <div
                   v-for="pos in sortedPositions"
-                  :key="pos.symbol"
+                  :key="pos.asset_key"
                   class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4"
                 >
                   <div class="flex items-center justify-between mb-3">
                     <div>
-                      <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</p>
-                      <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</p>
+                      <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
+                      <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                     </div>
                     <span :class="['text-sm font-bold tabular-nums', profitLossClass(pos.profit_loss)]">
                       {{ formatPercent(pos.profit_loss_percentage) }}
@@ -1297,11 +1298,11 @@ onMounted(async () => {
                     </div>
                     <div>
                       <p class="text-text-muted dark:text-text-dark-muted">PRU</p>
-                      <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.average_buy_price) }}</p>
+                      <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.average_buy_price) }}</p>
                     </div>
                     <div class="text-right">
                       <p class="text-text-muted dark:text-text-dark-muted">Investi</p>
-                      <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.symbol) ? '—' : maskAmount(pos.total_invested) }}</p>
+                      <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.asset_key) ? '—' : maskAmount(pos.total_invested) }}</p>
                     </div>
                   </div>
                 </div>
@@ -1674,15 +1675,15 @@ onMounted(async () => {
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-                      <tr v-for="pos in sortedPositions" :key="pos.symbol" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                      <tr v-for="pos in sortedPositions" :key="pos.asset_key" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                         <td class="px-4 py-3">
-                          <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</p>
-                          <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</p>
+                          <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
+                          <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                         </td>
                         <td class="px-4 py-3 text-right font-mono text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 6) }}</td>
-                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.average_buy_price) }}</td>
-                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : maskAmount(pos.total_invested) }}</td>
-                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.current_price) }}</td>
+                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.average_buy_price) }}</td>
+                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : maskAmount(pos.total_invested) }}</td>
+                        <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.current_price) }}</td>
                         <td class="px-4 py-3 text-right font-semibold text-text-main dark:text-text-dark-main">{{ maskAmount(pos.current_value) }}</td>
                         <td class="px-4 py-3 text-right">
                           <span :class="['font-semibold', profitLossClass(pos.profit_loss)]">{{ formatPercent(pos.profit_loss_percentage) }}</span>
@@ -1695,13 +1696,13 @@ onMounted(async () => {
                 <div class="md:hidden space-y-3">
                   <div
                     v-for="pos in sortedPositions"
-                    :key="pos.symbol"
+                    :key="pos.asset_key"
                     class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4"
                   >
                     <div class="flex items-center justify-between mb-3">
                       <div>
-                        <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</p>
-                        <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</p>
+                        <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
+                        <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                       </div>
                       <span :class="['text-sm font-bold tabular-nums', profitLossClass(pos.profit_loss)]">
                         {{ formatPercent(pos.profit_loss_percentage) }}
@@ -1718,11 +1719,11 @@ onMounted(async () => {
                       </div>
                       <div>
                         <p class="text-text-muted dark:text-text-dark-muted">PRU</p>
-                        <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.symbol) ? '—' : formatAmount(pos.average_buy_price) }}</p>
+                        <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.asset_key) ? '—' : formatAmount(pos.average_buy_price) }}</p>
                       </div>
                       <div class="text-right">
                         <p class="text-text-muted dark:text-text-dark-muted">Investi</p>
-                        <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.symbol) ? '—' : maskAmount(pos.total_invested) }}</p>
+                        <p class="text-text-body dark:text-text-dark-body">{{ isFiatSymbol(pos.asset_key) ? '—' : maskAmount(pos.total_invested) }}</p>
                       </div>
                     </div>
                   </div>

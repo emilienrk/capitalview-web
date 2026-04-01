@@ -63,7 +63,7 @@ function toggleCrypto(symbol: string): void {
 
 function selectAllStocks(): void {
   if (!communityStore.availablePositions) return
-  selectedStockIsins.value = new Set(communityStore.availablePositions.stocks.map(s => s.symbol))
+  selectedStockIsins.value = new Set(communityStore.availablePositions.stocks.map(s => s.asset_key))
 }
 
 function deselectAllStocks(): void {
@@ -72,7 +72,7 @@ function deselectAllStocks(): void {
 
 function selectAllCrypto(): void {
   if (!communityStore.availablePositions) return
-  selectedCryptoSymbols.value = new Set(communityStore.availablePositions.crypto.map(c => c.symbol))
+  selectedCryptoSymbols.value = new Set(communityStore.availablePositions.crypto.map(c => c.asset_key))
 }
 
 function deselectAllCrypto(): void {
@@ -310,23 +310,23 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
                 v-for="pos in communityStore.availablePositions.stocks"
-                :key="pos.symbol"
+                :key="pos.asset_key"
                 :class="[
                   'flex items-center gap-3 p-3 rounded-card border cursor-pointer transition-colors',
-                  selectedStockIsins.has(pos.symbol)
+                  selectedStockIsins.has(pos.asset_key)
                     ? 'border-primary bg-primary/5 dark:bg-primary/10'
                     : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40',
                 ]"
               >
                 <input
                   type="checkbox"
-                  :checked="selectedStockIsins.has(pos.symbol)"
-                  @change="toggleStock(pos.symbol)"
+                  :checked="selectedStockIsins.has(pos.asset_key)"
+                  @change="toggleStock(pos.asset_key)"
                   class="accent-primary shrink-0 w-4 h-4"
                 />
                 <div class="min-w-0">
-                  <p class="font-medium text-sm text-text-main dark:text-text-dark-main truncate">{{ pos.name || pos.symbol }}</p>
-                  <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</p>
+                  <p class="font-medium text-sm text-text-main dark:text-text-dark-main truncate">{{ pos.name || pos.asset_key }}</p>
+                  <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                 </div>
               </label>
             </div>
@@ -360,21 +360,21 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <label
                 v-for="pos in communityStore.availablePositions.crypto"
-                :key="pos.symbol"
+                :key="pos.asset_key"
                 :class="[
                   'flex items-center gap-3 p-3 rounded-card border cursor-pointer transition-colors',
-                  selectedCryptoSymbols.has(pos.symbol)
+                  selectedCryptoSymbols.has(pos.asset_key)
                     ? 'border-info bg-info/5 dark:bg-info/10'
                     : 'border-surface-border dark:border-surface-dark-border hover:border-info/40',
                 ]"
               >
                 <input
                   type="checkbox"
-                  :checked="selectedCryptoSymbols.has(pos.symbol)"
-                  @change="toggleCrypto(pos.symbol)"
+                  :checked="selectedCryptoSymbols.has(pos.asset_key)"
+                  @change="toggleCrypto(pos.asset_key)"
                   class="accent-primary shrink-0 w-4 h-4"
                 />
-                <span class="font-medium text-sm text-text-main dark:text-text-dark-main">{{ pos.symbol }}</span>
+                <span class="font-medium text-sm text-text-main dark:text-text-dark-main">{{ pos.asset_key }}</span>
               </label>
             </div>
           </div>

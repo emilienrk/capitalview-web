@@ -449,8 +449,8 @@ onMounted(() => {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-                    <tr v-for="pos in account.positions" :key="pos.symbol" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
-                      <td class="px-4 py-2.5 font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</td>
+                    <tr v-for="pos in account.positions" :key="pos.asset_key" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                      <td class="px-4 py-2.5 font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</td>
                       <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</td>
                       <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.average_buy_price) }}</td>
                       <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.total_invested) }}</td>

@@ -189,8 +189,9 @@ const knownAssetOptions = computed((): AssetOption[] => {
 })
 
 function formatAssetOption(opt: AssetOption): string {
-  if (opt.name) return opt.name + " (" + opt.symbol + ")"
-  else return opt.symbol
+  const key = opt.asset_key ?? opt.symbol
+  if (opt.name) return opt.name + " (" + key + ")"
+  else return key
 }
 
 async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
@@ -295,7 +296,7 @@ const positionChartRows = computed(() => {
       const valueEur = posToEur(pos.current_value, pos.currency) ?? invested
 
       return {
-        label: pos.name || pos.symbol,
+        label: pos.name || (pos.asset_key ?? pos.symbol),
         invested,
         value: valueEur,
         pnl: valueEur - invested,
@@ -1316,11 +1317,11 @@ onMounted(async () => {
                 <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
                   <tr
                     v-for="pos in sortedPositions"
-                    :key="`${pos.symbol}-${pos.exchange || 'NONE'}`"
+                    :key="`${pos.asset_key ?? pos.symbol}-${pos.exchange || 'NONE'}`"
                     class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
                   >
                     <td class="px-4 py-2.5">
-                      <span class="font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</span>
+                      <span class="font-medium text-text-main dark:text-text-dark-main">{{ pos.name || (pos.asset_key ?? pos.symbol) }}</span>
                       <span v-if="pos.exchange" class="ml-1 text-xs text-text-muted dark:text-text-dark-muted">({{ pos.exchange }})</span>
                     </td>
                     <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</td>

@@ -511,7 +511,7 @@ export interface TransactionResponse {
   id: string
   name: string | null
   symbol: string
-  asset_key: string | null
+  asset_key: string
   exchange: string | null
   type: string
   amount: number
@@ -532,7 +532,7 @@ export interface TransactionResponse {
 export interface PositionResponse {
   symbol: string
   name: string | null
-  asset_key: string | null
+  asset_key: string
   exchange: string | null
   total_amount: number
   average_buy_price: number
@@ -735,7 +735,7 @@ export interface CommunitySettingsResponse {
 }
 
 export interface CommunityPositionResponse {
-  symbol: string
+  asset_key: string
   name: string | null
   asset_type: 'CRYPTO' | 'STOCK'
   pnl_percentage: number | null
@@ -783,7 +783,7 @@ export interface FollowResponse {
 }
 
 export interface AvailablePosition {
-  symbol: string
+  asset_key: string
   asset_type: 'CRYPTO' | 'STOCK'
   name?: string | null
 }
@@ -796,7 +796,7 @@ export interface AvailablePositionsResponse {
 // ── Picks (likes) ──────────────────────────────────────────────
 
 export interface PickCreate {
-  symbol: string
+  asset_key: string
   asset_type: 'CRYPTO' | 'STOCK'
   comment?: string | null
   target_price?: number | null
@@ -810,7 +810,8 @@ export interface PickUpdate {
 export interface PickResponse {
   id: number
   username: string
-  symbol: string
+  asset_key: string
+  name?: string | null
   asset_type: 'CRYPTO' | 'STOCK'
   comment: string | null
   target_price: number | null
@@ -841,4 +842,12 @@ export interface AccountHistorySnapshotResponse {
   total_value: number
   total_invested: number
   daily_pnl: number | null
+  positions?: {
+    asset_key: string
+    quantity: number
+    value: number
+    price: number | null
+    invested: number
+    percentage: number
+  }[] | null
 }

@@ -14,6 +14,62 @@ import type {
   PickUpdate,
 } from '@/types'
 
+type RawCommunityPosition = {
+  asset_key: string
+  name: string | null
+  asset_type: 'CRYPTO' | 'STOCK'
+  pnl_percentage: number | null
+}
+
+type RawAvailablePosition = {
+  asset_key: string
+  asset_type: 'CRYPTO' | 'STOCK'
+  name?: string | null
+}
+
+type RawPick = PickResponse
+
+type RawCommunityProfile = Omit<CommunityProfileResponse, 'positions' | 'picks'> & {
+  positions: RawCommunityPosition[]
+  picks: RawPick[]
+}
+
+type RawAvailablePositionsResponse = {
+  stocks: RawAvailablePosition[]
+  crypto: RawAvailablePosition[]
+}
+
+function normalizePick(pick: RawPick): PickResponse {
+  return {
+    ...pick,
+    asset_key: pick.asset_key.toUpperCase(),
+  }
+}
+
+function normalizeProfile(profile: RawCommunityProfile): CommunityProfileResponse {
+  return {
+    ...profile,
+    positions: profile.positions.map((p) => ({
+      ...p,
+      asset_key: p.asset_key.toUpperCase(),
+    })),
+    picks: profile.picks.map(normalizePick),
+  }
+}
+
+function normalizeAvailablePositions(payload: RawAvailablePositionsResponse): AvailablePositionsResponse {
+  return {
+    stocks: payload.stocks.map((p) => ({
+      ...p,
+      asset_key: p.asset_key.toUpperCase(),
+    })),
+    crypto: payload.crypto.map((p) => ({
+      ...p,
+      asset_key: p.asset_key.toUpperCase(),
+    })),
+  }
+}
+
 export const useCommunityStore = defineStore('community', () => {
   // ── Settings state ─────────────────────────────────────────
   const settings = ref<CommunitySettingsResponse | null>(null)
@@ -107,9 +163,10 @@ export const useCommunityStore = defineStore('community', () => {
     error.value = null
     viewedProfile.value = null
     try {
-      viewedProfile.value = await apiClient.get<CommunityProfileResponse>(
+      const raw = await apiClient.get<RawCommunityProfile>(
         `/community/profiles/${encodeURIComponent(username)}`,
       )
+      viewedProfile.value = normalizeProfile(raw)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Profil introuvable'
     } finally {
@@ -175,9 +232,10 @@ export const useCommunityStore = defineStore('community', () => {
     isLoadingPositions.value = true
     error.value = null
     try {
-      availablePositions.value = await apiClient.get<AvailablePositionsResponse>(
+      const raw = await apiClient.get<RawAvailablePositionsResponse>(
         '/community/available-positions',
       )
+      availablePositions.value = normalizeAvailablePositions(raw)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de charger les positions disponibles'
     } finally {
@@ -194,7 +252,8 @@ export const useCommunityStore = defineStore('community', () => {
     isLoadingPicks.value = true
     error.value = null
     try {
-      myPicks.value = await apiClient.get<PickResponse[]>('/community/picks/me')
+      const raw = await apiClient.get<RawPick[]>('/community/picks/me')
+      myPicks.value = raw.map(normalizePick)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de charger vos picks'
     } finally {
@@ -205,13 +264,19 @@ export const useCommunityStore = defineStore('community', () => {
   async function createPick(data: PickCreate): Promise<PickResponse | null> {
     error.value = null
     try {
-      const pick = await apiClient.post<PickResponse>('/community/picks', data)
-      myPicks.value.unshift(pick)
+      const pick = await apiClient.post<PickResponse>('/community/picks', {
+        asset_key: data.asset_key,
+        asset_type: data.asset_type,
+        comment: data.comment,
+        target_price: data.target_price,
+      })
+      const normalized = normalizePick(pick)
+      myPicks.value.unshift(normalized)
       // Also add to viewed profile if it's the current user's profile
       if (viewedProfile.value) {
-        viewedProfile.value.picks.unshift(pick)
+        viewedProfile.value.picks.unshift(normalized)
       }
-      return pick
+      return normalized
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de créer le pick'
       return null
@@ -222,15 +287,16 @@ export const useCommunityStore = defineStore('community', () => {
     error.value = null
     try {
       const pick = await apiClient.put<PickResponse>(`/community/picks/${pickId}`, data)
+      const normalized = normalizePick(pick)
       // Update in myPicks
       const idx = myPicks.value.findIndex((p) => p.id === pickId)
-      if (idx !== -1) myPicks.value[idx] = pick
+      if (idx !== -1) myPicks.value[idx] = normalized
       // Update in viewed profile
       if (viewedProfile.value) {
         const pidx = viewedProfile.value.picks.findIndex((p) => p.id === pickId)
-        if (pidx !== -1) viewedProfile.value.picks[pidx] = pick
+        if (pidx !== -1) viewedProfile.value.picks[pidx] = normalized
       }
-      return pick
+      return normalized
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de modifier le pick'
       return null
@@ -253,10 +319,10 @@ export const useCommunityStore = defineStore('community', () => {
     }
   }
 
-  /** Check if the current user already picked a given symbol+asset_type. */
-  function hasPicked(symbol: string, assetType: 'CRYPTO' | 'STOCK'): boolean {
+  /** Check if the current user already picked a given asset_key+asset_type. */
+  function hasPicked(assetKey: string, assetType: 'CRYPTO' | 'STOCK'): boolean {
     return myPicks.value.some(
-      (p) => p.symbol === symbol && p.asset_type === assetType,
+      (p) => p.asset_key === assetKey && p.asset_type === assetType,
     )
   }
 

@@ -32,8 +32,8 @@ const profileTab = ref<'positions' | 'picks' | 'about'>('positions')
 // Pick modal state
 const showPickModal = ref(false)
 const editingPick = ref<PickResponse | null>(null)
-const pickForm = ref<{ symbol: string; asset_type: 'CRYPTO' | 'STOCK'; comment: string; target_price: string }>({
-  symbol: '',
+const pickForm = ref<{ asset_key: string; asset_type: 'CRYPTO' | 'STOCK'; comment: string; target_price: string }>({
+  asset_key: '',
   asset_type: 'STOCK',
   comment: '',
   target_price: '',
@@ -92,16 +92,19 @@ function handleAssetSearch(query: string): void {
 }
 
 function handleSelectAsset(asset: AssetSearchResult): void {
-  pickForm.value.symbol = asset.symbol
-  assetSearchQuery.value = asset.name ? `${asset.symbol} — ${asset.name}` : asset.symbol
+  const assetKey = (asset.asset_key ?? '').toUpperCase()
+  if (!assetKey) return
+  pickForm.value.asset_key = assetKey
+  assetSearchQuery.value = asset.name ? `${assetKey} — ${asset.name}` : assetKey
   assetSearchResults.value = []
 }
 
 function formatAssetDisplay(asset: AssetSearchResult): string {
+  const key = asset.asset_key ?? ''
   if (asset.name) {
-    return `${asset.symbol} — ${asset.name}${asset.exchange ? ` (${asset.exchange})` : ''}`
+    return `${key} — ${asset.name}${asset.exchange ? ` (${asset.exchange})` : ''}`
   }
-  return asset.symbol
+  return key
 }
 
 async function viewProfile(username: string): Promise<void> {
@@ -161,7 +164,7 @@ function isOwnProfile(username: string): boolean {
 
 function openAddPick(): void {
   editingPick.value = null
-  pickForm.value = { symbol: '', asset_type: 'STOCK', comment: '', target_price: '' }
+  pickForm.value = { asset_key: '', asset_type: 'STOCK', comment: '', target_price: '' }
   assetSearchQuery.value = ''
   assetSearchResults.value = []
   showPickModal.value = true
@@ -169,13 +172,14 @@ function openAddPick(): void {
 
 function openEditPick(pick: PickResponse): void {
   editingPick.value = pick
+  const key = pick.asset_key
   pickForm.value = {
-    symbol: pick.symbol,
+    asset_key: key,
     asset_type: pick.asset_type,
     comment: pick.comment || '',
     target_price: pick.target_price !== null ? String(pick.target_price) : '',
   }
-  assetSearchQuery.value = pick.symbol
+  assetSearchQuery.value = pick.name ? `${key} — ${pick.name}` : key
   assetSearchResults.value = []
   showPickModal.value = true
 }
@@ -195,7 +199,7 @@ watch(() => pickForm.value.asset_type, () => {
 })
 
 const isPickFormValid = computed(() => {
-  return pickForm.value.symbol.trim().length > 0
+  return pickForm.value.asset_key.trim().length > 0
 })
 
 async function submitPick(): Promise<void> {
@@ -213,7 +217,7 @@ async function submitPick(): Promise<void> {
     })
   } else {
     const data: PickCreate = {
-      symbol: pickForm.value.symbol.trim().toUpperCase(),
+      asset_key: pickForm.value.asset_key.trim().toUpperCase(),
       asset_type: pickForm.value.asset_type,
       comment: pickForm.value.comment.trim() || null,
       target_price: isNaN(targetPrice as number) ? null : targetPrice,
@@ -321,7 +325,7 @@ const profilePicks = computed(() => {
                   <BaseBadge :variant="pick.asset_type === 'CRYPTO' ? 'info' : 'secondary'" size="sm">
                     {{ pick.asset_type }}
                   </BaseBadge>
-                  <span class="font-semibold text-text-main dark:text-text-dark-main">{{ pick.symbol }}</span>
+                  <span class="font-semibold text-text-main dark:text-text-dark-main">{{ pick.asset_key }}</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <span v-if="pick.target_price !== null" class="text-xs text-text-muted dark:text-text-dark-muted">
@@ -479,7 +483,7 @@ const profilePicks = computed(() => {
               <div v-else class="divide-y divide-surface-border dark:divide-surface-dark-border">
                 <div
                   v-for="pos in communityStore.viewedProfile.positions"
-                  :key="pos.symbol + pos.asset_type"
+                  :key="pos.asset_key + pos.asset_type"
                   class="flex items-center justify-between py-3"
                 >
                   <div class="flex items-center gap-3">
@@ -487,8 +491,8 @@ const profilePicks = computed(() => {
                       {{ pos.asset_type }}
                     </BaseBadge>
                     <div>
-                      <span class="font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.symbol }}</span>
-                      <span v-if="pos.name" class="block text-xs text-text-muted dark:text-text-dark-muted">{{ pos.symbol }}</span>
+                      <span class="font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</span>
+                      <span v-if="pos.name" class="block text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</span>
                     </div>
                   </div>
                   <span class="font-semibold tabular-nums" :class="pnlColorClass(pos.pnl_percentage)">
@@ -559,7 +563,7 @@ const profilePicks = computed(() => {
                       <BaseBadge :variant="pick.asset_type === 'CRYPTO' ? 'info' : 'secondary'" size="sm">
                         {{ pick.asset_type }}
                       </BaseBadge>
-                      <span class="font-semibold text-text-main dark:text-text-dark-main">{{ pick.symbol }}</span>
+                      <span class="font-semibold text-text-main dark:text-text-dark-main">{{ pick.asset_key }}</span>
                     </div>
                     <div class="flex items-center gap-2">
                       <span v-if="pick.target_price !== null" class="text-xs text-text-muted dark:text-text-dark-muted">
@@ -772,7 +776,7 @@ const profilePicks = computed(() => {
           </div>
         </div>
 
-        <!-- Symbol autocomplete -->
+        <!-- Asset autocomplete -->
         <BaseAutocomplete
           v-if="!editingPick"
           :modelValue="assetSearchQuery"
@@ -789,7 +793,7 @@ const profilePicks = computed(() => {
           <template #item="{ item }">
             <div class="flex items-center justify-between w-full">
               <div>
-                <span class="font-medium">{{ item.symbol }}</span>
+                <span class="font-medium">{{ item.asset_key }}</span>
                 <span v-if="item.name" class="text-text-muted dark:text-text-dark-muted ml-1.5">{{ item.name }}</span>
               </div>
               <span v-if="item.exchange" class="text-xs text-text-muted dark:text-text-dark-muted">{{ item.exchange }}</span>
@@ -797,11 +801,11 @@ const profilePicks = computed(() => {
           </template>
         </BaseAutocomplete>
 
-        <!-- Display symbol as read-only when editing -->
+        <!-- Display asset key as read-only when editing -->
         <BaseInput
           v-if="editingPick"
-          :modelValue="pickForm.symbol"
-          label="Symbole"
+          :modelValue="pickForm.asset_key"
+          label="Actif"
           disabled
         />
 
