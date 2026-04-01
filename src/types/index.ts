@@ -313,7 +313,7 @@ export interface CryptoAccountBasicResponse {
 
 export interface CryptoTransactionCreate {
   account_id: string
-  symbol: string
+  asset_key: string
   name?: string
   type: CryptoAtomicTransactionType
   amount: number
@@ -327,7 +327,7 @@ export interface CryptoTransactionBasicResponse {
   id: string
   account_id: string
   group_uuid: string | null
-  symbol: string
+  asset_key: string
   type: CryptoAtomicTransactionType
   amount: number
   price_per_unit: number
@@ -344,7 +344,7 @@ export interface CryptoCompositeTransactionResponse {
 }
 
 export interface CryptoTransactionUpdate {
-  symbol?: string
+  asset_key?: string
   name?: string
   type?: CryptoAtomicTransactionType
   amount?: number
@@ -355,7 +355,7 @@ export interface CryptoTransactionUpdate {
 }
 
 export interface CryptoTransactionBulkCreate {
-  symbol: string
+  asset_key: string
   type: CryptoAtomicTransactionType
   amount: number
   price_per_unit: number
@@ -369,18 +369,18 @@ export interface CryptoCompositeTransactionCreate {
   account_id: string
   /** Action type — maps to 1-3 atomic rows in the backend. */
   type: CryptoCompositeTransactionType
-  symbol: string
+  asset_key: string
   name?: string
   amount: number
   price_per_unit?: number
-  quote_symbol?: string
+  quote_asset_key?: string
   quote_amount?: number
   quote_price_per_unit?: number
   eur_amount?: number
   fee_included: boolean
   fee_percentage?: number
   fee_eur?: number
-  fee_symbol?: string
+  fee_asset_key?: string
   fee_amount?: number
   executed_at: string
   tx_hash?: string
@@ -390,10 +390,10 @@ export interface CryptoCompositeTransactionCreate {
 export interface CrossAccountTransferCreate {
   from_account_id: string
   to_account_id: string
-  symbol: string
+  asset_key: string
   name?: string | null
   amount: number
-  fee_symbol?: string | null
+  fee_asset_key?: string | null
   fee_amount?: number | null
   executed_at: string
   tx_hash?: string | null
@@ -413,14 +413,14 @@ export interface CryptoBulkImportResponse {
 /** One composite operation row for the generic CSV import (one line = one trade). */
 export interface CryptoCompositeBulkItem {
   type: CryptoCompositeTransactionType
-  symbol: string
+  asset_key: string
   name?: string
   amount: number
   eur_amount?: number
-  quote_symbol?: string
+  quote_asset_key?: string
   quote_amount?: number
   fee_included?: boolean
-  fee_symbol?: string
+  fee_asset_key?: string
   fee_amount?: number
   executed_at: string
   tx_hash?: string
@@ -446,7 +446,7 @@ export interface BinanceImportRowPreview {
   coin: string
   change: number
   mapped_type: string
-  mapped_symbol: string
+  mapped_asset_key: string
   mapped_amount: number
   mapped_price: number
 }
@@ -721,7 +721,7 @@ export interface CommunitySettingsUpdate {
   display_name?: string | null
   bio?: string | null
   shared_stock_asset_keys: string[]
-  shared_crypto_symbols: string[]
+  shared_crypto_asset_keys: string[]
 }
 
 export interface CommunitySettingsResponse {
@@ -730,7 +730,7 @@ export interface CommunitySettingsResponse {
   display_name: string | null
   bio: string | null
   shared_stock_asset_keys: string[]
-  shared_crypto_symbols: string[]
+  shared_crypto_asset_keys: string[]
   positions_count: number
 }
 

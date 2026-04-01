@@ -38,7 +38,7 @@ onMounted(async () => {
     displayName.value = communityStore.settings.display_name ?? ''
     bio.value = communityStore.settings.bio ?? ''
     selectedStockIsins.value = new Set(communityStore.settings.shared_stock_asset_keys)
-    selectedCryptoSymbols.value = new Set(communityStore.settings.shared_crypto_symbols)
+    selectedCryptoSymbols.value = new Set(communityStore.settings.shared_crypto_asset_keys)
   }
 })
 
@@ -88,7 +88,7 @@ async function save(): Promise<void> {
     display_name: displayName.value.trim() || null,
     bio: bio.value.trim() || null,
     shared_stock_asset_keys: [...selectedStockIsins.value],
-    shared_crypto_symbols: [...selectedCryptoSymbols.value],
+    shared_crypto_asset_keys: [...selectedCryptoSymbols.value],
   })
   isSaving.value = false
   if (success) {

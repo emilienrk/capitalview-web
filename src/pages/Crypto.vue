@@ -137,19 +137,19 @@ const accountForm = reactive<CryptoAccountCreate>({
 
 const txForm = reactive<TxFormData>({
   account_id: '',
-  symbol: '',
+  asset_key: '',
   name: '',
   type: 'BUY_FIAT',
   amount: 0,
   price_per_unit: 0,
-  quote_symbol: 'EUR',
+  quote_asset_key: 'EUR',
   quote_amount: undefined,
   quote_price_per_unit: undefined,
   eur_amount: undefined,
   fee_included: true,
   fee_percentage: undefined,
   fee_eur: undefined,
-  fee_symbol: undefined,
+  fee_asset_key: undefined,
   fee_amount: undefined,
   executed_at: new Date().toISOString().slice(0, 16),
 })
@@ -179,13 +179,13 @@ watch(() => txForm.type, async (newType) => {
   feeInputMode.value = 'eur'
   if (newType === 'BUY_FIAT') {
     quoteMode.value = 'EUR'
-    txForm.quote_symbol = 'EUR'
+    txForm.quote_asset_key = 'EUR'
   } else if (newType === 'BUY_SPOT') {
     quoteMode.value = 'crypto'
-    txForm.quote_symbol = ''
+    txForm.quote_asset_key = ''
     txForm.price_per_unit = 0
   } else if (newType === 'FIAT_DEPOSIT' || newType === 'FIAT_WITHDRAW') {
-    txForm.symbol = 'EUR'
+    txForm.asset_key = 'EUR'
     searchQuery.value = ''
     searchResults.value = []
     // Pre-load bank accounts for the deduction option
@@ -194,8 +194,8 @@ watch(() => txForm.type, async (newType) => {
       await bank.fetchAccounts()
       selectedBankAccountId.value = sortedBankAccounts.value[0]?.id ?? null
     }
-  } else if (txForm.symbol === 'EUR') {
-    txForm.symbol = ''
+  } else if (txForm.asset_key === 'EUR') {
+    txForm.asset_key = ''
   }
 })
 
@@ -211,7 +211,7 @@ function eurBaseAmount(): number {
   if (txForm.type === 'BUY_FIAT') return Number(txForm.quote_amount || 0)
   if (txForm.type === 'BUY_SPOT') return (Number(txForm.price_per_unit) || 0) * (Number(txForm.amount) || 0)
   if (txForm.type === 'TRANSFER_TO_ACCOUNT') {
-    const sym = (txForm.symbol || '').toUpperCase()
+    const sym = (txForm.asset_key || '').toUpperCase()
     const pos = crypto.currentAccount?.positions?.find((p) => p.asset_key.toUpperCase() === sym)
     const pru = pos?.average_buy_price ?? 0
     return (Number(txForm.amount) || 0) * pru
@@ -323,7 +323,7 @@ function clearFeeLeg(): void {
   txForm.fee_eur = undefined
   txForm.fee_percentage = undefined
   txForm.fee_included = true
-  txForm.fee_symbol = undefined
+  txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   feeInputMode.value = 'eur'
 }
@@ -359,7 +359,7 @@ const txTypeDescriptions: Record<string, string> = {
   TRANSFER_TO_ACCOUNT: 'Déplacement de crypto vers un autre de vos portefeuilles — neutre fiscalement.',
 }
 
-const isFiatWithdraw = computed(() => txForm.type === 'FIAT_WITHDRAW' && isFiatSymbol(txForm.symbol || ''))
+const isFiatWithdraw = computed(() => txForm.type === 'FIAT_WITHDRAW' && isFiatSymbol(txForm.asset_key || ''))
 
 watch(isFiatWithdraw, async (enabled) => {
   if (!enabled) return
@@ -411,19 +411,19 @@ function openAddTransaction(accountId: string): void {
   }
   editingTxId.value = null
   txForm.account_id = accountId
-  txForm.symbol = ''
+  txForm.asset_key = ''
   txForm.name = ''
   txForm.type = 'BUY_FIAT'
   txForm.amount = 0
   txForm.price_per_unit = 0
-  txForm.quote_symbol = 'EUR'
+  txForm.quote_asset_key = 'EUR'
   txForm.quote_amount = undefined
   txForm.quote_price_per_unit = undefined
   txForm.eur_amount = undefined
   txForm.fee_included = true
   txForm.fee_percentage = undefined
   txForm.fee_eur = undefined
-  txForm.fee_symbol = undefined
+  txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   feeMode.value = 'none'
   txForm.executed_at = new Date().toISOString().slice(0, 16)
@@ -475,22 +475,22 @@ function openEditTransaction(tx: any): void {
   editingTxId.value = tx.id
   editingGroupUuid.value = tx.group_uuid || null
   txForm.account_id = selectedAccountId.value!
-  txForm.symbol = tx.symbol
+  txForm.asset_key = tx.asset_key
   txForm.name = tx.type === 'ANCHOR' ? 'Euro' : (tx.name || '')
   txForm.type = tx.type
   txForm.amount = tx.amount
   txForm.price_per_unit = tx.price_per_unit
-  txForm.quote_symbol = 'EUR'
+  txForm.quote_asset_key = 'EUR'
   txForm.quote_amount = undefined
   txForm.quote_price_per_unit = undefined
   txForm.eur_amount = undefined
   txForm.fee_included = true
   txForm.fee_percentage = undefined
   txForm.fee_eur = undefined
-  txForm.fee_symbol = undefined
+  txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   txForm.executed_at = tx.executed_at.slice(0, 16)
-  searchQuery.value = tx.name || tx.symbol
+  searchQuery.value = tx.name || tx.asset_key
   searchResults.value = []
   showTxModal.value = true
 }
@@ -520,7 +520,7 @@ async function handleSearchInput(value: string): Promise<void> {
 }
 
 function handleSelectAsset(asset: AssetSearchResult): void {
-  txForm.symbol = asset.symbol
+  txForm.asset_key = asset.asset_key || asset.symbol
   txForm.name = asset.name || asset.symbol
   searchQuery.value = asset.name || asset.symbol
   searchResults.value = []
@@ -539,7 +539,7 @@ async function handleSearchInputQuote(value: string): Promise<void> {
   }, 300)
 }
 function handleSelectAssetQuote(asset: AssetSearchResult): void {
-  txForm.quote_symbol = asset.symbol
+  txForm.quote_asset_key = asset.symbol
   searchQueryQuote.value = asset.name || asset.symbol
   searchResultsQuote.value = []
 }
@@ -765,17 +765,17 @@ function formatAssetDisplay(asset: AssetSearchResult): string {
   return asset.name ? `${asset.name} (${key})` : key
 }
 
-const FIAT_SYMBOLS = new Set(['EUR','USD','GBP','CHF','JPY','CAD','AUD','CNY','NZD','SEK','NOK','DKK'])
+const FIAT_ASSET_KEYS = new Set(['EUR','USD','GBP','CHF','JPY','CAD','AUD','CNY','NZD','SEK','NOK','DKK'])
 function isFiatSymbol(symbol: string): boolean {
-  return FIAT_SYMBOLS.has(symbol.toUpperCase())
+  return FIAT_ASSET_KEYS.has(symbol.toUpperCase())
 }
 
 async function handleSubmitTransaction(): Promise<void> {
   txWarning.value = null
   txInfo.value = null
 
-  if (!txForm.symbol && searchQuery.value) {
-    txForm.symbol = searchQuery.value.toUpperCase()
+  if (!txForm.asset_key && searchQuery.value) {
+    txForm.asset_key = searchQuery.value.toUpperCase()
   }
 
   if (txForm.amount <= 0) {
@@ -797,11 +797,11 @@ async function handleSubmitTransaction(): Promise<void> {
   }
 
   if (feeMode.value !== 'none') {
-    if (txForm.fee_symbol && (!txForm.fee_amount || Number(txForm.fee_amount) <= 0)) {
+    if (txForm.fee_asset_key && (!txForm.fee_amount || Number(txForm.fee_amount) <= 0)) {
       alert('Frais en token : veuillez renseigner la quantité prélevée.')
       return
     }
-    if (!txForm.fee_symbol && txForm.fee_amount && Number(txForm.fee_amount) > 0) {
+    if (!txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0) {
       alert('Frais en token : veuillez renseigner le symbole du token.')
       return
     }
@@ -820,10 +820,10 @@ async function handleSubmitTransaction(): Promise<void> {
     const transferPayload: CrossAccountTransferCreate = {
       from_account_id: txForm.account_id,
       to_account_id: transferToAccountId.value,
-      symbol: txForm.symbol || searchQuery.value.toUpperCase(),
+      asset_key: txForm.asset_key || searchQuery.value.toUpperCase(),
       name: txForm.name || undefined,
       amount: txForm.amount,
-      fee_symbol: feeMode.value !== 'none' ? (txForm.fee_symbol || undefined) : undefined,
+      fee_asset_key: feeMode.value !== 'none' ? (txForm.fee_asset_key || undefined) : undefined,
       fee_amount: feeMode.value !== 'none' ? (txForm.fee_amount || undefined) : undefined,
       executed_at: txForm.executed_at,
       tx_hash: txForm.tx_hash || undefined,
@@ -848,7 +848,7 @@ async function handleSubmitTransaction(): Promise<void> {
 
   if (editingTxId.value) {
     const updateData: CryptoTransactionUpdate = {
-      symbol: txForm.symbol || undefined,
+      asset_key: txForm.asset_key || undefined,
       name: txForm.name || undefined,
       type: txForm.type as CryptoTransactionUpdate['type'],
       amount: txForm.amount,
@@ -862,12 +862,13 @@ async function handleSubmitTransaction(): Promise<void> {
   } else {
     const payload: CryptoCompositeTransactionCreate = {
       ...txForm,
+      asset_key: txForm.asset_key || undefined,
       type: toCompositeApiType(txForm.type as CryptoUiTransactionType | CryptoCompositeTransactionType),
     } as CryptoCompositeTransactionCreate
 
     if (txForm.type === 'BUY_FIAT' || txForm.type === 'BUY_SPOT') {
       if (txForm.type === 'BUY_FIAT') {
-        payload.quote_symbol = 'EUR'
+        payload.quote_asset_key = 'EUR'
         payload.quote_price_per_unit = undefined
       } else {
         payload.eur_amount = (Number(txForm.price_per_unit) || 0) * (Number(txForm.amount) || 0)
@@ -1379,7 +1380,7 @@ onMounted(async () => {
                           </span>
                         </span>
                       </td>
-                      <td class="px-4 py-3 font-medium text-text-main dark:text-text-dark-main">{{ tx.symbol }}</td>
+                      <td class="px-4 py-3 font-medium text-text-main dark:text-text-dark-main">{{ tx.asset_key }}</td>
                       <td
                         class="px-4 py-3 text-right font-mono"
                         :class="tx.type === 'ANCHOR' ? 'text-text-muted dark:text-text-dark-muted' : isNegativeType(tx.type) ? 'text-danger' : 'text-success'"
@@ -1422,7 +1423,7 @@ onMounted(async () => {
                       ">
                         {{ tx.type }}
                       </BaseBadge>
-                      <span class="font-semibold text-sm text-text-main dark:text-text-dark-main truncate">{{ tx.symbol }}</span>
+                      <span class="font-semibold text-sm text-text-main dark:text-text-dark-main truncate">{{ tx.asset_key }}</span>
                     </div>
                     <BaseButton size="sm" variant="ghost" @click="openEditTransaction(tx)">
                       <Pencil class="w-4 h-4" />
@@ -1800,7 +1801,7 @@ onMounted(async () => {
                             </span>
                           </span>
                         </td>
-                        <td class="px-4 py-3 font-medium text-text-main dark:text-text-dark-main">{{ tx.symbol }}</td>
+                        <td class="px-4 py-3 font-medium text-text-main dark:text-text-dark-main">{{ tx.asset_key }}</td>
                         <td
                           class="px-4 py-3 text-right font-mono"
                           :class="tx.type === 'ANCHOR' ? 'text-text-muted dark:text-text-dark-muted' : isNegativeType(tx.type) ? 'text-danger' : 'text-success'"
@@ -1843,7 +1844,7 @@ onMounted(async () => {
                         ">
                           {{ tx.type }}
                         </BaseBadge>
-                        <span class="font-semibold text-sm text-text-main dark:text-text-dark-main truncate">{{ tx.symbol }}</span>
+                        <span class="font-semibold text-sm text-text-main dark:text-text-dark-main truncate">{{ tx.asset_key }}</span>
                       </div>
                       <BaseButton size="sm" variant="ghost" @click="openEditTransaction(tx)">
                         <Pencil class="w-4 h-4" />
@@ -1922,7 +1923,7 @@ onMounted(async () => {
       <form v-if="editingTxId" @submit.prevent="handleSubmitTransaction" class="space-y-4">
         <!-- Read-only symbol & name -->
         <div class="flex items-center gap-3 px-3 py-2.5 rounded-secondary bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border">
-          <span class="font-semibold text-text-main dark:text-text-dark-main">{{ txForm.symbol }}</span>
+          <span class="font-semibold text-text-main dark:text-text-dark-main">{{ txForm.asset_key }}</span>
           <span v-if="txForm.name" class="text-sm text-text-muted dark:text-text-dark-muted">{{ txForm.name }}</span>
         </div>
         <BaseInput v-model="txForm.amount" label="Quantité" type="number" step="any" min="0" required />
@@ -1985,7 +1986,7 @@ onMounted(async () => {
 
           <template v-if="txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw">
             <BaseInput
-              v-model="txForm.symbol"
+              v-model="txForm.asset_key"
               label="Devise"
               placeholder="EUR"
               required
@@ -2005,7 +2006,7 @@ onMounted(async () => {
               remote
             />
             <BaseInput
-              v-model="txForm.symbol"
+              v-model="txForm.asset_key"
               label="Symbole"
               placeholder="BTC, ETH, SOL..."
               required
@@ -2159,7 +2160,7 @@ onMounted(async () => {
             </div>
             <div class="min-w-0">
               <p class="text-xs text-text-muted dark:text-text-dark-muted">Reçu</p>
-              <p class="text-sm font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ txForm.amount }} {{ txForm.symbol }}</p>
+              <p class="text-sm font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ txForm.amount }} {{ txForm.asset_key }}</p>
             </div>
           </div>
 
@@ -2187,7 +2188,7 @@ onMounted(async () => {
               remote
             />
             <BaseInput
-              v-model="txForm.quote_symbol!"
+              v-model="txForm.quote_asset_key!"
               label="Symbole"
               required
             />
@@ -2212,7 +2213,7 @@ onMounted(async () => {
             >
               <p class="text-[10px] font-semibold uppercase tracking-wider text-primary/70 mb-1.5">Prix unitaire calculé</p>
               <p class="text-2xl font-bold text-text-main dark:text-text-dark-main tabular-nums">
-                1 {{ txForm.symbol }} ≈ {{ calculatedPricePerUnit.toLocaleString('fr-FR', { maximumFractionDigits: 4 }) }} €
+                1 {{ txForm.asset_key }} ≈ {{ calculatedPricePerUnit.toLocaleString('fr-FR', { maximumFractionDigits: 4 }) }} €
               </p>
             </div>
           </Transition>
@@ -2357,7 +2358,7 @@ onMounted(async () => {
                   <span v-if="feeMode === 'separate'" class="text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded-badge">frais inclus</span>
                 </div>
                 <p class="text-2xl font-bold text-text-main dark:text-text-dark-main tabular-nums">
-                  1&nbsp;{{ txForm.symbol }}&nbsp;=&nbsp;{{ previewPru.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}&nbsp;€
+                  1&nbsp;{{ txForm.asset_key }}&nbsp;=&nbsp;{{ previewPru.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}&nbsp;€
                 </p>
               </div>
             </Transition>
@@ -2372,9 +2373,9 @@ onMounted(async () => {
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <BaseInput
-                  v-model="txForm.fee_symbol!"
+                  v-model="txForm.fee_asset_key!"
                   label="Symbole du token"
-                  @input="(e: Event) => { txForm.fee_symbol = (e.target as HTMLInputElement).value.toUpperCase() }"
+                  @input="(e: Event) => { txForm.fee_asset_key = (e.target as HTMLInputElement).value.toUpperCase() }"
                 />
                 <BaseInput
                   v-model="txForm.fee_amount!"
@@ -2386,11 +2387,11 @@ onMounted(async () => {
               </div>
               <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
-                  v-if="txForm.fee_symbol && txForm.fee_amount && Number(txForm.fee_amount) > 0"
+                  v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                   class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
                 >
                   <Check class="w-3.5 h-3.5 text-info shrink-0" />
-                  <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_symbol }} seront déduits du solde.</p>
+                  <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_asset_key }} seront déduits du solde.</p>
                 </div>
               </Transition>
             </div>
@@ -2431,10 +2432,10 @@ onMounted(async () => {
                 <p class="text-xs text-text-muted dark:text-text-dark-muted">Frais de réseau prélevés dans un token (ex : ETH pour le gaz, BNB, SOL…)</p>
                 <div class="grid grid-cols-2 gap-3">
                   <BaseInput
-                    v-model="txForm.fee_symbol!"
+                    v-model="txForm.fee_asset_key!"
                     label="Token de frais"
                     placeholder="ETH, BNB…"
-                    @input="(e: Event) => { txForm.fee_symbol = (e.target as HTMLInputElement).value.toUpperCase() }"
+                    @input="(e: Event) => { txForm.fee_asset_key = (e.target as HTMLInputElement).value.toUpperCase() }"
                     required
                   />
                   <BaseInput
@@ -2448,11 +2449,11 @@ onMounted(async () => {
                 </div>
                 <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                   <div
-                    v-if="txForm.fee_symbol && txForm.fee_amount && Number(txForm.fee_amount) > 0"
+                    v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                     class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
                   >
                     <Check class="w-3.5 h-3.5 text-info shrink-0" />
-                    <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_symbol }} seront déduits du solde du compte source.</p>
+                    <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_asset_key }} seront déduits du solde du compte source.</p>
                   </div>
                 </Transition>
               </div>
@@ -2506,9 +2507,9 @@ onMounted(async () => {
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <BaseInput
-                  v-model="txForm.fee_symbol!"
+                  v-model="txForm.fee_asset_key!"
                   label="Symbole du token"
-                  @input="(e: Event) => { txForm.fee_symbol = (e.target as HTMLInputElement).value.toUpperCase() }"
+                  @input="(e: Event) => { txForm.fee_asset_key = (e.target as HTMLInputElement).value.toUpperCase() }"
                   required
                 />
                 <BaseInput
@@ -2522,11 +2523,11 @@ onMounted(async () => {
               </div>
               <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
-                  v-if="txForm.fee_symbol && txForm.fee_amount && Number(txForm.fee_amount) > 0"
+                  v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                   class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
                 >
                   <Check class="w-3.5 h-3.5 text-info shrink-0" />
-                  <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_symbol }} seront déduits de ton solde. PRU inchangé.</p>
+                  <p class="text-xs text-info">{{ txForm.fee_amount }} {{ txForm.fee_asset_key }} seront déduits de ton solde. PRU inchangé.</p>
                 </div>
               </Transition>
             </template>
@@ -2599,9 +2600,9 @@ onMounted(async () => {
 
               <div class="grid grid-cols-2 gap-3">
                 <BaseInput
-                  v-model="txForm.fee_symbol!"
+                  v-model="txForm.fee_asset_key!"
                   label="Symbole du token"
-                  @input="(e: Event) => { txForm.fee_symbol = (e.target as HTMLInputElement).value.toUpperCase() }"
+                  @input="(e: Event) => { txForm.fee_asset_key = (e.target as HTMLInputElement).value.toUpperCase() }"
                   required
                 />
                 <BaseInput
@@ -2631,7 +2632,7 @@ onMounted(async () => {
                       <span class="text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded-badge">frais inclus</span>
                     </div>
                     <p class="text-xl font-bold text-text-main dark:text-text-dark-main tabular-nums">
-                      1&nbsp;{{ txForm.symbol }}&nbsp;=&nbsp;{{ previewPru.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}&nbsp;€
+                      1&nbsp;{{ txForm.asset_key }}&nbsp;=&nbsp;{{ previewPru.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}&nbsp;€
                     </p>
                   </div>
                 </div>

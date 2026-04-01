@@ -45,7 +45,7 @@ const csvTemplate = computed(() => {
     return 'isin,type,amount,price_per_unit,fees,executed_at,notes'
   }
   // Composite format: one line = one full operation (decomposed server-side)
-  return 'symbol,type,amount,eur_amount,quote_symbol,quote_amount,fee_symbol,fee_amount,fee_included,executed_at,tx_hash,notes'
+  return 'asset_key,type,amount,eur_amount,quote_asset_key,quote_amount,fee_asset_key,fee_amount,fee_included,executed_at,tx_hash,notes'
 })
 
 const csvExample = computed(() => {
@@ -175,15 +175,17 @@ function parseCSV(text: string): void {
 }
 
 function validateTransaction(transaction: any): void {
-  if (transaction.symbol) transaction.symbol = String(transaction.symbol).trim().toUpperCase()
-  if (transaction.asset_key) transaction.asset_key = String(transaction.asset_key).trim()
+  if (transaction.asset_key) {
+    const rawAssetKey = String(transaction.asset_key).trim()
+    transaction.asset_key = props.assetType === 'crypto' ? rawAssetKey.toUpperCase() : rawAssetKey
+  }
   if (transaction.type) transaction.type = String(transaction.type).trim().toUpperCase()
-  if (transaction.quote_symbol) transaction.quote_symbol = String(transaction.quote_symbol).trim().toUpperCase()
-  if (transaction.fee_symbol) transaction.fee_symbol = String(transaction.fee_symbol).trim().toUpperCase()
+  if (transaction.quote_asset_key) transaction.quote_asset_key = String(transaction.quote_asset_key).trim().toUpperCase()
+  if (transaction.fee_asset_key) transaction.fee_asset_key = String(transaction.fee_asset_key).trim().toUpperCase()
 
   const requiredFields = props.assetType === 'stocks'
     ? ['type', 'amount', 'executed_at']
-    : ['symbol', 'type', 'amount', 'executed_at']
+    : ['asset_key', 'type', 'amount', 'executed_at']
 
   for (const field of requiredFields) {
     if (!transaction[field] || transaction[field] === '') {
@@ -242,14 +244,14 @@ function validateTransaction(transaction: any): void {
       }
     }
 
-    // quote_amount required if quote_symbol is set
-    if (transaction.quote_symbol && (!transaction.quote_amount || Number(transaction.quote_amount) <= 0)) {
-      throw new Error('"quote_amount" requis quand "quote_symbol" est renseigné')
+    // quote_amount required if quote_asset_key is set
+    if (transaction.quote_asset_key && (!transaction.quote_amount || Number(transaction.quote_amount) <= 0)) {
+      throw new Error('"quote_amount" requis quand "quote_asset_key" est renseigné')
     }
 
-    // fee_amount required if fee_symbol is set
-    if (transaction.fee_symbol && (!transaction.fee_amount || Number(transaction.fee_amount) <= 0)) {
-      throw new Error('"fee_amount" requis quand "fee_symbol" est renseigné')
+    // fee_amount required if fee_asset_key is set
+    if (transaction.fee_asset_key && (!transaction.fee_amount || Number(transaction.fee_amount) <= 0)) {
+      throw new Error('"fee_amount" requis quand "fee_asset_key" est renseigné')
     }
   }
 

@@ -70,13 +70,13 @@ function getMainBuySummary(group: BinanceImportGroupPreview): { symbol: string; 
 
   // Pick the primary symbol: prefer non-stablecoin, non-EUR
   const primaryRow = buyRows.find(
-    (r) => !STABLECOINS.has(r.mapped_symbol) && r.mapped_symbol !== 'EUR',
+    (r) => !STABLECOINS.has(r.mapped_asset_key) && r.mapped_asset_key !== 'EUR',
   ) ?? buyRows[0]!
-  const symbol = primaryRow.mapped_symbol
+  const symbol = primaryRow.mapped_asset_key
 
   // Sum all BUY rows with that symbol
   const totalAmount = buyRows
-    .filter((r) => r.mapped_symbol === symbol)
+    .filter((r) => r.mapped_asset_key === symbol)
     .reduce((sum, r) => sum + r.mapped_amount, 0)
 
   return { symbol, totalAmount }
@@ -87,7 +87,7 @@ function isCryptoWithdrawal(group: BinanceImportGroupPreview): boolean {
   return (
     group.rows.length > 0 &&
     group.rows.every((r) => r.mapped_type === 'TRANSFER') &&
-    group.rows.every((r) => r.mapped_symbol !== 'EUR')
+    group.rows.every((r) => r.mapped_asset_key !== 'EUR')
   )
 }
 
@@ -97,7 +97,7 @@ function isCryptoDeposit(group: BinanceImportGroupPreview): boolean {
     group.rows.length > 0 &&
     !group.has_eur &&
     group.rows.some((r) => r.mapped_type === 'BUY') &&
-    group.rows.every((r) => r.mapped_symbol !== 'EUR')
+    group.rows.every((r) => r.mapped_asset_key !== 'EUR')
   )
 }
 
@@ -428,7 +428,7 @@ function handleClose(): void {
                     {{ typeLabel(row.mapped_type) }}
                   </span>
                   <span class="text-text-body dark:text-text-dark-body">
-                    {{ row.mapped_amount }} {{ row.mapped_symbol }}
+                    {{ row.mapped_amount }} {{ row.mapped_asset_key }}
                   </span>
                 </div>
               </td>
