@@ -25,6 +25,7 @@ import type {
   TransactionResponse,
   AssetSearchResult,
   AssetInfoResponse,
+  CryptoHistoricalPriceResponse,
   CrossAccountTransferCreate,
   BinanceImportPreviewResponse,
   BinanceImportConfirmRequest,
@@ -67,6 +68,19 @@ export const useCryptoStore = defineStore('crypto', () => {
     } catch (e) {
       console.error('Search error:', e)
       return []
+    }
+  }
+
+  async function getMarketPrice(symbol: string, asOf: string): Promise<number | null> {
+    try {
+      const params = new URLSearchParams()
+      if (symbol) params.append('symbol', symbol)
+      if (asOf) params.append('as_of', asOf)
+      const data = await apiClient.get<CryptoHistoricalPriceResponse>(`/crypto/market/price?${params.toString()}`)
+      return data.price ?? null
+    } catch (e) {
+      console.error('Market price fetch error:', e)
+      return null
     }
   }
 
@@ -423,6 +437,7 @@ export const useCryptoStore = defineStore('crypto', () => {
     historyLoading,
     error,
     isHistoryCacheValid,
+    getMarketPrice,
     searchAssets,
     getAssetsInfo,
     fetchAccounts,

@@ -303,7 +303,95 @@ const previewPru = computed((): number | null => {
   return (baseEur + feeEur) / qty
 })
 
+type HistoricalPriceRequestSnapshot = {
+  requestId: number
+  type: TxFormType
+  assetKey: string
+  executedAt: string
+  amount: number
+}
+
+const historicalPriceRequestSeq = ref(0)
+
+function clearHistoricalAutoFillFields(type: TxFormType = txForm.type): void {
+  if (type === 'BUY_FIAT') {
+    txForm.quote_amount = undefined
+    return
+  }
+
+  if (type === 'SELL_TO_FIAT' || type === 'CRYPTO_DEPOSIT') {
+    txForm.eur_amount = undefined
+    return
+  }
+
+  txForm.price_per_unit = undefined
+}
+
+function buildHistoricalPriceSnapshot(): HistoricalPriceRequestSnapshot | null {
+  const assetKey = txForm.asset_key.trim().toUpperCase()
+  if (!assetKey || !txForm.executed_at) return null
+
+  return {
+    requestId: ++historicalPriceRequestSeq.value,
+    type: txForm.type,
+    assetKey,
+    executedAt: txForm.executed_at,
+    amount: Number(txForm.amount) || 1,
+  }
+}
+
+async function fetchAndApplyHistoricalPrice(snapshot: HistoricalPriceRequestSnapshot): Promise<void> {
+  const price = await crypto.getMarketPrice(snapshot.assetKey, snapshot.executedAt.slice(0, 10))
+  const currentSnapshotKey = [
+    txForm.type,
+    txForm.asset_key.trim().toUpperCase(),
+    txForm.executed_at,
+    Number(txForm.amount) || 1,
+  ].join('|')
+  const requestedSnapshotKey = [snapshot.type, snapshot.assetKey, snapshot.executedAt, snapshot.amount].join('|')
+
+  if (snapshot.requestId !== historicalPriceRequestSeq.value) return
+  if (currentSnapshotKey !== requestedSnapshotKey) return
+
+  if (price === null) {
+    clearHistoricalAutoFillFields(snapshot.type)
+    return
+  }
+
+  const qty = snapshot.amount || 1
+  if (snapshot.type === 'BUY_FIAT') {
+    txForm.quote_amount = Number((price * qty).toFixed(2))
+    return
+  }
+
+  if (snapshot.type === 'SELL_TO_FIAT' || snapshot.type === 'CRYPTO_DEPOSIT') {
+    txForm.eur_amount = Number((price * qty).toFixed(2))
+    return
+  }
+
+  txForm.price_per_unit = Number(price.toFixed(4))
+}
+
+watch(
+  () => [txForm.type, txForm.asset_key, txForm.executed_at, txForm.amount],
+  () => {
+    if (wizardStep.value !== 1) return
+    historicalPriceRequestSeq.value += 1
+    clearHistoricalAutoFillFields()
+  },
+)
+
 function nextWizardStep(): void {
+  if (wizardStep.value === 1 && txForm.asset_key && txForm.executed_at) {
+    const snapshot = buildHistoricalPriceSnapshot()
+    if (snapshot) {
+      clearHistoricalAutoFillFields(snapshot.type)
+      void fetchAndApplyHistoricalPrice(snapshot).catch((error) => {
+        console.error('Failed to auto-fetch historical price', error)
+      })
+    }
+  }
+
   if (wizardStep.value === 1 && showFeeStep.value && !showQuoteStep.value) {
     wizardStep.value = 3
   } else if (wizardStep.value < WIZARD_STEPS) {
@@ -415,7 +503,7 @@ function openAddTransaction(accountId: string): void {
   txForm.name = ''
   txForm.type = 'BUY_FIAT'
   txForm.amount = 0
-  txForm.price_per_unit = 0
+  txForm.price_per_unit = undefined
   txForm.quote_asset_key = 'EUR'
   txForm.quote_amount = undefined
   txForm.quote_price_per_unit = undefined

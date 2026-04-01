@@ -234,6 +234,13 @@ export interface AssetInfoResponse {
   change_percent: number | null
 }
 
+export interface CryptoHistoricalPriceResponse {
+  symbol: string
+  as_of: string
+  price: number | null
+  message: string | null
+}
+
 export interface StockTransactionBulkCreate {
   asset_key: string
   type: StockTransactionType
