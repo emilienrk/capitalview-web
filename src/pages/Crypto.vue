@@ -483,10 +483,6 @@ async function handleSubmitAccount(): Promise<void> {
   } else {
     result = await crypto.createAccount({ ...accountForm })
   }
-  if (!result) {
-    showAccountModal.value = true
-    return
-  }
   if (result) {
     await loadCryptoChartHistories(true)
   }
@@ -779,13 +775,20 @@ const allocationSegments = computed(() => {
   if (!hasSelectedAccount && !isSingleMode.value) {
     const portfolioAccounts = (crypto.portfolio?.accounts ?? []).filter((account) => account.account_type === 'CRYPTO')
     if (portfolioAccounts.length > 1) {
-      return portfolioAccounts
-        .map((account) => ({
-          name: account.account_name,
-          value: Number(account.current_value ?? 0),
-        }))
-        .filter((segment) => segment.value > 0)
+      const byAccountSegments = portfolioAccounts
+        .map((account) => {
+          const currentValue = Number(account.current_value ?? 0)
+          const investedValue = Number(account.total_invested ?? 0)
+          return {
+            name: account.account_name,
+            value: currentValue > 0 ? currentValue : investedValue,
+          }
+        })
         .sort((a, b) => b.value - a.value)
+
+      if (byAccountSegments.some((segment) => segment.value > 0)) {
+        return byAccountSegments
+      }
     }
   }
 
@@ -940,10 +943,6 @@ async function handleSubmitTransaction(): Promise<void> {
     }
     showTxModal.value = false
     const result = await crypto.createCrossAccountTransfer(transferPayload)
-    if (!result) {
-      showTxModal.value = true
-      return
-    }
     if (result) {
       if (result.warning) txWarning.value = result.warning
       if (result.info) txInfo.value = result.info
@@ -996,11 +995,6 @@ async function handleSubmitTransaction(): Promise<void> {
     success = !!result
   }
 
-  if (!success) {
-    showTxModal.value = true
-    return
-  }
-
   if (success) {
     // For FIAT_DEPOSIT: deduct from bank. For FIAT_WITHDRAW on EUR: credit bank.
     if ((txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw.value) && deductFromBank.value && selectedBankAccountId.value) {
@@ -1046,11 +1040,7 @@ async function deleteTransaction(id: string): Promise<void> {
 
   if (confirm(confirmationMessage)) {
     showTxModal.value = false
-    const success = await crypto.deleteTransaction(id)
-    if (!success) {
-      showTxModal.value = true
-      return
-    }
+    await crypto.deleteTransaction(id)
     if (selectedAccountId.value) {
       await Promise.all([
         crypto.fetchAccount(selectedAccountId.value),
@@ -1087,11 +1077,7 @@ async function selectAccount(id: string): Promise<void> {
 async function handleDeleteAccount(id: string): Promise<void> {
   if (confirm('Supprimer ce portefeuille crypto et toutes ses transactions ?')) {
     showAccountModal.value = false
-    const success = await crypto.deleteAccount(id)
-    if (!success) {
-      showAccountModal.value = true
-      return
-    }
+    await crypto.deleteAccount(id)
     await loadCryptoChartHistories(true)
     if (selectedAccountId.value === id) {
       selectedAccountId.value = null
