@@ -6,7 +6,9 @@ import { useCashflowStore } from '@/stores/cashflow'
 import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
+import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import {
   BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete,
@@ -17,6 +19,7 @@ const cashflow = useCashflowStore()
 const bank = useBankStore()
 const { formatCurrency } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
+const { isDark } = useDarkMode()
 
 const showFormModal = ref(false)
 const editingId = ref<string | null>(null)
@@ -158,6 +161,60 @@ const outflowsTotal = computed(() =>
 )
 
 const netBalance = computed(() => inflowsTotal.value - outflowsTotal.value)
+
+const cashflowSankeyData = computed(() => {
+  const links: Array<{ source: string; target: string; value: number }> = []
+  const nodeLabels: Record<string, string> = {
+    'hub:revenus': 'Revenus',
+    'hub:epargne': 'Épargne',
+    'hub:external': 'Financement externe',
+  }
+  const nodeGroups: Record<string, string> = {
+    'hub:revenus': 'hub:revenus',
+    'hub:epargne': 'hub:epargne',
+    'hub:external': 'hub:external',
+  }
+
+  const labelUsageCount = new Map<string, number>()
+  const toUnitLabel = (name: string): string => {
+    const cleanName = name.trim()
+    const base = cleanName || 'Sans nom'
+    const count = (labelUsageCount.get(base) ?? 0) + 1
+    labelUsageCount.set(base, count)
+    return count > 1 ? `${base} (${count})` : base
+  }
+
+  const inflows = cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW' && Number(c.monthly_amount) > 0)
+  const outflows = cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW' && Number(c.monthly_amount) > 0)
+
+  for (const item of inflows) {
+    const nodeId = `inflow:${item.id}`
+    const categoryKey = `inflow:${capitalize(item.category)}`
+    nodeLabels[nodeId] = toUnitLabel(item.name)
+    nodeGroups[nodeId] = categoryKey
+    links.push({ source: nodeId, target: 'hub:revenus', value: Number(item.monthly_amount) })
+  }
+
+  for (const item of outflows) {
+    const nodeId = `outflow:${item.id}`
+    const categoryKey = `outflow:${capitalize(item.category)}`
+    nodeLabels[nodeId] = toUnitLabel(item.name)
+    nodeGroups[nodeId] = categoryKey
+    links.push({ source: 'hub:revenus', target: nodeId, value: Number(item.monthly_amount) })
+  }
+
+  if (netBalance.value > 0) {
+    links.push({ source: 'hub:revenus', target: 'hub:epargne', value: netBalance.value })
+  } else if (netBalance.value < 0) {
+    links.push({ source: 'hub:external', target: 'hub:revenus', value: Math.abs(netBalance.value) })
+  }
+
+  return {
+    links: links.filter((link) => link.value > 0),
+    nodeLabels,
+    nodeGroups,
+  }
+})
 
 const savingsRate = computed(() => {
   if (inflowsTotal.value === 0) return null
@@ -370,6 +427,22 @@ onMounted(async () => {
         </template>
       </BaseStatCard>
     </div>
+
+    <!-- ── Inflows vs Outflows Breakdown ──────────────── -->
+    <BaseCard
+      v-if="cashflowSankeyData.links.length"
+      title="Flux revenus vers dépenses"
+      subtitle="Répartition mensualisée par catégorie"
+      class="mb-8"
+    >
+      <CashflowSankeyChart
+        :links="cashflowSankeyData.links"
+        :node-labels="cashflowSankeyData.nodeLabels"
+        :node-groups="cashflowSankeyData.nodeGroups"
+        :hide-node-labels="['hub:revenus']"
+        :is-dark="isDark"
+      />
+    </BaseCard>
 
     <!-- ── Category Breakdown ───────────────────────────── -->
     <div v-if="categorySummary.length" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
