@@ -109,34 +109,47 @@ function openSellModal(a: AssetResponse): void {
 
 async function confirmSell(): Promise<void> {
   if (!sellingAsset.value) return
-  await asset.sellAsset(sellingAsset.value.id, {
+  showSellModal.value = false
+  const sold = await asset.sellAsset(sellingAsset.value.id, {
     sold_price: Number(sellPrice.value) || 0,
     sold_at: sellDate.value || new Date().toISOString().substring(0, 10),
   })
+  if (!sold) {
+    showSellModal.value = true
+    return
+  }
   invalidateCacheKey(assetHistoryCacheKey)
   await fetchAssetHistory(true)
-  showSellModal.value = false
   sellingAsset.value = null
 }
 
 async function confirmHardDelete(): Promise<void> {
   if (!sellingAsset.value) return
-  await asset.deleteAsset(sellingAsset.value.id)
+  showSellModal.value = false
+  const success = await asset.deleteAsset(sellingAsset.value.id)
+  if (!success) {
+    showSellModal.value = true
+    return
+  }
   invalidateCacheKey(assetHistoryCacheKey)
   await fetchAssetHistory(true)
-  showSellModal.value = false
   sellingAsset.value = null
 }
 
 async function onSaveAsset(data: AssetCreate | AssetUpdate): Promise<void> {
+  showAssetModal.value = false
+  let result
   if (editingAsset.value) {
-    await asset.updateAsset(editingAsset.value.id, data as AssetUpdate)
+    result = await asset.updateAsset(editingAsset.value.id, data as AssetUpdate)
   } else {
-    await asset.createAsset(data as AssetCreate)
+    result = await asset.createAsset(data as AssetCreate)
+  }
+  if (!result) {
+    showAssetModal.value = true
+    return
   }
   invalidateCacheKey(assetHistoryCacheKey)
   await fetchAssetHistory(true)
-  showAssetModal.value = false
 }
 
 const groupedAssets = computed(() => {

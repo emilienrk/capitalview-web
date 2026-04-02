@@ -12,7 +12,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
-  BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete,
+  BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
@@ -83,13 +83,12 @@ const selectedAccountId = ref<string | null>(null)
 const transferToAccountId = ref<string>('')
 const accountTransactions = ref<TransactionResponse[]>([])
 const activeDetailTab = ref<'positions' | 'history'>('positions')
-type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
+type HistoryGranularity = 'daily' | 'weekly' | 'monthly'
 const historyGranularity = ref<HistoryGranularity>('daily')
 const granularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
   { value: 'daily', label: 'Jour' },
   { value: 'weekly', label: 'Semaine' },
   { value: 'monthly', label: 'Mois' },
-  { value: 'yearly', label: 'Année' },
 ]
 const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
@@ -477,15 +476,19 @@ function openEditAccount(account: any): void {
 }
 
 async function handleSubmitAccount(): Promise<void> {
+  showAccountModal.value = false
   let result
   if (editingAccountId.value) {
     result = await crypto.updateAccount(editingAccountId.value, { ...accountForm })
   } else {
     result = await crypto.createAccount({ ...accountForm })
   }
+  if (!result) {
+    showAccountModal.value = true
+    return
+  }
   if (result) {
     await loadCryptoChartHistories(true)
-    showAccountModal.value = false
   }
 }
 
@@ -706,9 +709,10 @@ function getHistoryBucketKey(snapshotDate: string, granularity: HistoryGranulari
   const date = new Date(snapshotDate)
   if (Number.isNaN(date.getTime())) return snapshotDate
 
-  if (granularity === 'weekly') return getIsoWeekKey(snapshotDate)
-  if (granularity === 'monthly') return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-  if (granularity === 'yearly') return String(date.getFullYear())
+  const granularityKey = String(granularity)
+  if (granularityKey === 'weekly') return getIsoWeekKey(snapshotDate)
+  if (granularityKey === 'monthly') return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  if (granularityKey === 'yearly') return String(date.getFullYear())
   return snapshotDate
 }
 
@@ -769,9 +773,23 @@ const pnlChartSeries = computed(() => {
 })
 
 const allocationSegments = computed(() => {
-  const positions = crypto.currentAccount?.positions ?? []
   const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
+  const hasSelectedAccount = selectedAccountId.value && crypto.currentAccount?.account_id === selectedAccountId.value
 
+  if (!hasSelectedAccount && !isSingleMode.value) {
+    const portfolioAccounts = (crypto.portfolio?.accounts ?? []).filter((account) => account.account_type === 'CRYPTO')
+    if (portfolioAccounts.length > 1) {
+      return portfolioAccounts
+        .map((account) => ({
+          name: account.account_name,
+          value: Number(account.current_value ?? 0),
+        }))
+        .filter((segment) => segment.value > 0)
+        .sort((a, b) => b.value - a.value)
+    }
+  }
+
+  const positions = crypto.currentAccount?.positions ?? []
   return positions
     .filter((position) => !fiat.has(position.asset_key.toUpperCase()))
     .map((position) => ({
@@ -799,8 +817,11 @@ function prevChartSlide(): void {
 }
 
 async function loadCryptoChartHistories(force = false): Promise<void> {
-  await crypto.fetchHistory(force)
-  await Promise.all(crypto.accounts.map((account) => crypto.fetchHistoryForAccount(account.id, force)))
+  await Promise.all([
+    crypto.fetchHistory(force),
+    crypto.fetchPortfolio(force),
+    ...crypto.accounts.map((account) => crypto.fetchHistoryForAccount(account.id, force)),
+  ])
 }
 
 const multiRowGroups = computed(() => {
@@ -917,11 +938,15 @@ async function handleSubmitTransaction(): Promise<void> {
       tx_hash: txForm.tx_hash || undefined,
       notes: txForm.notes || undefined,
     }
+    showTxModal.value = false
     const result = await crypto.createCrossAccountTransfer(transferPayload)
+    if (!result) {
+      showTxModal.value = true
+      return
+    }
     if (result) {
       if (result.warning) txWarning.value = result.warning
       if (result.info) txInfo.value = result.info
-      showTxModal.value = false
       await Promise.all([
         crypto.fetchAccount(txForm.account_id),
         crypto.fetchAccount(transferToAccountId.value),
@@ -933,6 +958,7 @@ async function handleSubmitTransaction(): Promise<void> {
   }
 
   let success = false
+  showTxModal.value = false
 
   if (editingTxId.value) {
     const updateData: CryptoTransactionUpdate = {
@@ -970,6 +996,11 @@ async function handleSubmitTransaction(): Promise<void> {
     success = !!result
   }
 
+  if (!success) {
+    showTxModal.value = true
+    return
+  }
+
   if (success) {
     // For FIAT_DEPOSIT: deduct from bank. For FIAT_WITHDRAW on EUR: credit bank.
     if ((txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw.value) && deductFromBank.value && selectedBankAccountId.value) {
@@ -998,7 +1029,6 @@ async function handleSubmitTransaction(): Promise<void> {
         }
       }
     }
-    showTxModal.value = false
     if (selectedAccountId.value) {
       await Promise.all([
         crypto.fetchAccount(selectedAccountId.value),
@@ -1015,8 +1045,12 @@ async function deleteTransaction(id: string): Promise<void> {
     : 'Supprimer cette transaction ?'
 
   if (confirm(confirmationMessage)) {
-    await crypto.deleteTransaction(id)
     showTxModal.value = false
+    const success = await crypto.deleteTransaction(id)
+    if (!success) {
+      showTxModal.value = true
+      return
+    }
     if (selectedAccountId.value) {
       await Promise.all([
         crypto.fetchAccount(selectedAccountId.value),
@@ -1032,6 +1066,13 @@ async function fetchAccountTransactions(id: string): Promise<void> {
 }
 
 async function selectAccount(id: string): Promise<void> {
+  if (selectedAccountId.value === id) {
+    selectedAccountId.value = null
+    accountTransactions.value = []
+    crypto.currentAccount = null
+    return
+  }
+
   selectedAccountId.value = id
   activeDetailTab.value = 'positions'
   // First load: fast cached data from DB
@@ -1045,13 +1086,17 @@ async function selectAccount(id: string): Promise<void> {
 
 async function handleDeleteAccount(id: string): Promise<void> {
   if (confirm('Supprimer ce portefeuille crypto et toutes ses transactions ?')) {
-    await crypto.deleteAccount(id)
+    showAccountModal.value = false
+    const success = await crypto.deleteAccount(id)
+    if (!success) {
+      showAccountModal.value = true
+      return
+    }
     await loadCryptoChartHistories(true)
     if (selectedAccountId.value === id) {
       selectedAccountId.value = null
       crypto.currentAccount = null
     }
-    showAccountModal.value = false
   }
 }
 
@@ -1146,7 +1191,7 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-          <BaseButton @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau portefeuille</span></BaseButton>
+          <BaseButton size="sm" @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau portefeuille</span></BaseButton>
         </template>
       </template>
     </PageHeader>
@@ -1194,22 +1239,7 @@ onMounted(async () => {
 
         <BaseCard title="Analyse du portefeuille" subtitle="Évolution, répartition et performance" class="mb-6">
           <div class="mb-4 flex items-center justify-between gap-2">
-            <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-              <button
-                v-for="slide in chartSlides"
-                :key="slide.key"
-                type="button"
-                @click="chartSlide = slide.key"
-                :class="[
-                  'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                  chartSlide === slide.key
-                    ? 'bg-primary text-primary-content'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ slide.label }}
-              </button>
-            </div>
+            <BaseSegmentedControl v-model="chartSlide" :options="chartSlides" variant="primary" size="sm" />
             <div class="flex items-center gap-1">
               <BaseButton size="sm" variant="ghost" @click="prevChartSlide">
                 <ChevronLeft class="w-4 h-4" />
@@ -1230,22 +1260,7 @@ onMounted(async () => {
           <template v-else-if="chartSlide === 'evolution'">
             <template v-if="cryptoChartSeries.length > 0">
               <div class="mb-4 flex justify-end">
-                <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-                  <button
-                    v-for="option in granularityOptions"
-                    :key="option.value"
-                    type="button"
-                    @click="historyGranularity = option.value"
-                    :class="[
-                      'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                      historyGranularity === option.value
-                        ? 'bg-primary text-primary-content'
-                        : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                    ]"
-                  >
-                    {{ option.label }}
-                  </button>
-                </div>
+                <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
               </div>
               <BankHistoryChart
                 :series="cryptoChartSeries"
@@ -1274,22 +1289,7 @@ onMounted(async () => {
           <template v-else>
             <template v-if="pnlChartSeries.length > 0">
               <div class="mb-4 flex justify-end">
-                <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-                  <button
-                    v-for="option in granularityOptions"
-                    :key="option.value"
-                    type="button"
-                    @click="historyGranularity = option.value"
-                    :class="[
-                      'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                      historyGranularity === option.value
-                        ? 'bg-primary text-primary-content'
-                        : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                    ]"
-                  >
-                    {{ option.label }}
-                  </button>
-                </div>
+                <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
               </div>
               <BankHistoryChart
                 :series="pnlChartSeries"
@@ -1308,21 +1308,7 @@ onMounted(async () => {
         <BaseCard>
           <!-- Tabs (Segmented Control) -->
           <div class="mb-6">
-            <div class="inline-flex bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-1">
-              <button
-                v-for="tab in [{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]"
-                :key="tab.key"
-                @click="activeDetailTab = tab.key as any"
-                :class="[
-                  'px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                  activeDetailTab === tab.key
-                    ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
+            <BaseSegmentedControl v-model="activeDetailTab" :options="[{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]" variant="surface" size="md" />
           </div>
 
           <!-- Positions Tab -->
@@ -1729,21 +1715,7 @@ onMounted(async () => {
 
             <!-- Tabs (Segmented Control) -->
             <div class="mb-6">
-              <div class="inline-flex bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-1">
-                <button
-                  v-for="tab in [{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]"
-                  :key="tab.key"
-                  @click="activeDetailTab = tab.key as any"
-                  :class="[
-                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                    activeDetailTab === tab.key
-                      ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                      : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                  ]"
-                >
-                  {{ tab.label }}
-                </button>
-              </div>
+              <BaseSegmentedControl v-model="activeDetailTab" :options="[{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]" variant="surface" size="md" />
             </div>
 
             <!-- Positions Tab -->

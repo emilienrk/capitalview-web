@@ -112,6 +112,7 @@ function onSubmit(): void {
 
   if (isEditing.value) {
     emit('save', base)
+    emit('close')
     return
   }
 
@@ -119,6 +120,7 @@ function onSubmit(): void {
     ...base,
     estimated_value: ev,
   })
+  emit('close')
 }
 
 const allCategoryOptions = computed<SelectOption[]>(() => [

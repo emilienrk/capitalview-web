@@ -145,20 +145,29 @@ function openEdit(account: { id: string; name: string; account_type: BankAccount
 }
 
 async function handleSubmit(): Promise<void> {
+  showCreateModal.value = false
+  let result
   if (editingId.value) {
-    await bank.updateAccount(editingId.value, { ...form })
+    result = await bank.updateAccount(editingId.value, { ...form })
   } else {
-    await bank.createAccount({ ...form })
+    result = await bank.createAccount({ ...form })
+  }
+  if (!result) {
+    showCreateModal.value = true
+    return
   }
   await loadChartHistories(true)
-  showCreateModal.value = false
 }
 
 async function handleDelete(id: string): Promise<void> {
   if (confirm('Supprimer ce compte ?')) {
-    await bank.deleteAccount(id)
-    await loadChartHistories(true)
     showCreateModal.value = false
+    const success = await bank.deleteAccount(id)
+    if (!success) {
+      showCreateModal.value = true
+      return
+    }
+    await loadChartHistories(true)
   }
 }
 

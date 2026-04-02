@@ -11,7 +11,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
-  BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete,
+  BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
@@ -571,15 +571,19 @@ function openEditAccount(account: any): void {
 }
 
 async function handleSubmitAccount(): Promise<void> {
+  showAccountModal.value = false
   let result
   if (editingAccountId.value) {
     result = await stocks.updateAccount(editingAccountId.value, { ...accountForm })
   } else {
     result = await stocks.createAccount({ ...accountForm })
   }
+  if (!result) {
+    showAccountModal.value = true
+    return
+  }
   if (result) {
     await loadStockChartHistories(true)
-    showAccountModal.value = false
   }
 }
 
@@ -657,14 +661,18 @@ async function handleSubmitDeposit(): Promise<void> {
 
   // Editing an existing deposit
   if (editingDepositId.value) {
+    showDepositModal.value = false
     const result = await stocks.updateTransaction(editingDepositId.value, {
       amount: grossAmount,
       fees: feesAmount,
       executed_at: depositForm.executed_at,
       notes: depositForm.notes || undefined,
     })
+    if (!result) {
+      showDepositModal.value = true
+      return
+    }
     if (result) {
-      showDepositModal.value = false
       if (selectedAccountId.value) {
         await Promise.all([
           stocks.fetchAccount(selectedAccountId.value),
@@ -689,12 +697,17 @@ async function handleSubmitDeposit(): Promise<void> {
 
   // Use stock account selector if opened from header (no pre-set account)
   const targetStockAccountId = depositStockAccountId.value ?? depositAccountId.value
+  showDepositModal.value = false
   const result = await stocks.depositEur(targetStockAccountId!, {
     amount: grossAmount,
     fees: feesAmount,
     executed_at: depositForm.executed_at,
     notes: depositForm.notes || undefined,
   })
+  if (!result) {
+    showDepositModal.value = true
+    return
+  }
   if (result) {
     // Deduct from bank account if requested
     if (deductFromBank.value && selectedBankAccountId.value) {
@@ -705,7 +718,6 @@ async function handleSubmitDeposit(): Promise<void> {
         })
       }
     }
-    showDepositModal.value = false
     if (selectedAccountId.value) {
       await Promise.all([
         stocks.fetchAccount(selectedAccountId.value),
@@ -780,6 +792,7 @@ async function handleSubmitTransaction(): Promise<void> {
   }
 
   let result
+  showTxModal.value = false
   if (isDividendShares.value) {
     // Shares dividend: stored as BUY at €0 — lowers PRU without cash outflow
     const payload: StockTransactionCreate = {
@@ -804,7 +817,6 @@ async function handleSubmitTransaction(): Promise<void> {
     result = await stocks.createTransaction({ ...txForm })
   }
   if (result) {
-    showTxModal.value = false
     if (selectedAccountId.value) {
       await Promise.all([
         stocks.fetchAccount(selectedAccountId.value),
@@ -812,14 +824,22 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     await loadStockChartHistories(true)
+  } else {
+    showTxModal.value = true
   }
 }
 
 async function deleteTransaction(id: string): Promise<void> {
   if (confirm('Supprimer cette transaction ?')) {
-    await stocks.deleteTransaction(id)
+    const wasDepositModal = !!editingDepositId.value
     showTxModal.value = false
     showDepositModal.value = false
+    const success = await stocks.deleteTransaction(id)
+    if (!success) {
+      if (wasDepositModal) showDepositModal.value = true
+      else showTxModal.value = true
+      return
+    }
     if (selectedAccountId.value) {
       await Promise.all([
         stocks.fetchAccount(selectedAccountId.value),
@@ -860,9 +880,14 @@ function confirmDeleteAccount(account: { id: string; name: string }): void {
 
 async function handleDelete(): Promise<void> {
   if (!deleteTarget.value) return
+  showDeleteModal.value = false
 
   if (deleteTarget.value.type === 'account') {
-    await stocks.deleteAccount(deleteTarget.value.id)
+    const success = await stocks.deleteAccount(deleteTarget.value.id)
+    if (!success) {
+      showDeleteModal.value = true
+      return
+    }
     showAccountModal.value = false
     editingAccountId.value = null
     if (selectedAccountId.value === deleteTarget.value.id) {
@@ -872,7 +897,11 @@ async function handleDelete(): Promise<void> {
     await loadStockChartHistories(true)
   } else {
     // Legacy delete path via confirmation modal, if used
-    await stocks.deleteTransaction(deleteTarget.value.id)
+    const success = await stocks.deleteTransaction(deleteTarget.value.id)
+    if (!success) {
+      showDeleteModal.value = true
+      return
+    }
     if (selectedAccountId.value) {
       await Promise.all([
         stocks.fetchAccount(selectedAccountId.value),
@@ -882,7 +911,6 @@ async function handleDelete(): Promise<void> {
     await loadStockChartHistories(true)
   }
 
-  showDeleteModal.value = false
   deleteTarget.value = null
 }
 
@@ -994,13 +1022,13 @@ onMounted(async () => {
   <div>
     <PageHeader title="Bourse" description="PEA, PEA-PME et Comptes-Titres">
       <template #actions>
-        <BaseButton variant="outline" @click="openDeposit()" :disabled="!stocks.accounts.length">
+        <BaseButton size="sm" variant="outline" @click="openDeposit()" :disabled="!stocks.accounts.length">
           <Banknote class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Déposer</span>
         </BaseButton>
-        <BaseButton variant="outline" @click="openCsvImport()" :disabled="!stocks.accounts.length">
+        <BaseButton size="sm" variant="outline" @click="openCsvImport()" :disabled="!stocks.accounts.length">
           <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
         </BaseButton>
-        <BaseButton @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau compte</span></BaseButton>
+        <BaseButton size="sm" @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau compte</span></BaseButton>
       </template>
     </PageHeader>
 
@@ -1024,22 +1052,7 @@ onMounted(async () => {
             <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
               <RefreshCw class="w-4 h-4" /><span>&nbsp; Rafraîchir</span>
             </BaseButton>
-            <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-              <button
-                v-for="option in granularityOptions"
-                :key="option.value"
-                type="button"
-                @click="historyGranularity = option.value"
-                :class="[
-                  'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                  historyGranularity === option.value
-                    ? 'bg-primary text-primary-content'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ option.label }}
-              </button>
-            </div>
+            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
           </div>
         </div>
         <BankHistoryChart
@@ -1150,41 +1163,13 @@ onMounted(async () => {
 
           <!-- Tabs -->
           <div class="mb-4">
-            <div class="inline-flex bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-1">
-              <button
-                v-for="tab in [{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]"
-                :key="tab.key"
-                @click="activeDetailTab = tab.key as any"
-                :class="[
-                  'px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                  activeDetailTab === tab.key
-                    ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
+            <BaseSegmentedControl v-model="activeDetailTab" :options="[{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]" variant="surface" size="md" />
           </div>
 
           <!-- Currency display toggle (only when account has non-EUR positions) -->
           <div v-if="canToggleCurrency && activeDetailTab === 'positions'" class="mb-5 flex items-center gap-2">
             <span class="text-xs text-text-muted dark:text-text-dark-muted">Affichage cours :</span>
-            <div class="inline-flex bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-0.5">
-              <button
-                v-for="opt in [{ key: 'EUR', label: '€ EUR' }, { key: 'USD', label: '$ Devise native' }]"
-                :key="opt.key"
-                @click="setCurrency(opt.key as 'EUR' | 'USD')"
-                :class="[
-                  'px-3 py-1 text-xs font-medium rounded-md transition-all duration-200',
-                  displayCurrency === opt.key
-                    ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ opt.label }}
-              </button>
-            </div>
+            <BaseSegmentedControl v-model="displayCurrency" :options="[{ key: 'EUR', label: '€ EUR' }, { key: 'USD', label: '$ Devise native' }]" variant="surface" size="sm" />
             <span v-if="displayCurrency === 'USD'" class="text-xs text-info italic">
               P/L calculé en €
             </span>
@@ -1194,22 +1179,7 @@ onMounted(async () => {
           <div v-if="activeDetailTab === 'positions'">
             <div v-if="sortedPositions.length" class="mb-5 rounded-card border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark p-4">
               <div class="mb-4 flex items-center justify-between gap-2">
-                <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-                  <button
-                    v-for="slide in stockChartSlides"
-                    :key="slide.key"
-                    type="button"
-                    @click="stockChartSlide = slide.key"
-                    :class="[
-                      'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                      stockChartSlide === slide.key
-                        ? 'bg-primary text-primary-content'
-                        : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                    ]"
-                  >
-                    {{ slide.label }}
-                  </button>
-                </div>
+                <BaseSegmentedControl v-model="stockChartSlide" :options="stockChartSlides" variant="primary" size="sm" />
                 <div class="flex items-center gap-1">
                   <BaseButton size="sm" variant="ghost" @click="prevStockChartSlide">
                     <ChevronLeft class="w-4 h-4" />
@@ -1223,22 +1193,7 @@ onMounted(async () => {
               <template v-if="stockChartSlide === 'evolution'">
                 <template v-if="selectedAccountChartSeries.length > 0">
                   <div class="mb-4 flex justify-end">
-                    <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-                      <button
-                        v-for="option in granularityOptions"
-                        :key="option.value"
-                        type="button"
-                        @click="historyGranularity = option.value"
-                        :class="[
-                          'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                          historyGranularity === option.value
-                            ? 'bg-primary text-primary-content'
-                            : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                        ]"
-                      >
-                        {{ option.label }}
-                      </button>
-                    </div>
+                    <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                   </div>
                   <BankHistoryChart
                     :series="selectedAccountChartSeries"
@@ -1424,7 +1379,7 @@ onMounted(async () => {
       :description="`Aucun compte ${activeFilter === 'PEA_PME' ? 'PEA-PME' : activeFilter} trouvé`"
     >
       <template #action>
-        <BaseButton variant="outline" @click="activeFilter = 'all'">Voir tous les comptes</BaseButton>
+        <BaseButton size="sm" variant="outline" @click="activeFilter = 'all'">Voir tous les comptes</BaseButton>
       </template>
     </BaseEmptyState>
 

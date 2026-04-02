@@ -32,6 +32,7 @@ import type {
   BinanceImportConfirmResponse,
   BinanceImportGroupPreview,
   AccountHistorySnapshotResponse,
+  PortfolioResponse,
 } from '@/types'
 
 // Cache TTL: 1 hour — crypto history snapshots are not real-time chart data.
@@ -43,6 +44,7 @@ export const useCryptoStore = defineStore('crypto', () => {
   const transactions = ref<TransactionResponse[]>([])
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const accountHistoryById = ref<Record<string, AccountHistorySnapshotResponse[]>>({})
+  const portfolio = ref<PortfolioResponse | null>(null)
   const isLoading = ref(false)
   const historyLoading = ref(false)
   const error = ref<string | null>(null)
@@ -257,6 +259,20 @@ export const useCryptoStore = defineStore('crypto', () => {
     }
   }
 
+  async function fetchPortfolio(force = false): Promise<void> {
+    try {
+      const data = await getOrFetchCached<PortfolioResponse>(
+        'crypto:portfolio',
+        () => apiClient.get<PortfolioResponse>('/dashboard/portfolio'),
+        CACHE_TTL_MS,
+        force,
+      )
+      portfolio.value = data
+    } catch (e) {
+      console.error('Portfolio fetch error:', e)
+    }
+  }
+
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('crypto:history:account:')
@@ -423,6 +439,7 @@ export const useCryptoStore = defineStore('crypto', () => {
     transactions.value = []
     history.value = []
     accountHistoryById.value = {}
+    portfolio.value = null
     invalidateHistoryCache()
     error.value = null
   }
@@ -433,6 +450,7 @@ export const useCryptoStore = defineStore('crypto', () => {
     transactions,
     history,
     accountHistoryById,
+    portfolio,
     isLoading,
     historyLoading,
     error,
@@ -451,6 +469,7 @@ export const useCryptoStore = defineStore('crypto', () => {
     fetchAccountTransactions,
     fetchHistory,
     fetchHistoryForAccount,
+    fetchPortfolio,
     invalidateHistoryCache,
     isAccountHistoryCacheValid,
     createTransaction,

@@ -34,7 +34,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="min-h-[85vh] flex flex-col items-center justify-center animate-fade-in px-4">
+  <div class="min-h-dvh flex flex-col items-center justify-center animate-fade-in px-4 py-12">
     <!-- Login Card -->
     <div class="w-full max-w-md bg-surface dark:bg-surface-dark p-8 rounded-card shadow-card border border-surface-border dark:border-surface-dark-border animate-slide-up">
       

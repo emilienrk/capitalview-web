@@ -262,8 +262,10 @@ async function handleSubmit(): Promise<void> {
 
   const dateStr = buildDateFromDayMonth()
 
+  showFormModal.value = false
+  let result
   if (editingId.value) {
-    await cashflow.updateCashflow(editingId.value, {
+    result = await cashflow.updateCashflow(editingId.value, {
       name: form.name,
       flow_type: form.flow_type,
       category: form.category.toLowerCase(),
@@ -273,7 +275,7 @@ async function handleSubmit(): Promise<void> {
       bank_account_id: form.bank_account_id || undefined,
     })
   } else {
-    await cashflow.createCashflow({
+    result = await cashflow.createCashflow({
       ...form,
       category: form.category.toLowerCase(),
       amount: parsedAmount,
@@ -281,13 +283,20 @@ async function handleSubmit(): Promise<void> {
       bank_account_id: form.bank_account_id || undefined,
     })
   }
-  showFormModal.value = false
+  if (!result) {
+    showFormModal.value = true
+    return
+  }
   await cashflow.fetchBalance()
 }
 
 async function handleDelete(id: string): Promise<void> {
-  await cashflow.deleteCashflow(id)
   deleteConfirmId.value = null
+  const success = await cashflow.deleteCashflow(id)
+  if (!success) {
+    deleteConfirmId.value = id
+    return
+  }
   await cashflow.fetchBalance()
 }
 

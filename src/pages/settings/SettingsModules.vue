@@ -3,7 +3,7 @@ import { Database, LayoutGrid } from 'lucide-vue-next'
 
 import { onMounted, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton } from '@/components'
+import { BaseCard, BaseButton, BaseAlert, BaseSkeleton } from '@/components'
 
 const settingsStore = useSettingsStore()
 
@@ -19,7 +19,6 @@ const cryptoModuleEnabled = ref(false)
 const cryptoShowNegativePositions = ref(false)
 const cryptoMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
 const cryptoPreviousMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
-const usdEurRate = ref<number | null>(null)
 const isSavingCrypto = ref(false)
 const saveCryptoSuccess = ref(false)
 const cryptoErrorMessage = ref<string | null>(null)
@@ -33,7 +32,6 @@ onMounted(() => {
     cryptoShowNegativePositions.value = settingsStore.settings.crypto_show_negative_positions ?? false
     cryptoMode.value = settingsStore.settings.crypto_mode
     cryptoPreviousMode.value = settingsStore.settings.crypto_mode
-    usdEurRate.value = settingsStore.settings.usd_eur_rate ?? null
   }
 })
 
@@ -61,7 +59,6 @@ async function saveCryptoSettings(): Promise<void> {
     crypto_module_enabled: cryptoModuleEnabled.value,
     crypto_show_negative_positions: cryptoShowNegativePositions.value,
     crypto_mode: cryptoModuleEnabled.value ? cryptoMode.value : undefined,
-    usd_eur_rate: usdEurRate.value,
   })
   
   isSavingCrypto.value = false
@@ -223,35 +220,6 @@ async function saveCryptoSettings(): Promise<void> {
               </div>
             </div>
           </Transition>
-
-          <!-- Exchange rate -->
-          <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border space-y-2">
-            <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Taux de change USD → EUR</p>
-            <p class="text-xs text-text-muted dark:text-text-dark-muted">
-              Si le champ est vide, le taux est récupéré automatiquement (Yahoo Finance).
-            </p>
-            <div class="flex items-center gap-3">
-              <BaseInput
-                :model-value="usdEurRate !== null ? String(usdEurRate) : ''"
-                @update:model-value="(v: string | number) => { usdEurRate = v !== '' ? parseFloat(String(v)) : null }"
-                placeholder="ex : 0.92 (auto si vide)"
-                type="number"
-                step="0.0001"
-                min="0.01"
-                max="10"
-                class="flex-1"
-              />
-              <button
-                v-if="usdEurRate !== null"
-                type="button"
-                @click="usdEurRate = null"
-                class="text-xs text-text-muted dark:text-text-dark-muted hover:text-danger transition-colors whitespace-nowrap"
-                title="Réinitialiser"
-              >
-                Effacer
-              </button>
-            </div>
-          </div>
 
           <div class="flex items-center justify-between pt-2">
             <div class="flex-1 mr-4">

@@ -38,12 +38,16 @@ function openEdit(note: { id: string; name: string; description: string | null }
 }
 
 async function handleSubmit(): Promise<void> {
-  if (editingId.value) {
-    await notes.updateNote(editingId.value, { ...form })
-  } else {
-    await notes.createNote({ ...form })
-  }
   showModal.value = false
+  let result
+  if (editingId.value) {
+    result = await notes.updateNote(editingId.value, { ...form })
+  } else {
+    result = await notes.createNote({ ...form })
+  }
+  if (!result) {
+    showModal.value = true
+  }
 }
 
 function requestDelete(id: string): void {

@@ -205,27 +205,35 @@ const isPickFormValid = computed(() => {
 async function submitPick(): Promise<void> {
   if (!isPickFormValid.value || pickSubmitting.value) return
   pickSubmitting.value = true
+  showPickModal.value = false
 
-  const targetPrice = pickForm.value.target_price.trim()
-    ? parseFloat(pickForm.value.target_price.replace(',', '.'))
-    : null
+  try {
+    const targetPrice = pickForm.value.target_price.trim()
+      ? parseFloat(pickForm.value.target_price.replace(',', '.'))
+      : null
 
-  if (editingPick.value) {
-    await communityStore.updatePick(editingPick.value.id, {
-      comment: pickForm.value.comment.trim() || null,
-      target_price: isNaN(targetPrice as number) ? null : targetPrice,
-    })
-  } else {
-    const data: PickCreate = {
-      asset_key: pickForm.value.asset_key.trim().toUpperCase(),
-      asset_type: pickForm.value.asset_type,
-      comment: pickForm.value.comment.trim() || null,
-      target_price: isNaN(targetPrice as number) ? null : targetPrice,
+    let result
+    if (editingPick.value) {
+      result = await communityStore.updatePick(editingPick.value.id, {
+        comment: pickForm.value.comment.trim() || null,
+        target_price: isNaN(targetPrice as number) ? null : targetPrice,
+      })
+    } else {
+      const data: PickCreate = {
+        asset_key: pickForm.value.asset_key.trim().toUpperCase(),
+        asset_type: pickForm.value.asset_type,
+        comment: pickForm.value.comment.trim() || null,
+        target_price: isNaN(targetPrice as number) ? null : targetPrice,
+      }
+      result = await communityStore.createPick(data)
     }
-    await communityStore.createPick(data)
+
+    if (!result) {
+      showPickModal.value = true
+    }
+  } finally {
+    pickSubmitting.value = false
   }
-  pickSubmitting.value = false
-  closePickModal()
 }
 
 async function handleDeletePick(pickId: number): Promise<void> {
