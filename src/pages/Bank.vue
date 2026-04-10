@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Pencil, RefreshCw, Upload } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed } from 'vue'
+import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -9,7 +9,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton,
+  BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
 } from '@/components'
 import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
 import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
@@ -28,12 +28,41 @@ const hasFetchedOnce = ref(false)
 type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
 const historyGranularity = ref<HistoryGranularity>('daily')
 
-const granularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
+const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
   { value: 'daily', label: 'Jour' },
   { value: 'weekly', label: 'Semaine' },
   { value: 'monthly', label: 'Mois' },
   { value: 'yearly', label: 'Année' },
 ]
+
+function getHistorySpanDays(history: AccountHistorySnapshotResponse[]): number {
+  if (history.length < 2) return 0
+  const first = new Date(history[0]!.snapshot_date).getTime()
+  const last = new Date(history[history.length - 1]!.snapshot_date).getTime()
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last <= first) return 0
+  return Math.floor((last - first) / 86400000)
+}
+
+const granularityOptions = computed(() => {
+  const sortedHistory = [...(bank.history ?? [])].sort(
+    (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
+  )
+  const spanDays = getHistorySpanDays(sortedHistory)
+  return allGranularityOptions.filter((option) => {
+    if (option.value === 'daily') return true
+    if (option.value === 'weekly') return spanDays >= 21
+    if (option.value === 'monthly') return spanDays >= 90
+    if (option.value === 'yearly') return spanDays >= 365
+    return true
+  })
+})
+
+watch(granularityOptions, (options) => {
+  const allowed = options.map((option) => option.value)
+  if (!allowed.includes(historyGranularity.value)) {
+    historyGranularity.value = options[0]?.value ?? 'daily'
+  }
+}, { immediate: true })
 
 const form = reactive<BankAccountCreate>({
   name: '',
@@ -213,27 +242,12 @@ onMounted(async () => {
         {{ bank.error }}
       </BaseAlert>
       <template v-else-if="chartSeries.length > 0">
-        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex items-center justify-end gap-2">
+        <div class="mb-4 flex justify-end">
+          <div class="flex items-center gap-2">
             <BaseButton size="sm" variant="outline" @click="loadChartHistories(true)">
-              <RefreshCw class="w-4 h-4" /><span>&nbsp; Rafraîchir</span>
+              <RefreshCw class="w-4 h-4" />
             </BaseButton>
-            <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-            <button
-              v-for="option in granularityOptions"
-              :key="option.value"
-              type="button"
-              @click="historyGranularity = option.value"
-              :class="[
-                'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                historyGranularity === option.value
-                  ? 'bg-primary text-primary-content'
-                  : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-              ]"
-            >
-              {{ option.label }}
-            </button>
-            </div>
+            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
           </div>
         </div>
         <BankHistoryChart

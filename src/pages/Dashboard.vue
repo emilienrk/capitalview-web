@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { CreditCard, DollarSign, Eye, EyeOff, TrendingUp, WalletCards } from 'lucide-vue-next'
+import { CreditCard, DollarSign, Eye, EyeOff, RefreshCw, TrendingUp, WalletCards } from 'lucide-vue-next'
 
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useWealthHistoryStore } from '@/stores/wealthHistory'
@@ -10,7 +10,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseCard, BaseAlert, BaseEmptyState, BaseStatCard, BaseSkeleton, WealthHistoryChart } from '@/components'
+import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, WealthHistoryChart } from '@/components'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 
 const auth = useAuthStore()
@@ -38,12 +38,41 @@ const kpiColsClass = computed(() => {
 type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
 const historyGranularity = ref<HistoryGranularity>('daily')
 
-const granularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
+const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
   { value: 'daily', label: 'Jour' },
   { value: 'weekly', label: 'Semaine' },
   { value: 'monthly', label: 'Mois' },
   { value: 'yearly', label: 'Année' },
 ]
+
+function getHistorySpanDays(history: GlobalHistorySnapshotResponse[]): number {
+  if (history.length < 2) return 0
+  const first = new Date(history[0]!.snapshot_date).getTime()
+  const last = new Date(history[history.length - 1]!.snapshot_date).getTime()
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last <= first) return 0
+  return Math.floor((last - first) / 86400000)
+}
+
+const granularityOptions = computed(() => {
+  const sortedHistory = [...(historyStore.history ?? [])].sort(
+    (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
+  )
+  const spanDays = getHistorySpanDays(sortedHistory)
+  return allGranularityOptions.filter((option) => {
+    if (option.value === 'daily') return true
+    if (option.value === 'weekly') return spanDays >= 21
+    if (option.value === 'monthly') return spanDays >= 90
+    if (option.value === 'yearly') return spanDays >= 365
+    return true
+  })
+})
+
+watch(granularityOptions, (options) => {
+  const allowed = options.map((option) => option.value)
+  if (!allowed.includes(historyGranularity.value)) {
+    historyGranularity.value = options[0]?.value ?? 'daily'
+  }
+}, { immediate: true })
 
 function getIsoWeekKey(snapshotDate: string): string {
   const date = new Date(snapshotDate)
@@ -361,22 +390,12 @@ onMounted(() => {
           {{ historyStore.error }}
         </BaseAlert>
         <template v-else-if="historyStore.history && historyStore.history.length > 0">
-          <div class="mb-4 flex items-center justify-end">
-            <div class="inline-flex rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
-              <button
-                v-for="option in granularityOptions"
-                :key="option.value"
-                type="button"
-                @click="historyGranularity = option.value"
-                :class="[
-                  'px-3 py-1.5 text-xs sm:text-sm rounded-button transition-colors',
-                  historyGranularity === option.value
-                    ? 'bg-primary text-primary-content'
-                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-                ]"
-              >
-                {{ option.label }}
-              </button>
+          <div class="mb-4 flex justify-end">
+            <div class="flex items-center gap-2">
+              <BaseButton size="sm" variant="outline" @click="historyStore.fetchHistory()">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </div>
           </div>
           <WealthHistoryChart

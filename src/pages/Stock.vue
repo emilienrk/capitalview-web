@@ -50,10 +50,13 @@ const stockChartSlides: Array<{ key: StockChartSlide; label: string }> = [
   { key: 'allocation', label: 'Repartition' },
   { key: 'pnl', label: 'P/L journalier' },
 ]
+const stockChartSlideLabel = computed<string>(() => {
+  return stockChartSlides.find((slide) => slide.key === stockChartSlide.value)?.label ?? 'Evolution'
+})
 const allocationDate = ref<string>('')
 type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
 const historyGranularity = ref<HistoryGranularity>('daily')
-const granularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
+const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }> = [
   { value: 'daily', label: 'Jour' },
   { value: 'weekly', label: 'Semaine' },
   { value: 'monthly', label: 'Mois' },
@@ -311,6 +314,41 @@ const selectedAccountHistory = computed(() => {
     (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
   )
 })
+
+function getHistorySpanDays(history: AccountHistorySnapshotResponse[]): number {
+  if (history.length < 2) return 0
+  const first = new Date(history[0]!.snapshot_date).getTime()
+  const last = new Date(history[history.length - 1]!.snapshot_date).getTime()
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last <= first) return 0
+  return Math.floor((last - first) / 86400000)
+}
+
+const historyForGranularity = computed<AccountHistorySnapshotResponse[]>(() => {
+  if (selectedAccountId.value && selectedAccountHistory.value.length > 0) {
+    return selectedAccountHistory.value
+  }
+  return [...(stocks.history ?? [])].sort(
+    (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
+  )
+})
+
+const granularityOptions = computed(() => {
+  const spanDays = getHistorySpanDays(historyForGranularity.value)
+  return allGranularityOptions.filter((option) => {
+    if (option.value === 'daily') return true
+    if (option.value === 'weekly') return spanDays >= 21
+    if (option.value === 'monthly') return spanDays >= 90
+    if (option.value === 'yearly') return spanDays >= 365
+    return true
+  })
+})
+
+watch(granularityOptions, (options) => {
+  const allowed = options.map((option) => option.value)
+  if (!allowed.includes(historyGranularity.value)) {
+    historyGranularity.value = options[0]?.value ?? 'daily'
+  }
+}, { immediate: true })
 
 const selectedAccountChartSeries = computed(() => {
   const history = applyGranularity(selectedAccountHistory.value)
@@ -1047,10 +1085,10 @@ onMounted(async () => {
         <BaseSpinner size="md" label="Chargement de l'historique..." />
       </div>
       <template v-else-if="stockChartSeries.length > 0">
-        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex items-center justify-end gap-2">
+        <div class="mb-4 flex justify-end">
+          <div class="flex items-center gap-2">
             <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
-              <RefreshCw class="w-4 h-4" /><span>&nbsp; Rafraîchir</span>
+              <RefreshCw class="w-4 h-4" />
             </BaseButton>
             <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
           </div>
@@ -1178,23 +1216,46 @@ onMounted(async () => {
           <!-- Positions table -->
           <div v-if="activeDetailTab === 'positions'">
             <div v-if="sortedPositions.length" class="mb-5 rounded-card border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark p-4">
-              <div class="mb-4 flex items-center justify-between gap-2">
-                <BaseSegmentedControl v-model="stockChartSlide" :options="stockChartSlides" variant="primary" size="sm" />
-                <div class="flex items-center gap-1">
-                  <BaseButton size="sm" variant="ghost" @click="prevStockChartSlide">
-                    <ChevronLeft class="w-4 h-4" />
-                  </BaseButton>
-                  <BaseButton size="sm" variant="ghost" @click="nextStockChartSlide">
-                    <ChevronRight class="w-4 h-4" />
-                  </BaseButton>
+              <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                    {{ stockChartSlideLabel }}
+                  </p>
+                  <div class="flex items-center gap-1">
+                    <BaseButton size="sm" variant="ghost" @click="prevStockChartSlide">
+                      <ChevronLeft class="w-4 h-4" />
+                    </BaseButton>
+                    <BaseButton size="sm" variant="ghost" @click="nextStockChartSlide">
+                      <ChevronRight class="w-4 h-4" />
+                    </BaseButton>
+                  </div>
                 </div>
+                <div v-if="stockChartSlide === 'evolution'" class="flex items-center gap-2 self-end sm:self-auto">
+                  <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+                    <RefreshCw class="w-4 h-4" />
+                  </BaseButton>
+                  <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+                </div>
+                <div v-else-if="stockChartSlide === 'allocation'" class="self-end sm:self-auto">
+                  <input
+                    v-model="allocationDate"
+                    type="date"
+                    class="w-full sm:w-auto px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    :max="allocationDateOptions[0] || undefined"
+                    :min="allocationDateOptions[allocationDateOptions.length - 1] || undefined"
+                    :disabled="!allocationDateOptions.length"
+                  />
+                </div>
+                <p v-else class="text-xs text-text-muted dark:text-text-dark-muted self-end sm:self-auto">
+                  Moyenne par jour :
+                  <span :class="['font-semibold', profitLossClass(selectedAccountDailyPnlAverage)]">
+                    {{ formatCurrency(selectedAccountDailyPnlAverage) }}
+                  </span>
+                </p>
               </div>
 
               <template v-if="stockChartSlide === 'evolution'">
                 <template v-if="selectedAccountChartSeries.length > 0">
-                  <div class="mb-4 flex justify-end">
-                    <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
-                  </div>
                   <BankHistoryChart
                     :series="selectedAccountChartSeries"
                     :is-dark="isDark"
@@ -1209,19 +1270,6 @@ onMounted(async () => {
               </template>
 
               <template v-else-if="stockChartSlide === 'allocation'">
-                <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">
-                    Repartition des apports nets a la date selectionnee
-                  </p>
-                  <input
-                    v-model="allocationDate"
-                    type="date"
-                    class="w-full sm:w-auto px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    :max="allocationDateOptions[0] || undefined"
-                    :min="allocationDateOptions[allocationDateOptions.length - 1] || undefined"
-                    :disabled="!allocationDateOptions.length"
-                  />
-                </div>
                 <template v-if="allocationSegmentsAtDate.length">
                   <CryptoAllocationDonutChart :segments="allocationSegmentsAtDate" :is-dark="isDark" />
                 </template>
@@ -1234,14 +1282,6 @@ onMounted(async () => {
 
               <template v-else>
                 <template v-if="selectedAccountDailyPnlSeries.length > 0">
-                  <div class="mb-4 flex justify-end">
-                    <p class="text-xs text-text-muted dark:text-text-dark-muted">
-                      Moyenne par jour :
-                      <span :class="['font-semibold', profitLossClass(selectedAccountDailyPnlAverage)]">
-                        {{ formatCurrency(selectedAccountDailyPnlAverage) }}
-                      </span>
-                    </p>
-                  </div>
                   <BankHistoryChart
                     :series="selectedAccountDailyPnlSeries"
                     :is-dark="isDark"
