@@ -292,15 +292,13 @@ const option = computed(() => {
       data: dates,
       boundaryGap: false,
       axisLine: { show: false },
-      axisTick: { show: false },
       axisLabel: {
         interval: xAxisInterval,
         formatter: formatXAxisLabel,
         color: textColor,
         fontSize: 10,
-        rotate: isDaily ? 35 : 0,
-        hideOverlap: true,
       },
+      axisTick: { show: false },
       splitLine: { show: false },
     },
     yAxis: {
@@ -335,13 +333,11 @@ const option = computed(() => {
     dataZoom: dates.length > 10
       ? [
           {
-            id: 'insideZoom',
             type: 'inside',
             startValue: zoomStartIndex.value,
             endValue: zoomEndIndex.value,
           },
           {
-            id: 'sliderZoom',
             type: 'slider',
             bottom: 32,
             height: 10,

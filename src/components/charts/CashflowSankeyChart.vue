@@ -69,19 +69,6 @@ const nodes = computed(() => {
   return Array.from(names).map((name) => ({ name }))
 })
 
-function hashString(value: string): number {
-  let hash = 0
-  for (let i = 0; i < value.length; i += 1) {
-    hash = ((hash << 5) - hash) + value.charCodeAt(i)
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
-
-function pickColorByName(name: string, palette: string[]): string {
-  return palette[hashString(name) % palette.length] as string
-}
-
 function getNodeLabel(nodeId: string): string {
   return props.nodeLabels?.[nodeId] ?? nodeId
 }
@@ -96,33 +83,76 @@ const option = computed(() => {
   const tooltipBorder = props.isDark ? '#334155' : '#e2e8f0'
   const tooltipText = props.isDark ? '#f8fafc' : '#0f172a'
   const lineOpacity = props.isDark ? 0.38 : 0.3
-  const coolPalette = ['#0284c7', '#0ea5e9', '#06b6d4', '#14b8a6', '#2563eb']
-  const warmPalette = ['#ef4444', '#f97316', '#f59e0b', '#fb7185', '#dc2626']
-  const savingsFlashColor = '#ff3fd4'
+  
+  const savingsColor = '#10b981' // emerald-500
+  const externalFundingColor = '#f59e0b' // amber-500
+  
   const hiddenLabels = new Set(props.hideNodeLabels ?? [])
+
+  const inflowGroups = new Map<string, number>()
+  const outflowGroups = new Map<string, number>()
+  
+  for (const link of props.links) {
+    const sourceGroup = getNodeGroup(link.source)
+    const targetGroup = getNodeGroup(link.target)
+    if (sourceGroup.startsWith('inflow:')) {
+      inflowGroups.set(sourceGroup, (inflowGroups.get(sourceGroup) || 0) + link.value)
+    }
+    if (targetGroup.startsWith('outflow:')) {
+      outflowGroups.set(targetGroup, (outflowGroups.get(targetGroup) || 0) + link.value)
+    }
+  }
+
+  let maxInflow = 0
+  for (const val of inflowGroups.values()) if (val > maxInflow) maxInflow = val
+  let maxOutflow = 0
+  for (const val of outflowGroups.values()) if (val > maxOutflow) maxOutflow = val
+
+  function getIntensityColor(group: string, isWarm: boolean): string {
+    const groupVal = isWarm ? (outflowGroups.get(group) || 0) : (inflowGroups.get(group) || 0)
+    const maxVal = isWarm ? maxOutflow : maxInflow
+    // Easing the ratio so small expenses aren't entirely faded out
+    const linearRatio = maxVal > 0 ? groupVal / maxVal : 0.5
+    const ratio = Math.pow(linearRatio, 0.7)
+
+    if (isWarm) {
+       // Warm: Yellow (50) -> Orange (25) -> Red (0) -> Crimson (345)
+       const h = 50 - (55 * ratio)
+       const hue = h < 0 ? h + 360 : h
+       const s = 65 + (30 * ratio) 
+       const l = props.isDark ? 65 - (15 * ratio) : 55 - (10 * ratio)
+       return `hsl(${hue}, ${s}%, ${l}%)`
+    } else {
+       // Cold: Cyan (180) -> Azure (200) -> Blue (220) -> Indigo (240)
+       const hue = 180 + (60 * ratio)
+       const s = 65 + (30 * ratio) 
+       const l = props.isDark ? 65 - (15 * ratio) : 60 - (10 * ratio)
+       return `hsl(${hue}, ${s}%, ${l}%)`
+    }
+  }
 
   const nodeColorByName = new Map<string, string>()
   for (const node of nodes.value) {
     const group = getNodeGroup(node.name)
 
     if (group === 'hub:revenus') {
-      nodeColorByName.set(node.name, '#0284c7')
+      nodeColorByName.set(node.name, props.isDark ? '#3b82f6' : '#2563eb')
       continue
     }
     if (group === 'hub:epargne') {
-      nodeColorByName.set(node.name, savingsFlashColor)
+      nodeColorByName.set(node.name, savingsColor)
       continue
     }
     if (group === 'hub:external') {
-      nodeColorByName.set(node.name, '#f97316')
+      nodeColorByName.set(node.name, externalFundingColor)
       continue
     }
     if (group.startsWith('inflow:')) {
-      nodeColorByName.set(node.name, pickColorByName(group, coolPalette))
+      nodeColorByName.set(node.name, getIntensityColor(group, false))
       continue
     }
     if (group.startsWith('outflow:')) {
-      nodeColorByName.set(node.name, pickColorByName(group, warmPalette))
+      nodeColorByName.set(node.name, getIntensityColor(group, true))
       continue
     }
     nodeColorByName.set(node.name, props.isDark ? '#64748b' : '#94a3b8')
@@ -142,13 +172,13 @@ const option = computed(() => {
     let color = props.isDark ? 'rgba(148, 163, 184, 0.5)' : 'rgba(148, 163, 184, 0.4)'
 
     if (sourceGroup === 'hub:revenus' && targetGroup.startsWith('outflow:')) {
-      color = pickColorByName(targetGroup, warmPalette)
+      color = getIntensityColor(targetGroup, true)
     } else if (targetGroup === 'hub:revenus' && sourceGroup.startsWith('inflow:')) {
-      color = pickColorByName(sourceGroup, coolPalette)
+      color = getIntensityColor(sourceGroup, false)
     } else if (targetGroup === 'hub:epargne') {
-      color = savingsFlashColor
+      color = savingsColor
     } else if (sourceGroup === 'hub:external') {
-      color = '#f97316'
+      color = externalFundingColor
     }
 
     return {

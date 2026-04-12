@@ -75,9 +75,9 @@ const zoomEndIndex = ref<number>(0)
 
 const effectiveGranularity = computed<Granularity>(() => props.granularity ?? 'daily')
 
-const allDates = computed<string[]>(() => props.history.map(s => s.snapshot_date))
-
 const rangeOptions = computed<RangeOption[]>(() => granularityRangeOptions[effectiveGranularity.value])
+
+const allDates = computed<string[]>(() => props.history.map(s => s.snapshot_date))
 
 function shiftMonths(date: Date, months: number): Date {
   const shifted = new Date(date)
