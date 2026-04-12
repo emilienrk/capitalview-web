@@ -608,7 +608,21 @@ function openEditAccount(account: any): void {
   showAccountModal.value = true
 }
 
+function checkDateValid(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "Date invalide.";
+  if (d.getFullYear() < 2000) return "La date ne peut pas être avant l'année 2000.";
+  if (d > new Date()) return "La date ne peut pas être dans le futur.";
+  return null;
+}
+
 async function handleSubmitAccount(): Promise<void> {
+  const dateErr = checkDateValid(accountForm.opened_at);
+  if (dateErr) {
+    alert(dateErr);
+    return;
+  }
   showAccountModal.value = false
   let result
   if (editingAccountId.value) {
@@ -678,6 +692,12 @@ function openEditDeposit(tx: TransactionResponse): void {
 }
 
 async function handleSubmitDeposit(): Promise<void> {
+  const dateErr = checkDateValid(depositForm.executed_at);
+  if (dateErr) {
+    alert(dateErr);
+    return;
+  }
+
   if (depositForm.amount <= 0) {
     alert('Le montant doit être strictement positif.')
     return
@@ -809,6 +829,12 @@ function openEditTransaction(tx: any): void {
 }
 
 async function handleSubmitTransaction(): Promise<void> {
+  const dateErr = checkDateValid(txForm.executed_at);
+  if (dateErr) {
+    alert(dateErr);
+    return;
+  }
+
   if (!txForm.asset_key || txForm.asset_key.trim() === '') {
     alert("L'ISIN est obligatoire.")
     return
