@@ -25,8 +25,8 @@ const bankEnabled = computed(() => settingsStore.settings?.bank_module_enabled ?
 const cashflowEnabled = computed(() => settingsStore.settings?.cashflow_module_enabled ?? true)
 const wealthEnabled = computed(() => settingsStore.settings?.wealth_module_enabled ?? true)
 
-// KPI card count = 2 fixed + optional bank + optional cashflow
-const kpiCount = computed(() => 2 + (bankEnabled.value ? 1 : 0) + (cashflowEnabled.value ? 1 : 0))
+// KPI card count = 3 fixed + optional bank + optional cashflow
+const kpiCount = computed(() => 3 + (bankEnabled.value ? 1 : 0) + (cashflowEnabled.value ? 1 : 0))
 const kpiColsClass = computed(() => {
   switch (kpiCount.value) {
     case 2: return 'grid-cols-1 sm:grid-cols-2'
@@ -65,6 +65,12 @@ const granularityOptions = computed(() => {
     if (option.value === 'yearly') return spanDays >= 365
     return true
   })
+})
+
+const investmentWithdrawals = computed(() => dashboard.statistics?.distribution.total_withdrawals ?? 0)
+const investmentGrossDeposits = computed(() => {
+  const investmentNetDeposits = dashboard.statistics?.distribution.total_deposits ?? 0
+  return investmentNetDeposits + investmentWithdrawals.value
 })
 
 watch(granularityOptions, (options) => {
@@ -181,6 +187,19 @@ onMounted(() => {
             <template #icon>
               <div class="w-10 h-10 rounded-primary bg-primary/10 flex items-center justify-center">
                 <TrendingUp class="w-5 h-5 text-primary" />
+              </div>
+            </template>
+          </BaseStatCard>
+
+          <BaseStatCard
+            label="Total déposé (net)"
+            :value="maskValue(formatCurrency(dashboard.statistics?.wealth.total_deposits))"
+            :sub-value="dashboard.statistics ? maskValue(`Brut ${formatCurrency(investmentGrossDeposits)} • Retraits ${formatCurrency(investmentWithdrawals)}`) : undefined"
+            sub-value-class="text-text-muted dark:text-text-dark-muted"
+          >
+            <template #icon>
+              <div class="w-10 h-10 rounded-primary bg-secondary/10 flex items-center justify-center">
+                <WalletCards class="w-5 h-5 text-secondary" />
               </div>
             </template>
           </BaseStatCard>

@@ -559,6 +559,7 @@ export interface AccountSummaryResponse {
   account_type: string
   total_invested: number
   total_deposits: number
+  total_withdrawals: number
   total_fees: number
   currency: string
   current_value: number | null
@@ -703,6 +704,8 @@ export interface InvestmentDistribution {
   crypto_invested: number
   crypto_current_value: number | null
   crypto_percentage: number | null
+  total_deposits: number
+  total_withdrawals: number
 }
 
 export interface WealthBreakdown {
@@ -712,6 +715,8 @@ export interface WealthBreakdown {
   investments_percentage: number | null
   assets: number
   assets_percentage: number | null
+  total_deposits: number
+  total_withdrawals: number
   total_wealth: number
 }
 
@@ -848,6 +853,8 @@ export interface AccountHistorySnapshotResponse {
   snapshot_date: string
   total_value: number
   total_invested: number
+  total_deposits: number
+  total_withdrawals: number
   daily_pnl: number | null
   all_time_pnl: number | null
   positions?: {
