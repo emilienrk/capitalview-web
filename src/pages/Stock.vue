@@ -43,12 +43,13 @@ const selectedAccountId = ref<string | null>(null)
 const activeFilter = ref<'all' | 'PEA' | 'CTO' | 'PEA_PME'>('all')
 const accountTransactions = ref<TransactionResponse[]>([])
 const activeDetailTab = ref<'positions' | 'history'>('positions')
-type StockChartSlide = 'evolution' | 'allocation' | 'pnl'
+type StockChartSlide = 'evolution' | 'allocation' | 'pnl' | 'all_time_pnl'
 const stockChartSlide = ref<StockChartSlide>('evolution')
 const stockChartSlides: Array<{ key: StockChartSlide; label: string }> = [
   { key: 'evolution', label: 'Evolution' },
   { key: 'allocation', label: 'Repartition' },
   { key: 'pnl', label: 'P/L journalier' },
+  { key: 'all_time_pnl', label: 'P/L cumulé' },
 ]
 const stockChartSlideLabel = computed<string>(() => {
   return stockChartSlides.find((slide) => slide.key === stockChartSlide.value)?.label ?? 'Evolution'
@@ -395,6 +396,24 @@ const selectedAccountDailyPnlSeries = computed(() => {
   return [
     { name: 'P/L journalier', history: pnlSeries },
     { name: 'Moyenne journaliere', history: averageSeries },
+  ]
+})
+
+const selectedAccountAllTimePnlSeries = computed(() => {
+  const history = selectedAccountHistory.value
+  if (!history.length) return []
+
+  const allTimePnlSeries = history
+    .filter((point) => point.all_time_pnl != null)
+    .map((point) => ({
+      ...point,
+      total_value: Number(point.all_time_pnl),
+    }))
+
+  if (!allTimePnlSeries.length) return []
+
+  return [
+    { name: 'P/L cumulé', history: allTimePnlSeries },
   ]
 })
 
@@ -1272,12 +1291,15 @@ onMounted(async () => {
                     :disabled="!allocationDateOptions.length"
                   />
                 </div>
-                <p v-else class="text-xs text-text-muted dark:text-text-dark-muted self-end sm:self-auto">
+                <p v-else-if="stockChartSlide === 'pnl'" class="text-xs text-text-muted dark:text-text-dark-muted self-end sm:self-auto">
                   Moyenne par jour :
                   <span :class="['font-semibold', profitLossClass(selectedAccountDailyPnlAverage)]">
                     {{ formatCurrency(selectedAccountDailyPnlAverage) }}
                   </span>
                 </p>
+                <div v-else class="text-xs text-text-transparent dark:text-text-transparent select-none self-end sm:self-auto">
+                  &nbsp;
+                </div>
               </div>
 
               <template v-if="stockChartSlide === 'evolution'">
@@ -1306,7 +1328,7 @@ onMounted(async () => {
                 />
               </template>
 
-              <template v-else>
+              <template v-else-if="stockChartSlide === 'pnl'">
                 <template v-if="selectedAccountDailyPnlSeries.length > 0">
                   <BankHistoryChart
                     :series="selectedAccountDailyPnlSeries"
@@ -1317,6 +1339,21 @@ onMounted(async () => {
                 <BaseEmptyState
                   v-else
                   title="Pas de P/L journalier disponible"
+                  description="Le graphique apparaitra des que des donnees quotidiennes seront disponibles"
+                />
+              </template>
+
+              <template v-else-if="stockChartSlide === 'all_time_pnl'">
+                <template v-if="selectedAccountAllTimePnlSeries.length > 0">
+                  <BankHistoryChart
+                    :series="selectedAccountAllTimePnlSeries"
+                    :is-dark="isDark"
+                    granularity="daily"
+                  />
+                </template>
+                <BaseEmptyState
+                  v-else
+                  title="Pas de P/L cumulé disponible"
                   description="Le graphique apparaitra des que des donnees quotidiennes seront disponibles"
                 />
               </template>

@@ -94,12 +94,13 @@ const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }>
 const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
-type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl'
+type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'all_time_pnl'
 const chartSlide = ref<CryptoChartSlide>('evolution')
 const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
   { key: 'evolution', label: 'Évolution' },
   { key: 'allocation', label: 'Répartition' },
   { key: 'pnl', label: 'P/L journalier' },
+  { key: 'all_time_pnl', label: 'P/L cumulé' },
 ]
 const chartSlideLabel = computed<string>(() => {
   return chartSlides.find((slide) => slide.key === chartSlide.value)?.label ?? 'Évolution'
@@ -811,6 +812,24 @@ const pnlChartSeries = computed(() => {
   ]
 })
 
+const allTimePnlChartSeries = computed(() => {
+  const hist = historyForAnalytics.value
+  if (!hist.length) return []
+
+  const allTimePnlSeries = hist
+    .filter((point) => point.all_time_pnl != null)
+    .map((point) => ({
+      ...point,
+      total_value: Number(point.all_time_pnl),
+    }))
+
+  if (!allTimePnlSeries.length) return []
+
+  return [
+    { name: 'P/L cumulé', history: allTimePnlSeries },
+  ]
+})
+
 const allocationSegments = computed(() => {
   const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
   const hasSelectedAccount = selectedAccountId.value && crypto.currentAccount?.account_id === selectedAccountId.value
@@ -1326,10 +1345,25 @@ onMounted(async () => {
             />
           </template>
 
-          <template v-else>
+          <template v-else-if="chartSlide === 'pnl'">
             <template v-if="pnlChartSeries.length > 0">
               <BankHistoryChart
                 :series="pnlChartSeries"
+                :is-dark="isDark"
+                :granularity="historyGranularity"
+              />
+            </template>
+            <BaseEmptyState
+              v-else
+              title="Pas de P/L journalier disponible"
+              description="L'indicateur apparaîtra avec un historique de portefeuille"
+            />
+          </template>
+
+          <template v-else-if="chartSlide === 'all_time_pnl'">
+            <template v-if="allTimePnlChartSeries.length > 0">
+              <BankHistoryChart
+                :series="allTimePnlChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
               />
@@ -1627,10 +1661,25 @@ onMounted(async () => {
           />
         </template>
 
-        <template v-else>
+        <template v-else-if="chartSlide === 'pnl'">
           <template v-if="pnlChartSeries.length > 0">
             <BankHistoryChart
               :series="pnlChartSeries"
+              :is-dark="isDark"
+              :granularity="historyGranularity"
+            />
+          </template>
+          <BaseEmptyState
+            v-else
+            title="Pas de P/L journalier disponible"
+            description="L'indicateur apparaîtra avec un historique de portefeuille"
+          />
+        </template>
+
+        <template v-else-if="chartSlide === 'all_time_pnl'">
+          <template v-if="allTimePnlChartSeries.length > 0">
+            <BankHistoryChart
+              :series="allTimePnlChartSeries"
               :is-dark="isDark"
               :granularity="historyGranularity"
             />

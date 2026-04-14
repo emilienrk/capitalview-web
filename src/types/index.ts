@@ -849,6 +849,7 @@ export interface AccountHistorySnapshotResponse {
   total_value: number
   total_invested: number
   daily_pnl: number | null
+  all_time_pnl: number | null
   positions?: {
     asset_key: string
     quantity: number
