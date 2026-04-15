@@ -94,13 +94,13 @@ const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }>
 const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
-type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'all_time_pnl'
+type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
 const chartSlide = ref<CryptoChartSlide>('evolution')
 const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
   { key: 'evolution', label: 'Évolution' },
   { key: 'allocation', label: 'Répartition' },
   { key: 'pnl', label: 'P/L journalier' },
-  { key: 'all_time_pnl', label: 'P/L cumulé' },
+  { key: 'cumulative_pnl', label: 'P/L cumulé' },
 ]
 const chartSlideLabel = computed<string>(() => {
   return chartSlides.find((slide) => slide.key === chartSlide.value)?.label ?? 'Évolution'
@@ -817,10 +817,10 @@ const allTimePnlChartSeries = computed(() => {
   if (!hist.length) return []
 
   const allTimePnlSeries = hist
-    .filter((point) => point.all_time_pnl != null)
+    .filter((point) => point.cumulative_pnl != null)
     .map((point) => ({
       ...point,
-      total_value: Number(point.all_time_pnl),
+      total_value: Number(point.cumulative_pnl),
     }))
 
   if (!allTimePnlSeries.length) return []
@@ -1360,7 +1360,7 @@ onMounted(async () => {
             />
           </template>
 
-          <template v-else-if="chartSlide === 'all_time_pnl'">
+          <template v-else-if="chartSlide === 'cumulative_pnl'">
             <template v-if="allTimePnlChartSeries.length > 0">
               <BankHistoryChart
                 :series="allTimePnlChartSeries"
@@ -1676,7 +1676,7 @@ onMounted(async () => {
           />
         </template>
 
-        <template v-else-if="chartSlide === 'all_time_pnl'">
+        <template v-else-if="chartSlide === 'cumulative_pnl'">
           <template v-if="allTimePnlChartSeries.length > 0">
             <BankHistoryChart
               :series="allTimePnlChartSeries"

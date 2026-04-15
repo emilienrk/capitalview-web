@@ -856,7 +856,9 @@ export interface AccountHistorySnapshotResponse {
   total_deposits: number
   total_withdrawals: number
   daily_pnl: number | null
-  all_time_pnl: number | null
+  cumulative_pnl: number | null
+  total_fees: number | null
+  total_dividends: number | null
   positions?: {
     asset_key: string
     quantity: number

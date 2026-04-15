@@ -236,7 +236,7 @@ onMounted(() => {
       <!-- ── Statistics: Distribution & Wealth ───────────────── -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Investment Distribution (Stock / Crypto) -->
-        <BaseCard title="Répartition des investissements" subtitle="Bourse vs Crypto">
+        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" title="Répartition des investissements" subtitle="Bourse vs Crypto">
           <!-- Skeleton -->
           <div v-if="dashboard.isLoading" class="space-y-4">
             <div v-for="i in 2" :key="i" class="flex items-center justify-between p-4 rounded-secondary border border-surface-border dark:border-surface-dark-border">
@@ -305,11 +305,10 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <BaseEmptyState v-else title="Aucune donnée" description="Ajoutez des investissements pour voir la répartition" />
         </BaseCard>
 
         <!-- Wealth Breakdown (Cash / Investments / Assets) -->
-        <BaseCard title="Composition du patrimoine" subtitle="Cash, investissements et biens">
+        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" title="Composition du patrimoine" subtitle="Cash, investissements et biens">
           <!-- Skeleton -->
           <div v-if="dashboard.isLoading" class="space-y-4">
             <div v-for="i in 3" :key="i" class="flex items-center justify-between p-4 rounded-secondary border border-surface-border dark:border-surface-dark-border">
@@ -396,19 +395,18 @@ onMounted(() => {
               </p>
             </div>
           </div>
-          <BaseEmptyState v-else title="Aucune donnée" description="Ajoutez des comptes pour voir la composition de votre patrimoine" />
         </BaseCard>
       </div>
 
       <!-- ── Wealth History Chart ───────────────────────── -->
-      <BaseCard title="Évolution du patrimoine" subtitle="Historique journalier de la valeur globale">
+      <BaseCard v-if="historyStore.isLoading || historyStore.error || (historyStore.history && historyStore.history.length > 0)" title="Évolution du patrimoine" subtitle="Historique journalier de la valeur globale">
         <div v-if="historyStore.isLoading" class="h-72 flex items-center justify-center">
           <BaseSkeleton variant="rect" width="100%" height="18rem" />
         </div>
         <BaseAlert v-else-if="historyStore.error" variant="danger">
           {{ historyStore.error }}
         </BaseAlert>
-        <template v-else-if="historyStore.history && historyStore.history.length > 0">
+        <template v-else-if="historyStore.hasMeaningfulHistory">
           <div class="mb-4 flex justify-end">
             <div class="flex items-center gap-2">
               <BaseButton size="sm" variant="outline" @click="historyStore.fetchHistory()">

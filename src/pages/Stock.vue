@@ -43,13 +43,13 @@ const selectedAccountId = ref<string | null>(null)
 const activeFilter = ref<'all' | 'PEA' | 'CTO' | 'PEA_PME'>('all')
 const accountTransactions = ref<TransactionResponse[]>([])
 const activeDetailTab = ref<'positions' | 'history'>('positions')
-type StockChartSlide = 'evolution' | 'allocation' | 'pnl' | 'all_time_pnl'
+type StockChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
 const stockChartSlide = ref<StockChartSlide>('evolution')
 const stockChartSlides: Array<{ key: StockChartSlide; label: string }> = [
   { key: 'evolution', label: 'Evolution' },
   { key: 'allocation', label: 'Repartition' },
   { key: 'pnl', label: 'P/L journalier' },
-  { key: 'all_time_pnl', label: 'P/L cumulé' },
+  { key: 'cumulative_pnl', label: 'P/L cumulé' },
 ]
 const stockChartSlideLabel = computed<string>(() => {
   return stockChartSlides.find((slide) => slide.key === stockChartSlide.value)?.label ?? 'Evolution'
@@ -404,10 +404,10 @@ const selectedAccountAllTimePnlSeries = computed(() => {
   if (!history.length) return []
 
   const allTimePnlSeries = history
-    .filter((point) => point.all_time_pnl != null)
+    .filter((point) => point.cumulative_pnl != null)
     .map((point) => ({
       ...point,
-      total_value: Number(point.all_time_pnl),
+      total_value: Number(point.cumulative_pnl),
     }))
 
   if (!allTimePnlSeries.length) return []
@@ -1343,7 +1343,7 @@ onMounted(async () => {
                 />
               </template>
 
-              <template v-else-if="stockChartSlide === 'all_time_pnl'">
+              <template v-else-if="stockChartSlide === 'cumulative_pnl'">
                 <template v-if="selectedAccountAllTimePnlSeries.length > 0">
                   <BankHistoryChart
                     :series="selectedAccountAllTimePnlSeries"
