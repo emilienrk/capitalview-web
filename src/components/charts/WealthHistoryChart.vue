@@ -23,7 +23,7 @@ const props = defineProps<{
 }>()
 
 const updateOptions = {
-  replaceMerge: ['xAxis', 'series', 'dataZoom'],
+  replaceMerge: ['legend', 'xAxis', 'series', 'dataZoom'],
 }
 
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -69,6 +69,7 @@ const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const canRenderChart = ref(false)
 let resizeObserver: ResizeObserver | null = null
+const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
 const zoomEndIndex = ref<number>(0)
@@ -140,6 +141,23 @@ watch(effectiveGranularity, (granularity) => {
 watch([allDates, selectedRangeMonths], () => {
   applyRangeWindow()
 }, { immediate: true })
+
+watch(
+  () => {
+    const names = ['Bourse', 'Crypto', 'Patrimoine total']
+    if (props.bankEnabled !== false) names.unshift('Cash')
+    if (props.wealthEnabled !== false) names.push('Patrimoine matériel')
+    return names
+  },
+  (names) => {
+    const nextSelection: Record<string, boolean> = {}
+    for (const name of names) {
+      nextSelection[name] = legendSelection.value[name] ?? true
+    }
+    legendSelection.value = nextSelection
+  },
+  { immediate: true },
+)
 
 function syncChartVisibilityAndSize(): void {
   const container = containerRef.value
@@ -313,6 +331,8 @@ const option = computed(() => {
     legend: {
       bottom: 0,
       type: 'scroll',  // scrollable on mobile when items overflow
+      selectedMode: true,
+      selected: legendSelection.value,
       textStyle: { color: textColor, fontSize: 11 },
       icon: 'circle',
       itemWidth: 8,
@@ -431,6 +451,14 @@ function handleDataZoom(event: {
     zoomEndIndex.value = Math.max(0, Math.floor(payload.endValue))
   }
 }
+
+function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
+  if (!event?.selected) return
+  legendSelection.value = {
+    ...legendSelection.value,
+    ...event.selected,
+  }
+}
 </script>
 
 <template>
@@ -463,6 +491,7 @@ function handleDataZoom(event: {
         :update-options="updateOptions"
         autoresize
         class="w-full h-full"
+        @legendselectchanged="handleLegendSelectChanged"
         @datazoom="handleDataZoom"
       />
     </div>

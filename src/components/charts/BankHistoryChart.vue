@@ -21,7 +21,7 @@ const props = defineProps<{
 }>()
 
 const updateOptions = {
-  replaceMerge: ['xAxis', 'series', 'dataZoom'],
+  replaceMerge: ['legend', 'xAxis', 'series', 'dataZoom'],
 }
 
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -272,6 +272,7 @@ const option = computed(() => {
     legend: {
       bottom: 0,
       type: 'scroll',
+      selectedMode: true,
       selected: legendSelection.value,
       textStyle: { color: textColor, fontSize: 11 },
       icon: 'circle',

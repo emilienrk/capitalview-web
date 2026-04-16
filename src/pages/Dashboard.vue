@@ -2,6 +2,7 @@
 import { CreditCard, DollarSign, Eye, EyeOff, RefreshCw, TrendingUp, WalletCards } from 'lucide-vue-next'
 
 import { onMounted, computed, ref, watch } from 'vue'
+import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useWealthHistoryStore } from '@/stores/wealthHistory'
@@ -11,13 +12,16 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, WealthHistoryChart } from '@/components'
-import type { GlobalHistorySnapshotResponse } from '@/types'
+import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
+import CryptoAllocationDonutChart from '@/components/charts/CryptoAllocationDonutChart.vue'
+import InvestmentDistributionBarChart from '@/components/charts/InvestmentDistributionBarChart.vue'
+import type { AccountHistorySnapshotResponse, GlobalHistorySnapshotResponse } from '@/types'
 
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
 const historyStore = useWealthHistoryStore()
 const settingsStore = useSettingsStore()
-const { formatCurrency, formatPercent, formatNumber, profitLossClass, formatAccountType } = useFormatters()
+const { formatCurrency, formatPercent, profitLossClass } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 
@@ -25,8 +29,8 @@ const bankEnabled = computed(() => settingsStore.settings?.bank_module_enabled ?
 const cashflowEnabled = computed(() => settingsStore.settings?.cashflow_module_enabled ?? true)
 const wealthEnabled = computed(() => settingsStore.settings?.wealth_module_enabled ?? true)
 
-// KPI card count = 3 fixed + optional bank + optional cashflow
-const kpiCount = computed(() => 3 + (bankEnabled.value ? 1 : 0) + (cashflowEnabled.value ? 1 : 0))
+// KPI card count = 2 fixed + optional bank + optional cashflow
+const kpiCount = computed(() => 2 + (bankEnabled.value ? 1 : 0) + (cashflowEnabled.value ? 1 : 0))
 const kpiColsClass = computed(() => {
   switch (kpiCount.value) {
     case 2: return 'grid-cols-1 sm:grid-cols-2'
@@ -34,6 +38,30 @@ const kpiColsClass = computed(() => {
     default: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
   }
 })
+
+const breakdownSlides = [
+  {
+    key: 'distribution',
+    title: 'Répartition des investissements',
+    subtitle: 'Bourse vs Crypto',
+  },
+  {
+    key: 'wealth',
+    title: 'Composition du patrimoine',
+    subtitle: 'Cash, investissements et biens',
+  },
+] as const
+
+const activeBreakdownSlide = ref(0)
+const activeBreakdown = computed(() => breakdownSlides[activeBreakdownSlide.value] ?? breakdownSlides[0])
+
+function nextBreakdownSlide(): void {
+  activeBreakdownSlide.value = (activeBreakdownSlide.value + 1) % breakdownSlides.length
+}
+
+function prevBreakdownSlide(): void {
+  activeBreakdownSlide.value = (activeBreakdownSlide.value - 1 + breakdownSlides.length) % breakdownSlides.length
+}
 
 type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
 const historyGranularity = ref<HistoryGranularity>('daily')
@@ -67,11 +95,21 @@ const granularityOptions = computed(() => {
   })
 })
 
-const investmentWithdrawals = computed(() => dashboard.statistics?.distribution.total_withdrawals ?? 0)
-const investmentGrossDeposits = computed(() => {
-  const investmentNetDeposits = dashboard.statistics?.distribution.total_deposits ?? 0
-  return investmentNetDeposits + investmentWithdrawals.value
-})
+interface GainsHistoryPoint {
+  snapshot_date: string
+  stock_gain: number
+  crypto_gain: number
+  total_gain: number
+}
+
+interface PieSegment {
+  name: string
+  value: number
+}
+
+const gainsHistory = ref<GainsHistoryPoint[]>([])
+const gainsHistoryLoading = ref(false)
+const gainsHistoryError = ref<string | null>(null)
 
 watch(granularityOptions, (options) => {
   const allowed = options.map((option) => option.value)
@@ -103,6 +141,146 @@ function getHistoryBucketKey(snapshotDate: string, granularity: HistoryGranulari
   return snapshotDate
 }
 
+function extractCumulativeGain(snapshot: AccountHistorySnapshotResponse): number {
+  if (snapshot.cumulative_pnl != null) return Number(snapshot.cumulative_pnl)
+
+  const totalValue = Number(snapshot.total_value ?? 0)
+  const totalDeposits = Number(snapshot.total_deposits ?? 0)
+  const totalWithdrawals = Number(snapshot.total_withdrawals ?? 0)
+  return totalValue - totalDeposits + totalWithdrawals
+}
+
+function getLocalIsoDate(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function buildGainsHistory(
+  stockHistory: AccountHistorySnapshotResponse[],
+  cryptoHistory: AccountHistorySnapshotResponse[],
+): GainsHistoryPoint[] {
+  const stockByDate = new Map(stockHistory.map((snapshot) => [snapshot.snapshot_date, extractCumulativeGain(snapshot)]))
+  const cryptoByDate = new Map(cryptoHistory.map((snapshot) => [snapshot.snapshot_date, extractCumulativeGain(snapshot)]))
+
+  const todayIsoDate = getLocalIsoDate()
+  const allDates = Array.from(new Set([...stockByDate.keys(), ...cryptoByDate.keys()])).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+  ).filter((snapshotDate) => snapshotDate.slice(0, 10) !== todayIsoDate)
+
+  let latestStockGain = 0
+  let latestCryptoGain = 0
+
+  return allDates.map((snapshotDate) => {
+    if (stockByDate.has(snapshotDate)) {
+      latestStockGain = stockByDate.get(snapshotDate) ?? latestStockGain
+    }
+    if (cryptoByDate.has(snapshotDate)) {
+      latestCryptoGain = cryptoByDate.get(snapshotDate) ?? latestCryptoGain
+    }
+
+    return {
+      snapshot_date: snapshotDate,
+      stock_gain: latestStockGain,
+      crypto_gain: latestCryptoGain,
+      total_gain: latestStockGain + latestCryptoGain,
+    }
+  })
+}
+
+const wealthCompositionSegments = computed<PieSegment[]>(() => {
+  const wealth = dashboard.statistics?.wealth
+  if (!wealth) return []
+
+  const segments: PieSegment[] = []
+
+  if (bankEnabled.value) {
+    segments.push({ name: 'Cash', value: Number(wealth.cash ?? 0) })
+  }
+
+  segments.push({ name: 'Investissements', value: Number(wealth.investments ?? 0) })
+
+  if (wealthEnabled.value) {
+    segments.push({ name: 'Patrimoine matériel', value: Number(wealth.assets ?? 0) })
+  }
+
+  return segments
+})
+
+const hasWealthCompositionData = computed(() => {
+  return wealthCompositionSegments.value.some((segment) => segment.value > 0)
+})
+
+async function fetchGainsHistory(): Promise<void> {
+  gainsHistoryLoading.value = true
+  gainsHistoryError.value = null
+
+  try {
+    const [stockHistory, cryptoHistory] = await Promise.all([
+      apiClient.get<AccountHistorySnapshotResponse[]>('/stocks/history?include_current=false'),
+      apiClient.get<AccountHistorySnapshotResponse[]>('/crypto/history?include_current=false'),
+    ])
+
+    gainsHistory.value = buildGainsHistory(stockHistory ?? [], cryptoHistory ?? [])
+  } catch (e) {
+    gainsHistoryError.value = e instanceof Error
+      ? e.message
+      : 'Impossible de charger l\'évolution des gains.'
+    gainsHistory.value = []
+  } finally {
+    gainsHistoryLoading.value = false
+  }
+}
+
+const chartGainsHistory = computed<GainsHistoryPoint[]>(() => {
+  const history = gainsHistory.value
+  if (!history.length || historyGranularity.value === 'daily') return history
+
+  const byBucket = new Map<string, GainsHistoryPoint>()
+  for (const snapshot of history) {
+    const bucketKey = getHistoryBucketKey(snapshot.snapshot_date, historyGranularity.value)
+    byBucket.set(bucketKey, snapshot)
+  }
+
+  return Array.from(byBucket.values())
+})
+
+function buildGainSnapshot(snapshotDate: string, value: number): AccountHistorySnapshotResponse {
+  return {
+    snapshot_date: snapshotDate,
+    total_value: value,
+    total_invested: 0,
+    total_deposits: 0,
+    total_withdrawals: 0,
+    daily_pnl: null,
+    cumulative_pnl: value,
+    total_fees: null,
+    total_dividends: null,
+    positions: null,
+  }
+}
+
+const gainsHistorySeries = computed<Array<{ name: string; history: AccountHistorySnapshotResponse[] }>>(() => {
+  const history = chartGainsHistory.value
+
+  return [
+    {
+      name: 'Gains actions',
+      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.stock_gain)),
+    },
+    {
+      name: 'Gains crypto',
+      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.crypto_gain)),
+    },
+    {
+      name: 'Gains totaux',
+      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.total_gain)),
+    },
+  ]
+})
+
 const chartHistory = computed<GlobalHistorySnapshotResponse[]>(() => {
   const history = historyStore.history
   if (!history || historyGranularity.value === 'daily') return history ?? []
@@ -121,6 +299,7 @@ onMounted(() => {
   if (auth.isAuthenticated) {
     dashboard.fetchAll(settingsStore.settings)
     historyStore.fetchHistory()
+    fetchGainsHistory()
   }
 })
 </script>
@@ -192,19 +371,6 @@ onMounted(() => {
           </BaseStatCard>
 
           <BaseStatCard
-            label="Total déposé (net)"
-            :value="maskValue(formatCurrency(dashboard.statistics?.wealth.total_deposits))"
-            :sub-value="dashboard.statistics ? maskValue(`Brut ${formatCurrency(investmentGrossDeposits)} • Retraits ${formatCurrency(investmentWithdrawals)}`) : undefined"
-            sub-value-class="text-text-muted dark:text-text-dark-muted"
-          >
-            <template #icon>
-              <div class="w-10 h-10 rounded-primary bg-secondary/10 flex items-center justify-center">
-                <WalletCards class="w-5 h-5 text-secondary" />
-              </div>
-            </template>
-          </BaseStatCard>
-
-          <BaseStatCard
             label="Valeur actuelle"
             :value="maskValue(formatCurrency(dashboard.portfolio?.current_value))"
             :sub-value="formatPercent(dashboard.portfolio?.profit_loss_percentage)"
@@ -235,80 +401,34 @@ onMounted(() => {
 
       <!-- ── Statistics: Distribution & Wealth ───────────────── -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Investment Distribution (Stock / Crypto) -->
-        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" title="Répartition des investissements" subtitle="Bourse vs Crypto">
-          <!-- Skeleton -->
-          <div v-if="dashboard.isLoading" class="space-y-4">
-            <div v-for="i in 2" :key="i" class="flex items-center justify-between p-4 rounded-secondary border border-surface-border dark:border-surface-dark-border">
-              <div class="space-y-2 flex-1">
-                <BaseSkeleton variant="rect" width="40%" height="0.75rem" />
-                <BaseSkeleton variant="rect" width="60%" height="1.25rem" />
+        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" class="h-full">
+          <template #header>
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ activeBreakdown.title }}</h3>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">{{ activeBreakdown.subtitle }}</p>
               </div>
-              <BaseSkeleton variant="rect" width="3rem" height="1.5rem" />
-            </div>
-          </div>
-          <!-- Data -->
-          <div v-else-if="dashboard.statistics" class="space-y-4">
-            <!-- Progress bar -->
-            <div class="w-full h-3 rounded-full overflow-hidden bg-background-subtle dark:bg-background-dark-subtle">
-              <div class="h-full flex">
-                <div
-                  class="bg-primary transition-all duration-500"
-                  :style="{ width: `${dashboard.statistics.distribution.stock_percentage ?? 0}%` }"
-                />
-                <div
-                  class="bg-warning transition-all duration-500"
-                  :style="{ width: `${dashboard.statistics.distribution.crypto_percentage ?? 0}%` }"
-                />
+              <div class="inline-flex items-center gap-1 rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
+                <button
+                  type="button"
+                  class="h-7 w-7 rounded-button text-text-main dark:text-text-dark-main hover:bg-surface dark:hover:bg-surface-dark"
+                  aria-label="Vue precedente"
+                  @click="prevBreakdownSlide"
+                >
+                  &#8249;
+                </button>
+                <button
+                  type="button"
+                  class="h-7 w-7 rounded-button text-text-main dark:text-text-dark-main hover:bg-surface dark:hover:bg-surface-dark"
+                  aria-label="Vue suivante"
+                  @click="nextBreakdownSlide"
+                >
+                  &#8250;
+                </button>
               </div>
             </div>
+          </template>
 
-            <!-- Stock detail -->
-            <div class="flex items-center justify-between p-4 rounded-secondary bg-primary/5 border border-primary/10">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-3 h-3 rounded-full bg-primary" />
-                <div>
-                  <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Bourse</p>
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">
-                    Investi : {{ maskValue(formatCurrency(dashboard.statistics.distribution.stock_invested)) }}
-                  </p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.distribution.stock_current_value)) }}
-                </p>
-                <p class="text-sm font-medium text-primary">
-                  {{ dashboard.statistics.distribution.stock_percentage != null ? `${Number(dashboard.statistics.distribution.stock_percentage).toFixed(2)} %` : '—' }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Crypto detail -->
-            <div class="flex items-center justify-between p-4 rounded-secondary bg-warning/5 border border-warning/10">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-3 h-3 rounded-full bg-warning" />
-                <div>
-                  <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Crypto</p>
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">
-                    Investi : {{ maskValue(formatCurrency(dashboard.statistics.distribution.crypto_invested)) }}
-                  </p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.distribution.crypto_current_value)) }}
-                </p>
-                <p class="text-sm font-medium text-warning">
-                  {{ dashboard.statistics.distribution.crypto_percentage != null ? `${Number(dashboard.statistics.distribution.crypto_percentage).toFixed(2)} %` : '—' }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </BaseCard>
-
-        <!-- Wealth Breakdown (Cash / Investments / Assets) -->
-        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" title="Composition du patrimoine" subtitle="Cash, investissements et biens">
           <!-- Skeleton -->
           <div v-if="dashboard.isLoading" class="space-y-4">
             <div v-for="i in 3" :key="i" class="flex items-center justify-between p-4 rounded-secondary border border-surface-border dark:border-surface-dark-border">
@@ -319,82 +439,136 @@ onMounted(() => {
               <BaseSkeleton variant="rect" width="3rem" height="1.5rem" />
             </div>
           </div>
+
           <!-- Data -->
           <div v-else-if="dashboard.statistics" class="space-y-4">
-            <!-- Progress bar -->
-            <div class="w-full h-3 rounded-full overflow-hidden bg-background-subtle dark:bg-background-dark-subtle">
-              <div class="h-full flex">
-                <div
-                  class="bg-info transition-all duration-500"
-                  :style="{ width: `${dashboard.statistics.wealth.cash_percentage ?? 0}%` }"
-                />
-                <div
-                  class="bg-success transition-all duration-500"
-                  :style="{ width: `${dashboard.statistics.wealth.investments_percentage ?? 0}%` }"
-                />
-                <div
-                  class="bg-secondary transition-all duration-500"
-                  :style="{ width: `${dashboard.statistics.wealth.assets_percentage ?? 0}%` }"
-                />
-              </div>
-            </div>
+            <template v-if="activeBreakdown.key === 'distribution'">
+              <InvestmentDistributionBarChart
+                :stock-invested="Number(dashboard.statistics.distribution.stock_invested ?? 0)"
+                :stock-current-value="dashboard.statistics.distribution.stock_current_value"
+                :crypto-invested="Number(dashboard.statistics.distribution.crypto_invested ?? 0)"
+                :crypto-current-value="dashboard.statistics.distribution.crypto_current_value"
+                :is-dark="isDark"
+              />
 
-            <!-- Cash -->
-            <div v-if="bankEnabled" class="flex items-center justify-between p-4 rounded-secondary bg-info/5 border border-info/10">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-info" />
-                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Cash</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-secondary border border-primary/15 bg-primary/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Bourse</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ dashboard.statistics.distribution.stock_percentage != null ? `${Number(dashboard.statistics.distribution.stock_percentage).toFixed(2)} %` : '—' }}
+                  </p>
+                </div>
+                <div class="rounded-secondary border border-warning/15 bg-warning/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Crypto</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ dashboard.statistics.distribution.crypto_percentage != null ? `${Number(dashboard.statistics.distribution.crypto_percentage).toFixed(2)} %` : '—' }}
+                  </p>
+                </div>
+                <div class="rounded-secondary border border-success/15 bg-success/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Investi + P/L</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ maskValue(formatCurrency(Number(dashboard.statistics.distribution.stock_current_value ?? 0) + Number(dashboard.statistics.distribution.crypto_current_value ?? 0))) }}
+                  </p>
+                </div>
               </div>
-              <div class="text-right">
-                <p class="font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.wealth.cash)) }}
-                </p>
-                <p class="text-sm font-medium text-info">
-                  {{ dashboard.statistics.wealth.cash_percentage != null ? `${Number(dashboard.statistics.wealth.cash_percentage).toFixed(2)} %` : '—' }}
-                </p>
-              </div>
-            </div>
 
-            <!-- Investments -->
-            <div class="flex items-center justify-between p-4 rounded-secondary bg-success/5 border border-success/10">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-success" />
-                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Investissements</p>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.wealth.investments)) }}
-                </p>
-                <p class="text-sm font-medium text-success">
-                  {{ dashboard.statistics.wealth.investments_percentage != null ? `${Number(dashboard.statistics.wealth.investments_percentage).toFixed(2)} %` : '—' }}
+              <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between">
+                <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">Total investi</p>
+                <p class="text-lg font-bold text-text-main dark:text-text-dark-main">
+                  {{ maskValue(formatCurrency(Number(dashboard.statistics.distribution.stock_invested ?? 0) + Number(dashboard.statistics.distribution.crypto_invested ?? 0))) }}
                 </p>
               </div>
-            </div>
+            </template>
 
-            <!-- Assets -->
-            <div v-if="wealthEnabled" class="flex items-center justify-between p-4 rounded-secondary bg-secondary/5 border border-secondary/10">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-secondary" />
-                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Patrimoine matériel</p>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.wealth.assets)) }}
-                </p>
-                <p class="text-sm font-medium text-secondary">
-                  {{ dashboard.statistics.wealth.assets_percentage != null ? `${Number(dashboard.statistics.wealth.assets_percentage).toFixed(2)} %` : '—' }}
-                </p>
-              </div>
-            </div>
+            <template v-else>
+              <CryptoAllocationDonutChart
+                v-if="hasWealthCompositionData"
+                :segments="wealthCompositionSegments"
+                :is-dark="isDark"
+              />
+              <BaseEmptyState
+                v-else
+                title="Aucune donnée de composition"
+                description="Ajoutez des comptes ou des biens pour visualiser la composition du patrimoine"
+              />
 
-            <!-- Total Wealth -->
-            <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between">
-              <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">Patrimoine total</p>
-              <p class="text-lg font-bold text-text-main dark:text-text-dark-main">
-                {{ maskValue(formatCurrency(dashboard.statistics.wealth.total_wealth)) }}
-              </p>
-            </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div v-if="bankEnabled" class="rounded-secondary border border-info/15 bg-info/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Cash</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.cash)) }}
+                  </p>
+                  <p class="text-xs font-medium text-info mt-1">
+                    {{ dashboard.statistics.wealth.cash_percentage != null ? `${Number(dashboard.statistics.wealth.cash_percentage).toFixed(2)} %` : '—' }}
+                  </p>
+                </div>
+
+                <div class="rounded-secondary border border-success/15 bg-success/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Investissements</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.investments)) }}
+                  </p>
+                  <p class="text-xs font-medium text-success mt-1">
+                    {{ dashboard.statistics.wealth.investments_percentage != null ? `${Number(dashboard.statistics.wealth.investments_percentage).toFixed(2)} %` : '—' }}
+                  </p>
+                </div>
+
+                <div v-if="wealthEnabled" class="rounded-secondary border border-secondary/15 bg-secondary/5 p-3">
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Patrimoine matériel</p>
+                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.assets)) }}
+                  </p>
+                  <p class="text-xs font-medium text-secondary mt-1">
+                    {{ dashboard.statistics.wealth.assets_percentage != null ? `${Number(dashboard.statistics.wealth.assets_percentage).toFixed(2)} %` : '—' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Total Wealth -->
+              <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between">
+                <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">Patrimoine total</p>
+                <p class="text-lg font-bold text-text-main dark:text-text-dark-main">
+                  {{ maskValue(formatCurrency(dashboard.statistics.wealth.total_wealth)) }}
+                </p>
+              </div>
+            </template>
           </div>
+
+          <template #footer>
+            <div class="flex justify-center gap-1.5">
+              <button
+                v-for="(slide, index) in breakdownSlides"
+                :key="slide.key"
+                type="button"
+                class="h-2 rounded-full transition-all"
+                :class="index === activeBreakdownSlide
+                  ? 'w-6 bg-primary'
+                  : 'w-2 bg-surface-border dark:bg-surface-dark-border hover:bg-text-muted dark:hover:bg-text-dark-muted'"
+                :aria-label="`Afficher ${slide.title}`"
+                @click="activeBreakdownSlide = index"
+              />
+            </div>
+          </template>
+        </BaseCard>
+
+        <BaseCard title="Évolution des gains" subtitle="Gains cumulés actions + crypto" class="h-full">
+          <div v-if="gainsHistoryLoading" class="h-72 flex items-center justify-center">
+            <BaseSkeleton variant="rect" width="100%" height="18rem" />
+          </div>
+          <BaseAlert v-else-if="gainsHistoryError" variant="danger">
+            {{ gainsHistoryError }}
+          </BaseAlert>
+          <BankHistoryChart
+            v-else-if="chartGainsHistory.length > 0"
+            :series="gainsHistorySeries"
+            :is-dark="isDark"
+            :granularity="historyGranularity"
+          />
+          <BaseEmptyState
+            v-else
+            title="Pas encore assez de données"
+            description="Ajoutez des transactions actions ou crypto pour suivre l'évolution de vos gains"
+          />
         </BaseCard>
       </div>
 
@@ -430,82 +604,6 @@ onMounted(() => {
         />
       </BaseCard>
 
-      <!-- ── Investment Portfolio ────────────────────────── -->      <BaseCard title="Portfolio d'investissement" subtitle="Actions et crypto-monnaies">
-        <!-- Skeleton -->
-        <div v-if="dashboard.isLoading" class="space-y-4">
-          <div class="rounded-secondary border border-surface-border dark:border-surface-dark-border overflow-hidden">
-            <div class="px-4 py-3 bg-background-subtle dark:bg-background-dark-subtle flex items-center justify-between">
-              <div class="space-y-2">
-                <BaseSkeleton variant="rect" width="8rem" height="0.875rem" />
-                <BaseSkeleton variant="rect" width="4rem" height="0.625rem" />
-              </div>
-              <div class="space-y-2 text-right">
-                <BaseSkeleton variant="rect" width="6rem" height="0.875rem" />
-                <BaseSkeleton variant="rect" width="4rem" height="0.625rem" />
-              </div>
-            </div>
-            <div class="p-4 space-y-3">
-              <BaseSkeleton v-for="i in 3" :key="i" variant="rect" height="1rem" />
-            </div>
-          </div>
-        </div>
-        <!-- Data -->
-        <div v-else-if="dashboard.portfolio?.accounts?.length">
-          <div class="space-y-6">
-            <div
-              v-for="account in dashboard.portfolio.accounts"
-              :key="account.account_id"
-              class="rounded-secondary border border-surface-border dark:border-surface-dark-border overflow-hidden"
-            >
-              <!-- Account header -->
-              <div class="px-4 py-3 bg-background-subtle dark:bg-background-dark-subtle flex items-center justify-between">
-                <div>
-                  <p class="font-semibold text-text-main dark:text-text-dark-main">{{ account.account_name }}</p>
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">{{ formatAccountType(account.account_type) }}</p>
-                </div>
-                <div class="text-right">
-                  <p class="font-semibold text-text-main dark:text-text-dark-main">{{ maskValue(formatCurrency(account.current_value)) }}</p>
-                  <p :class="['text-xs font-medium', profitLossClass(account.profit_loss)]">
-                    {{ formatCurrency(account.profit_loss) }} ({{ formatPercent(account.profit_loss_percentage) }})
-                  </p>
-                </div>
-              </div>
-
-              <!-- Positions table -->
-              <div v-if="account.positions?.length" class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="text-left text-text-muted dark:text-text-dark-muted text-xs uppercase tracking-wider">
-                      <th class="px-4 py-2">Nom</th>
-                      <th class="px-4 py-2 text-right">Quantité</th>
-                      <th class="px-4 py-2 text-right">PRU</th>
-                      <th class="px-4 py-2 text-right">Investi</th>
-                      <th class="px-4 py-2 text-right">Valeur</th>
-                      <th class="px-4 py-2 text-right">P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-                    <tr v-for="pos in account.positions" :key="pos.asset_key" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
-                      <td class="px-4 py-2.5 font-medium text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</td>
-                      <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</td>
-                      <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.average_buy_price) }}</td>
-                      <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.total_invested) }}</td>
-                      <td class="px-4 py-2.5 text-right font-medium text-text-main dark:text-text-dark-main">{{ maskValue(formatCurrency(pos.current_value)) }}</td>
-                      <td class="px-4 py-2.5 text-right">
-                        <span :class="['font-medium', profitLossClass(pos.profit_loss)]">
-                          {{ formatPercent(pos.profit_loss_percentage) }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p v-else class="px-4 py-3 text-sm text-text-muted dark:text-text-dark-muted">Aucune position</p>
-            </div>
-          </div>
-        </div>
-        <BaseEmptyState v-else title="Aucun investissement" description="Ajoutez des comptes PEA, CTO ou Crypto pour suivre vos investissements" />
-      </BaseCard>
     </div>
   </div>
 </template>

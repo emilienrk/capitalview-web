@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
@@ -24,6 +24,10 @@ const props = defineProps<{
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const canRenderChart = ref(false)
+const legendSelection = ref<Record<string, boolean>>({})
+const updateOptions = {
+  replaceMerge: ['legend', 'series'],
+}
 let resizeObserver: ResizeObserver | null = null
 
 function syncChartVisibilityAndSize(): void {
@@ -71,6 +75,14 @@ const sortedSegments = computed(() => {
   return [...props.segments].sort((a, b) => b.value - a.value)
 })
 
+watch(sortedSegments, (segments) => {
+  const nextSelection: Record<string, boolean> = {}
+  for (const segment of segments) {
+    nextSelection[segment.name] = legendSelection.value[segment.name] ?? true
+  }
+  legendSelection.value = nextSelection
+}, { immediate: true })
+
 const option = computed(() => {
   const textColor = props.isDark ? '#94a3b8' : '#6b7280'
   const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
@@ -95,6 +107,8 @@ const option = computed(() => {
     legend: {
       bottom: 0,
       type: 'scroll',
+      selectedMode: true,
+      selected: legendSelection.value,
       textStyle: { color: textColor, fontSize: 11 },
       icon: 'circle',
       itemWidth: 8,
@@ -129,6 +143,14 @@ const option = computed(() => {
 function handleChartReady(): void {
   syncChartVisibilityAndSize()
 }
+
+function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
+  if (!event?.selected) return
+  legendSelection.value = {
+    ...legendSelection.value,
+    ...event.selected,
+  }
+}
 </script>
 
 <template>
@@ -137,8 +159,10 @@ function handleChartReady(): void {
       v-if="canRenderChart"
       ref="chartRef"
       :option="option"
+      :update-options="updateOptions"
       autoresize
       @finished="handleChartReady"
+      @legendselectchanged="handleLegendSelectChanged"
     />
   </div>
 </template>
