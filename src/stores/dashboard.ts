@@ -6,6 +6,8 @@ import type {
   BankSummaryResponse,
   CashflowBalanceResponse,
   DashboardStatisticsResponse,
+  ProjectionParameters,
+  ProjectionResponse,
   UserSettingsResponse,
 } from '@/types'
 
@@ -14,6 +16,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const bankAccounts = ref<BankSummaryResponse | null>(null)
   const cashflowBalance = ref<CashflowBalanceResponse | null>(null)
   const statistics = ref<DashboardStatisticsResponse | null>(null)
+  const projection = ref<ProjectionResponse | null>(null)
+  const projectionLoading = ref(false)
+  const projectionError = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const _liveFetchSeq = ref(0)
@@ -65,11 +70,30 @@ export const useDashboardStore = defineStore('dashboard', () => {
       .catch(() => { /* keep cached data on error */ })
   }
 
+  async function fetchProjection(
+    params: ProjectionParameters = { months_to_project: 120 },
+  ): Promise<void> {
+    projectionLoading.value = true
+    projectionError.value = null
+
+    try {
+      projection.value = await apiClient.post<ProjectionResponse>('/projections/calculate', params)
+    } catch (e) {
+      projectionError.value = e instanceof Error ? e.message : 'Impossible de charger la projection.'
+      projection.value = null
+    } finally {
+      projectionLoading.value = false
+    }
+  }
+
   function reset() {
     portfolio.value = null
     bankAccounts.value = null
     cashflowBalance.value = null
     statistics.value = null
+    projection.value = null
+    projectionLoading.value = false
+    projectionError.value = null
     error.value = null
   }
 
@@ -78,9 +102,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
     bankAccounts,
     cashflowBalance,
     statistics,
+    projection,
+    projectionLoading,
+    projectionError,
     isLoading,
     error,
     fetchAll,
+    fetchProjection,
     reset,
   }
 })

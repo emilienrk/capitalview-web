@@ -4,6 +4,7 @@ interface Props {
   subtitle?: string
   padding?: boolean
   hoverable?: boolean
+  bodyClass?: string
 }
 
 withDefaults(defineProps<Props>(), {
@@ -15,7 +16,7 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div
     :class="[
-      'rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-150',
+      'flex flex-col rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-150',
       hoverable ? 'hover:shadow-lg hover:border-primary/30 cursor-pointer' : '',
     ]"
   >
@@ -35,7 +36,7 @@ withDefaults(defineProps<Props>(), {
     </div>
 
     <!-- Card Body -->
-    <div :class="padding ? 'p-6' : ''">
+    <div :class="[padding ? 'p-6' : '', bodyClass]">
       <slot />
     </div>
 

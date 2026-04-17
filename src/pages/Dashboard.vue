@@ -2,7 +2,6 @@
 import { CreditCard, DollarSign, Eye, EyeOff, RefreshCw, TrendingUp, WalletCards } from 'lucide-vue-next'
 
 import { onMounted, computed, ref, watch } from 'vue'
-import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useWealthHistoryStore } from '@/stores/wealthHistory'
@@ -11,11 +10,16 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, WealthHistoryChart } from '@/components'
-import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
-import CryptoAllocationDonutChart from '@/components/charts/CryptoAllocationDonutChart.vue'
-import InvestmentDistributionBarChart from '@/components/charts/InvestmentDistributionBarChart.vue'
-import type { AccountHistorySnapshotResponse, GlobalHistorySnapshotResponse } from '@/types'
+import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, NetWorthHistoryChart } from '@/components'
+import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
+import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
+import InvestmentComparisonBarChart from '@/components/charts/InvestmentComparisonBarChart.vue'
+import type {
+  AccountHistorySnapshotResponse,
+  GlobalHistorySnapshotResponse,
+  ProjectionCategory,
+  ProjectionDataPoint,
+} from '@/types'
 
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
@@ -63,6 +67,35 @@ function prevBreakdownSlide(): void {
   activeBreakdownSlide.value = (activeBreakdownSlide.value - 1 + breakdownSlides.length) % breakdownSlides.length
 }
 
+const projectionSlides = [
+  {
+    key: 'stock',
+    title: 'Projection actions (10 ans)',
+    subtitle: 'Valeur projetee des actions',
+  },
+  {
+    key: 'crypto',
+    title: 'Projection crypto (10 ans)',
+    subtitle: 'Valeur projetee du portefeuille crypto',
+  },
+  {
+    key: 'total',
+    title: 'Projection globale (10 ans)',
+    subtitle: 'Patrimoine total projete',
+  },
+] as const
+
+const activeProjectionSlide = ref(0)
+const activeProjection = computed(() => projectionSlides[activeProjectionSlide.value] ?? projectionSlides[0])
+
+function nextProjectionSlide(): void {
+  activeProjectionSlide.value = (activeProjectionSlide.value + 1) % projectionSlides.length
+}
+
+function prevProjectionSlide(): void {
+  activeProjectionSlide.value = (activeProjectionSlide.value - 1 + projectionSlides.length) % projectionSlides.length
+}
+
 type HistoryGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
 const historyGranularity = ref<HistoryGranularity>('daily')
 
@@ -95,21 +128,18 @@ const granularityOptions = computed(() => {
   })
 })
 
-interface GainsHistoryPoint {
+
+interface ProjectionValuePoint {
   snapshot_date: string
-  stock_gain: number
-  crypto_gain: number
-  total_gain: number
+  projected_stock_value: number
+  projected_crypto_value: number
+  projected_total_value: number
 }
 
 interface PieSegment {
   name: string
   value: number
 }
-
-const gainsHistory = ref<GainsHistoryPoint[]>([])
-const gainsHistoryLoading = ref(false)
-const gainsHistoryError = ref<string | null>(null)
 
 watch(granularityOptions, (options) => {
   const allowed = options.map((option) => option.value)
@@ -141,53 +171,13 @@ function getHistoryBucketKey(snapshotDate: string, granularity: HistoryGranulari
   return snapshotDate
 }
 
-function extractCumulativeGain(snapshot: AccountHistorySnapshotResponse): number {
-  if (snapshot.cumulative_pnl != null) return Number(snapshot.cumulative_pnl)
+function getProjectedAssetValue(point: ProjectionDataPoint, category: ProjectionCategory): number {
+  const dynamicValue = point.asset_values?.[category]
+  if (dynamicValue != null) {
+    return Number(dynamicValue)
+  }
 
-  const totalValue = Number(snapshot.total_value ?? 0)
-  const totalDeposits = Number(snapshot.total_deposits ?? 0)
-  const totalWithdrawals = Number(snapshot.total_withdrawals ?? 0)
-  return totalValue - totalDeposits + totalWithdrawals
-}
-
-function getLocalIsoDate(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function buildGainsHistory(
-  stockHistory: AccountHistorySnapshotResponse[],
-  cryptoHistory: AccountHistorySnapshotResponse[],
-): GainsHistoryPoint[] {
-  const stockByDate = new Map(stockHistory.map((snapshot) => [snapshot.snapshot_date, extractCumulativeGain(snapshot)]))
-  const cryptoByDate = new Map(cryptoHistory.map((snapshot) => [snapshot.snapshot_date, extractCumulativeGain(snapshot)]))
-
-  const todayIsoDate = getLocalIsoDate()
-  const allDates = Array.from(new Set([...stockByDate.keys(), ...cryptoByDate.keys()])).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-  ).filter((snapshotDate) => snapshotDate.slice(0, 10) !== todayIsoDate)
-
-  let latestStockGain = 0
-  let latestCryptoGain = 0
-
-  return allDates.map((snapshotDate) => {
-    if (stockByDate.has(snapshotDate)) {
-      latestStockGain = stockByDate.get(snapshotDate) ?? latestStockGain
-    }
-    if (cryptoByDate.has(snapshotDate)) {
-      latestCryptoGain = cryptoByDate.get(snapshotDate) ?? latestCryptoGain
-    }
-
-    return {
-      snapshot_date: snapshotDate,
-      stock_gain: latestStockGain,
-      crypto_gain: latestCryptoGain,
-      total_gain: latestStockGain + latestCryptoGain,
-    }
-  })
+  return 0
 }
 
 const wealthCompositionSegments = computed<PieSegment[]>(() => {
@@ -213,32 +203,22 @@ const hasWealthCompositionData = computed(() => {
   return wealthCompositionSegments.value.some((segment) => segment.value > 0)
 })
 
-async function fetchGainsHistory(): Promise<void> {
-  gainsHistoryLoading.value = true
-  gainsHistoryError.value = null
+const projectedValueHistory = computed<ProjectionValuePoint[]>(() => {
+  const projectionData = dashboard.projection?.data ?? []
 
-  try {
-    const [stockHistory, cryptoHistory] = await Promise.all([
-      apiClient.get<AccountHistorySnapshotResponse[]>('/stocks/history?include_current=false'),
-      apiClient.get<AccountHistorySnapshotResponse[]>('/crypto/history?include_current=false'),
-    ])
+  return projectionData.map((point) => ({
+    snapshot_date: point.date,
+    projected_stock_value: getProjectedAssetValue(point, 'STOCK'),
+    projected_crypto_value: getProjectedAssetValue(point, 'CRYPTO'),
+    projected_total_value: Number(point.total_value),
+  }))
+})
 
-    gainsHistory.value = buildGainsHistory(stockHistory ?? [], cryptoHistory ?? [])
-  } catch (e) {
-    gainsHistoryError.value = e instanceof Error
-      ? e.message
-      : 'Impossible de charger l\'évolution des gains.'
-    gainsHistory.value = []
-  } finally {
-    gainsHistoryLoading.value = false
-  }
-}
-
-const chartGainsHistory = computed<GainsHistoryPoint[]>(() => {
-  const history = gainsHistory.value
+const chartProjectedValueHistory = computed<ProjectionValuePoint[]>(() => {
+  const history = projectedValueHistory.value
   if (!history.length || historyGranularity.value === 'daily') return history
 
-  const byBucket = new Map<string, GainsHistoryPoint>()
+  const byBucket = new Map<string, ProjectionValuePoint>()
   for (const snapshot of history) {
     const bucketKey = getHistoryBucketKey(snapshot.snapshot_date, historyGranularity.value)
     byBucket.set(bucketKey, snapshot)
@@ -247,7 +227,7 @@ const chartGainsHistory = computed<GainsHistoryPoint[]>(() => {
   return Array.from(byBucket.values())
 })
 
-function buildGainSnapshot(snapshotDate: string, value: number): AccountHistorySnapshotResponse {
+function buildProjectionSnapshot(snapshotDate: string, value: number): AccountHistorySnapshotResponse {
   return {
     snapshot_date: snapshotDate,
     total_value: value,
@@ -262,23 +242,28 @@ function buildGainSnapshot(snapshotDate: string, value: number): AccountHistoryS
   }
 }
 
-const gainsHistorySeries = computed<Array<{ name: string; history: AccountHistorySnapshotResponse[] }>>(() => {
-  const history = chartGainsHistory.value
+const projectedValueSeries = computed<Array<{ name: string; history: AccountHistorySnapshotResponse[] }>>(() => {
+  const history = chartProjectedValueHistory.value
 
   return [
     {
-      name: 'Gains actions',
-      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.stock_gain)),
+      name: 'Valeur actions projetee',
+      history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_stock_value)),
     },
     {
-      name: 'Gains crypto',
-      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.crypto_gain)),
+      name: 'Valeur crypto projetee',
+      history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_crypto_value)),
     },
     {
-      name: 'Gains totaux',
-      history: history.map((snapshot) => buildGainSnapshot(snapshot.snapshot_date, snapshot.total_gain)),
+      name: 'Patrimoine total projete',
+      history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_total_value)),
     },
   ]
+})
+
+const activeProjectedValueSeries = computed<Array<{ name: string; history: AccountHistorySnapshotResponse[] }>>(() => {
+  const selectedSeries = projectedValueSeries.value[activeProjectionSlide.value]
+  return selectedSeries ? [selectedSeries] : []
 })
 
 const chartHistory = computed<GlobalHistorySnapshotResponse[]>(() => {
@@ -299,7 +284,7 @@ onMounted(() => {
   if (auth.isAuthenticated) {
     dashboard.fetchAll(settingsStore.settings)
     historyStore.fetchHistory()
-    fetchGainsHistory()
+    dashboard.fetchProjection({ months_to_project: 120 })
   }
 })
 </script>
@@ -401,7 +386,7 @@ onMounted(() => {
 
       <!-- ── Statistics: Distribution & Wealth ───────────────── -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" class="h-full">
+        <BaseCard v-if="dashboard.isLoading || dashboard.statistics" class="h-full" body-class="flex min-h-0 flex-1 flex-col">
           <template #header>
             <div class="flex items-start justify-between gap-3">
               <div>
@@ -441,47 +426,20 @@ onMounted(() => {
           </div>
 
           <!-- Data -->
-          <div v-else-if="dashboard.statistics" class="space-y-4">
+          <div v-else-if="dashboard.statistics" class="flex min-h-0 flex-1 flex-col">
+            <div class="space-y-4">
             <template v-if="activeBreakdown.key === 'distribution'">
-              <InvestmentDistributionBarChart
+              <InvestmentComparisonBarChart
                 :stock-invested="Number(dashboard.statistics.distribution.stock_invested ?? 0)"
-                :stock-current-value="dashboard.statistics.distribution.stock_current_value"
+                :stock-current-value="Number(dashboard.statistics.distribution.stock_current_value ?? 0)"
                 :crypto-invested="Number(dashboard.statistics.distribution.crypto_invested ?? 0)"
-                :crypto-current-value="dashboard.statistics.distribution.crypto_current_value"
+                :crypto-current-value="Number(dashboard.statistics.distribution.crypto_current_value ?? 0)"
                 :is-dark="isDark"
               />
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="rounded-secondary border border-primary/15 bg-primary/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Bourse</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ dashboard.statistics.distribution.stock_percentage != null ? `${Number(dashboard.statistics.distribution.stock_percentage).toFixed(2)} %` : '—' }}
-                  </p>
-                </div>
-                <div class="rounded-secondary border border-warning/15 bg-warning/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Crypto</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ dashboard.statistics.distribution.crypto_percentage != null ? `${Number(dashboard.statistics.distribution.crypto_percentage).toFixed(2)} %` : '—' }}
-                  </p>
-                </div>
-                <div class="rounded-secondary border border-success/15 bg-success/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Investi + P/L</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ maskValue(formatCurrency(Number(dashboard.statistics.distribution.stock_current_value ?? 0) + Number(dashboard.statistics.distribution.crypto_current_value ?? 0))) }}
-                  </p>
-                </div>
-              </div>
-
-              <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between">
-                <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">Total investi</p>
-                <p class="text-lg font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(Number(dashboard.statistics.distribution.stock_invested ?? 0) + Number(dashboard.statistics.distribution.crypto_invested ?? 0))) }}
-                </p>
-              </div>
             </template>
 
             <template v-else>
-              <CryptoAllocationDonutChart
+              <AllocationDonutChart
                 v-if="hasWealthCompositionData"
                 :segments="wealthCompositionSegments"
                 :is-dark="isDark"
@@ -491,51 +449,11 @@ onMounted(() => {
                 title="Aucune donnée de composition"
                 description="Ajoutez des comptes ou des biens pour visualiser la composition du patrimoine"
               />
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div v-if="bankEnabled" class="rounded-secondary border border-info/15 bg-info/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Cash</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.cash)) }}
-                  </p>
-                  <p class="text-xs font-medium text-info mt-1">
-                    {{ dashboard.statistics.wealth.cash_percentage != null ? `${Number(dashboard.statistics.wealth.cash_percentage).toFixed(2)} %` : '—' }}
-                  </p>
-                </div>
-
-                <div class="rounded-secondary border border-success/15 bg-success/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Investissements</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.investments)) }}
-                  </p>
-                  <p class="text-xs font-medium text-success mt-1">
-                    {{ dashboard.statistics.wealth.investments_percentage != null ? `${Number(dashboard.statistics.wealth.investments_percentage).toFixed(2)} %` : '—' }}
-                  </p>
-                </div>
-
-                <div v-if="wealthEnabled" class="rounded-secondary border border-secondary/15 bg-secondary/5 p-3">
-                  <p class="text-xs text-text-muted dark:text-text-dark-muted">Patrimoine matériel</p>
-                  <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-                    {{ maskValue(formatCurrency(dashboard.statistics.wealth.assets)) }}
-                  </p>
-                  <p class="text-xs font-medium text-secondary mt-1">
-                    {{ dashboard.statistics.wealth.assets_percentage != null ? `${Number(dashboard.statistics.wealth.assets_percentage).toFixed(2)} %` : '—' }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Total Wealth -->
-              <div class="pt-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between">
-                <p class="text-sm font-semibold text-text-main dark:text-text-dark-main">Patrimoine total</p>
-                <p class="text-lg font-bold text-text-main dark:text-text-dark-main">
-                  {{ maskValue(formatCurrency(dashboard.statistics.wealth.total_wealth)) }}
-                </p>
-              </div>
             </template>
-          </div>
+            </div>
 
-          <template #footer>
-            <div class="flex justify-center gap-1.5">
+            <!-- Carousel Pagination -->
+            <div class="mt-auto flex justify-center gap-1.5 pt-4">
               <button
                 v-for="(slide, index) in breakdownSlides"
                 :key="slide.key"
@@ -548,27 +466,74 @@ onMounted(() => {
                 @click="activeBreakdownSlide = index"
               />
             </div>
-          </template>
+          </div>
         </BaseCard>
 
-        <BaseCard title="Évolution des gains" subtitle="Gains cumulés actions + crypto" class="h-full">
-          <div v-if="gainsHistoryLoading" class="h-72 flex items-center justify-center">
-            <BaseSkeleton variant="rect" width="100%" height="18rem" />
+        <BaseCard class="h-full" body-class="flex min-h-0 flex-1 flex-col">
+          <template #header>
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ activeProjection.title }}</h3>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">{{ activeProjection.subtitle }}</p>
+              </div>
+              <div class="inline-flex items-center gap-1 rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
+                <button
+                  type="button"
+                  class="h-7 w-7 rounded-button text-text-main dark:text-text-dark-main hover:bg-surface dark:hover:bg-surface-dark"
+                  aria-label="Vue precedente"
+                  @click="prevProjectionSlide"
+                >
+                  &#8249;
+                </button>
+                <button
+                  type="button"
+                  class="h-7 w-7 rounded-button text-text-main dark:text-text-dark-main hover:bg-surface dark:hover:bg-surface-dark"
+                  aria-label="Vue suivante"
+                  @click="nextProjectionSlide"
+                >
+                  &#8250;
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <div class="flex min-h-0 flex-1 flex-col">
+            <div class="flex-1">
+              <div v-if="dashboard.projectionLoading" class="h-72 flex items-center justify-center">
+                <BaseSkeleton variant="rect" width="100%" height="18rem" />
+              </div>
+              <BaseAlert v-else-if="dashboard.projectionError" variant="danger">
+                {{ dashboard.projectionError }}
+              </BaseAlert>
+              <HistoryLineChart
+                v-else-if="chartProjectedValueHistory.length > 0"
+                :series="activeProjectedValueSeries"
+                :is-dark="isDark"
+                granularity="yearly"
+                hide-controls
+              />
+              <BaseEmptyState
+                v-else
+                title="Estimation impossible"
+                description="L'estimation à long terme donne un total perdant, ou il manque des données d'investissement"
+              />
+            </div>
+
+            <!-- Carousel Pagination -->
+            <div class="mt-auto flex justify-center gap-1.5 pt-4">
+              <button
+                v-for="(slide, index) in projectionSlides"
+                :key="slide.key"
+                type="button"
+                class="h-2 rounded-full transition-all"
+                :class="index === activeProjectionSlide
+                  ? 'w-6 bg-primary'
+                  : 'w-2 bg-surface-border dark:bg-surface-dark-border hover:bg-text-muted dark:hover:bg-text-dark-muted'"
+                :aria-label="`Afficher ${slide.title}`"
+                @click="activeProjectionSlide = index"
+              />
+            </div>
           </div>
-          <BaseAlert v-else-if="gainsHistoryError" variant="danger">
-            {{ gainsHistoryError }}
-          </BaseAlert>
-          <BankHistoryChart
-            v-else-if="chartGainsHistory.length > 0"
-            :series="gainsHistorySeries"
-            :is-dark="isDark"
-            :granularity="historyGranularity"
-          />
-          <BaseEmptyState
-            v-else
-            title="Pas encore assez de données"
-            description="Ajoutez des transactions actions ou crypto pour suivre l'évolution de vos gains"
-          />
         </BaseCard>
       </div>
 
@@ -589,7 +554,7 @@ onMounted(() => {
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </div>
           </div>
-          <WealthHistoryChart
+          <NetWorthHistoryChart
             :history="chartHistory"
             :is-dark="isDark"
             :bank-enabled="bankEnabled"
