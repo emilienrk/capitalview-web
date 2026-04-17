@@ -147,6 +147,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateProfile(data: { username?: string, email?: string }): Promise<void> {
+    if (!user.value) return
+    
+    if (data.username && data.username !== user.value.username) {
+      user.value = await apiClient.put<User>('/auth/me/username', { username: data.username })
+    }
+    
+    if (data.email && data.email !== user.value.email) {
+      user.value = await apiClient.put<User>('/auth/me/email', { email: data.email })
+    }
+  }
+
   async function logout(): Promise<void> {
     try {
       await apiClient.post('/auth/logout')
@@ -173,6 +185,7 @@ export const useAuthStore = defineStore('auth', () => {
     submitForm,
     refreshToken,
     checkAuth,
+    updateProfile,
     logout
   }
 })

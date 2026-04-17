@@ -21,6 +21,8 @@ export interface User {
   username: string
   email: string
   is_active: boolean
+  last_username_change: string | null
+  last_email_change: string | null
   last_login: string | null
   created_at: string
 }
@@ -723,6 +725,39 @@ export interface WealthBreakdown {
 export interface DashboardStatisticsResponse {
   distribution: InvestmentDistribution
   wealth: WealthBreakdown
+}
+
+// ─── Projection ─────────────────────────────────────────────
+
+export type ProjectionCategory = 'BANK' | 'STOCK' | 'CRYPTO'
+
+export interface ProjectionAssetParameters {
+  monthly_injection?: number | null
+  return_rate?: number | null
+}
+
+export interface ProjectionParameters {
+  months_to_project: number
+  assets?: Partial<Record<ProjectionCategory, ProjectionAssetParameters>>
+}
+
+export interface ProjectionAssetParametersUsed {
+  monthly_injection: number
+  return_rate: number
+}
+
+export interface ProjectionDataPoint {
+  date: string
+  asset_values: Partial<Record<ProjectionCategory, number>>
+  total_value: number
+}
+
+export interface ProjectionResponse {
+  parameters_used: {
+    months_to_project: number
+    assets: Record<ProjectionCategory, ProjectionAssetParametersUsed>
+  }
+  data: ProjectionDataPoint[]
 }
 
 // ─── Community ───────────────────────────────────────────────

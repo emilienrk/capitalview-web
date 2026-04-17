@@ -31,12 +31,12 @@ const tabs: Tab[] = [
     shortLabel: 'Général',
     icon: User,
   },
-  {
-    id: 'finances',
-    label: 'Finances',
-    shortLabel: 'Finances',
-    icon: Wallet,
-  },
+  // {
+  //   id: 'finances',
+  //   label: 'Finances',
+  //   shortLabel: 'Finances',
+  //   icon: Wallet,
+  // },
   {
     id: 'modules',
     label: 'Modules',
@@ -134,7 +134,7 @@ onMounted(async () => {
       <main class="flex-1 min-w-0">
         <KeepAlive>
           <SettingsGeneral v-if="activeTab === 'general'" />
-          <SettingsFinances v-else-if="activeTab === 'finances'" />
+          <!-- <SettingsFinances v-else-if="activeTab === 'finances'" /> -->
           <SettingsModules v-else-if="activeTab === 'modules'" />
           <SettingsCommunity v-else-if="activeTab === 'communaute'" />
           <SettingsSecurity v-else-if="activeTab === 'securite'" />
