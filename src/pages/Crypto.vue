@@ -67,6 +67,14 @@ function maskAmount(value: number | string | null | undefined): string {
   return maskValue(formatAmount(value))
 }
 
+function formatPercentUnsigned(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return `${Number(value).toLocaleString('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} %`
+}
+
 type TxFormType = CryptoUiTransactionType | CryptoAtomicTransactionType
 type TxFormData = Omit<CryptoCompositeTransactionCreate, 'type'> & { type: TxFormType }
 
@@ -812,6 +820,82 @@ const cryptoSummaryOpenedAt = computed<string | null>(() => {
   return selectedCryptoAccountMeta.value?.opened_at ?? selectedCryptoAccountMeta.value?.created_at ?? null
 })
 
+const hasSingleCryptoAccount = computed(() => (crypto.accounts?.length ?? 0) <= 1)
+
+const cryptoNonFiatPositions = computed(() => {
+  const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
+  const positions = crypto.currentAccount?.positions ?? []
+  return positions.filter((position) => !fiat.has(position.asset_key.toUpperCase()))
+})
+
+const cryptoActiveAssetsCount = computed(() => {
+  return cryptoNonFiatPositions.value.filter((position) => {
+    const amount = Number(position.total_amount ?? 0)
+    return Number.isFinite(amount) && amount !== 0
+  }).length
+})
+
+const cryptoTopPositionWeight = computed<number | null>(() => {
+  const values = cryptoNonFiatPositions.value
+    .map((position) => Number(position.current_value ?? 0))
+    .filter((value) => Number.isFinite(value) && value > 0)
+
+  if (!values.length) return null
+
+  const total = values.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) return null
+
+  const top = Math.max(...values)
+  return (top / total) * 100
+})
+
+const cryptoContextFallbackStat = computed<SummaryStatItem>(() => {
+  const summary = crypto.currentAccount
+
+  if (hasSingleCryptoAccount.value && cryptoActiveAssetsCount.value > 0) {
+    return {
+      key: 'active_assets',
+      label: 'Actifs suivis',
+      value: formatNumber(cryptoActiveAssetsCount.value, 0),
+    }
+  }
+
+  if (cryptoTopPositionWeight.value != null) {
+    return {
+      key: 'top_position_weight',
+      label: 'Poids top position',
+      value: formatPercentUnsigned(cryptoTopPositionWeight.value),
+    }
+  }
+
+  if (summary && Number(summary.total_fees ?? 0) > 0) {
+    return {
+      key: 'total_fees',
+      label: 'Frais cumulés',
+      value: maskAmount(summary.total_fees),
+    }
+  }
+
+  return {
+    key: 'account_count',
+    label: 'Portefeuilles suivis',
+    value: formatNumber(crypto.accounts?.length ?? 0, 0),
+  }
+})
+
+const cryptoDateOrFallbackStat = computed<SummaryStatItem>(() => {
+  const openedAt = cryptoSummaryOpenedAt.value
+  if (openedAt) {
+    return {
+      key: 'opened_at',
+      label: 'Date d\'ouverture',
+      value: formatDate(openedAt),
+    }
+  }
+
+  return cryptoContextFallbackStat.value
+})
+
 function getHistorySpanDays(history: AccountHistorySnapshotResponse[]): number {
   if (history.length < 2) return 0
   const first = new Date(history[0]!.snapshot_date).getTime()
@@ -940,11 +1024,7 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       label: 'Retraits cumulés',
       value: maskAmount(summary.total_withdrawals),
     },
-    {
-      key: 'opened_at',
-      label: 'Date d\'ouverture',
-      value: formatDate(cryptoSummaryOpenedAt.value),
-    },
+    cryptoDateOrFallbackStat.value,
   ]
 })
 
