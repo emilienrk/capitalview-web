@@ -161,7 +161,8 @@ const valueVsInvestedOption = computed(() => {
       left: 8,
       right: 8,
       bottom: 28,
-      containLabel: true,
+      outerBoundsMode: 'same',
+      outerBoundsContain: 'axisLabel',
     },
     xAxis: {
       type: 'category',
@@ -222,7 +223,8 @@ const pnlOption = computed(() => {
       left: 8,
       right: 8,
       bottom: 28,
-      containLabel: true,
+      outerBoundsMode: 'same',
+      outerBoundsContain: 'axisLabel',
     },
     xAxis: {
       type: 'category',
