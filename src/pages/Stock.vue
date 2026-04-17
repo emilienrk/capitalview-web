@@ -14,8 +14,8 @@ import {
   BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
-import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
-import CryptoAllocationDonutChart from '@/components/charts/CryptoAllocationDonutChart.vue'
+import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
+import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse } from '@/types'
 
 
@@ -62,6 +62,7 @@ const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }>
   { value: 'monthly', label: 'Mois' },
   { value: 'yearly', label: 'Année' },
 ]
+const MIN_DAYS_FOR_YEARLY_GRANULARITY = 730
 const editingTxId = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
 
@@ -405,7 +406,7 @@ const granularityOptions = computed(() => {
     if (option.value === 'daily') return true
     if (option.value === 'weekly') return spanDays >= 21
     if (option.value === 'monthly') return spanDays >= 90
-    if (option.value === 'yearly') return spanDays >= 365
+    if (option.value === 'yearly') return spanDays >= MIN_DAYS_FOR_YEARLY_GRANULARITY
     return true
   })
 })
@@ -493,7 +494,7 @@ const stockDailyPnlSeries = computed(() => {
 })
 
 const stockAllTimePnlSeries = computed(() => {
-  const allTimePnlSeries = stockCumulativePnlPoints.value
+  const allTimePnlSeries = applyGranularity(stockCumulativePnlPoints.value)
 
   if (!allTimePnlSeries.length) return []
 
@@ -1222,7 +1223,7 @@ onMounted(async () => {
 
       <template v-else-if="stockChartSlide === 'evolution'">
         <template v-if="stockChartSeries.length > 0">
-          <BankHistoryChart
+          <HistoryLineChart
             :series="stockChartSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
@@ -1237,7 +1238,7 @@ onMounted(async () => {
 
       <template v-else-if="stockChartSlide === 'allocation'">
         <template v-if="allocationSegments.length">
-          <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
+          <AllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
         </template>
         <BaseEmptyState
           v-else
@@ -1248,7 +1249,7 @@ onMounted(async () => {
 
       <template v-else-if="stockChartSlide === 'pnl'">
         <template v-if="stockDailyPnlSeries.length > 0">
-          <BankHistoryChart
+          <HistoryLineChart
             :series="stockDailyPnlSeries"
             :is-dark="isDark"
             granularity="daily"
@@ -1263,7 +1264,7 @@ onMounted(async () => {
 
       <template v-else-if="stockChartSlide === 'cumulative_pnl'">
         <template v-if="stockAllTimePnlSeries.length > 0">
-          <BankHistoryChart
+          <HistoryLineChart
             :series="stockAllTimePnlSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"

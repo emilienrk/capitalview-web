@@ -12,7 +12,7 @@ import {
   BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
 } from '@/components'
 import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
-import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
+import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import type { AccountHistorySnapshotResponse, BankAccountCreate, BankAccountType } from '@/types'
 
 const bank = useBankStore()
@@ -250,7 +250,7 @@ onMounted(async () => {
             <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
           </div>
         </div>
-        <BankHistoryChart
+        <HistoryLineChart
           :series="chartSeries"
           :is-dark="isDark"
           :granularity="historyGranularity"

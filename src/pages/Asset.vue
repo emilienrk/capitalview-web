@@ -13,7 +13,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import PageHeader from '@/components/PageHeader.vue'
 import AssetFormModal from '@/components/modals/AssetFormModal.vue'
 import AssetHistoryModal from '@/components/modals/AssetHistoryModal.vue'
-import AssetEvolutionChart from '@/components/charts/AssetEvolutionChart.vue'
+import AssetValueHistoryChart from '@/components/charts/AssetValueHistoryChart.vue'
 import {
   BaseCard, BaseAlert, BaseEmptyState, BaseButton, BaseModal, BaseInput,
 } from '@/components'
@@ -196,7 +196,7 @@ const groupedAssets = computed(() => {
         <div v-if="isLoadingAssetHistory" class="h-44 rounded-secondary border border-surface-border dark:border-surface-dark-border flex items-center justify-center text-sm text-text-muted dark:text-text-dark-muted">
           Chargement de l'evolution...
         </div>
-        <AssetEvolutionChart v-else :history="assetHistory" />
+        <AssetValueHistoryChart v-else :history="assetHistory" />
       </BaseCard>
 
       <!-- ═══════════════ PERSONAL ASSETS ═══════════════ -->

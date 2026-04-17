@@ -12,7 +12,7 @@ import type {
 import { useAssetStore } from '@/stores/asset'
 import { useFormatters } from '@/composables/useFormatters'
 import BaseModal from '@/components/base/BaseModal.vue'
-import AssetValuationChart from '@/components/charts/AssetValuationChart.vue'
+import AssetValuationTimelineChart from '@/components/charts/AssetValuationTimelineChart.vue'
 import { BaseButton, BaseInput, BaseSpinner } from '@/components'
 
 interface Props {
@@ -204,7 +204,7 @@ async function removeEntry(v: AssetValuationResponse): Promise<void> {
       class="mb-6 p-3 rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border"
     >
       <p class="text-sm font-medium text-text-main dark:text-text-dark-main mb-2">Evolution depuis l'achat</p>
-      <AssetValuationChart :points="chartPoints" :height="228" :show-point-date-labels="true" />
+      <AssetValuationTimelineChart :points="chartPoints" :height="228" :show-point-date-labels="true" />
     </div>
 
     <!-- Add new entry form -->

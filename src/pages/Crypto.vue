@@ -16,8 +16,8 @@ import {
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
-import BankHistoryChart from '@/components/charts/BankHistoryChart.vue'
-import CryptoAllocationDonutChart from '@/components/charts/CryptoAllocationDonutChart.vue'
+import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
+import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type {
   AccountHistorySnapshotResponse,
   CryptoAccountCreate,
@@ -99,6 +99,7 @@ const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }>
   { value: 'monthly', label: 'Mois' },
   { value: 'yearly', label: 'Année' },
 ]
+const MIN_DAYS_FOR_YEARLY_GRANULARITY = 730
 const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
@@ -910,7 +911,7 @@ const granularityOptions = computed(() => {
     if (option.value === 'daily') return true
     if (option.value === 'weekly') return spanDays >= 21
     if (option.value === 'monthly') return spanDays >= 90
-    if (option.value === 'yearly') return spanDays >= 365
+    if (option.value === 'yearly') return spanDays >= MIN_DAYS_FOR_YEARLY_GRANULARITY
     return true
   })
 })
@@ -1060,7 +1061,7 @@ const pnlChartSeries = computed(() => {
 })
 
 const allTimePnlChartSeries = computed(() => {
-  const allTimePnlSeries = cryptoCumulativePnlPoints.value
+  const allTimePnlSeries = applyGranularity(cryptoCumulativePnlPoints.value)
 
   if (!allTimePnlSeries.length) return []
 
@@ -1580,7 +1581,7 @@ onMounted(async () => {
 
           <template v-else-if="chartSlide === 'evolution'">
             <template v-if="cryptoChartSeries.length > 0">
-              <BankHistoryChart
+              <HistoryLineChart
                 :series="cryptoChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
@@ -1595,7 +1596,7 @@ onMounted(async () => {
 
           <template v-else-if="chartSlide === 'allocation'">
             <template v-if="allocationSegments.length">
-              <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
+              <AllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
             </template>
             <BaseEmptyState
               v-else
@@ -1606,7 +1607,7 @@ onMounted(async () => {
 
           <template v-else-if="chartSlide === 'pnl'">
             <template v-if="pnlChartSeries.length > 0">
-              <BankHistoryChart
+              <HistoryLineChart
                 :series="pnlChartSeries"
                 :is-dark="isDark"
                 granularity="daily"
@@ -1621,7 +1622,7 @@ onMounted(async () => {
 
           <template v-else-if="chartSlide === 'cumulative_pnl'">
             <template v-if="allTimePnlChartSeries.length > 0">
-              <BankHistoryChart
+              <HistoryLineChart
                 :series="allTimePnlChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
@@ -1912,7 +1913,7 @@ onMounted(async () => {
 
         <template v-else-if="chartSlide === 'evolution'">
           <template v-if="cryptoChartSeries.length > 0">
-            <BankHistoryChart
+            <HistoryLineChart
               :series="cryptoChartSeries"
               :is-dark="isDark"
               :granularity="historyGranularity"
@@ -1927,7 +1928,7 @@ onMounted(async () => {
 
         <template v-else-if="chartSlide === 'allocation'">
           <template v-if="allocationSegments.length">
-            <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
+            <AllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
           </template>
           <BaseEmptyState
             v-else
@@ -1938,7 +1939,7 @@ onMounted(async () => {
 
         <template v-else-if="chartSlide === 'pnl'">
           <template v-if="pnlChartSeries.length > 0">
-            <BankHistoryChart
+            <HistoryLineChart
               :series="pnlChartSeries"
               :is-dark="isDark"
               granularity="daily"
@@ -1953,7 +1954,7 @@ onMounted(async () => {
 
         <template v-else-if="chartSlide === 'cumulative_pnl'">
           <template v-if="allTimePnlChartSeries.length > 0">
-            <BankHistoryChart
+            <HistoryLineChart
               :series="allTimePnlChartSeries"
               :is-dark="isDark"
               :granularity="historyGranularity"
