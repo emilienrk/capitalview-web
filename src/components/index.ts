@@ -13,5 +13,5 @@ export { default as BaseSpinner } from './base/BaseSpinner.vue'
 export { default as BaseStatCard } from './base/BaseStatCard.vue'
 export { default as BaseTextarea } from './base/BaseTextarea.vue'
 
-export { default as AssetEvolutionChart } from './charts/AssetEvolutionChart.vue'
-export { default as WealthHistoryChart } from './charts/WealthHistoryChart.vue'
+export { default as AssetValueHistoryChart } from './charts/AssetValueHistoryChart.vue'
+export { default as NetWorthHistoryChart } from './charts/NetWorthHistoryChart.vue'
