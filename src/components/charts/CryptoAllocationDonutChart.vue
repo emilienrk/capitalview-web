@@ -19,6 +19,7 @@ interface AllocationSlice {
 const props = defineProps<{
   segments: AllocationSlice[]
   isDark?: boolean
+  reserveTopSpace?: boolean
 }>()
 
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
@@ -154,15 +155,19 @@ function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-72">
-    <VChart
-      v-if="canRenderChart"
-      ref="chartRef"
-      :option="option"
-      :update-options="updateOptions"
-      autoresize
-      @finished="handleChartReady"
-      @legendselectchanged="handleLegendSelectChanged"
-    />
+  <div :class="props.reserveTopSpace ? 'space-y-2' : ''">
+    <div v-if="props.reserveTopSpace" class="h-8" aria-hidden="true" />
+
+    <div ref="containerRef" class="w-full h-72">
+      <VChart
+        v-if="canRenderChart"
+        ref="chartRef"
+        :option="option"
+        :update-options="updateOptions"
+        autoresize
+        @finished="handleChartReady"
+        @legendselectchanged="handleLegendSelectChanged"
+      />
+    </div>
   </div>
 </template>

@@ -38,7 +38,7 @@ import {
 const crypto = useCryptoStore()
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
-const { formatCurrency, formatPercent, formatNumber, profitLossClass } = useFormatters()
+const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass } = useFormatters()
 const { fetchRate, displayCurrency, usdToEurRate, toggleCurrency } = useCurrencyToggle()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
@@ -105,6 +105,26 @@ const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
 const chartSlideLabel = computed<string>(() => {
   return chartSlides.find((slide) => slide.key === chartSlide.value)?.label ?? 'Évolution'
 })
+
+interface SummaryStatItem {
+  key: string
+  label: string
+  value: string
+  valueClass?: string
+}
+
+const SUMMARY_STATS_PER_PAGE = 4
+const cryptoSummaryStatsPage = ref(0)
+
+function chunkSummaryStats(stats: SummaryStatItem[]): SummaryStatItem[][] {
+  if (!stats.length) return []
+
+  const chunks: SummaryStatItem[][] = []
+  for (let i = 0; i < stats.length; i += SUMMARY_STATS_PER_PAGE) {
+    chunks.push(stats.slice(i, i + SUMMARY_STATS_PER_PAGE))
+  }
+  return chunks
+}
 /** Non-blocking balance warning shown after a transaction is created. */
 const txWarning = ref<string | null>(null)
 /** Informational message shown after a transaction is created. */
@@ -768,6 +788,30 @@ const historyForAnalytics = computed<AccountHistorySnapshotResponse[]>(() => {
   )
 })
 
+function latestDailyPnlFromHistory(history: AccountHistorySnapshotResponse[]): number | null {
+  for (let idx = history.length - 1; idx >= 0; idx -= 1) {
+    const snapshot = history[idx]
+    if (!snapshot) continue
+    const dailyPnl = parsePnlValue(snapshot.daily_pnl)
+    if (dailyPnl != null) return dailyPnl
+  }
+  return null
+}
+
+const selectedCryptoAccountMeta = computed(() => {
+  const accountId = selectedAccountId.value ?? crypto.currentAccount?.account_id ?? null
+  if (!accountId) return null
+  return crypto.accounts.find((account) => account.id === accountId) ?? null
+})
+
+const cryptoLatestDailyPnl = computed<number | null>(() => {
+  return latestDailyPnlFromHistory(historyForAnalytics.value)
+})
+
+const cryptoSummaryOpenedAt = computed<string | null>(() => {
+  return selectedCryptoAccountMeta.value?.opened_at ?? selectedCryptoAccountMeta.value?.created_at ?? null
+})
+
 function getHistorySpanDays(history: AccountHistorySnapshotResponse[]): number {
   if (history.length < 2) return 0
   const first = new Date(history[0]!.snapshot_date).getTime()
@@ -794,34 +838,149 @@ watch(granularityOptions, (options) => {
   }
 }, { immediate: true })
 
-const pnlChartSeries = computed(() => {
-  const hist = historyForAnalytics.value
-  if (!hist.length) return []
+watch(selectedAccountId, () => {
+  cryptoSummaryStatsPage.value = 0
+})
 
-  const dailyPnlSeries = hist
-    .filter((point) => point.daily_pnl != null)
-    .map((point) => ({
-      ...point,
-      total_value: Number(point.daily_pnl),
-    }))
+watch(isSingleMode, () => {
+  cryptoSummaryStatsPage.value = 0
+})
+
+function parsePnlValue(value: unknown): number | null {
+  if (value == null) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const cryptoDailyPnlPoints = computed<AccountHistorySnapshotResponse[]>(() => {
+  const history = historyForAnalytics.value
+  if (history.length <= 1) return []
+
+  return history
+    .slice(1)
+    .map((point) => {
+      const dailyPnl = parsePnlValue(point.daily_pnl)
+      if (dailyPnl == null) return null
+      return {
+        ...point,
+        total_value: dailyPnl,
+      }
+    })
+    .filter((point): point is AccountHistorySnapshotResponse => point != null)
+})
+
+const cryptoCumulativePnlPoints = computed<AccountHistorySnapshotResponse[]>(() => {
+  const history = historyForAnalytics.value
+  if (history.length <= 1) return []
+
+  return history
+    .slice(1)
+    .map((point) => {
+      const cumulativePnl = parsePnlValue(point.cumulative_pnl)
+      if (cumulativePnl == null) return null
+      return {
+        ...point,
+        total_value: cumulativePnl,
+      }
+    })
+    .filter((point): point is AccountHistorySnapshotResponse => point != null)
+})
+
+const cryptoDailyPnlAverage = computed<number | null>(() => {
+  const dailyValues = cryptoDailyPnlPoints.value
+    .map((point) => Number(point.total_value))
+    .filter((value) => Number.isFinite(value))
+
+  if (!dailyValues.length) return null
+
+  const sum = dailyValues.reduce((acc, value) => acc + value, 0)
+  return sum / dailyValues.length
+})
+
+const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
+  const summary = crypto.currentAccount
+  if (!summary) return []
+
+  return [
+    {
+      key: 'invested',
+      label: 'Investi',
+      value: maskAmount(summary.total_invested),
+    },
+    {
+      key: 'current_value',
+      label: 'Valeur actuelle',
+      value: maskAmount(summary.current_value),
+    },
+    {
+      key: 'profit_loss',
+      label: 'P/L',
+      value: maskAmount(summary.profit_loss),
+      valueClass: profitLossClass(summary.profit_loss),
+    },
+    {
+      key: 'performance',
+      label: 'Performance',
+      value: formatPercent(summary.profit_loss_percentage),
+      valueClass: profitLossClass(summary.profit_loss_percentage),
+    },
+    {
+      key: 'daily_pnl',
+      label: 'P/L journalier',
+      value: maskAmount(cryptoLatestDailyPnl.value),
+      valueClass: profitLossClass(cryptoLatestDailyPnl.value),
+    },
+    {
+      key: 'total_deposits',
+      label: 'Dépôts cumulés',
+      value: maskAmount(summary.total_deposits),
+    },
+    {
+      key: 'total_withdrawals',
+      label: 'Retraits cumulés',
+      value: maskAmount(summary.total_withdrawals),
+    },
+    {
+      key: 'opened_at',
+      label: 'Date d\'ouverture',
+      value: formatDate(cryptoSummaryOpenedAt.value),
+    },
+  ]
+})
+
+const cryptoSummaryStatPages = computed(() => chunkSummaryStats(cryptoSummaryStats.value))
+
+const activeCryptoSummaryStats = computed<SummaryStatItem[]>(() => {
+  const pages = cryptoSummaryStatPages.value
+  if (!pages.length) return []
+  return pages[cryptoSummaryStatsPage.value] ?? pages[0] ?? []
+})
+
+watch(cryptoSummaryStatPages, (pages) => {
+  if (!pages.length || cryptoSummaryStatsPage.value >= pages.length) {
+    cryptoSummaryStatsPage.value = 0
+  }
+}, { immediate: true })
+
+const pnlChartSeries = computed(() => {
+  const dailyPnlSeries = cryptoDailyPnlPoints.value
 
   if (!dailyPnlSeries.length) return []
 
+  const average = cryptoDailyPnlAverage.value ?? 0
+  const averageSeries = dailyPnlSeries.map((point) => ({
+    ...point,
+    total_value: average,
+  }))
+
   return [
     { name: 'P/L journalier', history: dailyPnlSeries },
+    { name: 'Moyenne journalière', history: averageSeries },
   ]
 })
 
 const allTimePnlChartSeries = computed(() => {
-  const hist = historyForAnalytics.value
-  if (!hist.length) return []
-
-  const allTimePnlSeries = hist
-    .filter((point) => point.cumulative_pnl != null)
-    .map((point) => ({
-      ...point,
-      total_value: Number(point.cumulative_pnl),
-    }))
+  const allTimePnlSeries = cryptoCumulativePnlPoints.value
 
   if (!allTimePnlSeries.length) return []
 
@@ -1269,26 +1428,30 @@ onMounted(async () => {
 
       <template v-if="!crypto.error && crypto.currentAccount">
         <!-- Summary Stats -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <div class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4">
-            <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">Investi</p>
-            <p class="text-xl font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ maskAmount(crypto.currentAccount.total_invested) }}</p>
+        <div class="mb-6 space-y-3">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              v-for="stat in activeCryptoSummaryStats"
+              :key="stat.key"
+              class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4"
+            >
+              <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">{{ stat.label }}</p>
+              <p :class="['text-xl font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
+                {{ stat.value }}
+              </p>
+            </div>
           </div>
-          <div class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4">
-            <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">Valeur actuelle</p>
-            <p class="text-xl font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ maskAmount(crypto.currentAccount.current_value) }}</p>
-          </div>
-          <div class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4">
-            <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">P/L</p>
-            <p :class="['text-xl font-bold tabular-nums', profitLossClass(crypto.currentAccount.profit_loss)]">
-              {{ maskAmount(crypto.currentAccount.profit_loss) }}
-            </p>
-          </div>
-          <div class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4">
-            <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">Performance</p>
-            <p :class="['text-xl font-bold tabular-nums', profitLossClass(crypto.currentAccount.profit_loss_percentage)]">
-              {{ formatPercent(crypto.currentAccount.profit_loss_percentage) }}
-            </p>
+
+          <div v-if="cryptoSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">
+            <button
+              v-for="(_, index) in cryptoSummaryStatPages"
+              :key="`crypto-summary-dot-${index}`"
+              type="button"
+              :aria-label="`Afficher le groupe de statistiques ${index + 1}`"
+              class="h-2.5 w-2.5 rounded-full transition-colors"
+              :class="index === cryptoSummaryStatsPage ? 'bg-primary' : 'bg-surface-active dark:bg-surface-dark-active hover:bg-primary/40'"
+              @click="cryptoSummaryStatsPage = index"
+            />
           </div>
         </div>
 
@@ -1307,11 +1470,27 @@ onMounted(async () => {
                 </BaseButton>
               </div>
             </div>
-            <div v-if="chartSlide !== 'allocation'" class="flex items-center gap-2 self-end sm:self-auto">
-              <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                <RefreshCw class="w-4 h-4" />
-              </BaseButton>
-              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            <div class="flex min-h-8 items-center gap-2 self-end sm:self-auto">
+              <template v-if="chartSlide === 'evolution' || chartSlide === 'cumulative_pnl'">
+                <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                  <RefreshCw class="w-4 h-4" />
+                </BaseButton>
+                <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+              </template>
+
+              <p v-else-if="chartSlide === 'pnl'" class="text-xs text-text-muted dark:text-text-dark-muted">
+                Moyenne par jour :
+                <span :class="['font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
+                  {{ formatEur(cryptoDailyPnlAverage) }}
+                </span>
+                <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
+                Dernier jour :
+                <span :class="['font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
+                  {{ formatEur(cryptoLatestDailyPnl) }}
+                </span>
+              </p>
+
+              <span v-else class="invisible text-xs select-none" aria-hidden="true">placeholder</span>
             </div>
           </div>
 
@@ -1336,7 +1515,7 @@ onMounted(async () => {
 
           <template v-else-if="chartSlide === 'allocation'">
             <template v-if="allocationSegments.length">
-              <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" />
+              <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
             </template>
             <BaseEmptyState
               v-else
@@ -1350,7 +1529,7 @@ onMounted(async () => {
               <BankHistoryChart
                 :series="pnlChartSeries"
                 :is-dark="isDark"
-                :granularity="historyGranularity"
+                granularity="daily"
               />
             </template>
             <BaseEmptyState
@@ -1623,11 +1802,27 @@ onMounted(async () => {
               </BaseButton>
             </div>
           </div>
-          <div v-if="chartSlide !== 'allocation'" class="flex items-center gap-2 self-end sm:self-auto">
-            <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-              <RefreshCw class="w-4 h-4" />
-            </BaseButton>
-            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+          <div class="flex min-h-8 items-center gap-2 self-end sm:self-auto">
+            <template v-if="chartSlide === 'evolution' || chartSlide === 'cumulative_pnl'">
+              <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            </template>
+
+            <p v-else-if="chartSlide === 'pnl'" class="text-xs text-text-muted dark:text-text-dark-muted">
+              Moyenne par jour :
+              <span :class="['font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
+                {{ formatEur(cryptoDailyPnlAverage) }}
+              </span>
+              <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
+              Dernier jour :
+              <span :class="['font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
+                {{ formatEur(cryptoLatestDailyPnl) }}
+              </span>
+            </p>
+
+            <span v-else class="invisible text-xs select-none" aria-hidden="true">placeholder</span>
           </div>
         </div>
 
@@ -1652,7 +1847,7 @@ onMounted(async () => {
 
         <template v-else-if="chartSlide === 'allocation'">
           <template v-if="allocationSegments.length">
-            <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" />
+            <CryptoAllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
           </template>
           <BaseEmptyState
             v-else
@@ -1666,7 +1861,7 @@ onMounted(async () => {
             <BankHistoryChart
               :series="pnlChartSeries"
               :is-dark="isDark"
-              :granularity="historyGranularity"
+              granularity="daily"
             />
           </template>
           <BaseEmptyState
@@ -1732,26 +1927,30 @@ onMounted(async () => {
             class="mt-6 pt-6 border-t border-surface-border dark:border-surface-dark-border"
           >
             <!-- Summary Stats -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-              <div class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle p-3.5">
-                <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">Investi</p>
-                <p class="text-lg font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ maskAmount(crypto.currentAccount.total_invested) }}</p>
+            <div class="mb-6 space-y-3">
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div
+                  v-for="stat in activeCryptoSummaryStats"
+                  :key="stat.key"
+                  class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border p-3.5"
+                >
+                  <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">{{ stat.label }}</p>
+                  <p :class="['text-lg font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
+                    {{ stat.value }}
+                  </p>
+                </div>
               </div>
-              <div class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle p-3.5">
-                <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">Valeur actuelle</p>
-                <p class="text-lg font-bold text-text-main dark:text-text-dark-main tabular-nums">{{ maskAmount(crypto.currentAccount.current_value) }}</p>
-              </div>
-              <div class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle p-3.5">
-                <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">P/L</p>
-                <p :class="['text-lg font-bold tabular-nums', profitLossClass(crypto.currentAccount.profit_loss)]">
-                  {{ maskAmount(crypto.currentAccount.profit_loss) }}
-                </p>
-              </div>
-              <div class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle p-3.5">
-                <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">Performance</p>
-                <p :class="['text-lg font-bold tabular-nums', profitLossClass(crypto.currentAccount.profit_loss_percentage)]">
-                  {{ formatPercent(crypto.currentAccount.profit_loss_percentage) }}
-                </p>
+
+              <div v-if="cryptoSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">
+                <button
+                  v-for="(_, index) in cryptoSummaryStatPages"
+                  :key="`crypto-account-summary-dot-${index}`"
+                  type="button"
+                  :aria-label="`Afficher le groupe de statistiques ${index + 1}`"
+                  class="h-2.5 w-2.5 rounded-full transition-colors"
+                  :class="index === cryptoSummaryStatsPage ? 'bg-primary' : 'bg-surface-active dark:bg-surface-dark-active hover:bg-primary/40'"
+                  @click="cryptoSummaryStatsPage = index"
+                />
               </div>
             </div>
 
