@@ -2,6 +2,7 @@
 import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { apiClient } from '@/api/client'
 import { useStocksStore } from '@/stores/stocks'
 import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
@@ -16,7 +17,7 @@ import {
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
-import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse } from '@/types'
+import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
 
 
 const stocks = useStocksStore()
@@ -199,12 +200,28 @@ function latestDailyPnlFromHistory(history: AccountHistorySnapshotResponse[]): n
 /** Deduplicated list of known assets from existing transactions, shown by default in the asset picker */
 const knownAssetOptions = computed((): AssetOption[] => {
   const seen = new Map<string, AssetOption>()
+
+  // 1. Add all currently owned assets from the selected account first to ensure they are always present and up to date
+  for (const pos of ownedAssetOptions.value) {
+    const key = pos.asset_key || `${pos.symbol}__${pos.exchange ?? ''}`
+    if (!seen.has(key)) {
+      seen.set(key, {
+        symbol: pos.symbol,
+        asset_key: pos.asset_key,
+        name: pos.name,
+        exchange: pos.exchange,
+        _source: 'known',
+      })
+    }
+  }
+
+  // 2. Add other assets from the transaction history
   for (const tx of stocks.transactions) {
     if (tx.asset_key === 'EUR') continue  // EUR cash is not a tradable asset
     const key = tx.asset_key || `${tx.symbol}__${tx.exchange ?? ''}`
     if (!seen.has(key)) {
       seen.set(key, {
-        symbol: tx.symbol,
+        symbol: tx.symbol || '',
         asset_key: tx.asset_key,
         name: tx.name,
         exchange: tx.exchange,
@@ -212,17 +229,36 @@ const knownAssetOptions = computed((): AssetOption[] => {
       })
     }
   }
+
+  // Helper to check if an asset is currently owned in the selected account
+  const isOwned = (asset: AssetOption) => {
+    return ownedAssetOptions.value.some((o: AssetOption) =>
+      (asset.asset_key && o.asset_key === asset.asset_key) ||
+      (!asset.asset_key && o.symbol === asset.symbol)
+    )
+  }
+
   return Array.from(seen.values())
-    .sort((a, b) => (a.name ?? a.symbol).localeCompare(b.name ?? b.symbol))
+    .sort((a, b) => {
+      const aOwned = isOwned(a)
+      const bOwned = isOwned(b)
+      if (aOwned && !bOwned) return -1
+      if (!aOwned && bOwned) return 1
+      return (a.name ?? a.symbol).localeCompare(b.name ?? b.symbol)
+    })
 })
 
 function formatAssetOption(opt: AssetOption): string {
-  const key = opt.asset_key ?? opt.symbol
-  if (opt.name) return opt.name + " (" + key + ")"
-  else return key
+  return opt.name || opt.symbol || opt.asset_key || ''
 }
 
 async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
+  if (assetSearchTimeout) {
+    clearTimeout(assetSearchTimeout)
+    assetSearchTimeout = null
+  }
+  isAssetSearching.value = false
+
   txForm.symbol = asset.symbol
   txForm.asset_key = asset.asset_key ?? ''
   txForm.exchange = asset.exchange ?? ''
@@ -241,8 +277,6 @@ async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
       // Guard: don't overwrite if the user already changed the asset
       if (txForm.symbol === selectedSymbol && firstInfo?.asset_key) {
         txForm.asset_key = firstInfo.asset_key
-        // Update the search field to reflect the resolved ISIN
-        assetQuery.value = formatAssetOption({ ...asset, asset_key: firstInfo.asset_key })
       }
     } catch (e) {
       console.error('[ISIN lookup] error:', e)
@@ -590,10 +624,12 @@ async function loadStockChartHistories(force = false): Promise<void> {
   await Promise.all(stocks.accounts.map((account) => stocks.fetchHistoryForAccount(account.id, force)))
 }
 
+const modalPositions = ref<PositionResponse[]>([])
+
 /** Asset options restricted to positions the user currently holds (for SELL and DIVIDEND). */
 const ownedAssetOptions = computed((): AssetOption[] => {
-  if (!selectedAccountSummary.value?.positions) return []
-  return selectedAccountSummary.value.positions
+  if (!modalPositions.value) return []
+  return modalPositions.value
     .filter(p => p.asset_key !== 'EUR' && Number(p.total_amount) > 0)
     .map(p => ({
       symbol: p.symbol ?? '',
@@ -608,7 +644,7 @@ const ownedAssetOptions = computed((): AssetOption[] => {
 /** Maximum quantity available for the currently selected asset when selling. */
 const sellMaxAmount = computed((): number | null => {
   if (txForm.type !== 'SELL' || !txForm.asset_key) return null
-  const pos = selectedAccountSummary.value?.positions?.find(p => p.asset_key === txForm.asset_key)
+  const pos = modalPositions.value.find(p => p.asset_key === txForm.asset_key)
   return pos ? Number(pos.total_amount) : null
 })
 
@@ -634,8 +670,15 @@ const txPriceLabel = computed(() => {
 // When the transaction type changes, update the asset picker scope
 watch(() => txForm.type, (newType) => {
   if (newType === 'SELL' || newType === 'DIVIDEND') {
-    // Restrict to owned positions
-    assetOptions.value = ownedAssetOptions.value
+    // Restrict to owned positions, filtered by the current query if any
+    const q = assetQuery.value.trim().toLowerCase()
+    assetOptions.value = !q
+      ? ownedAssetOptions.value
+      : ownedAssetOptions.value.filter(a =>
+          (a.symbol?.toLowerCase().includes(q) ?? false) ||
+          (a.name?.toLowerCase().includes(q) ?? false) ||
+          (a.asset_key?.toLowerCase().includes(q) ?? false)
+        )
     // If the currently selected asset is not in owned positions, clear it
     if (txForm.asset_key && !ownedAssetOptions.value.some(a => a.asset_key === txForm.asset_key)) {
       txForm.asset_key = ''
@@ -643,7 +686,7 @@ watch(() => txForm.type, (newType) => {
       assetQuery.value = ''
     }
   } else {
-    assetOptions.value = knownAssetOptions.value
+    handleAssetInput(assetQuery.value)
   }
   dividendMode.value = 'cash'
 })
@@ -711,7 +754,7 @@ async function handleSubmitAccount(): Promise<void> {
   }
 }
 
-function openAddTransaction(accountId: string): void {
+async function openAddTransaction(accountId: string): Promise<void> {
   editingTxId.value = null
   txForm.account_id = accountId
   txForm.symbol = ''
@@ -723,7 +766,21 @@ function openAddTransaction(accountId: string): void {
   txForm.fees = 0
   txForm.executed_at = new Date().toISOString().slice(0, 16)
   assetQuery.value = ''
-  assetOptions.value = knownAssetOptions.value
+
+  // Load the target account's positions for the modal without expanding the card in the UI
+  try {
+    if (selectedAccountId.value === accountId && selectedAccountSummary.value) {
+      modalPositions.value = selectedAccountSummary.value.positions ?? []
+    } else {
+      const summary = await apiClient.get<AccountSummaryResponse>(`/stocks/accounts/${accountId}?db_only=true`)
+      modalPositions.value = summary.positions ?? []
+    }
+  } catch (e) {
+    console.error('Error loading positions for modal:', e)
+    modalPositions.value = []
+  }
+
+  assetOptions.value = ownedAssetOptions.value.slice(0, 10)
   assetError.value = null
   showExchange.value = false
   dividendMode.value = 'cash'
@@ -868,6 +925,7 @@ async function handleCsvImport(transactions: StockTransactionBulkCreate[]): Prom
   if (result) {
     showCsvImportModal.value = false
     await selectAccount(csvImportAccountId.value)
+    stocks.fetchTransactions()
     await loadStockChartHistories(true)
     return true
   }
@@ -886,6 +944,10 @@ function openEditTransaction(tx: any): void {
   txForm.fees = tx.fees
   txForm.executed_at = tx.executed_at.slice(0, 16)
   dividendMode.value = 'cash'
+  
+  // Populate positions for the modal
+  modalPositions.value = selectedAccountSummary.value?.positions ?? []
+
   // Pre-fill unified asset field
   const sourcePool = (tx.type === 'SELL' || tx.type === 'DIVIDEND') ? ownedAssetOptions.value : knownAssetOptions.value
   const knownMatch = sourcePool.find(k =>
@@ -893,7 +955,7 @@ function openEditTransaction(tx: any): void {
   )
   assetQuery.value = knownMatch
     ? formatAssetOption(knownMatch)
-    : tx.name ? `${tx.symbol} – ${tx.name}` : tx.symbol
+    : tx.name || tx.symbol
   assetOptions.value = sourcePool
   assetError.value = null
   showExchange.value = !!tx.exchange
@@ -959,6 +1021,7 @@ async function handleSubmitTransaction(): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value)
       ])
     }
+    stocks.fetchTransactions()
     await loadStockChartHistories(true)
   } else {
     showTxModal.value = true
@@ -982,6 +1045,7 @@ async function deleteTransaction(id: string): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value)
       ])
     }
+    stocks.fetchTransactions()
     await loadStockChartHistories(true)
   }
 }
@@ -1093,21 +1157,25 @@ async function handleAssetInput(value: string): Promise<void> {
     assetOptions.value = !q
       ? ownedAssetOptions.value
       : ownedAssetOptions.value.filter(a =>
-          a.symbol.toLowerCase().includes(q) ||
+          (a.symbol?.toLowerCase().includes(q) ?? false) ||
           (a.name?.toLowerCase().includes(q) ?? false) ||
           (a.asset_key?.toLowerCase().includes(q) ?? false)
         )
     return
   }
 
-  // BUY: filter known assets immediately (client-side)
-  const knownMatches: AssetOption[] = !q
-    ? knownAssetOptions.value
-    : knownAssetOptions.value.filter(a =>
-        a.symbol.toLowerCase().includes(q) ||
-        (a.name?.toLowerCase().includes(q) ?? false) ||
-        (a.asset_key?.toLowerCase().includes(q) ?? false)
-      )
+  // BUY: filter known/owned assets (client-side)
+  // If the query is empty, show ONLY the owned assets of the selected account (limited to 10)
+  if (!q) {
+    assetOptions.value = ownedAssetOptions.value.slice(0, 10)
+    return
+  }
+
+  const knownMatches: AssetOption[] = knownAssetOptions.value.filter(a =>
+    (a.symbol?.toLowerCase().includes(q) ?? false) ||
+    (a.name?.toLowerCase().includes(q) ?? false) ||
+    (a.asset_key?.toLowerCase().includes(q) ?? false)
+  )
 
   // Decide whether to also call the API:
   // - fewer than 3 known matches AND at least 2 chars typed
@@ -1128,6 +1196,8 @@ async function handleAssetInput(value: string): Promise<void> {
 
   assetSearchTimeout = setTimeout(async () => {
     try {
+      if (document.activeElement?.id !== 'stock-tx-asset') return
+
       const apiRaw: AssetSearchResult[] = await stocks.searchAssets(value)
       // Deduplicate: skip API results already covered by known assets or EUR
       const apiExtra: AssetOption[] = apiRaw
@@ -1136,6 +1206,8 @@ async function handleAssetInput(value: string): Promise<void> {
           (r.asset_key && r.asset_key === k.asset_key) || r.symbol === k.symbol
         ))
         .map(r => ({ symbol: r.symbol, asset_key: r.asset_key ?? null, name: r.name, exchange: r.exchange, _source: 'api' as const }))
+      
+      if (document.activeElement?.id !== 'stock-tx-asset') return
       assetOptions.value = [...knownMatches, ...apiExtra]
     } catch {
       // keep current known matches on error
@@ -1589,7 +1661,8 @@ onMounted(async () => {
         <!-- ── Unified asset picker ── -->
         <div>
           <BaseAutocomplete
-            v-model="assetQuery"
+            id="stock-tx-asset"
+            :model-value="assetQuery"
             @update:model-value="handleAssetInput"
             @select="handleSelectUnifiedAsset"
             label="Actif"
@@ -1599,14 +1672,19 @@ onMounted(async () => {
             :loading="isAssetSearching"
             :show-all-on-focus="true"
             remote
-            required
           >
             <template #item="{ item }">
               <div class="flex items-center justify-between gap-2 w-full">
-                <div class="min-w-0">
-                  <span class="font-medium">{{ item.symbol }}</span>
-                  <span v-if="item.name" class="text-text-muted dark:text-text-dark-muted text-xs ml-1.5">{{ item.name }}</span>
-                  <span v-if="item.asset_key" class="text-text-muted dark:text-text-dark-muted text-xs ml-1">({{ item.asset_key }})</span>
+                <div class="min-w-0 flex items-baseline gap-1.5 truncate">
+                  <span class="font-medium text-text-main dark:text-text-dark-main">
+                    {{ item.name || item.symbol }}
+                  </span>
+                  <span v-if="item.name && item.asset_key" class="text-text-muted dark:text-text-dark-muted text-xs">
+                    ({{ item.asset_key }})
+                  </span>
+                  <span v-else-if="item.name && item.symbol" class="text-text-muted dark:text-text-dark-muted text-xs">
+                    ({{ item.symbol }})
+                  </span>
                 </div>  
                 <span
                   :class="[
@@ -1628,16 +1706,25 @@ onMounted(async () => {
           </p>
         </div>
 
-        <!-- ISIN pré-rempli (confirmation / correction) + place de marché optionnelle -->
-        <div :class="showExchange ? 'grid grid-cols-2 gap-4' : ''">
+        <!-- Symbole + ISIN pré-remplis (confirmation / correction) -->
+        <div class="grid grid-cols-2 gap-4">
+          <BaseInput
+            v-model="txForm.symbol"
+            label="Symbole"
+            placeholder="Ex : AAPL, MC.PA…"
+            required
+          />
           <BaseInput
             v-model="txForm.asset_key!"
             label="ISIN"
             placeholder="Obligatoire"
             required
           />
+        </div>
+
+        <!-- Place de marché optionnelle -->
+        <div v-if="showExchange">
           <BaseInput
-            v-if="showExchange"
             v-model="txForm.exchange!"
             label="Place de marché"
             placeholder="Ex : XPAR, XNAS…"

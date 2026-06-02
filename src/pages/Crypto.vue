@@ -2,6 +2,7 @@
 import { AlertCircle, ArrowLeftRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { apiClient } from '@/api/client'
 import { useCryptoStore } from '@/stores/crypto'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
@@ -29,6 +30,8 @@ import type {
   TransactionResponse,
   AssetSearchResult,
   CryptoCompositeBulkItem,
+  AccountSummaryResponse,
+  PositionResponse,
 } from '@/types'
 import {
   type CryptoUiTransactionType,
@@ -153,13 +156,83 @@ const sortedBankAccounts = computed(() => {
   })
 })
 
-const searchResults = ref<AssetSearchResult[]>([])
+const searchResults = ref<(AssetSearchResult & { _source?: 'known' | 'api' })[]>([])
 const isSearching = ref(false)
 const searchQuery = ref('')
 
-const searchResultsQuote = ref<AssetSearchResult[]>([])
+const searchResultsQuote = ref<(AssetSearchResult & { _source?: 'known' | 'api' })[]>([])
 const isSearchingQuote = ref(false)
 const searchQueryQuote = ref('')
+
+const modalPositions = ref<PositionResponse[]>([])
+
+interface CryptoAssetOption {
+  symbol: string
+  asset_key: string | null
+  name: string | null
+  _source: 'known' | 'api'
+}
+
+/** Crypto asset options restricted to positions the user currently holds in this account */
+const ownedAssetOptions = computed((): CryptoAssetOption[] => {
+  if (!modalPositions.value) return []
+  return modalPositions.value
+    .filter(p => p.asset_key !== 'EUR' && Number(p.total_amount) > 0)
+    .map(p => ({
+      symbol: p.symbol ?? p.asset_key ?? '',
+      asset_key: p.asset_key ?? null,
+      name: p.name ?? null,
+      _source: 'known' as const,
+    }))
+    .sort((a, b) => (a.name ?? a.symbol).localeCompare(b.name ?? b.symbol))
+})
+
+const knownAssetOptions = computed((): CryptoAssetOption[] => {
+  const seen = new Map<string, CryptoAssetOption>()
+
+  // 1. Add all currently owned cryptos from this account first
+  for (const pos of ownedAssetOptions.value) {
+    const key = pos.asset_key || pos.symbol
+    if (key && !seen.has(key)) {
+      seen.set(key, {
+        symbol: pos.symbol,
+        asset_key: pos.asset_key,
+        name: pos.name,
+        _source: 'known',
+      })
+    }
+  }
+
+  // 2. Add other cryptos from the transactions history
+  for (const tx of crypto.transactions) {
+    if (tx.asset_key === 'EUR') continue
+    const key = tx.asset_key || tx.symbol
+    if (key && !seen.has(key)) {
+      seen.set(key, {
+        symbol: tx.symbol || key,
+        asset_key: tx.asset_key || key,
+        name: tx.name,
+        _source: 'known',
+      })
+    }
+  }
+
+  const isOwned = (asset: CryptoAssetOption) => {
+    return ownedAssetOptions.value.some(o =>
+      (asset.asset_key && o.asset_key === asset.asset_key) ||
+      (asset.symbol && o.symbol === asset.symbol)
+    )
+  }
+
+  return Array.from(seen.values())
+    .sort((a, b) => {
+      const aOwned = isOwned(a)
+      const bOwned = isOwned(b)
+      if (aOwned && !bOwned) return -1
+      if (!aOwned && bOwned) return 1
+      return (a.name ?? a.symbol).localeCompare(b.name ?? b.symbol)
+    })
+})
 
 const accountForm = reactive<CryptoAccountCreate>({
   name: '',
@@ -536,14 +609,9 @@ async function handleSubmitAccount(): Promise<void> {
   }
 }
 
-function openAddTransaction(accountId: string): void {
+async function openAddTransaction(accountId: string): Promise<void> {
   txWarning.value = null
   txInfo.value = null
-  if (selectedAccountId.value !== accountId) {
-    selectedAccountId.value = accountId
-    // Load target account summary so modal hints are based on the right account.
-    crypto.fetchAccount(accountId, true)
-  }
   editingTxId.value = null
   txForm.account_id = accountId
   txForm.asset_key = ''
@@ -565,7 +633,31 @@ function openAddTransaction(accountId: string): void {
   txForm.tx_hash = undefined
   txForm.notes = undefined
   searchQuery.value = ''
-  searchResults.value = []
+
+  // Load the target account's positions for the modal in background without expanding the card in the UI
+  try {
+    if (selectedAccountId.value === accountId && crypto.currentAccount) {
+      modalPositions.value = crypto.currentAccount.positions ?? []
+    } else {
+      const summary = await apiClient.get<AccountSummaryResponse>(`/crypto/accounts/${accountId}?db_only=true`)
+      modalPositions.value = summary.positions ?? []
+    }
+  } catch (e) {
+    console.error('Error loading positions for crypto modal:', e)
+    modalPositions.value = []
+  }
+
+  // Pre-populate searchResults (options for main autocomplete) with owned assets
+  searchResults.value = ownedAssetOptions.value.map(k => ({
+    symbol: k.symbol,
+    asset_key: k.asset_key,
+    name: k.name,
+    exchange: null,
+    type: null,
+    currency: null,
+    _source: k._source
+  })).slice(0, 10)
+
   searchQueryQuote.value = ''
   searchResultsQuote.value = []
   quoteMode.value = 'EUR'
@@ -588,6 +680,7 @@ async function handleBinanceImported(): Promise<void> {
   showBinanceImportModal.value = false
   if (binanceImportAccountId.value) {
     await selectAccount(binanceImportAccountId.value)
+    crypto.fetchTransactions()
     await loadCryptoChartHistories(true)
   }
 }
@@ -600,6 +693,7 @@ async function handleCsvImport(transactions: CryptoCompositeBulkItem[]): Promise
   if (result) {
     showCsvImportModal.value = false
     await selectAccount(csvImportAccountId.value)
+    crypto.fetchTransactions()
     await loadCryptoChartHistories(true)
     return true
   }
@@ -625,6 +719,10 @@ function openEditTransaction(tx: any): void {
   txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   txForm.executed_at = tx.executed_at.slice(0, 16)
+
+  // Populate positions for the modal
+  modalPositions.value = crypto.currentAccount?.positions ?? []
+
   searchQuery.value = tx.name || tx.asset_key
   searchResults.value = []
   showTxModal.value = true
@@ -634,20 +732,74 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 async function handleSearchInput(value: string): Promise<void> {
   searchQuery.value = value
   
-  if (!value || value.length < 2) {
-    searchResults.value = []
+  const q = value.trim().toLowerCase()
+  if (!q) {
+    searchResults.value = ownedAssetOptions.value.map(k => ({
+      symbol: k.symbol,
+      asset_key: k.asset_key,
+      name: k.name,
+      exchange: null,
+      type: null,
+      currency: null,
+      _source: k._source
+    })).slice(0, 10)
     return
   }
-  
+
+  // Filter known/owned assets immediately (client-side)
+  const knownMatches = knownAssetOptions.value.filter(a =>
+    (a.symbol?.toLowerCase().includes(q) ?? false) ||
+    (a.name?.toLowerCase().includes(q) ?? false) ||
+    (a.asset_key?.toLowerCase().includes(q) ?? false)
+  )
+
+  // Decide whether to also call the API:
+  // - fewer than 3 known matches AND at least 2 chars typed
+  const needsApi = q.length >= 2 && knownMatches.length < 3
+
+  if (!needsApi) {
+    searchResults.value = knownMatches.map(k => ({
+      symbol: k.symbol,
+      asset_key: k.asset_key,
+      name: k.name,
+      exchange: null,
+      type: null,
+      currency: null,
+      _source: k._source
+    }))
+    return
+  }
+
+  // Show known matches immediately, then append API results
+  searchResults.value = knownMatches.map(k => ({
+    symbol: k.symbol,
+    asset_key: k.asset_key,
+    name: k.name,
+    exchange: null,
+    type: null,
+    currency: null,
+    _source: k._source
+  }))
+
   if (searchTimeout) clearTimeout(searchTimeout)
+  isSearching.value = true
   
   searchTimeout = setTimeout(async () => {
-    isSearching.value = true
     try {
-      searchResults.value = await crypto.searchAssets(value)
+      if (document.activeElement?.id !== 'crypto-tx-asset') return
+
+      const apiRaw = await crypto.searchAssets(value)
+      // Deduplicate: skip API results already covered by known assets or EUR
+      const apiExtra = apiRaw
+        .filter(r => r.symbol !== 'EUR' && r.asset_key !== 'EUR')
+        .filter(r => !knownMatches.some(k =>
+          (r.asset_key && r.asset_key === k.asset_key) || r.symbol === k.symbol
+        ))
+      
+      if (document.activeElement?.id !== 'crypto-tx-asset') return
+      searchResults.value = [...searchResults.value, ...apiExtra]
     } catch (error) {
       console.error('Search error:', error)
-      searchResults.value = []
     } finally {
       isSearching.value = false
     }
@@ -655,27 +807,103 @@ async function handleSearchInput(value: string): Promise<void> {
 }
 
 function handleSelectAsset(asset: AssetSearchResult): void {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
+  isSearching.value = false
+
   txForm.asset_key = asset.asset_key || asset.symbol
   txForm.name = asset.name || asset.symbol
-  searchQuery.value = asset.name || asset.symbol
+  searchQuery.value = formatAssetDisplay(asset)
   searchResults.value = []
 }
 
 let searchTimeoutQuote: ReturnType<typeof setTimeout> | null = null
 async function handleSearchInputQuote(value: string): Promise<void> {
   searchQueryQuote.value = value
-  if (!value || value.length < 2) { searchResultsQuote.value = []; return }
+  
+  const q = value.trim().toLowerCase()
+  if (!q) {
+    searchResultsQuote.value = ownedAssetOptions.value.map(k => ({
+      symbol: k.symbol,
+      asset_key: k.asset_key,
+      name: k.name,
+      exchange: null,
+      type: null,
+      currency: null,
+      _source: k._source
+    })).slice(0, 10)
+    return
+  }
+
+  // Filter known/owned assets immediately (client-side)
+  const knownMatches = knownAssetOptions.value.filter(a =>
+    (a.symbol?.toLowerCase().includes(q) ?? false) ||
+    (a.name?.toLowerCase().includes(q) ?? false) ||
+    (a.asset_key?.toLowerCase().includes(q) ?? false)
+  )
+
+  const needsApi = q.length >= 2 && knownMatches.length < 3
+
+  if (!needsApi) {
+    searchResultsQuote.value = knownMatches.map(k => ({
+      symbol: k.symbol,
+      asset_key: k.asset_key,
+      name: k.name,
+      exchange: null,
+      type: null,
+      currency: null,
+      _source: k._source
+    }))
+    return
+  }
+
+  // Show known matches immediately, then append API results
+  searchResultsQuote.value = knownMatches.map(k => ({
+    symbol: k.symbol,
+    asset_key: k.asset_key,
+    name: k.name,
+    exchange: null,
+    type: null,
+    currency: null,
+    _source: k._source
+  }))
+
   if (searchTimeoutQuote) clearTimeout(searchTimeoutQuote)
+  isSearchingQuote.value = true
+  
   searchTimeoutQuote = setTimeout(async () => {
-    isSearchingQuote.value = true
-    try { searchResultsQuote.value = await crypto.searchAssets(value) }
-    catch { searchResultsQuote.value = [] }
-    finally { isSearchingQuote.value = false }
+    try {
+      if (document.activeElement?.id !== 'crypto-tx-quote') return
+
+      const apiRaw = await crypto.searchAssets(value)
+      // Deduplicate: skip API results already covered by known assets or EUR
+      const apiExtra = apiRaw
+        .filter(r => r.symbol !== 'EUR' && r.asset_key !== 'EUR')
+        .filter(r => !knownMatches.some(k =>
+          (r.asset_key && r.asset_key === k.asset_key) || r.symbol === k.symbol
+        ))
+      
+      if (document.activeElement?.id !== 'crypto-tx-quote') return
+      searchResultsQuote.value = [...searchResultsQuote.value, ...apiExtra]
+    } catch {
+      // keep current known matches on error
+    } finally {
+      isSearchingQuote.value = false
+    }
   }, 300)
 }
+
 function handleSelectAssetQuote(asset: AssetSearchResult): void {
+  if (searchTimeoutQuote) {
+    clearTimeout(searchTimeoutQuote)
+    searchTimeoutQuote = null
+  }
+  isSearchingQuote.value = false
+
   txForm.quote_asset_key = asset.symbol
-  searchQueryQuote.value = asset.name || asset.symbol
+  searchQueryQuote.value = formatAssetDisplay(asset)
   searchResultsQuote.value = []
 }
 
@@ -1176,8 +1404,7 @@ function rowTooltip(tx: TransactionResponse): string | null {
 }
 
 function formatAssetDisplay(asset: AssetSearchResult): string {
-  const key = asset.asset_key ?? asset.symbol
-  return asset.name ? `${asset.name} (${key})` : key
+  return asset.name || asset.symbol || asset.asset_key || ''
 }
 
 const FIAT_ASSET_KEYS = new Set(['EUR','USD','GBP','CHF','JPY','CAD','AUD','CNY','NZD','SEK','NOK','DKK'])
@@ -1260,6 +1487,7 @@ async function handleSubmitTransaction(): Promise<void> {
         crypto.fetchAccount(transferToAccountId.value),
         fetchAccountTransactions(selectedAccountId.value!),
       ])
+      crypto.fetchTransactions()
       await loadCryptoChartHistories(true)
     }
     return
@@ -1338,6 +1566,7 @@ async function handleSubmitTransaction(): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value),
       ])
     }
+    crypto.fetchTransactions()
     await loadCryptoChartHistories(true)
   }
 }
@@ -1356,6 +1585,7 @@ async function deleteTransaction(id: string): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value)
       ])
     }
+    crypto.fetchTransactions()
     await loadCryptoChartHistories(true)
   }
 }
@@ -1412,6 +1642,7 @@ onMounted(async () => {
     await crypto.fetchAccounts()
     await loadCryptoChartHistories()
   }
+  crypto.fetchTransactions()
   fetchRate()
 })
 </script>
@@ -2377,6 +2608,7 @@ onMounted(async () => {
 
           <template v-else>
             <BaseAutocomplete
+              id="crypto-tx-asset"
               :model-value="searchQuery"
               @update:model-value="handleSearchInput"
               @select="handleSelectAsset"
@@ -2386,7 +2618,29 @@ onMounted(async () => {
               :display-value="formatAssetDisplay"
               :loading="isSearching"
               remote
-            />
+              :show-all-on-focus="true"
+            >
+              <template #item="{ item }">
+                <div class="flex items-center justify-between gap-2 w-full">
+                  <div class="min-w-0 flex items-baseline gap-1.5 truncate">
+                    <span class="font-medium text-text-main dark:text-text-dark-main">
+                      {{ item.name || item.symbol }}
+                    </span>
+                    <span class="text-text-muted dark:text-text-dark-muted text-xs">
+                      ({{ item.symbol }})
+                    </span>
+                  </div>  
+                  <span
+                    :class="[
+                      'text-xs shrink-0 px-1.5 py-0.5 rounded-secondary font-medium',
+                      item._source === 'known'
+                        ? 'bg-primary-light text-primary'
+                        : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted',
+                    ]"
+                  >{{ item._source === 'known' ? 'portefeuille' : 'marché' }}</span>
+                </div>
+              </template>
+            </BaseAutocomplete>
             <BaseInput
               v-model="txForm.asset_key"
               label="Symbole"
@@ -2559,6 +2813,7 @@ onMounted(async () => {
 
           <template v-else-if="txForm.type === 'BUY_SPOT'">
             <BaseAutocomplete
+              id="crypto-tx-quote"
               :model-value="searchQueryQuote"
               @update:model-value="handleSearchInputQuote"
               @select="handleSelectAssetQuote"
@@ -2568,7 +2823,29 @@ onMounted(async () => {
               :display-value="formatAssetDisplay"
               :loading="isSearchingQuote"
               remote
-            />
+              :show-all-on-focus="true"
+            >
+              <template #item="{ item }">
+                <div class="flex items-center justify-between gap-2 w-full">
+                  <div class="min-w-0 flex items-baseline gap-1.5 truncate">
+                    <span class="font-medium text-text-main dark:text-text-dark-main">
+                      {{ item.name || item.symbol }}
+                    </span>
+                    <span class="text-text-muted dark:text-text-dark-muted text-xs">
+                      ({{ item.symbol }})
+                    </span>
+                  </div>  
+                  <span
+                    :class="[
+                      'text-xs shrink-0 px-1.5 py-0.5 rounded-secondary font-medium',
+                      item._source === 'known'
+                        ? 'bg-primary-light text-primary'
+                        : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted',
+                    ]"
+                  >{{ item._source === 'known' ? 'portefeuille' : 'marché' }}</span>
+                </div>
+              </template>
+            </BaseAutocomplete>
             <BaseInput
               v-model="txForm.quote_asset_key!"
               label="Symbole"

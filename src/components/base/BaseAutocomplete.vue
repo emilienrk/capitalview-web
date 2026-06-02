@@ -34,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const isOpen = ref(false)
+const isSelecting = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const wrapperRef = ref<HTMLDivElement | null>(null)
 
@@ -57,6 +58,7 @@ const filteredOptions = computed(() => {
 })
 
 watch(() => props.options, (newOptions) => {
+  if (isSelecting.value) return
   if (props.remote && newOptions.length > 0 && props.modelValue && props.modelValue.length >= 2) {
     isOpen.value = true
   }
@@ -73,10 +75,14 @@ function onInput(event: Event): void {
 }
 
 function selectOption(option: any): void {
+  isSelecting.value = true
   const val = props.displayValue(option)
   emit('update:modelValue', val)
   emit('select', option)
   isOpen.value = false
+  setTimeout(() => {
+    isSelecting.value = false
+  }, 150)
 }
 
 // Handle Tab key to select first suggestion
