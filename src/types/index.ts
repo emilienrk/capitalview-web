@@ -594,6 +594,10 @@ export interface UserSettingsUpdate {
   bank_module_enabled?: boolean
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
+  ai_feature_enabled?: boolean
+  claude_api_key?: string | null
+  deepseek_api_key?: string | null
+  gemini_api_key?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
   usd_eur_rate?: number | null
 }
@@ -611,6 +615,10 @@ export interface UserSettingsResponse {
   bank_module_enabled: boolean
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
+  ai_feature_enabled: boolean
+  has_claude_api_key: boolean
+  has_deepseek_api_key: boolean
+  has_gemini_api_key: boolean
   /** null = live rate is used automatically */
   usd_eur_rate: number | null
   created_at: string
