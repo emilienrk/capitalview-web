@@ -15,3 +15,6 @@ export { default as BaseTextarea } from './base/BaseTextarea.vue'
 
 export { default as AssetValueHistoryChart } from './charts/AssetValueHistoryChart.vue'
 export { default as NetWorthHistoryChart } from './charts/NetWorthHistoryChart.vue'
+
+export { default as PhotoImportModal } from './modals/PhotoImportModal.vue'
+

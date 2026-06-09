@@ -14,6 +14,7 @@ import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, 
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import InvestmentComparisonBarChart from '@/components/charts/InvestmentComparisonBarChart.vue'
+import AiInsightCard from '@/components/AiInsightCard.vue'
 import type {
   AccountHistorySnapshotResponse,
   GlobalHistorySnapshotResponse,
@@ -308,6 +309,8 @@ onMounted(() => {
         </button>
       </template>
     </PageHeader>
+
+    <AiInsightCard v-if="settingsStore.settings?.ai_feature_enabled" />
 
     <!-- Error -->
     <BaseAlert v-if="dashboard.error" variant="danger" dismissible @dismiss="dashboard.error = null" class="mb-6">
