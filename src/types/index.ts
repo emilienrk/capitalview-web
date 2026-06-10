@@ -581,6 +581,41 @@ export interface PortfolioResponse {
 
 // ── Settings ─────────────────────────────────────────────
 
+// --- AI types ---
+
+export interface AIProviderConfig {
+  provider: string        // "google" | "anthropic" | "deepseek"
+  has_key: boolean
+  selected_model: string | null
+}
+
+export interface AIProviderUpdate {
+  api_key?: string | null
+  selected_model?: string | null
+}
+
+export interface AIModelEntry {
+  id: string
+  label: string
+  default?: boolean
+}
+
+export interface AIProviderOption {
+  provider: string
+  label: string
+  has_key: boolean
+  models: AIModelEntry[]
+}
+
+export interface AIOptionsResponse {
+  capabilities: {
+    vision: AIProviderOption[]
+    chat: AIProviderOption[]
+  }
+}
+
+// --- Settings DTOs ---
+
 export interface UserSettingsUpdate {
   objectives?: string | null
   theme?: string
@@ -595,9 +630,8 @@ export interface UserSettingsUpdate {
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
-  claude_api_key?: string | null
-  deepseek_api_key?: string | null
-  gemini_api_key?: string | null
+  ai_vision_provider?: string | null
+  ai_chat_provider?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
   usd_eur_rate?: number | null
 }
@@ -616,9 +650,9 @@ export interface UserSettingsResponse {
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean
-  has_claude_api_key: boolean
-  has_deepseek_api_key: boolean
-  has_gemini_api_key: boolean
+  ai_vision_provider: string | null
+  ai_chat_provider: string | null
+  ai_providers: AIProviderConfig[]
   /** null = live rate is used automatically */
   usd_eur_rate: number | null
   created_at: string

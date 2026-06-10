@@ -53,6 +53,16 @@ const isSingleMode = computed(
     settingsStore.settings?.crypto_mode === 'SINGLE',
 )
 
+// Vision providers: Google and Anthropic (matches backend registry CAPABILITY_PRIORITY["vision"])
+const VISION_PROVIDER_IDS = ['google', 'anthropic']
+const hasVisionProvider = computed(() => {
+  const s = settingsStore.settings
+  if (!s?.ai_feature_enabled) return false
+  return (s.ai_providers ?? []).some(
+    p => p.has_key && VISION_PROVIDER_IDS.includes(p.provider)
+  )
+})
+
 function formatEur(value: number | string | null | undefined): string {
   return formatCurrency(value, 'EUR')
 }
@@ -3359,6 +3369,8 @@ onMounted(async () => {
                 v-else
                 variant="ghost"
                 size="sm"
+                :disabled="!hasVisionProvider"
+                :title="hasVisionProvider ? 'Importer depuis une photo' : 'Configurez un provider IA avec support Vision (Google ou Anthropic) pour activer cette fonctionnalité'"
                 @click="openPhotoImport(txForm.account_id); showTxModal = false"
               >
                 <Camera class="w-4 h-4 mr-1.5" />
