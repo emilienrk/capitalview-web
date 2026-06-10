@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, ArrowLeftRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
+import { AlertCircle, ArrowLeftRight, BarChart3, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
@@ -17,6 +17,7 @@ import {
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
+import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type {
@@ -52,6 +53,16 @@ const isSingleMode = computed(
     settingsStore.settings?.crypto_mode === 'SINGLE',
 )
 
+// Vision providers: Google and Anthropic (matches backend registry CAPABILITY_PRIORITY["vision"])
+const VISION_PROVIDER_IDS = ['google', 'anthropic']
+const hasVisionProvider = computed(() => {
+  const s = settingsStore.settings
+  if (!s?.ai_feature_enabled) return false
+  return (s.ai_providers ?? []).some(
+    p => p.has_key && VISION_PROVIDER_IDS.includes(p.provider)
+  )
+})
+
 function formatEur(value: number | string | null | undefined): string {
   return formatCurrency(value, 'EUR')
 }
@@ -85,8 +96,10 @@ const showAccountModal = ref(false)
 const showTxModal = ref(false)
 const showCsvImportModal = ref(false)
 const showBinanceImportModal = ref(false)
+const showPhotoImportModal = ref(false)
 const csvImportAccountId = ref<string | null>(null)
 const binanceImportAccountId = ref<string | null>(null)
+const photoImportAccountId = ref<string | null>(null)
 // Import dropdown state: SINGLE mode (boolean) and MULTI mode (account id)
 const showImportDropdown = ref(false)
 const importDropdownAccountId = ref<string | null>(null)
@@ -698,6 +711,40 @@ async function handleCsvImport(transactions: CryptoCompositeBulkItem[]): Promise
     return true
   }
   return false
+}
+
+function openPhotoImport(accountId: string): void {
+  photoImportAccountId.value = accountId
+  showPhotoImportModal.value = true
+}
+
+async function handlePhotoImport(transactions: any[]): Promise<void> {
+  if (!photoImportAccountId.value || transactions.length === 0) return
+
+  for (const tx of transactions) {
+    try {
+      await crypto.createCompositeTransaction({
+        account_id: photoImportAccountId.value,
+        type: tx.type as any,
+        asset_key: tx.asset_key,
+        amount: Number(tx.amount),
+        quote_asset_key: tx.quote_asset_key ?? undefined,
+        quote_amount: tx.quote_amount ? Number(tx.quote_amount) : undefined,
+        fee_included: false,
+        fee_asset_key: tx.fee_asset_key ?? undefined,
+        fee_amount: tx.fee_amount ? Number(tx.fee_amount) : undefined,
+        executed_at: tx.executed_at,
+        notes: tx.notes ?? undefined,
+        tx_hash: tx.tx_hash ?? undefined,
+      })
+    } catch (e) {
+      console.error('[PhotoImport] erreur transaction:', e)
+    }
+  }
+
+  await selectAccount(photoImportAccountId.value)
+  crypto.fetchTransactions()
+  await loadCryptoChartHistories(true)
 }
 
 function openEditTransaction(tx: any): void {
@@ -3321,6 +3368,17 @@ onMounted(async () => {
                   Retour
                 </span>
               </BaseButton>
+              <BaseButton
+                v-else
+                variant="ghost"
+                size="sm"
+                :disabled="!hasVisionProvider"
+                :title="hasVisionProvider ? 'Importer depuis une photo' : 'Configurez un provider IA avec support Vision (Google ou Anthropic) pour activer cette fonctionnalité'"
+                @click="openPhotoImport(txForm.account_id); showTxModal = false"
+              >
+                <Camera class="w-4 h-4 mr-1.5" />
+                Depuis une photo
+              </BaseButton>
             </div>
             <div class="flex gap-2">
               <BaseButton variant="ghost" @click="showTxModal = false">Annuler</BaseButton>
@@ -3363,6 +3421,15 @@ onMounted(async () => {
       @update:account-id="id => binanceImportAccountId = id"
       @close="showBinanceImportModal = false"
       @imported="handleBinanceImported"
+    />
+
+    <!-- ── Photo Import Modal ─────────────────────────── -->
+    <PhotoImportModal
+      :open="showPhotoImportModal"
+      asset-type="crypto"
+      :account-id="photoImportAccountId || ''"
+      @confirm="handlePhotoImport"
+      @close="showPhotoImportModal = false"
     />
   </div>
 </template>

@@ -4,7 +4,7 @@ const getApiBaseUrl = (): string => {
   }
 
   const { hostname, protocol } = window.location
-  
+
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://localhost:8000'
   }
@@ -66,13 +66,16 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    }
+    const isFormData = options.body instanceof FormData
+    const headers: HeadersInit = isFormData
+      ? { ...options.headers }
+      : {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      }
 
     if (this.accessToken) {
-      ;(headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`
+      ; (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`
     }
 
     let response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -85,7 +88,7 @@ class ApiClient {
       const newToken = await this.tryRefresh()
 
       if (newToken) {
-        ;(headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`
+        ; (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`
         response = await fetch(`${API_BASE_URL}${endpoint}`, {
           ...options,
           headers,
@@ -136,6 +139,14 @@ class ApiClient {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  /** Envoie une requête POST avec un body multipart/form-data (UploadFile, etc.) */
+  async postForm<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: formData,
     })
   }
 

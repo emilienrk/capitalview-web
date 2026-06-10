@@ -2,11 +2,13 @@
 import { FileText, User } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useFormatters } from '@/composables/useFormatters'
 import { BaseCard } from '@/components'
 
 const auth = useAuthStore()
+const settingsStore = useSettingsStore()
 const { isDark, toggleDarkMode } = useDarkMode()
 const { formatDateTime, formatDate } = useFormatters()
 </script>
@@ -89,5 +91,6 @@ const { formatDateTime, formatDate } = useFormatters()
         </button>
       </div>
     </BaseCard>
+
   </div>
 </template>

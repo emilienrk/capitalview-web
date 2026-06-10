@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight, Camera } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
@@ -15,6 +15,7 @@ import {
   BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
+import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
@@ -32,6 +33,8 @@ const showAccountModal = ref(false)
 const showTxModal = ref(false)
 const showDeleteModal = ref(false)
 const showCsvImportModal = ref(false)
+const showPhotoImportModal = ref(false)
+const photoImportAccountId = ref<string | null>(null)
 const showDepositModal = ref(false)
 const depositAccountId = ref<string | null>(null)
 const depositStockAccountId = ref<string | null>(null)
@@ -932,6 +935,34 @@ async function handleCsvImport(transactions: StockTransactionBulkCreate[]): Prom
   return false
 }
 
+function openPhotoImport(accountId: string): void {
+  photoImportAccountId.value = accountId
+  showPhotoImportModal.value = true
+}
+
+async function handlePhotoImport(transactions: any[]): Promise<void> {
+  if (!photoImportAccountId.value || transactions.length === 0) return
+
+  const bulkItems: StockTransactionBulkCreate[] = transactions
+    .filter(tx => tx.asset_key)
+    .map(tx => ({
+      asset_key: tx.asset_key,
+      type: tx.type,
+      amount: Number(tx.amount),
+      price_per_unit: Number(tx.price_per_unit),
+      fees: Number(tx.fees ?? 0),
+      executed_at: tx.executed_at,
+      notes: tx.notes ?? undefined,
+    }))
+
+  if (bulkItems.length === 0) return
+
+  await stocks.bulkImportTransactions(photoImportAccountId.value, bulkItems)
+  await selectAccount(photoImportAccountId.value)
+  stocks.fetchTransactions()
+  await loadStockChartHistories(true)
+}
+
 function openEditTransaction(tx: any): void {
   editingTxId.value = tx.id
   txForm.account_id = selectedAccountId.value!
@@ -1762,7 +1793,16 @@ onMounted(async () => {
           <BaseButton v-if="editingTxId" variant="danger" @click="deleteTransaction(editingTxId)">
             Supprimer
           </BaseButton>
-          <div v-else></div> <!-- Spacer -->
+          <div v-else>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              @click="openPhotoImport(txForm.account_id); showTxModal = false"
+            >
+              <Camera class="w-4 h-4 mr-1.5" />
+              Depuis une photo
+            </BaseButton>
+          </div>
           <div class="flex gap-2">
             <BaseButton variant="ghost" @click="showTxModal = false">Annuler</BaseButton>
             <BaseButton :loading="stocks.isLoading" @click="handleSubmitTransaction">
@@ -1793,6 +1833,15 @@ onMounted(async () => {
       :on-import="handleCsvImport"
       @update:account-id="id => csvImportAccountId = id"
       @close="showCsvImportModal = false"
+    />
+
+    <!-- ── Photo Import Modal ─────────────────────────── -->
+    <PhotoImportModal
+      :open="showPhotoImportModal"
+      asset-type="stock"
+      :account-id="photoImportAccountId || ''"
+      @confirm="handlePhotoImport"
+      @close="showPhotoImportModal = false"
     />
 
     <!-- ── EUR Deposit Modal ──────────────────────────── -->

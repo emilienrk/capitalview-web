@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutGrid, Lock, User, Users, Wallet } from 'lucide-vue-next'
+import { LayoutGrid, Lock, User, Users, Sparkles } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseAlert } from '@/components'
@@ -11,6 +11,7 @@ import SettingsFinances from './settings/SettingsFinances.vue'
 import SettingsModules from './settings/SettingsModules.vue'
 import SettingsCommunity from './settings/SettingsCommunity.vue'
 import SettingsSecurity from './settings/SettingsSecurity.vue'
+import SettingsAI from './settings/SettingsAI.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,6 +43,12 @@ const tabs: Tab[] = [
     label: 'Modules',
     shortLabel: 'Modules',
     icon: LayoutGrid,
+  },
+  {
+    id: 'ia',
+    label: 'IA',
+    shortLabel: 'IA',
+    icon: Sparkles,
   },
   {
     id: 'communaute',
@@ -136,6 +143,7 @@ onMounted(async () => {
           <SettingsGeneral v-if="activeTab === 'general'" />
           <!-- <SettingsFinances v-else-if="activeTab === 'finances'" /> -->
           <SettingsModules v-else-if="activeTab === 'modules'" />
+          <SettingsAI v-else-if="activeTab === 'ia'" />
           <SettingsCommunity v-else-if="activeTab === 'communaute'" />
           <SettingsSecurity v-else-if="activeTab === 'securite'" />
         </KeepAlive>
