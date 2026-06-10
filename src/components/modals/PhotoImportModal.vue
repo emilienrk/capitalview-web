@@ -19,10 +19,13 @@ export interface ExtractedStockTransaction {
 }
 
 export interface ExtractedCryptoTransaction {
-  asset_key: string
   type: string
+  asset_key: string
   amount: number
-  price_per_unit: number
+  quote_asset_key: string | null
+  quote_amount: number | null
+  fee_asset_key: string | null
+  fee_amount: number | null
   executed_at: string
   tx_hash: string | null
   notes: string | null
@@ -66,7 +69,7 @@ const modalTitle = computed(() =>
 const hasTransactions = computed(() => extractedTransactions.value.length > 0)
 
 const stockTypes = ['BUY', 'SELL', 'DIVIDEND']
-const cryptoTypes = ['BUY', 'SELL', 'REWARD', 'TRANSFER', 'FIAT_DEPOSIT', 'FIAT_WITHDRAWAL', 'CRYPTO_DEPOSIT', 'CRYPTO_WITHDRAWAL', 'SELL_TO_FIAT']
+const cryptoTypes = ['BUY', 'FIAT_DEPOSIT', 'FIAT_WITHDRAW', 'SELL_TO_FIAT', 'CRYPTO_DEPOSIT', 'EXIT']
 
 const txTypeOptions = computed(() =>
   props.assetType === 'stock' ? stockTypes : cryptoTypes
@@ -363,32 +366,67 @@ watch(() => props.open, (open) => {
                 />
               </div>
 
-              <!-- Price -->
+              <!-- Price (or quote for crypto) -->
               <div>
                 <label class="block text-xs font-medium text-text-muted dark:text-text-dark-muted mb-1">
-                  Prix unitaire (€)
+                  {{ assetType === 'stock' ? 'Prix unitaire (€)' : 'Payé avec / Contrepartie' }}
                 </label>
                 <input
+                  v-if="assetType === 'stock'"
                   v-model.number="(tx as any).price_per_unit"
                   type="number"
                   min="0"
                   step="any"
                   class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
+                <div v-else class="flex gap-2">
+                  <input
+                    v-model.number="(tx as any).quote_amount"
+                    type="number"
+                    min="0"
+                    step="any"
+                    class="w-1/2 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Montant"
+                  />
+                  <input
+                    v-model="(tx as any).quote_asset_key"
+                    type="text"
+                    class="w-1/2 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
+                    placeholder="Ticker"
+                  />
+                </div>
               </div>
 
-              <!-- Fees (stocks seulement) -->
-              <div v-if="assetType === 'stock'">
+              <!-- Fees -->
+              <div>
                 <label class="block text-xs font-medium text-text-muted dark:text-text-dark-muted mb-1">
-                  Frais (€)
+                  Frais
                 </label>
                 <input
+                  v-if="assetType === 'stock'"
                   v-model.number="(tx as any).fees"
                   type="number"
                   min="0"
                   step="any"
                   class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="En €"
                 />
+                <div v-else class="flex gap-2">
+                  <input
+                    v-model.number="(tx as any).fee_amount"
+                    type="number"
+                    min="0"
+                    step="any"
+                    class="w-1/2 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Montant"
+                  />
+                  <input
+                    v-model="(tx as any).fee_asset_key"
+                    type="text"
+                    class="w-1/2 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Ticker"
+                  />
+                </div>
               </div>
 
               <!-- Date -->
