@@ -5,10 +5,7 @@ import { onMounted, ref, reactive } from 'vue'
 import draggable from 'vuedraggable'
 import { useNotesStore } from '@/stores/notes'
 import PageHeader from '@/components/PageHeader.vue'
-import {
-  BaseCard, BaseButton, BaseInput, BaseTextarea, BaseModal,
-  BaseSpinner, BaseAlert, BaseEmptyState,
-} from '@/components'
+import { BaseButton, BaseAddButton, BaseCard, BaseInput, BaseModal, BaseAlert, BaseEmptyState, BaseTextarea, BaseSpinner } from '@/components'
 import type { NoteCreate, NoteResponse } from '@/types'
 
 const notes = useNotesStore()
@@ -78,7 +75,7 @@ onMounted(() => {
   <div>
     <PageHeader title="Notes" description="Stratégies, idées d'investissement et notes personnelles">
       <template #actions>
-        <BaseButton @click="openCreate">+<span class="hidden sm:inline">&nbsp; Nouvelle note</span></BaseButton>
+        <BaseAddButton @click="openCreate">Nouvelle note</BaseAddButton>
       </template>
     </PageHeader>
 

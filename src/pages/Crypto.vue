@@ -12,7 +12,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
+  BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
@@ -1398,6 +1398,35 @@ function prevChartSlide(): void {
   if (prevSlide) chartSlide.value = prevSlide.key
 }
 
+// Lightweight swipe handler for chart slide cards (avoids blocking page scroll)
+function makeChartSwipeHandlers() {
+  let startX = 0
+  let startY = 0
+  const THRESHOLD = 60
+  const MAX_VERTICAL = 60
+
+  function onTouchStart(e: TouchEvent) {
+    const t = e.touches[0]
+    if (!t) return
+    startX = t.clientX
+    startY = t.clientY
+  }
+
+  function onTouchEnd(e: TouchEvent) {
+    const t = e.changedTouches[0]
+    if (!t) return
+    const dx = t.clientX - startX
+    const dy = Math.abs(t.clientY - startY)
+    if (dy > MAX_VERTICAL) return
+    if (dx > THRESHOLD) prevChartSlide()
+    else if (dx < -THRESHOLD) nextChartSlide()
+  }
+
+  return { onTouchStart, onTouchEnd }
+}
+
+const chartSwipe = makeChartSwipeHandlers()
+
 async function loadCryptoChartHistories(force = false): Promise<void> {
   await Promise.all([
     crypto.fetchHistory(force),
@@ -1641,6 +1670,8 @@ async function fetchAccountTransactions(id: string): Promise<void> {
   accountTransactions.value = await crypto.fetchAccountTransactions(id)
 }
 
+const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+
 async function selectAccount(id: string): Promise<void> {
   if (selectedAccountId.value === id) {
     selectedAccountId.value = null
@@ -1736,13 +1767,13 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-          <BaseButton size="sm" @click="openAddTransaction(selectedAccountId!)">+<span class="hidden sm:inline">&nbsp;transaction</span></BaseButton>
+          <BaseAddButton size="sm" @click="openAddTransaction(selectedAccountId!)">transaction</BaseAddButton>
         </template>
         <!-- MULTI mode: import + account creation -->
         <template v-else-if="!isSingleMode">
           <div class="relative" v-if="crypto.accounts.length">
             <BaseButton variant="outline" @click.stop="showImportDropdown = !showImportDropdown">
-              <Upload class="w-4 h-4" />
+              <Upload class="w-5 h-5" />
               <span class="hidden sm:inline">Importer</span>
               <ChevronDown class="w-3 h-3 ml-1" />
             </BaseButton>
@@ -1764,7 +1795,7 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-          <BaseButton size="sm" @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau portefeuille</span></BaseButton>
+          <BaseAddButton size="sm" @click="openCreateAccount">Nouveau portefeuille</BaseAddButton>
         </template>
       </template>
     </PageHeader>
@@ -1815,44 +1846,58 @@ onMounted(async () => {
         </div>
 
         <BaseCard title="Analyse du portefeuille" subtitle="Évolution, répartition et performance" class="mb-6">
-          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-3">
-              <p class="text-xs text-text-muted dark:text-text-dark-muted">
+          <!-- Nav row: slide label + arrows + inline performance -->
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <!-- Left: slide label + prev/next -->
+            <div class="flex items-center gap-1 min-w-0">
+              <BaseButton size="sm" variant="ghost" class="shrink-0" @click="prevChartSlide">
+                <ChevronLeft class="w-4 h-4" />
+              </BaseButton>
+              <p class="text-xs font-medium text-text-main dark:text-text-dark-main truncate">
                 {{ chartSlideLabel }}
               </p>
-              <div class="flex items-center gap-1">
-                <BaseButton size="sm" variant="ghost" @click="prevChartSlide">
-                  <ChevronLeft class="w-4 h-4" />
-                </BaseButton>
-                <BaseButton size="sm" variant="ghost" @click="nextChartSlide">
-                  <ChevronRight class="w-4 h-4" />
-                </BaseButton>
-              </div>
+              <BaseButton size="sm" variant="ghost" class="shrink-0" @click="nextChartSlide">
+                <ChevronRight class="w-4 h-4" />
+              </BaseButton>
             </div>
-            <div class="flex min-h-8 items-center gap-2 self-end sm:self-auto">
-              <template v-if="chartSlide === 'evolution' || chartSlide === 'cumulative_pnl'">
-                <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                  <RefreshCw class="w-4 h-4" />
-                </BaseButton>
-                <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
-              </template>
 
-              <p v-else-if="chartSlide === 'pnl'" class="text-xs text-text-muted dark:text-text-dark-muted">
-                Moyenne par jour :
-                <span :class="['font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
+            <!-- Right: stats -->
+            <div class="flex items-center gap-2 shrink-0">
+              <template v-if="chartSlide === 'pnl'">
+                <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Moy.</span>
+                <span :class="['text-xs font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
                   {{ formatEur(cryptoDailyPnlAverage) }}
                 </span>
-                <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
-                Dernier jour :
-                <span :class="['font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
+                <span class="text-text-muted dark:text-text-dark-muted text-[10px] hidden sm:inline">•</span>
+                <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Dernier</span>
+                <span :class="['text-xs font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
                   {{ formatEur(cryptoLatestDailyPnl) }}
                 </span>
-              </p>
-
-              <span v-else class="invisible text-xs select-none" aria-hidden="true">placeholder</span>
+              </template>
+              <template v-else-if="(chartSlide === 'evolution' || chartSlide === 'cumulative_pnl') && chartPerformance">
+                <span
+                  :class="[
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                    chartPerformance.diff >= 0
+                      ? 'bg-success/10 text-success'
+                      : 'bg-danger/10 text-danger',
+                  ]"
+                >
+                  {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
+                  {{ chartPerformance.percent.toFixed(2) }}%
+                </span>
+                <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
+                  {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatEur(chartPerformance.diff) }}
+                </span>
+              </template>
             </div>
           </div>
 
+          <div
+            class="min-h-[340px]"
+            @touchstart.passive="chartSwipe.onTouchStart"
+            @touchend.passive="chartSwipe.onTouchEnd"
+          >
           <div v-if="crypto.historyLoading" class="h-72 flex items-center justify-center">
             <BaseSpinner size="md" label="Chargement de l'historique..." />
           </div>
@@ -1863,7 +1908,16 @@ onMounted(async () => {
                 :series="cryptoChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
-              />
+                show-performance
+                @update:performance="chartPerformance = $event"
+              >
+                <template #leading>
+                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                    <RefreshCw class="w-4 h-4" />
+                  </BaseButton>
+                  <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+                </template>
+              </HistoryLineChart>
             </template>
             <BaseEmptyState
               v-else
@@ -1889,7 +1943,14 @@ onMounted(async () => {
                 :series="pnlChartSeries"
                 :is-dark="isDark"
                 granularity="daily"
-              />
+              >
+                <template #leading>
+                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                    <RefreshCw class="w-4 h-4" />
+                  </BaseButton>
+                  <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+                </template>
+              </HistoryLineChart>
             </template>
             <BaseEmptyState
               v-else
@@ -1904,7 +1965,16 @@ onMounted(async () => {
                 :series="allTimePnlChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
-              />
+                show-performance
+                @update:performance="chartPerformance = $event"
+              >
+                <template #leading>
+                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                    <RefreshCw class="w-4 h-4" />
+                  </BaseButton>
+                  <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+                </template>
+              </HistoryLineChart>
             </template>
             <BaseEmptyState
               v-else
@@ -1912,6 +1982,7 @@ onMounted(async () => {
               description="L'indicateur apparaîtra avec un historique de portefeuille"
             />
           </template>
+        </div>
         </BaseCard>
 
         <BaseCard>
@@ -2185,65 +2256,70 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-if="crypto.historyLoading" class="h-72 flex items-center justify-center">
-          <BaseSpinner size="md" label="Chargement de l'historique..." />
+        <div
+          @touchstart.passive="chartSwipe.onTouchStart"
+          @touchend.passive="chartSwipe.onTouchEnd"
+        >
+          <div v-if="crypto.historyLoading" class="h-72 flex items-center justify-center">
+            <BaseSpinner size="md" label="Chargement de l'historique..." />
+          </div>
+
+          <template v-else-if="chartSlide === 'evolution'">
+            <template v-if="cryptoChartSeries.length > 0">
+              <HistoryLineChart
+                :series="cryptoChartSeries"
+                :is-dark="isDark"
+                :granularity="historyGranularity"
+              />
+            </template>
+            <BaseEmptyState
+              v-else
+              title="Pas encore de données historiques"
+              description="L'évolution s'affichera dès que des snapshots sont disponibles"
+            />
+          </template>
+
+          <template v-else-if="chartSlide === 'allocation'">
+            <template v-if="allocationSegments.length">
+              <AllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
+            </template>
+            <BaseEmptyState
+              v-else
+              title="Pas de répartition disponible"
+              description="Ajoutez des positions crypto pour voir la concentration du risque"
+            />
+          </template>
+
+          <template v-else-if="chartSlide === 'pnl'">
+            <template v-if="pnlChartSeries.length > 0">
+              <HistoryLineChart
+                :series="pnlChartSeries"
+                :is-dark="isDark"
+                granularity="daily"
+              />
+            </template>
+            <BaseEmptyState
+              v-else
+              title="Pas de P/L journalier disponible"
+              description="L'indicateur apparaîtra avec un historique de portefeuille"
+            />
+          </template>
+
+          <template v-else-if="chartSlide === 'cumulative_pnl'">
+            <template v-if="allTimePnlChartSeries.length > 0">
+              <HistoryLineChart
+                :series="allTimePnlChartSeries"
+                :is-dark="isDark"
+                :granularity="historyGranularity"
+              />
+            </template>
+            <BaseEmptyState
+              v-else
+              title="Pas de P/L cumulé disponible"
+              description="L'indicateur apparaîtra avec un historique de portefeuille"
+            />
+          </template>
         </div>
-
-        <template v-else-if="chartSlide === 'evolution'">
-          <template v-if="cryptoChartSeries.length > 0">
-            <HistoryLineChart
-              :series="cryptoChartSeries"
-              :is-dark="isDark"
-              :granularity="historyGranularity"
-            />
-          </template>
-          <BaseEmptyState
-            v-else
-            title="Pas encore de données historiques"
-            description="L'évolution s'affichera dès que des snapshots sont disponibles"
-          />
-        </template>
-
-        <template v-else-if="chartSlide === 'allocation'">
-          <template v-if="allocationSegments.length">
-            <AllocationDonutChart :segments="allocationSegments" :is-dark="isDark" reserve-top-space />
-          </template>
-          <BaseEmptyState
-            v-else
-            title="Pas de répartition disponible"
-            description="Ajoutez des positions crypto pour voir la concentration du risque"
-          />
-        </template>
-
-        <template v-else-if="chartSlide === 'pnl'">
-          <template v-if="pnlChartSeries.length > 0">
-            <HistoryLineChart
-              :series="pnlChartSeries"
-              :is-dark="isDark"
-              granularity="daily"
-            />
-          </template>
-          <BaseEmptyState
-            v-else
-            title="Pas de P/L journalier disponible"
-            description="L'indicateur apparaîtra avec un historique de portefeuille"
-          />
-        </template>
-
-        <template v-else-if="chartSlide === 'cumulative_pnl'">
-          <template v-if="allTimePnlChartSeries.length > 0">
-            <HistoryLineChart
-              :series="allTimePnlChartSeries"
-              :is-dark="isDark"
-              :granularity="historyGranularity"
-            />
-          </template>
-          <BaseEmptyState
-            v-else
-            title="Pas de P/L cumulé disponible"
-            description="L'indicateur apparaîtra avec un historique de portefeuille"
-          />
-        </template>
       </BaseCard>
 
       <div v-if="crypto.accounts.length" class="space-y-4">
@@ -2271,9 +2347,9 @@ onMounted(async () => {
             </div>
             <!-- Actions: wrap on mobile -->
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-              <BaseButton size="sm" variant="outline" @click.stop="openAddTransaction(account.id)">
-                + Transaction
-              </BaseButton>
+              <BaseAddButton variant="ghost" size="sm" @click.stop="openAddTransaction(account.id)">
+                Transaction
+              </BaseAddButton>
               <BaseButton size="sm" variant="ghost" @click.stop="openEditAccount(account)">
                 <Pencil class="w-4 h-4" />
               </BaseButton>
@@ -3077,7 +3153,7 @@ onMounted(async () => {
                 </p>
                 <p class="text-[11px] text-text-muted dark:text-text-dark-muted mt-0.5">Si les frais ont été prélevés dans un autre token (ex : BNB, ETH).</p>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <BaseInput
                   v-model="txForm.fee_asset_key!"
                   label="Symbole du token"
@@ -3136,7 +3212,7 @@ onMounted(async () => {
             <template v-else-if="feeMode === 'token'">
               <div class="space-y-3">
                 <p class="text-xs text-text-muted dark:text-text-dark-muted">Frais de réseau prélevés dans un token (ex : ETH pour le gaz, BNB, SOL…)</p>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <BaseInput
                     v-model="txForm.fee_asset_key!"
                     label="Token de frais"
@@ -3376,8 +3452,8 @@ onMounted(async () => {
                 :title="hasVisionProvider ? 'Importer depuis une photo' : 'Configurez un provider IA avec support Vision (Google ou Anthropic) pour activer cette fonctionnalité'"
                 @click="openPhotoImport(txForm.account_id); showTxModal = false"
               >
-                <Camera class="w-4 h-4 mr-1.5" />
-                Depuis une photo
+                <Camera class="w-4 h-4 sm:mr-1.5" />
+                <span class="hidden sm:inline">Depuis une photo</span>
               </BaseButton>
             </div>
             <div class="flex gap-2">

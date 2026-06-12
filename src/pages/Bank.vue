@@ -8,7 +8,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
+  BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
 } from '@/components'
 import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
@@ -205,6 +205,8 @@ onMounted(async () => {
   await loadChartHistories()
   hasFetchedOnce.value = true
 })
+
+const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
 </script>
 
 <template>
@@ -214,9 +216,7 @@ onMounted(async () => {
         <BaseButton variant="outline" @click="showHistoryImportModal = true" :disabled="!bank.summary?.accounts?.length">
           <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
         </BaseButton>
-        <BaseButton @click="openCreate">
-          +<span class="hidden sm:inline">&nbsp; Nouveau compte</span>
-        </BaseButton>
+        <BaseAddButton @click="openCreate">Nouveau compte</BaseAddButton>
       </template>
     </PageHeader>
 
@@ -234,7 +234,25 @@ onMounted(async () => {
     </div>
 
     <!-- Bank History Chart -->
-    <BaseCard v-if="bank.summary?.accounts?.length" title="Évolution du solde" subtitle="Historique de tous les comptes bancaires" class="mb-6">
+    <BaseCard v-if="bank.summary?.accounts?.length" class="mb-6">
+      <template #header>
+        <div class="flex items-start sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Évolution du solde</h3>
+            <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Historique de tous les comptes bancaires</p>
+          </div>
+          <p v-if="chartPerformance" class="text-xs text-text-muted dark:text-text-dark-muted hidden sm:block">
+            Période :
+            <span :class="['font-semibold', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
+              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ chartPerformance.percent.toFixed(2) }}%
+            </span>
+            <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
+            <span :class="['font-semibold', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
+              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
+            </span>
+          </p>
+        </div>
+      </template>
       <div v-if="bank.historyLoading" class="h-72 flex items-center justify-center">
         <BaseSkeleton variant="rect" width="100%" height="18rem" />
       </div>
@@ -242,19 +260,20 @@ onMounted(async () => {
         {{ bank.error }}
       </BaseAlert>
       <template v-else-if="chartSeries.length > 0">
-        <div class="mb-4 flex justify-end">
-          <div class="flex items-center gap-2">
-            <BaseButton size="sm" variant="outline" @click="loadChartHistories(true)">
-              <RefreshCw class="w-4 h-4" />
-            </BaseButton>
-            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
-          </div>
-        </div>
         <HistoryLineChart
           :series="chartSeries"
           :is-dark="isDark"
           :granularity="historyGranularity"
-        />
+          show-performance
+          @update:performance="chartPerformance = $event"
+        >
+          <template #leading>
+            <BaseButton size="sm" variant="outline" @click="loadChartHistories(true)">
+              <RefreshCw class="w-4 h-4" />
+            </BaseButton>
+            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+          </template>
+        </HistoryLineChart>
       </template>
       <BaseEmptyState
         v-else

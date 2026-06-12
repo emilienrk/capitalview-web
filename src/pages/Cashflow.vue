@@ -10,7 +10,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import {
-  BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
+  BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete,
 } from '@/components'
 import type { CashflowCreate, CashflowResponse, FlowType, Frequency } from '@/types'
@@ -367,9 +367,7 @@ onMounted(async () => {
   <div>
     <PageHeader title="Flux de trésorerie" description="Gérez vos revenus et dépenses récurrents et ponctuels">
       <template #actions>
-        <BaseButton @click="openCreate()">
-          +<span class="hidden sm:inline">&nbsp;Nouveau flux</span>
-        </BaseButton>
+        <BaseAddButton @click="openCreate()">Nouveau flux</BaseAddButton>
       </template>
     </PageHeader>
 

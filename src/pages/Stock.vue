@@ -11,8 +11,8 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  BaseCard, BaseButton, BaseInput, BaseSelect, BaseModal,
-  BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
+  BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
+  BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSpinner, BaseSegmentedControl,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
@@ -1145,6 +1145,8 @@ async function handleDelete(): Promise<void> {
   deleteTarget.value = null
 }
 
+const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+
 function badgeVariant(type: string): 'primary' | 'info' | 'warning' {
   if (type === 'PEA') return 'primary'
   if (type === 'PEA_PME') return 'warning'
@@ -1267,7 +1269,7 @@ onMounted(async () => {
         <BaseButton size="sm" variant="outline" @click="openCsvImport()" :disabled="!stocks.accounts.length">
           <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
         </BaseButton>
-        <BaseButton size="sm" @click="openCreateAccount">+<span class="hidden sm:inline">&nbsp; Nouveau compte</span></BaseButton>
+        <BaseAddButton size="sm" @click="openCreateAccount">Nouveau compte</BaseAddButton>
       </template>
     </PageHeader>
 
@@ -1282,47 +1284,57 @@ onMounted(async () => {
     </BaseAlert>
 
     <BaseCard v-if="stocks.accounts.length" title="Analyse du portefeuille bourse" subtitle="Évolution, répartition et performance" class="mb-6">
-      <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-          <p class="text-xs text-text-muted dark:text-text-dark-muted">
+      <!-- Nav row: slide label + arrows + inline performance -->
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <!-- Left: slide label + prev/next -->
+        <div class="flex items-center gap-1 min-w-0">
+          <BaseButton size="sm" variant="ghost" class="shrink-0" @click="prevStockChartSlide">
+            <ChevronLeft class="w-4 h-4" />
+          </BaseButton>
+          <p class="text-xs font-medium text-text-main dark:text-text-dark-main truncate">
             {{ stockChartSlideLabel }}
           </p>
-          <div class="flex items-center gap-1">
-            <BaseButton size="sm" variant="ghost" @click="prevStockChartSlide">
-              <ChevronLeft class="w-4 h-4" />
-            </BaseButton>
-            <BaseButton size="sm" variant="ghost" @click="nextStockChartSlide">
-              <ChevronRight class="w-4 h-4" />
-            </BaseButton>
-          </div>
+          <BaseButton size="sm" variant="ghost" class="shrink-0" @click="nextStockChartSlide">
+            <ChevronRight class="w-4 h-4" />
+          </BaseButton>
         </div>
-        <div class="flex min-h-8 items-center gap-2 self-end sm:self-auto">
-          <template v-if="stockChartSlide === 'evolution' || stockChartSlide === 'cumulative_pnl'">
-            <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
-              <RefreshCw class="w-4 h-4" />
-            </BaseButton>
-            <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
-          </template>
 
-          <p v-else-if="stockChartSlide === 'pnl'" class="text-xs text-text-muted dark:text-text-dark-muted">
-            Moyenne par jour :
-            <span :class="['font-semibold', profitLossClass(stockDailyPnlAverage)]">
+        <!-- Right: stats (always same height) -->
+        <div class="flex items-center gap-2 shrink-0">
+          <template v-if="stockChartSlide === 'pnl'">
+            <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Moy.</span>
+            <span :class="['text-xs font-semibold', profitLossClass(stockDailyPnlAverage)]">
               {{ formatCurrency(stockDailyPnlAverage) }}
             </span>
-            <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
-            Dernier jour :
-            <span :class="['font-semibold', profitLossClass(stockLatestPortfolioDailyPnl)]">
+            <span class="text-text-muted dark:text-text-dark-muted text-[10px] hidden sm:inline">•</span>
+            <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Dernier</span>
+            <span :class="['text-xs font-semibold', profitLossClass(stockLatestPortfolioDailyPnl)]">
               {{ formatCurrency(stockLatestPortfolioDailyPnl) }}
             </span>
-          </p>
-
-          <span v-else class="invisible text-xs select-none" aria-hidden="true">placeholder</span>
+          </template>
+          <template v-else-if="(stockChartSlide === 'evolution' || stockChartSlide === 'cumulative_pnl') && chartPerformance">
+            <span
+              :class="[
+                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                chartPerformance.diff >= 0
+                  ? 'bg-success/10 text-success'
+                  : 'bg-danger/10 text-danger',
+              ]"
+            >
+              {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
+              {{ chartPerformance.percent.toFixed(2) }}%
+            </span>
+            <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
+              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
+            </span>
+          </template>
         </div>
       </div>
 
-      <div v-if="stocks.historyLoading" class="h-72 flex items-center justify-center">
-        <BaseSpinner size="md" label="Chargement de l'historique..." />
-      </div>
+      <div class="min-h-[340px]">
+        <div v-if="stocks.historyLoading" class="h-72 flex items-center justify-center">
+          <BaseSpinner size="md" label="Chargement de l'historique..." />
+        </div>
 
       <template v-else-if="stockChartSlide === 'evolution'">
         <template v-if="stockChartSeries.length > 0">
@@ -1330,7 +1342,16 @@ onMounted(async () => {
             :series="stockChartSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
-          />
+            show-performance
+            @update:performance="chartPerformance = $event"
+          >
+            <template #leading>
+              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            </template>
+          </HistoryLineChart>
         </template>
         <BaseEmptyState
           v-else
@@ -1356,7 +1377,14 @@ onMounted(async () => {
             :series="stockDailyPnlSeries"
             :is-dark="isDark"
             granularity="daily"
-          />
+          >
+            <template #leading>
+              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            </template>
+          </HistoryLineChart>
         </template>
         <BaseEmptyState
           v-else
@@ -1371,7 +1399,16 @@ onMounted(async () => {
             :series="stockAllTimePnlSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
-          />
+            show-performance
+            @update:performance="chartPerformance = $event"
+          >
+            <template #leading>
+              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            </template>
+          </HistoryLineChart>
         </template>
         <BaseEmptyState
           v-else
@@ -1379,6 +1416,7 @@ onMounted(async () => {
           description="Le graphique apparaitra des que des donnees quotidiennes seront disponibles"
         />
       </template>
+      </div>
     </BaseCard>
 
     <!-- ── Filter tabs ──────────────────────────────────── -->
@@ -1432,9 +1470,7 @@ onMounted(async () => {
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 self-start">
-            <BaseButton size="sm" variant="outline" @click.stop="openAddTransaction(account.id)">
-              +<span class="hidden sm:inline">&nbsp; Transaction</span>
-            </BaseButton>
+              <BaseAddButton variant="ghost" size="sm" @click.stop="openAddTransaction(account.id)">Transaction</BaseAddButton>
             <BaseButton size="sm" variant="ghost" @click.stop="openEditAccount(account)">
               <Pencil class="w-4 h-4" />
             </BaseButton>
@@ -1738,7 +1774,7 @@ onMounted(async () => {
         </div>
 
         <!-- Symbole + ISIN pré-remplis (confirmation / correction) -->
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <BaseInput
             v-model="txForm.symbol"
             label="Symbole"
@@ -1770,7 +1806,7 @@ onMounted(async () => {
           + Ajouter une place de marché
         </button>
 
-        <div :class="isDividendShares ? '' : 'grid grid-cols-2 gap-4'">
+        <div :class="isDividendShares ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'">
           <div>
             <BaseInput v-model="txForm.amount" :label="txAmountLabel" type="number" step="any" min="0" required />
             <p v-if="txForm.type === 'SELL' && sellMaxAmount !== null" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
@@ -1799,8 +1835,8 @@ onMounted(async () => {
               size="sm"
               @click="openPhotoImport(txForm.account_id); showTxModal = false"
             >
-              <Camera class="w-4 h-4 mr-1.5" />
-              Depuis une photo
+              <Camera class="w-4 h-4 sm:mr-1.5" />
+              <span class="hidden sm:inline">Depuis une photo</span>
             </BaseButton>
           </div>
           <div class="flex gap-2">

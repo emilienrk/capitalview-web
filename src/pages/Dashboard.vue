@@ -142,6 +142,8 @@ interface PieSegment {
   value: number
 }
 
+const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+
 watch(granularityOptions, (options) => {
   const allowed = options.map((option) => option.value)
   if (!allowed.includes(historyGranularity.value)) {
@@ -541,7 +543,31 @@ onMounted(() => {
       </div>
 
       <!-- ── Wealth History Chart ───────────────────────── -->
-      <BaseCard v-if="historyStore.isLoading || historyStore.error || (historyStore.history && historyStore.history.length > 0)" title="Évolution du patrimoine" subtitle="Historique journalier de la valeur globale">
+      <BaseCard v-if="historyStore.isLoading || historyStore.error || (historyStore.history && historyStore.history.length > 0)">
+        <template #header>
+          <div class="flex items-start sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Évolution du patrimoine</h3>
+              <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Historique journalier de la valeur globale</p>
+            </div>
+            <div v-if="chartPerformance" class="flex items-center gap-2 shrink-0">
+              <span
+                :class="[
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                  chartPerformance.diff >= 0
+                    ? 'bg-success/10 text-success'
+                    : 'bg-danger/10 text-danger',
+                ]"
+              >
+                {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
+                {{ chartPerformance.percent.toFixed(2) }}%
+              </span>
+              <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
+                {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
+              </span>
+            </div>
+          </div>
+        </template>
         <div v-if="historyStore.isLoading" class="h-72 flex items-center justify-center">
           <BaseSkeleton variant="rect" width="100%" height="18rem" />
         </div>
@@ -549,21 +575,22 @@ onMounted(() => {
           {{ historyStore.error }}
         </BaseAlert>
         <template v-else-if="historyStore.hasMeaningfulHistory">
-          <div class="mb-4 flex justify-end">
-            <div class="flex items-center gap-2">
-              <BaseButton size="sm" variant="outline" @click="historyStore.fetchHistory()">
-                <RefreshCw class="w-4 h-4" />
-              </BaseButton>
-              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
-            </div>
-          </div>
           <NetWorthHistoryChart
             :history="chartHistory"
             :is-dark="isDark"
             :bank-enabled="bankEnabled"
             :wealth-enabled="wealthEnabled"
             :granularity="historyGranularity"
-          />
+            show-performance
+            @update:performance="chartPerformance = $event"
+          >
+            <template #leading>
+              <BaseButton size="sm" variant="outline" @click="historyStore.fetchHistory()">
+                <RefreshCw class="w-4 h-4" />
+              </BaseButton>
+              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
+            </template>
+          </NetWorthHistoryChart>
         </template>
         <BaseEmptyState
           v-else
