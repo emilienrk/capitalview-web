@@ -19,6 +19,11 @@ const props = defineProps<{
   isDark?: boolean
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   hideControls?: boolean
+  showPerformance?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:performance', val: { diff: number; percent: number } | null): void
 }>()
 
 const updateOptions = {
@@ -157,6 +162,9 @@ watch(
   { immediate: true },
 )
 
+const containerWidth = ref(0)
+const isMobile = computed(() => containerWidth.value < 640)
+
 function syncChartVisibilityAndSize(): void {
   const container = containerRef.value
   if (!container) return
@@ -164,10 +172,8 @@ function syncChartVisibilityAndSize(): void {
   const hasSize = container.clientWidth > 0 && container.clientHeight > 0
   if (!hasSize) return
 
+  containerWidth.value = container.clientWidth
   canRenderChart.value = true
-  nextTick(() => {
-    chartRef.value?.resize()
-  })
 }
 
 onMounted(() => {
@@ -224,10 +230,12 @@ const option = computed(() => {
     }
   })
 
+  const isSmall = isMobile.value
+  const labelDivisor = isSmall ? 6 : 14
   const xAxisInterval =
     props.granularity === 'daily'
-      ? (dates.length <= 40 ? 0 : Math.max(0, Math.floor(dates.length / 14) - 1))
-      : Math.max(0, Math.floor(dates.length / 12) - 1)
+      ? (dates.length <= (isSmall ? 15 : 40) ? 0 : Math.max(0, Math.floor(dates.length / labelDivisor) - 1))
+      : Math.max(0, Math.floor(dates.length / (isSmall ? 5 : 12)) - 1)
 
   const formatXAxisLabel = (val: string): string => {
     const d = new Date(val)
@@ -271,7 +279,7 @@ const option = computed(() => {
   return {
     backgroundColor: bgColor,
     legend: {
-      bottom: 0,
+      bottom: 28,
       type: 'scroll',
       selectedMode: true,
       selected: legendSelection.value,
@@ -284,11 +292,9 @@ const option = computed(() => {
     },
     grid: {
       top: 16,
-      left: 8,
-      right: 8,
-      bottom: 64,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'axisLabel',
+      left: 50,
+      right: 12,
+      bottom: 72,
     },
     xAxis: {
       type: 'category',
@@ -300,6 +306,7 @@ const option = computed(() => {
         formatter: formatXAxisLabel,
         color: textColor,
         fontSize: 10,
+        hideOverlap: true,
       },
       axisTick: { show: false },
       splitLine: { show: false },
@@ -308,26 +315,32 @@ const option = computed(() => {
       type: 'value',
       scale: true,
       axisLine: { show: false },
-      axisLabel: { color: textColor, fontSize: 10 },
+      axisLabel: {
+        color: textColor,
+        fontSize: 10,
+        formatter: (val: number) =>
+          Math.abs(val) >= 1000 ? `${(val / 1000).toFixed(0)}k€` : `${Math.round(val)}€`,
+      },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: gridColor } },
     },
     tooltip: {
       trigger: 'axis',
+      confine: true,
       backgroundColor: props.isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)',
       borderColor: props.isDark ? '#334155' : '#e2e8f0',
-      textStyle: { color: props.isDark ? '#e2e8f0' : '#1e293b' },
+      textStyle: { color: props.isDark ? '#e2e8f0' : '#1e293b', fontSize: 12 },
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0) return ''
 
         const date = formatTooltipDate(String(params[0].axisValue ?? ''))
-        let tooltip = `<div style="font-weight: 600;">${date}</div>`
+        let tooltip = `<div style="font-weight: 600; margin-bottom: 4px;">${date}</div>`
 
         for (const param of params) {
           if (param.seriesName && param.value != null) {
             const value = param.value
             const color = param.color || '#000'
-            tooltip += `<div style="color: ${color}; margin-top: 4px;">${param.seriesName}: <strong>${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</strong></div>`
+            tooltip += `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:3px"><span style="color:${color}">● ${param.seriesName}</span><strong>${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</strong></div>`
           }
         }
 
@@ -340,32 +353,40 @@ const option = computed(() => {
             type: 'inside',
             startValue: zoomStartIndex.value,
             endValue: zoomEndIndex.value,
+            touch: true,
+            zoomLock: true,
+            preventDefaultMouseMove: false,
           },
           {
             type: 'slider',
-            bottom: 32,
-            height: 10,
+            bottom: 2,
+            height: 22,
+            zoomLock: true,
             showDetail: false,
             show: true,
             borderColor: 'transparent',
-            backgroundColor: props.isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.6)',
-            fillerColor: props.isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
+            borderRadius: 11,
+            backgroundColor: props.isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(209, 213, 219, 0.7)',
+            fillerColor: props.isDark ? 'rgba(59, 130, 246, 0.45)' : 'rgba(99, 102, 241, 0.3)',
+            // No resize handles — just the move handle in the center
             handleSize: 0,
-            handleStyle: {
-              color: 'transparent',
-              borderColor: 'transparent',
-              borderWidth: 0,
-            },
+            handleStyle: { opacity: 0 },
             dataBackground: {
               areaStyle: { opacity: 0 },
               lineStyle: { opacity: 0 },
             },
-            textStyle: { color: textColor, fontSize: 10 },
+            moveHandleSize: 20,
+            moveHandleStyle: {
+              color: props.isDark ? '#6366f1' : '#6366f1',
+              opacity: 0.85,
+              borderWidth: 0,
+              shadowBlur: 4,
+              shadowColor: 'rgba(99,102,241,0.35)',
+            },
+            textStyle: { color: 'transparent', fontSize: 0 },
             startValue: zoomStartIndex.value,
             endValue: zoomEndIndex.value,
-            moveHandle: true,
-            moveHandleSize: 0,
-            throttle: 100,
+            throttle: 50,
           },
         ]
       : undefined,
@@ -374,7 +395,11 @@ const option = computed(() => {
 })
 
 function handleChartReady(): void {
-  syncChartVisibilityAndSize()
+  // Only update container dimensions — autoresize on VChart handles actual resize
+  const container = containerRef.value
+  if (!container) return
+  const hasSize = container.clientWidth > 0 && container.clientHeight > 0
+  if (hasSize) containerWidth.value = container.clientWidth
 }
 
 function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
@@ -398,31 +423,74 @@ function handleDataZoom(event: {
     zoomEndIndex.value = Math.max(0, Math.floor(payload.endValue))
   }
 }
+
+const visiblePerformance = computed(() => {
+  if (!props.showPerformance || props.series.length === 0 || allDates.value.length === 0) return null
+
+  const mainSeriesIndex = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
+  const index = mainSeriesIndex !== -1 ? mainSeriesIndex : 0
+  const line = props.series[index]
+
+  const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
+  const data = allDates.value.map((date) => byDate.get(date) ?? null)
+
+  let startVal = null
+  for (let i = zoomStartIndex.value; i <= zoomEndIndex.value; i++) {
+    if (data[i] != null) {
+      startVal = data[i]
+      break
+    }
+  }
+
+  let endVal = null
+  for (let i = zoomEndIndex.value; i >= zoomStartIndex.value; i--) {
+    if (data[i] != null) {
+      endVal = data[i]
+      break
+    }
+  }
+
+  if (startVal == null || endVal == null || startVal === 0) return null
+
+  const diff = endVal - startVal
+  const percent = (diff / Math.abs(startVal)) * 100
+
+  return { diff, percent }
+})
+
+watch(visiblePerformance, (newVal) => {
+  emit('update:performance', newVal)
+}, { immediate: true })
 </script>
 
 <template>
   <div class="space-y-2">
-    <div v-if="!hideControls" class="flex justify-end">
-      <div class="relative">
-        <select
-          :value="selectedRangeMonths"
-          @change="(e) => selectedRangeMonths = Number((e.target as HTMLSelectElement).value)"
-          class="no-native-arrow appearance-none bg-none pl-3 pr-9 py-1.5 text-xs sm:text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-          style="appearance: none; -webkit-appearance: none; -moz-appearance: none;"
+    <!-- Controls row: slot for parent (granularity) + range pills -->
+    <div v-if="!hideControls" class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <!-- Left slot: parent can inject granularity selector here -->
+      <div class="flex items-center gap-2 shrink-0">
+        <slot name="leading" />
+      </div>
+      <!-- Range pills (right-aligned) -->
+      <div class="flex items-center gap-1 overflow-x-auto hide-scrollbar">
+        <button
+          v-for="opt in rangeOptions"
+          :key="opt.label"
+          type="button"
+          :class="[
+            'px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150 select-none',
+            selectedRangeMonths === opt.months
+              ? 'bg-primary text-primary-content shadow-sm'
+              : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40',
+          ]"
+          @click="selectedRangeMonths = opt.months"
         >
-          <option v-for="opt in rangeOptions" :key="opt.label" :value="opt.months">
-            {{ opt.label }}
-          </option>
-        </select>
-        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-text-muted dark:text-text-dark-muted">
-          <svg viewBox="0 0 20 20" fill="none" class="h-3.5 w-3.5" aria-hidden="true">
-            <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
+          {{ opt.label }}
+        </button>
       </div>
     </div>
 
-    <div ref="containerRef" class="w-full h-72">
+    <div ref="containerRef" class="w-full h-72" style="touch-action: none;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"

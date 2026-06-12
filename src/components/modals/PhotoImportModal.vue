@@ -221,7 +221,7 @@ watch(() => props.open, (open) => {
 
         <div
           v-if="!selectedFile"
-          class="border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-card p-10 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5"
+          class="border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-card p-6 sm:p-10 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5"
           @click="triggerFileInput"
           @drop="onDrop"
           @dragover="onDragOver"
@@ -324,7 +324,7 @@ watch(() => props.open, (open) => {
             </div>
 
             <!-- Champs -->
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
               <!-- Asset key -->
               <div class="col-span-2">
@@ -379,7 +379,7 @@ watch(() => props.open, (open) => {
                   step="any"
                   class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
-                <div v-else class="flex gap-2">
+                <div v-else class="flex flex-col sm:flex-row gap-2">
                   <input
                     v-model.number="(tx as any).quote_amount"
                     type="number"
@@ -411,7 +411,7 @@ watch(() => props.open, (open) => {
                   class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   placeholder="En €"
                 />
-                <div v-else class="flex gap-2">
+                <div v-else class="flex flex-col sm:flex-row gap-2">
                   <input
                     v-model.number="(tx as any).fee_amount"
                     type="number"
@@ -477,8 +477,9 @@ watch(() => props.open, (open) => {
             @click="analyzePhoto"
           >
             <Loader2 v-if="isAnalyzing" class="w-4 h-4 mr-1.5 animate-spin" />
-            <Camera v-else class="w-4 h-4 mr-1.5" />
-            {{ isAnalyzing ? 'Analyse en cours…' : 'Analyser la photo' }}
+            <Camera v-else class="w-4 h-4 sm:mr-1.5" />
+            <span class="hidden sm:inline">{{ isAnalyzing ? 'Analyse en cours…' : 'Analyser la photo' }}</span>
+            <span class="sm:hidden">{{ isAnalyzing ? '…' : 'Analyser' }}</span>
           </BaseButton>
 
           <!-- Valider (step review) -->
@@ -487,8 +488,9 @@ watch(() => props.open, (open) => {
             :disabled="!hasTransactions"
             @click="handleConfirm"
           >
-            <CheckCircle2 class="w-4 h-4 mr-1.5" />
-            Valider {{ extractedTransactions.length }} transaction(s)
+            <CheckCircle2 class="w-4 h-4 sm:mr-1.5" />
+            <span class="hidden sm:inline">Valider {{ extractedTransactions.length }} transaction(s)</span>
+            <span class="sm:hidden">Valider ({{ extractedTransactions.length }})</span>
           </BaseButton>
         </div>
       </div>

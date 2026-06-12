@@ -196,17 +196,37 @@ const option = computed(() => {
     animationDurationUpdate: 350,
     tooltip: {
       trigger: 'item',
+      confine: true,
       backgroundColor: tooltipBg,
       borderColor: tooltipBorder,
       textStyle: { color: tooltipText, fontSize: 12 },
       formatter: (params: any) => {
-        if (params?.data?.source && params?.data?.target) {
-          const value = Number(params.data.value || 0)
-          const sourceLabel = getNodeLabel(params.data.source)
-          const targetLabel = getNodeLabel(params.data.target)
-          return `${sourceLabel} • ${targetLabel}<br/><strong>${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</strong>`
+        // Hub node ids — we never want to display them in tooltips
+        const hubIds = new Set(['hub:revenus', 'hub:epargne', 'hub:external'])
+
+        if (params?.dataType === 'edge') {
+          const value = Number(params.data?.value || 0)
+          const src: string = params.data.source
+          const tgt: string = params.data.target
+          // Pick whichever side isn't a hub; fallback to source
+          const leafId = hubIds.has(src) ? tgt : src
+          const leafLabel = getNodeLabel(leafId)
+          return `<span style="font-weight:600">${leafLabel}</span><br/><span style="font-size:13px;font-weight:600">${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</span>`
         }
-        return String(getNodeLabel(params?.name || ''))
+
+        // Node tooltip
+        const nodeId = params?.name || ''
+        // Hide hub nodes entirely
+        if (hubIds.has(nodeId)) return ''
+        const label = getNodeLabel(nodeId)
+        if (!label) return ''
+        const total = props.links
+          .filter((l) => l.source === nodeId || l.target === nodeId)
+          .reduce((sum, l) => sum + l.value, 0)
+        const totalStr = total > 0
+          ? `<br/><span style="font-size:13px;font-weight:600">${total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</span>`
+          : ''
+        return `<span style="font-weight:600">${label}</span>${totalStr}`
       },
     },
     series: [
@@ -283,7 +303,7 @@ function handleChartReady(): void {
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-80 sm:h-104">
+  <div ref="containerRef" class="w-full h-80 sm:h-104" style="touch-action: pan-y;">
     <VChart
       v-if="canRenderChart"
       ref="chartRef"

@@ -108,11 +108,9 @@ const option = computed(() => {
     },
     grid: {
       top: 36,
-      left: 8,
-      right: 8,
+      left: 50,
+      right: 12,
       bottom: 8,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'axisLabel',
     },
     xAxis: {
       type: 'category',
@@ -195,7 +193,7 @@ function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-72">
+  <div ref="containerRef" class="w-full h-72" style="touch-action: pan-y;">
     <VChart
       v-if="canRenderChart"
       ref="chartRef"

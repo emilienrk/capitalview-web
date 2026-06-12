@@ -107,7 +107,7 @@ const option = computed(() => {
     },
     legend: {
       bottom: 0,
-      type: 'plain',
+      type: 'scroll',
       selectedMode: true,
       selected: legendSelection.value,
       textStyle: { color: textColor, fontSize: 11 },
@@ -160,7 +160,7 @@ function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }
   <div :class="props.reserveTopSpace ? 'space-y-2' : ''">
     <div v-if="props.reserveTopSpace" class="h-8" aria-hidden="true" />
 
-    <div ref="containerRef" class="w-full h-72">
+    <div ref="containerRef" class="w-full h-72" style="touch-action: pan-y;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"
