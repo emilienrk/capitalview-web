@@ -481,16 +481,18 @@ const visiblePerformance = computed(() => {
 
   let startVal = null
   for (let i = zoomStartIndex.value; i <= zoomEndIndex.value; i++) {
-    if (data[i] != null && data[i].total_wealth != null) {
-      startVal = Number(data[i].total_wealth)
+    const item = data[i]
+    if (item != null && item.total_wealth != null) {
+      startVal = Number(item.total_wealth)
       break
     }
   }
 
   let endVal = null
   for (let i = zoomEndIndex.value; i >= zoomStartIndex.value; i--) {
-    if (data[i] != null && data[i].total_wealth != null) {
-      endVal = Number(data[i].total_wealth)
+    const item = data[i]
+    if (item != null && item.total_wealth != null) {
+      endVal = Number(item.total_wealth)
       break
     }
   }

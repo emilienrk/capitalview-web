@@ -430,6 +430,7 @@ const visiblePerformance = computed(() => {
   const mainSeriesIndex = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
   const index = mainSeriesIndex !== -1 ? mainSeriesIndex : 0
   const line = props.series[index]
+  if (!line) return null
 
   const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
   const data = allDates.value.map((date) => byDate.get(date) ?? null)
