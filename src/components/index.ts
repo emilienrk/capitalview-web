@@ -1,3 +1,4 @@
+export { default as BaseAddButton } from './base/BaseAddButton.vue'
 export { default as BaseAlert } from './base/BaseAlert.vue'
 export { default as BaseAutocomplete } from './base/BaseAutocomplete.vue'
 export { default as BaseBadge } from './base/BaseBadge.vue'
