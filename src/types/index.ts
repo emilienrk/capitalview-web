@@ -584,7 +584,7 @@ export interface PortfolioResponse {
 // --- AI types ---
 
 export interface AIProviderConfig {
-  provider: string        // "google" | "anthropic" | "deepseek"
+  provider: string
   has_key: boolean
   selected_model: string | null
 }

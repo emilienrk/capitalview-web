@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+coverage
+*.log
+.git
+.github
+.vscode
+.idea
+.DS_Store
+src/**/*.js
+src/**/*.vue.js
+src/**/*.js.map
+src/**/*.vue.js.map
