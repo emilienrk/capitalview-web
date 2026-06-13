@@ -350,8 +350,8 @@ const option = computed(() => {
     },
     grid: {
       top: 16,
-      left: 50,
-      right: 12,
+      left: isSmall ? 32 : 38,
+      right: isSmall ? 4 : 12,
       bottom: 72,
     },
     xAxis: {
@@ -408,16 +408,10 @@ const option = computed(() => {
     dataZoom: dates.length > 30
       ? [
           {
-            type: 'inside',
-            startValue: zoomStartIndex.value,
-            endValue: zoomEndIndex.value,
-            touch: true,
-            zoomLock: true,
-            preventDefaultMouseMove: false,
-          },
-          {
             type: 'slider',
             bottom: 2,
+            left: '2%',
+            right: '2%',
             height: 22,
             zoomLock: true,
             showDetail: false,

@@ -23,6 +23,7 @@ const props = defineProps<{
 const chartRef = ref<InstanceType<typeof VChart> | null>(null)
 const containerRef = ref<HTMLElement | null>(null)
 const canRenderChart = ref(false)
+const containerWidth = ref(0)
 const legendSelection = ref<Record<string, boolean>>({
   Investi: true,
   'Investi + P/L': true,
@@ -61,6 +62,7 @@ function syncChartVisibilityAndSize(): void {
   const hasSize = container.clientWidth > 0 && container.clientHeight > 0
   if (!hasSize) return
 
+  containerWidth.value = container.clientWidth
   canRenderChart.value = true
   nextTick(() => {
     chartRef.value?.resize()
@@ -95,6 +97,8 @@ const option = computed(() => {
   const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
   const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
 
+  const isSmall = containerWidth.value < 640
+
   return {
     backgroundColor: 'transparent',
     legend: {
@@ -108,8 +112,8 @@ const option = computed(() => {
     },
     grid: {
       top: 36,
-      left: 50,
-      right: 12,
+      left: isSmall ? 32 : 38,
+      right: isSmall ? 4 : 12,
       bottom: 8,
     },
     xAxis: {

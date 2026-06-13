@@ -10,6 +10,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
+  ChartPerformanceBadge,
 } from '@/components'
 import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
@@ -241,16 +242,7 @@ const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
             <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Évolution du solde</h3>
             <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Historique de tous les comptes bancaires</p>
           </div>
-          <p v-if="chartPerformance" class="text-xs text-text-muted dark:text-text-dark-muted hidden sm:block">
-            Période :
-            <span :class="['font-semibold', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
-              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ chartPerformance.percent.toFixed(2) }}%
-            </span>
-            <span class="mx-1.5 text-text-muted dark:text-text-dark-muted">•</span>
-            <span :class="['font-semibold', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
-              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
-            </span>
-          </p>
+          <ChartPerformanceBadge :performance="chartPerformance" />
         </div>
       </template>
       <div v-if="bank.historyLoading" class="h-72 flex items-center justify-center">
@@ -268,7 +260,7 @@ const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
           @update:performance="chartPerformance = $event"
         >
           <template #leading>
-            <BaseButton size="sm" variant="outline" @click="loadChartHistories(true)">
+            <BaseButton icon size="sm" variant="outline" @click="loadChartHistories(true)">
               <RefreshCw class="w-4 h-4" />
             </BaseButton>
             <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />

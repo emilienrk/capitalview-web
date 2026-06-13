@@ -14,6 +14,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseSpinner, BaseAlert, BaseEmptyState, BaseBadge, BaseAutocomplete, BaseSegmentedControl,
+  ChartPerformanceBadge,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
@@ -98,6 +99,7 @@ const showCsvImportModal = ref(false)
 const showBinanceImportModal = ref(false)
 const showPhotoImportModal = ref(false)
 const csvImportAccountId = ref<string | null>(null)
+const showMobilePnlLabels = ref(false)
 const binanceImportAccountId = ref<string | null>(null)
 const photoImportAccountId = ref<string | null>(null)
 // Import dropdown state: SINGLE mode (boolean) and MULTI mode (account id)
@@ -1845,54 +1847,42 @@ onMounted(async () => {
           </div>
         </div>
 
-        <BaseCard title="Analyse du portefeuille" subtitle="Évolution, répartition et performance" class="mb-6">
-          <!-- Nav row: slide label + arrows + inline performance -->
+        <BaseCard title="Analyse du portefeuille crypto" subtitle="Évolution, répartition et performance" class="mb-6">
           <div class="mb-3 flex items-center justify-between gap-2">
             <!-- Left: slide label + prev/next -->
             <div class="flex items-center gap-1 min-w-0">
-              <BaseButton size="sm" variant="ghost" class="shrink-0" @click="prevChartSlide">
+              <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="prevChartSlide">
                 <ChevronLeft class="w-4 h-4" />
               </BaseButton>
               <p class="text-xs font-medium text-text-main dark:text-text-dark-main truncate">
                 {{ chartSlideLabel }}
               </p>
-              <BaseButton size="sm" variant="ghost" class="shrink-0" @click="nextChartSlide">
+              <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="nextChartSlide">
                 <ChevronRight class="w-4 h-4" />
               </BaseButton>
             </div>
 
             <!-- Right: stats -->
             <div class="flex items-center gap-2 shrink-0">
-              <template v-if="chartSlide === 'pnl'">
-                <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Moy.</span>
+              <div v-if="chartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
+                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
                   {{ formatEur(cryptoDailyPnlAverage) }}
                 </span>
-                <span class="text-text-muted dark:text-text-dark-muted text-[10px] hidden sm:inline">•</span>
-                <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Dernier</span>
+                <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
+                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
                   {{ formatEur(cryptoLatestDailyPnl) }}
                 </span>
-              </template>
-              <template v-else-if="(chartSlide === 'evolution' || chartSlide === 'cumulative_pnl') && chartPerformance">
-                <span
-                  :class="[
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                    chartPerformance.diff >= 0
-                      ? 'bg-success/10 text-success'
-                      : 'bg-danger/10 text-danger',
-                  ]"
-                >
-                  {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
-                  {{ chartPerformance.percent.toFixed(2) }}%
-                </span>
-                <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
-                  {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatEur(chartPerformance.diff) }}
-                </span>
-              </template>
+              </div>
+              
+              <ChartPerformanceBadge
+                v-else-if="(chartSlide === 'evolution' || chartSlide === 'cumulative_pnl')"
+                :performance="chartPerformance"
+              />
             </div>
           </div>
-
+          
           <div
             class="min-h-[340px]"
             @touchstart.passive="chartSwipe.onTouchStart"
@@ -1912,7 +1902,7 @@ onMounted(async () => {
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
-                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                  <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
                     <RefreshCw class="w-4 h-4" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -1945,7 +1935,7 @@ onMounted(async () => {
                 granularity="daily"
               >
                 <template #leading>
-                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                  <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
                     <RefreshCw class="w-4 h-4" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -1969,7 +1959,7 @@ onMounted(async () => {
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
-                  <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+                  <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
                     <RefreshCw class="w-4 h-4" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -2224,17 +2214,17 @@ onMounted(async () => {
               {{ chartSlideLabel }}
             </p>
             <div class="flex items-center gap-1">
-              <BaseButton size="sm" variant="ghost" @click="prevChartSlide">
+              <BaseButton icon size="sm" variant="ghost" @click="prevChartSlide">
                 <ChevronLeft class="w-4 h-4" />
               </BaseButton>
-              <BaseButton size="sm" variant="ghost" @click="nextChartSlide">
+              <BaseButton icon size="sm" variant="ghost" @click="nextChartSlide">
                 <ChevronRight class="w-4 h-4" />
               </BaseButton>
             </div>
           </div>
           <div class="flex min-h-8 items-center gap-2 self-end sm:self-auto">
             <template v-if="chartSlide === 'evolution' || chartSlide === 'cumulative_pnl'">
-              <BaseButton size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
+              <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />

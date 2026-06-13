@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { LoaderCircle } from 'lucide-vue-next'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
@@ -11,6 +12,7 @@ interface Props {
   loading?: boolean
   type?: 'button' | 'submit' | 'reset'
   block?: boolean
+  icon?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   type: 'button',
   block: false,
+  icon: false,
 })
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -36,10 +39,22 @@ const variantClasses: Record<ButtonVariant, string> = {
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-5 py-2.5 text-sm',
-  lg: 'px-6 py-3 text-base',
+  sm: 'text-sm',
+  md: 'text-sm',
+  lg: 'text-base',
 }
+
+const paddingClasses = computed(() => {
+  if (props.icon) {
+    if (props.size === 'sm') return 'p-1.5'
+    if (props.size === 'md') return 'p-2.5'
+    if (props.size === 'lg') return 'p-3'
+  }
+  if (props.size === 'sm') return 'px-3 py-1.5'
+  if (props.size === 'md') return 'px-5 py-2.5'
+  if (props.size === 'lg') return 'px-6 py-3'
+  return ''
+})
 </script>
 
 <template>
@@ -52,6 +67,7 @@ const sizeClasses: Record<ButtonSize, string> = {
       'disabled:opacity-50 disabled:cursor-not-allowed',
       variantClasses[props.variant],
       sizeClasses[props.size],
+      paddingClasses,
       props.block ? 'w-full' : '',
     ]"
   >

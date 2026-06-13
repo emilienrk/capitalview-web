@@ -23,7 +23,7 @@ withDefaults(defineProps<Props>(), {
     <!-- Card Header -->
     <div
       v-if="title || $slots.header"
-      class="px-6 py-4 border-b border-surface-border dark:border-surface-dark-border"
+      class="px-4 py-3 sm:px-6 sm:py-4 border-b border-surface-border dark:border-surface-dark-border"
     >
       <slot name="header">
         <div>
@@ -36,14 +36,14 @@ withDefaults(defineProps<Props>(), {
     </div>
 
     <!-- Card Body -->
-    <div :class="[padding ? 'p-6' : '', bodyClass]">
+    <div :class="[padding ? 'p-4 sm:p-6' : '', bodyClass]">
       <slot />
     </div>
 
     <!-- Card Footer -->
     <div
       v-if="$slots.footer"
-      class="px-6 py-4 border-t border-surface-border dark:border-surface-dark-border bg-background-subtle/50 dark:bg-background-dark-subtle/50 rounded-b-card"
+      class="px-4 py-3 sm:px-6 sm:py-4 border-t border-surface-border dark:border-surface-dark-border bg-background-subtle/50 dark:bg-background-dark-subtle/50 rounded-b-card"
     >
       <slot name="footer" />
     </div>

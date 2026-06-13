@@ -10,7 +10,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, NetWorthHistoryChart } from '@/components'
+import { BaseCard, BaseAlert, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseStatCard, BaseSkeleton, NetWorthHistoryChart, ChartPerformanceBadge } from '@/components'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import InvestmentComparisonBarChart from '@/components/charts/InvestmentComparisonBarChart.vue'
@@ -550,22 +550,7 @@ onMounted(() => {
               <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Évolution du patrimoine</h3>
               <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Historique journalier de la valeur globale</p>
             </div>
-            <div v-if="chartPerformance" class="flex items-center gap-2 shrink-0">
-              <span
-                :class="[
-                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                  chartPerformance.diff >= 0
-                    ? 'bg-success/10 text-success'
-                    : 'bg-danger/10 text-danger',
-                ]"
-              >
-                {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
-                {{ chartPerformance.percent.toFixed(2) }}%
-              </span>
-              <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
-                {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
-              </span>
-            </div>
+            <ChartPerformanceBadge :performance="chartPerformance" />
           </div>
         </template>
         <div v-if="historyStore.isLoading" class="h-72 flex items-center justify-center">
@@ -585,7 +570,7 @@ onMounted(() => {
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
-              <BaseButton size="sm" variant="outline" @click="historyStore.fetchHistory()">
+              <BaseButton icon size="sm" variant="outline" @click="historyStore.fetchHistory()">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />

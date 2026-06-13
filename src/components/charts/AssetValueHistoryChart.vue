@@ -76,8 +76,8 @@ const option = computed(() => {
     backgroundColor: 'transparent',
     grid: {
       top: 14,
-      left: 50,
-      right: 12,
+      left: isSmall ? 32 : 38,
+      right: isSmall ? 4 : 12,
       bottom: 22,
     },
     xAxis: {

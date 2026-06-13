@@ -11,8 +11,8 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSpinner, BaseSegmentedControl,
+  BaseCard, BaseAlert, BaseButton, BaseAddButton, BaseEmptyState, BaseBadge, BaseInput, BaseSelect, BaseModal,
+  BaseSkeleton, BaseSegmentedControl, BaseTextarea, BaseStatCard, ChartPerformanceBadge,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
@@ -69,6 +69,7 @@ const allGranularityOptions: Array<{ value: HistoryGranularity; label: string }>
 const MIN_DAYS_FOR_YEARLY_GRANULARITY = 730
 const editingTxId = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
+const showMobilePnlLabels = ref(false)
 
 interface SummaryStatItem {
   key: string
@@ -1288,46 +1289,35 @@ onMounted(async () => {
       <div class="mb-3 flex items-center justify-between gap-2">
         <!-- Left: slide label + prev/next -->
         <div class="flex items-center gap-1 min-w-0">
-          <BaseButton size="sm" variant="ghost" class="shrink-0" @click="prevStockChartSlide">
+          <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="prevStockChartSlide">
             <ChevronLeft class="w-4 h-4" />
           </BaseButton>
           <p class="text-xs font-medium text-text-main dark:text-text-dark-main truncate">
             {{ stockChartSlideLabel }}
           </p>
-          <BaseButton size="sm" variant="ghost" class="shrink-0" @click="nextStockChartSlide">
+          <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="nextStockChartSlide">
             <ChevronRight class="w-4 h-4" />
           </BaseButton>
         </div>
 
-        <!-- Right: stats (always same height) -->
+        <!-- Right: stats -->
         <div class="flex items-center gap-2 shrink-0">
-          <template v-if="stockChartSlide === 'pnl'">
-            <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Moy.</span>
+          <div v-if="stockChartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
+            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockDailyPnlAverage)]">
               {{ formatCurrency(stockDailyPnlAverage) }}
             </span>
-            <span class="text-text-muted dark:text-text-dark-muted text-[10px] hidden sm:inline">•</span>
-            <span class="text-[11px] text-text-muted dark:text-text-dark-muted hidden sm:inline">Dernier</span>
+            <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
+            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockLatestPortfolioDailyPnl)]">
               {{ formatCurrency(stockLatestPortfolioDailyPnl) }}
             </span>
-          </template>
-          <template v-else-if="(stockChartSlide === 'evolution' || stockChartSlide === 'cumulative_pnl') && chartPerformance">
-            <span
-              :class="[
-                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                chartPerformance.diff >= 0
-                  ? 'bg-success/10 text-success'
-                  : 'bg-danger/10 text-danger',
-              ]"
-            >
-              {{ chartPerformance.diff >= 0 ? '▲' : '▼' }}
-              {{ chartPerformance.percent.toFixed(2) }}%
-            </span>
-            <span :class="['text-xs font-semibold hidden sm:inline', chartPerformance.diff >= 0 ? 'text-success' : 'text-danger']">
-              {{ chartPerformance.diff >= 0 ? '+' : '' }}{{ formatCurrency(chartPerformance.diff) }}
-            </span>
-          </template>
+          </div>
+          
+          <ChartPerformanceBadge
+            v-else-if="(stockChartSlide === 'evolution' || stockChartSlide === 'cumulative_pnl')"
+            :performance="chartPerformance"
+          />
         </div>
       </div>
 
@@ -1346,7 +1336,7 @@ onMounted(async () => {
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
-              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+              <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -1379,7 +1369,7 @@ onMounted(async () => {
             granularity="daily"
           >
             <template #leading>
-              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+              <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -1403,7 +1393,7 @@ onMounted(async () => {
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
-              <BaseButton size="sm" variant="outline" @click="loadStockChartHistories(true)">
+              <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
@@ -1579,9 +1569,7 @@ onMounted(async () => {
                   <tr class="text-left text-xs text-text-muted dark:text-text-dark-muted uppercase tracking-wider border-b border-surface-border dark:border-surface-dark-border">
                     <th class="px-4 py-2">Date</th>
                     <th class="px-4 py-2">Type</th>
-                    <th class="px-4 py-2">Symbole</th>
                     <th class="px-4 py-2">ISIN</th>
-                    <th class="px-4 py-2">Place</th>
                     <th class="px-4 py-2 text-right">Quantité</th>
                     <th class="px-4 py-2 text-right">Prix</th>
                     <th class="px-4 py-2 text-right">Total</th>
@@ -1597,9 +1585,7 @@ onMounted(async () => {
                         {{ tx.type }}
                       </BaseBadge>
                     </td>
-                    <td class="px-4 py-2.5 font-medium text-text-main dark:text-text-dark-main">{{ tx.symbol || '-' }}</td>
                     <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.asset_key === 'EUR' ? '—' : (tx.asset_key || '-') }}</td>
-                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.exchange || '—' }}</td>
                     <td class="px-4 py-2.5 text-right font-mono">{{ tx.asset_key === 'EUR' ? '—' : formatNumber(tx.amount, 4) }}</td>
                     <td class="px-4 py-2.5 text-right">{{ tx.asset_key === 'EUR' ? '—' : formatCurrency(tx.price_per_unit) }}</td>
                     <td class="px-4 py-2.5 text-right font-medium">{{ maskValue(formatCurrency(transactionDisplayedTotal(tx))) }}</td>
