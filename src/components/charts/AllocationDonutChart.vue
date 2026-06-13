@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
@@ -8,6 +8,7 @@ import {
   LegendComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { useChartResize } from '@/composables/useChartResize'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -22,44 +23,11 @@ const props = defineProps<{
   reserveTopSpace?: boolean
 }>()
 
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
-const canRenderChart = ref(false)
+const { chartRef, containerRef, canRenderChart } = useChartResize()
 const legendSelection = ref<Record<string, boolean>>({})
 const updateOptions = {
   replaceMerge: ['legend', 'series'],
 }
-let resizeObserver: ResizeObserver | null = null
-
-function syncChartVisibilityAndSize(): void {
-  const container = containerRef.value
-  if (!container) return
-
-  const hasSize = container.clientWidth > 0 && container.clientHeight > 0
-  if (!hasSize) return
-
-  canRenderChart.value = true
-  nextTick(() => {
-    chartRef.value?.resize()
-  })
-}
-
-onMounted(() => {
-  syncChartVisibilityAndSize()
-
-  resizeObserver = new ResizeObserver(() => {
-    syncChartVisibilityAndSize()
-  })
-
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
 
 const COLORS = [
   '#2563eb',

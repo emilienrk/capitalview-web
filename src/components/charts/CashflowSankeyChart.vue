@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { SankeyChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { useChartResize } from '@/composables/useChartResize'
 
 use([CanvasRenderer, SankeyChart, TooltipComponent])
 
@@ -22,43 +23,8 @@ const props = defineProps<{
   isDark?: boolean
 }>()
 
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
-const canRenderChart = ref(false)
-const isCompact = ref(false)
-let resizeObserver: ResizeObserver | null = null
-
-function syncChartVisibilityAndSize(): void {
-  const container = containerRef.value
-  if (!container) return
-
-  const hasSize = container.clientWidth > 0 && container.clientHeight > 0
-  if (!hasSize) return
-
-  isCompact.value = container.clientWidth < 768
-
-  canRenderChart.value = true
-  nextTick(() => {
-    chartRef.value?.resize()
-  })
-}
-
-onMounted(() => {
-  syncChartVisibilityAndSize()
-
-  resizeObserver = new ResizeObserver(() => {
-    syncChartVisibilityAndSize()
-  })
-
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
+const { chartRef, containerRef, canRenderChart, containerWidth, syncChartVisibilityAndSize } = useChartResize()
+const isCompact = computed(() => containerWidth.value > 0 && containerWidth.value < 768)
 
 const nodes = computed(() => {
   const names = new Set<string>()

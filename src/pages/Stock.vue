@@ -13,6 +13,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseAlert, BaseButton, BaseAddButton, BaseEmptyState, BaseBadge, BaseInput, BaseSelect, BaseModal,
   BaseSkeleton, BaseSegmentedControl, BaseTextarea, BaseStatCard, ChartPerformanceBadge,
+  BaseSpinner, BaseAutocomplete,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -11,6 +11,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { GlobalHistorySnapshotResponse } from '@/types'
+import { useChartResize } from '@/composables/useChartResize'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -70,10 +71,7 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
   ],
 }
 
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
-const canRenderChart = ref(false)
-let resizeObserver: ResizeObserver | null = null
+const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
@@ -164,36 +162,7 @@ watch(
   { immediate: true },
 )
 
-const containerWidth = ref(0)
 const isMobile = computed(() => containerWidth.value < 640)
-
-function syncChartVisibilityAndSize(): void {
-  const container = containerRef.value
-  if (!container) return
-
-  const hasSize = container.clientWidth > 0 && container.clientHeight > 0
-  if (!hasSize) return
-
-  containerWidth.value = container.clientWidth
-  canRenderChart.value = true
-}
-
-onMounted(() => {
-  syncChartVisibilityAndSize()
-
-  resizeObserver = new ResizeObserver(() => {
-    syncChartVisibilityAndSize()
-  })
-
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
 
 const COLORS = {
   total:   '#4f46e5', // primary (indigo-600)

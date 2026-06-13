@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -7,6 +7,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { AssetHistorySnapshotResponse } from '@/types'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useChartResize } from '@/composables/useChartResize'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
@@ -16,43 +17,7 @@ const props = defineProps<{
   history: AssetHistorySnapshotResponse[]
 }>()
 
-const chartRef = ref<InstanceType<typeof VChart> | null>(null)
-const containerRef = ref<HTMLElement | null>(null)
-const canRenderChart = ref(false)
-let resizeObserver: ResizeObserver | null = null
-
-const containerWidth = ref(0)
-
-function syncChartVisibilityAndSize(): void {
-  const container = containerRef.value
-  if (!container) return
-
-  const hasSize = container.clientWidth > 0 && container.clientHeight > 0
-  if (!hasSize) return
-
-  containerWidth.value = container.clientWidth
-  canRenderChart.value = true
-  nextTick(() => {
-    chartRef.value?.resize()
-  })
-}
-
-onMounted(() => {
-  syncChartVisibilityAndSize()
-
-  resizeObserver = new ResizeObserver(() => {
-    syncChartVisibilityAndSize()
-  })
-
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
+const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 
 const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
   return [...props.history].sort((a, b) =>
