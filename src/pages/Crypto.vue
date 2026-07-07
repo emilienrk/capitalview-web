@@ -1504,8 +1504,11 @@ async function handleSubmitTransaction(): Promise<void> {
     txForm.asset_key = searchQuery.value.toUpperCase()
   }
 
-  if (txForm.amount <= 0) {
+  if (txForm.type !== 'ANCHOR' && txForm.amount <= 0) {
     alert('La quantité doit être strictement positive.')
+    return
+  } else if (txForm.type === 'ANCHOR' && txForm.amount < 0) {
+    alert('La quantité ne peut pas être négative.')
     return
   }
 
