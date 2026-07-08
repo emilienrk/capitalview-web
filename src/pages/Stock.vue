@@ -410,9 +410,9 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
       value: maskValue(formatCurrency(summary.total_withdrawals)),
     },
     {
-      key: 'opened_at',
-      label: 'Date d\'ouverture',
-      value: formatDate(selectedStockOpenedAt.value),
+      key: 'cash_balance',
+      label: 'Liquidités',
+      value: maskValue(formatCurrency(summary.positions.find((p) => p.asset_key === 'EUR')?.total_amount ?? 0)),
     },
   ]
 })
