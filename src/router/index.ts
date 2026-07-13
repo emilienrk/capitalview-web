@@ -13,6 +13,7 @@ const Crypto = () => import('@/pages/Crypto.vue')
 const Notes = () => import('@/pages/Notes.vue')
 const Settings = () => import('@/pages/Settings.vue')
 const Register = () => import('@/pages/Register.vue')
+const Recover = () => import('@/pages/Recover.vue')
 const Community = () => import('@/pages/Community.vue')
 
 const routes = [
@@ -42,6 +43,12 @@ const routes = [
     path: '/register',
     name: 'register',
     component: Register,
+    meta: { requiresAuth: false, layout: 'blank' },
+  },
+  {
+    path: '/recover',
+    name: 'recover',
+    component: Recover,
     meta: { requiresAuth: false, layout: 'blank' },
   },
   {

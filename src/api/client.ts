@@ -84,7 +84,10 @@ class ApiClient {
       credentials: 'include',
     })
 
-    if (response.status === 401 && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+    // Endpoints where a 401 is a domain error (bad credentials / code / key),
+    // not an expired session — refreshing there would mask the real message.
+    const noRefreshEndpoints = ['/auth/refresh', '/auth/login', '/auth/login/2fa', '/auth/recover']
+    if (response.status === 401 && !noRefreshEndpoints.includes(endpoint)) {
       const newToken = await this.tryRefresh()
 
       if (newToken) {

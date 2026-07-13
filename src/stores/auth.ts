@@ -2,7 +2,20 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiClient, setSessionExpiredHandler } from '@/api/client'
-import type { User, TokenResponse, LoginRequest, RegisterRequest } from '@/types'
+import type {
+  User,
+  TokenResponse,
+  LoginRequest,
+  RegisterRequest,
+  TwoFARequiredResponse,
+  LoginOutcome,
+  PasswordChangeRequest,
+  RecoveryKeyResponse,
+  RecoverRequest,
+  RecoverResponse,
+  TwoFASetupResponse,
+  TwoFAEnableResponse,
+} from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -46,7 +59,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
-  async function login(credentials?: LoginRequest): Promise<boolean> {
+  /** Finalize a session once a full TokenResponse is available (login or 2FA step 2). */
+  async function _finishSession(response: TokenResponse): Promise<void> {
+    setToken(response.access_token)
+    user.value = await apiClient.get<User>('/auth/me')
+    resetForms()
+    isAuthenticated.value = true
+  }
+
+  async function login(credentials?: LoginRequest): Promise<LoginOutcome> {
     isLoading.value = true
     error.value = null
 
@@ -56,15 +77,37 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const response = await apiClient.post<TokenResponse>('/auth/login', creds)
-      setToken(response.access_token)
-      user.value = await apiClient.get<User>('/auth/me')
-      resetForms()
-      isAuthenticated.value = true
-      return true
+      const response = await apiClient.post<TokenResponse | TwoFARequiredResponse>('/auth/login', creds)
+      // 2FA enabled: no session yet, complete via completeLogin2fa()
+      if ('two_fa_required' in response && response.two_fa_required) {
+        return { status: '2fa', pendingToken: response.pending_token, expiresIn: response.expires_in }
+      }
+      await _finishSession(response as TokenResponse)
+      return { status: 'success' }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Login failed'
-      return false
+      const message = e instanceof Error ? e.message : 'Login failed'
+      error.value = message
+      return { status: 'error', message }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /** Login step 2: exchange the pending token + TOTP/backup code for a session. */
+  async function completeLogin2fa(pendingToken: string, code: string): Promise<LoginOutcome> {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await apiClient.post<TokenResponse>('/auth/login/2fa', {
+        pending_token: pendingToken,
+        code,
+      })
+      await _finishSession(response)
+      return { status: 'success' }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '2FA verification failed'
+      error.value = message
+      return { status: 'error', message }
     } finally {
       isLoading.value = false
     }
@@ -104,8 +147,8 @@ export const useAuthStore = defineStore('auth', () => {
         router.push('/')
       }
     } else {
-      const success = await login()
-      if (success) {
+      const outcome = await login()
+      if (outcome.status === 'success') {
         router.push('/')
       }
     }
@@ -159,6 +202,58 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Change the account password. The Master Key is only re-wrapped server-side,
+   * so encrypted data stays readable. All sessions are revoked and a fresh one
+   * is returned in the cookies — we swap in the new access token in place.
+   */
+  async function changePassword(payload: PasswordChangeRequest): Promise<void> {
+    const response = await apiClient.put<TokenResponse>('/auth/me/password', payload)
+    setToken(response.access_token)
+  }
+
+  /** Generate (or regenerate) the recovery key. Returned once — never stored. */
+  async function generateRecoveryKey(password: string): Promise<string> {
+    const response = await apiClient.post<RecoveryKeyResponse>('/auth/recovery-key', { password })
+    return response.recovery_key
+  }
+
+  /**
+   * Reset the password using the recovery key (no login required). Logs the user
+   * in and returns the single-use replacement recovery key (shown once).
+   */
+  async function recover(payload: RecoverRequest): Promise<string> {
+    const response = await apiClient.post<RecoverResponse>('/auth/recover', payload)
+    await _finishSession(response)
+    return response.new_recovery_key
+  }
+
+  // ── Two-factor authentication (TOTP) ──────────────────────────
+
+  /** Start 2FA setup: returns the secret + otpauth:// URI to render as a QR. */
+  async function setup2fa(password: string): Promise<TwoFASetupResponse> {
+    return apiClient.post<TwoFASetupResponse>('/auth/2fa/setup', { password })
+  }
+
+  /** Confirm 2FA with a first valid code. Returns the single-use backup codes. */
+  async function enable2fa(code: string): Promise<string[]> {
+    const response = await apiClient.post<TwoFAEnableResponse>('/auth/2fa/enable', { code })
+    if (user.value) user.value.totp_enabled = true
+    return response.backup_codes
+  }
+
+  /** Disable 2FA (password + TOTP/backup code required). */
+  async function disable2fa(password: string, code: string): Promise<void> {
+    await apiClient.post('/auth/2fa/disable', { password, code })
+    if (user.value) user.value.totp_enabled = false
+  }
+
+  /** Regenerate the 10 backup codes (invalidates the previous ones). */
+  async function regenerateBackupCodes(password: string, code: string): Promise<string[]> {
+    const response = await apiClient.post<TwoFAEnableResponse>('/auth/2fa/backup-codes', { password, code })
+    return response.backup_codes
+  }
+
   async function logout(): Promise<void> {
     try {
       await apiClient.post('/auth/logout')
@@ -181,11 +276,19 @@ export const useAuthStore = defineStore('auth', () => {
     isInitialized,
     resetForms,
     login,
+    completeLogin2fa,
     register,
     submitForm,
     refreshToken,
     checkAuth,
     updateProfile,
+    changePassword,
+    generateRecoveryKey,
+    recover,
+    setup2fa,
+    enable2fa,
+    disable2fa,
+    regenerateBackupCodes,
     logout
   }
 })

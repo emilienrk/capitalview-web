@@ -21,6 +21,7 @@ export interface User {
   username: string
   email: string
   is_active: boolean
+  totp_enabled: boolean
   last_username_change: string | null
   last_email_change: string | null
   last_login: string | null
@@ -30,6 +31,61 @@ export interface User {
 export interface MessageResponse {
   message: string
 }
+
+// ─── Two-factor / recovery / password ────────────────────────
+
+/** Step-1 login response when 2FA is enabled. */
+export interface TwoFARequiredResponse {
+  two_fa_required: true
+  pending_token: string
+  expires_in: number
+}
+
+export interface Login2FARequest {
+  pending_token: string
+  code: string
+}
+
+export interface PasswordChangeRequest {
+  current_password: string
+  new_password: string
+  totp_code?: string
+}
+
+export interface RecoveryKeyGenerateRequest {
+  password: string
+}
+
+export interface RecoveryKeyResponse {
+  recovery_key: string
+}
+
+export interface RecoverRequest {
+  email: string
+  recovery_key: string
+  new_password: string
+  totp_code?: string
+}
+
+/** Recovery response: a fresh session plus the single-use replacement key. */
+export interface RecoverResponse extends TokenResponse {
+  new_recovery_key: string
+}
+
+export interface TwoFASetupResponse {
+  secret: string
+  otpauth_uri: string
+}
+
+export interface TwoFAEnableResponse {
+  backup_codes: string[]
+}
+
+/** Discriminated result of a login attempt (password step). */
+export type LoginOutcome =
+  | { status: 'success' }
+  | { status: '2fa'; pendingToken: string; expiresIn: number }
+  | { status: 'error'; message: string }
 
 // ─── Bank ────────────────────────────────────────────────────
 
