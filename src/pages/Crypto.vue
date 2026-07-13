@@ -18,6 +18,7 @@ import {
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
+import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
@@ -97,6 +98,8 @@ const showAccountModal = ref(false)
 const showTxModal = ref(false)
 const showCsvImportModal = ref(false)
 const showBinanceImportModal = ref(false)
+const showPlatformImportModal = ref(false)
+const platformImportAccountId = ref('')
 const showPhotoImportModal = ref(false)
 const csvImportAccountId = ref<string | null>(null)
 const showMobilePnlLabels = ref(false)
@@ -695,6 +698,20 @@ async function handleBinanceImported(): Promise<void> {
   showBinanceImportModal.value = false
   if (binanceImportAccountId.value) {
     await selectAccount(binanceImportAccountId.value)
+    crypto.fetchTransactions()
+    await loadCryptoChartHistories(true)
+  }
+}
+
+function openPlatformImport(accountId?: string): void {
+  platformImportAccountId.value = accountId ?? crypto.accounts[0]?.id ?? ''
+  showPlatformImportModal.value = true
+}
+
+async function handlePlatformImported(): Promise<void> {
+  showPlatformImportModal.value = false
+  if (platformImportAccountId.value) {
+    await selectAccount(platformImportAccountId.value)
     crypto.fetchTransactions()
     await loadCryptoChartHistories(true)
   }
@@ -1770,6 +1787,13 @@ onMounted(async () => {
                 <Circle class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
                 Binance CSV
               </button>
+              <button
+                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
+                @click.stop="openPlatformImport(selectedAccountId!); showImportDropdown = false"
+              >
+                <Upload class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
+                Autres plateformes
+              </button>
             </div>
           </div>
           <BaseAddButton size="sm" @click="openAddTransaction(selectedAccountId!)">transaction</BaseAddButton>
@@ -1797,6 +1821,13 @@ onMounted(async () => {
               >
                 <Circle class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
                 Binance CSV
+              </button>
+              <button
+                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
+                @click.stop="openPlatformImport(); showImportDropdown = false"
+              >
+                <Upload class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
+                Autres plateformes
               </button>
             </div>
           </div>
@@ -3490,6 +3521,16 @@ onMounted(async () => {
       @update:account-id="id => binanceImportAccountId = id"
       @close="showBinanceImportModal = false"
       @imported="handleBinanceImported"
+    />
+
+    <!-- ── Platform Import Modal (unified) ────────────── -->
+    <PlatformImportModal
+      :open="showPlatformImportModal"
+      category="crypto"
+      :accounts="crypto.accounts"
+      v-model:accountId="platformImportAccountId"
+      @close="showPlatformImportModal = false"
+      @imported="handlePlatformImported"
     />
 
     <!-- ── Photo Import Modal ─────────────────────────── -->

@@ -16,6 +16,7 @@ import {
   BaseSpinner, BaseAutocomplete,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
+import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
@@ -34,6 +35,8 @@ const showAccountModal = ref(false)
 const showTxModal = ref(false)
 const showDeleteModal = ref(false)
 const showCsvImportModal = ref(false)
+const showPlatformImportModal = ref(false)
+const platformImportAccountId = ref('')
 const showPhotoImportModal = ref(false)
 const photoImportAccountId = ref<string | null>(null)
 const showDepositModal = ref(false)
@@ -937,6 +940,20 @@ async function handleCsvImport(transactions: StockTransactionBulkCreate[]): Prom
   return false
 }
 
+function openPlatformImport(accountId?: string): void {
+  platformImportAccountId.value = accountId ?? stocks.accounts[0]?.id ?? ''
+  showPlatformImportModal.value = true
+}
+
+async function handlePlatformImported(): Promise<void> {
+  showPlatformImportModal.value = false
+  if (platformImportAccountId.value) {
+    await selectAccount(platformImportAccountId.value)
+    stocks.fetchTransactions()
+    await loadStockChartHistories(true)
+  }
+}
+
 function openPhotoImport(accountId: string): void {
   photoImportAccountId.value = accountId
   showPhotoImportModal.value = true
@@ -1270,6 +1287,9 @@ onMounted(async () => {
         </BaseButton>
         <BaseButton size="sm" variant="outline" @click="openCsvImport()" :disabled="!stocks.accounts.length">
           <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
+        </BaseButton>
+        <BaseButton size="sm" variant="outline" @click="openPlatformImport()" :disabled="!stocks.accounts.length">
+          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Courtiers</span>
         </BaseButton>
         <BaseAddButton size="sm" @click="openCreateAccount">Nouveau compte</BaseAddButton>
       </template>
@@ -1856,6 +1876,16 @@ onMounted(async () => {
       :on-import="handleCsvImport"
       @update:account-id="id => csvImportAccountId = id"
       @close="showCsvImportModal = false"
+    />
+
+    <!-- ── Platform Import Modal (unified, brokers) ────── -->
+    <PlatformImportModal
+      :open="showPlatformImportModal"
+      category="stock"
+      :accounts="stocks.accounts"
+      v-model:accountId="platformImportAccountId"
+      @close="showPlatformImportModal = false"
+      @imported="handlePlatformImported"
     />
 
     <!-- ── Photo Import Modal ─────────────────────────── -->

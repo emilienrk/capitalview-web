@@ -13,6 +13,7 @@ import {
   ChartPerformanceBadge,
 } from '@/components'
 import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
+import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import type { AccountHistorySnapshotResponse, BankAccountCreate, BankAccountType } from '@/types'
 
@@ -23,6 +24,8 @@ const { isDark } = useDarkMode()
 
 const showCreateModal = ref(false)
 const showHistoryImportModal = ref(false)
+const showPlatformImportModal = ref(false)
+const platformImportAccountId = ref('')
 const editingId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
 
@@ -152,6 +155,12 @@ async function handleHistoryImported(): Promise<void> {
   await loadChartHistories(true)
 }
 
+async function handlePlatformImported(): Promise<void> {
+  showPlatformImportModal.value = false
+  await bank.fetchAccounts()
+  await loadChartHistories(true)
+}
+
 function openCreate(): void {
   editingId.value = null
   form.name = ''
@@ -216,6 +225,9 @@ const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
       <template #actions>
         <BaseButton variant="outline" @click="showHistoryImportModal = true" :disabled="!bank.summary?.accounts?.length">
           <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
+        </BaseButton>
+        <BaseButton variant="outline" @click="showPlatformImportModal = true" :disabled="!bank.summary?.accounts?.length">
+          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Relevé</span>
         </BaseButton>
         <BaseAddButton @click="openCreate">Nouveau compte</BaseAddButton>
       </template>
@@ -325,6 +337,17 @@ const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
       :accounts="bank.summary.accounts"
       @close="showHistoryImportModal = false"
       @imported="handleHistoryImported"
+    />
+
+    <!-- Platform Import Modal (unified, multi-source) -->
+    <PlatformImportModal
+      v-if="bank.summary?.accounts?.length"
+      :open="showPlatformImportModal"
+      category="bank"
+      :accounts="bank.summary.accounts"
+      v-model:accountId="platformImportAccountId"
+      @close="showPlatformImportModal = false"
+      @imported="handlePlatformImported"
     />
 
     <!-- Create/Edit Modal -->

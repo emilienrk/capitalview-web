@@ -526,6 +526,8 @@ export interface BinanceImportGroupPreview {
   needs_eur_input: boolean
   hint_usdc_amount: number | null
   eur_amount: number | null
+  /** Set by the unified /imports crypto preview when the group is already imported. */
+  is_duplicate?: boolean
 }
 
 export interface BinanceImportPreviewRequest {
@@ -547,6 +549,114 @@ export interface BinanceImportConfirmRequest {
 export interface BinanceImportConfirmResponse {
   imported_count: number
   groups_count: number
+}
+
+// ─── Unified Imports (multi-platform) ────────────────────────
+
+export type ImportCategory = 'crypto' | 'stock' | 'bank'
+
+export interface ImportSourceInfo {
+  source_id: string
+  label: string
+  category: ImportCategory
+  file_hint: string
+  supports_mapping: boolean
+}
+
+export interface ImportSourcesResponse {
+  sources: ImportSourceInfo[]
+}
+
+export interface DetectMatch {
+  source_id: string
+  score: number
+}
+
+export interface DetectResponse {
+  matches: DetectMatch[]
+}
+
+/** CSV column names → target fields (for generic parsers with mapping). */
+export interface ColumnMapping {
+  date?: string
+  type?: string
+  asset?: string
+  quantity?: string
+  price?: string
+  fees?: string
+  /** Bank: end-of-day balance column (mode "balance"). */
+  balance?: string
+  /** Bank: signed movement column (mode "delta"). */
+  amount?: string
+}
+
+export interface ImportOptions {
+  mapping?: ColumnMapping
+  delimiter?: string
+  decimal_separator?: string
+  date_format?: string
+  type_mapping?: Record<string, string>
+  /** Bank: "balance" (each row is a balance) or "delta" (each row is a movement). */
+  bank_mode?: 'balance' | 'delta'
+  /** Bank delta mode: starting balance before the first movement. */
+  initial_balance?: number | string
+}
+
+export interface ImportPreviewRequest {
+  csv_content: string
+  account_id?: string
+  options?: ImportOptions
+}
+
+export interface StockImportRowPreview {
+  row_index: number
+  executed_at: string
+  type: string
+  asset_key: string | null
+  isin: string | null
+  name: string | null
+  amount: number
+  price_per_unit: number
+  fees: number
+  needs_asset_key: boolean
+  is_duplicate: boolean
+  error: string | null
+  notes: string | null
+}
+
+export interface BankImportPointPreview {
+  snapshot_date: string
+  value: number
+  is_duplicate: boolean
+}
+
+/** Common preview envelope: exactly one category payload is set. */
+export interface ImportPreviewResponse {
+  source_id: string
+  category: ImportCategory
+  total_rows: number
+  duplicates_count: number
+  error_rows: number
+  warnings: string[]
+  crypto: BinanceImportPreviewResponse | null
+  stock_rows: StockImportRowPreview[] | null
+  bank_points: BankImportPointPreview[] | null
+}
+
+export interface ImportConfirmRequest {
+  account_id: string
+  skip_duplicates?: boolean
+  options?: ImportOptions
+  crypto_groups?: BinanceImportGroupPreview[] | null
+  stock_rows?: StockImportRowPreview[] | null
+  bank_points?: BankImportPointPreview[] | null
+  overwrite?: boolean
+}
+
+export interface ImportConfirmResponse {
+  imported_count: number
+  skipped_duplicates: number
+  groups_count: number | null
 }
 
 // ─── Notes ───────────────────────────────────────────────────
