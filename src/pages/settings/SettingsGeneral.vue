@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, User } from 'lucide-vue-next'
+import { FileText, User, Sun, Moon, Monitor } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -9,7 +9,7 @@ import { BaseCard } from '@/components'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
-const { isDark, toggleDarkMode } = useDarkMode()
+const { themePreference, setTheme } = useDarkMode()
 const { formatDateTime, formatDate } = useFormatters()
 </script>
 
@@ -68,27 +68,54 @@ const { formatDateTime, formatDate } = useFormatters()
           <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Apparence</h3>
         </div>
       </template>
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-4">
         <div>
-          <p class="font-medium text-text-main dark:text-text-dark-main">Thème sombre</p>
+          <p class="font-medium text-text-main dark:text-text-dark-main">Thème de l'application</p>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">
-            Basculer entre le mode clair et sombre
+            Choisissez le thème ou suivez les paramètres de votre système
           </p>
         </div>
-        <button
-          @click="toggleDarkMode"
-          :class="[
-            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-            isDark ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border',
-          ]"
-        >
-          <span
+        
+        <div class="grid grid-cols-3 gap-3">
+          <button
+            @click="setTheme('light')"
             :class="[
-              'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
-              isDark ? 'translate-x-6' : 'translate-x-1',
+              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+              themePreference === 'light' 
+                ? 'border-primary bg-primary/5 text-primary' 
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
             ]"
-          />
-        </button>
+          >
+            <Sun class="w-6 h-6" />
+            <span class="text-sm font-medium">Clair</span>
+          </button>
+          
+          <button
+            @click="setTheme('dark')"
+            :class="[
+              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+              themePreference === 'dark' 
+                ? 'border-primary bg-primary/5 text-primary' 
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
+            ]"
+          >
+            <Moon class="w-6 h-6" />
+            <span class="text-sm font-medium">Sombre</span>
+          </button>
+          
+          <button
+            @click="setTheme('system')"
+            :class="[
+              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+              themePreference === 'system' 
+                ? 'border-primary bg-primary/5 text-primary' 
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
+            ]"
+          >
+            <Monitor class="w-6 h-6" />
+            <span class="text-sm font-medium">Système</span>
+          </button>
+        </div>
       </div>
     </BaseCard>
 

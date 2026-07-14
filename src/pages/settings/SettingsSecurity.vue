@@ -167,7 +167,7 @@ function on2faEnabled(codes: string[]) {
     title: 'Codes de secours',
     description: 'Utilisez-les pour vous connecter si vous perdez votre application d\'authentification. Chaque code ne fonctionne qu\'une seule fois.',
     secrets: codes,
-    filename: 'capitalview-codes-secours.txt',
+    filename: 'capitalview-recovery-keys.txt',
   })
 }
 
@@ -194,7 +194,7 @@ async function handleRegenBackupCodes({ password, code }: { password: string; co
       title: 'Nouveaux codes de secours',
       description: 'Vos anciens codes ne fonctionnent plus. Chaque nouveau code ne fonctionne qu\'une seule fois.',
       secrets: codes,
-      filename: 'capitalview-codes-secours.txt',
+      filename: 'capitalview-recovery-keys.txt',
     })
   } catch (e: any) {
     regenModal.error = e.message || 'Erreur lors de la régénération.'
