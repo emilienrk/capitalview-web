@@ -187,9 +187,13 @@ export const useAuthStore = defineStore('auth', () => {
 
       isAuthenticated.value = true
 
+      // Loaded off the critical path so the app paints immediately;
+      // failures are logged instead of silently swallowed.
       apiClient.get<User>('/auth/me').then((u) => {
         user.value = u
-      }).catch(() => {})
+      }).catch((e) => {
+        console.error('Impossible de charger le profil utilisateur :', e)
+      })
     } catch {
       clearSession()
       isAuthenticated.value = false

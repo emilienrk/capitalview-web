@@ -1640,24 +1640,28 @@ async function handleDeleteAccount(id: string): Promise<void> {
 }
 
 onMounted(async () => {
+  // Independent of the account list — start immediately in parallel
+  fetchRate()
+  crypto.fetchTransactions()
+
   if (!settingsStore.settings) {
     await settingsStore.fetchSettings()
   }
 
   if (isSingleMode.value) {
     await crypto.fetchDefaultAccount()
-    await loadCryptoChartHistories()
     const defaultId = crypto.accounts[0]?.id
     if (defaultId) {
       selectedAccountId.value = defaultId
-      await fetchAccountTransactions(defaultId)
+      void fetchAccountTransactions(defaultId)
     }
   } else {
     await crypto.fetchAccounts()
-    await loadCryptoChartHistories()
   }
-  crypto.fetchTransactions()
-  fetchRate()
+
+  // Charts load in the background — their sections have loading states,
+  // so positions/accounts render without waiting for the histories.
+  void loadCryptoChartHistories()
 })
 </script>
 

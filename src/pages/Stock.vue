@@ -1216,10 +1216,15 @@ async function handleAssetInput(value: string): Promise<void> {
 
 // ── Lifecycle ────────────────────────────────────────────────
 onMounted(async () => {
-  await stocks.fetchAccounts()
-  await loadStockChartHistories()
-  stocks.fetchTransactions()
+  // Independent of the account list — start immediately in parallel
   fetchRate()
+  stocks.fetchTransactions()
+
+  await stocks.fetchAccounts()
+
+  // Charts load in the background — their sections have loading states,
+  // so the account list renders without waiting for the histories.
+  void loadStockChartHistories()
 })
 </script>
 

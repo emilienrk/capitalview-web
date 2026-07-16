@@ -151,8 +151,9 @@ async function handleDelete(id: string): Promise<void> {
 
 onMounted(async () => {
   await bank.fetchAccounts()
-  await loadChartHistories()
   hasFetchedOnce.value = true
+  // Chart histories load in the background (the chart has a skeleton state)
+  void loadChartHistories()
 })
 
 const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
