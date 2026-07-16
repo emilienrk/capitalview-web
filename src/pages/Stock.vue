@@ -6,6 +6,8 @@ import { apiClient } from '@/api/client'
 import { useStocksStore } from '@/stores/stocks'
 import { useBankStore } from '@/stores/bank'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
+import { useCarousel } from '@/composables/useCarousel'
+import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useFormatters } from '@/composables/useFormatters'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -53,16 +55,19 @@ const activeFilter = ref<'all' | 'PEA' | 'CTO' | 'PEA_PME'>('all')
 const accountTransactions = ref<TransactionResponse[]>([])
 const activeDetailTab = ref<'positions' | 'history'>('positions')
 type StockChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
-const stockChartSlide = ref<StockChartSlide>('evolution')
 const stockChartSlides: Array<{ key: StockChartSlide; label: string }> = [
-  { key: 'evolution', label: 'Evolution' },
-  { key: 'allocation', label: 'Repartition' },
+  { key: 'evolution', label: 'Évolution' },
+  { key: 'allocation', label: 'Répartition' },
   { key: 'pnl', label: 'P/L journalier' },
   { key: 'cumulative_pnl', label: 'P/L cumulé' },
 ]
-const stockChartSlideLabel = computed<string>(() => {
-  return stockChartSlides.find((slide) => slide.key === stockChartSlide.value)?.label ?? 'Evolution'
-})
+const {
+  current: stockChartSlide,
+  currentLabel: stockChartSlideLabel,
+  next: nextStockChartSlide,
+  prev: prevStockChartSlide,
+  swipeHandlers: stockChartSwipe,
+} = useCarousel(stockChartSlides)
 const {
   granularity: historyGranularity,
   granularityOptions,
@@ -71,16 +76,6 @@ const {
 const editingTxId = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
 const showMobilePnlLabels = ref(false)
-
-interface SummaryStatItem {
-  key: string
-  label: string
-  value: string
-  valueClass?: string
-}
-
-const SUMMARY_STATS_PER_PAGE = 4
-const stockSummaryStatsPage = ref(0)
 
 const accountForm = reactive<StockAccountCreate>({
   name: '',
@@ -181,16 +176,6 @@ const selectedStockAccountMeta = computed(() => {
   if (!selectedAccountId.value) return null
   return stocks.accounts.find((account) => account.id === selectedAccountId.value) ?? null
 })
-
-function chunkSummaryStats(stats: SummaryStatItem[]): SummaryStatItem[][] {
-  if (!stats.length) return []
-
-  const chunks: SummaryStatItem[][] = []
-  for (let i = 0; i < stats.length; i += SUMMARY_STATS_PER_PAGE) {
-    chunks.push(stats.slice(i, i + SUMMARY_STATS_PER_PAGE))
-  }
-  return chunks
-}
 
 function latestDailyPnlFromHistory(history: AccountHistorySnapshotResponse[]): number | null {
   for (let idx = history.length - 1; idx >= 0; idx -= 1) {
@@ -417,13 +402,12 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
   ]
 })
 
-const stockSummaryStatPages = computed(() => chunkSummaryStats(stockSummaryStats.value))
-
-const activeStockSummaryStats = computed<SummaryStatItem[]>(() => {
-  const pages = stockSummaryStatPages.value
-  if (!pages.length) return []
-  return pages[stockSummaryStatsPage.value] ?? pages[0] ?? []
-})
+const {
+  page: stockSummaryStatsPage,
+  pages: stockSummaryStatPages,
+  activeStats: activeStockSummaryStats,
+  resetPage: resetStockSummaryStatsPage,
+} = useStatsPager(stockSummaryStats)
 
 const historyForGranularity = computed<AccountHistorySnapshotResponse[]>(() => {
   return [...(stocks.history ?? [])].sort(
@@ -530,22 +514,6 @@ const allocationSegments = computed(() => {
     .sort((a, b) => b.value - a.value)
 })
 
-function nextStockChartSlide(): void {
-  if (!stockChartSlides.length) return
-  const idx = stockChartSlides.findIndex((slide) => slide.key === stockChartSlide.value)
-  const normalizedIdx = idx >= 0 ? idx : 0
-  const nextSlide = stockChartSlides[(normalizedIdx + 1) % stockChartSlides.length]
-  if (nextSlide) stockChartSlide.value = nextSlide.key
-}
-
-function prevStockChartSlide(): void {
-  if (!stockChartSlides.length) return
-  const idx = stockChartSlides.findIndex((slide) => slide.key === stockChartSlide.value)
-  const normalizedIdx = idx >= 0 ? idx : 0
-  const prevSlide = stockChartSlides[(normalizedIdx - 1 + stockChartSlides.length) % stockChartSlides.length]
-  if (prevSlide) stockChartSlide.value = prevSlide.key
-}
-
 const stockChartSeries = computed(() => {
   const totalHistory = applyGranularity(stocks.history)
   const accountSeries = (stocks.accounts ?? [])
@@ -636,14 +604,8 @@ watch(() => txForm.type, (newType) => {
 })
 
 watch(selectedAccountId, () => {
-  stockSummaryStatsPage.value = 0
+  resetStockSummaryStatsPage()
 })
-
-watch(stockSummaryStatPages, (pages) => {
-  if (!pages.length || stockSummaryStatsPage.value >= pages.length) {
-    stockSummaryStatsPage.value = 0
-  }
-}, { immediate: true })
 
 // ── Actions ──────────────────────────────────────────────────
 function openCreateAccount(): void {
@@ -1278,7 +1240,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="min-h-[340px]">
+      <div
+        class="min-h-[340px]"
+        @touchstart.passive="stockChartSwipe.onTouchStart"
+        @touchend.passive="stockChartSwipe.onTouchEnd"
+      >
         <div v-if="stocks.historyLoading" class="h-72 flex items-center justify-center">
           <BaseSpinner size="md" label="Chargement de l'historique..." />
         </div>

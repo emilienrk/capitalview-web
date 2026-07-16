@@ -7,6 +7,8 @@ import { useCryptoStore } from '@/stores/crypto'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
+import { useCarousel } from '@/composables/useCarousel'
+import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useFormatters } from '@/composables/useFormatters'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -117,36 +119,20 @@ const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
 type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
-const chartSlide = ref<CryptoChartSlide>('evolution')
 const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
   { key: 'evolution', label: 'Évolution' },
   { key: 'allocation', label: 'Répartition' },
   { key: 'pnl', label: 'P/L journalier' },
   { key: 'cumulative_pnl', label: 'P/L cumulé' },
 ]
-const chartSlideLabel = computed<string>(() => {
-  return chartSlides.find((slide) => slide.key === chartSlide.value)?.label ?? 'Évolution'
-})
+const {
+  current: chartSlide,
+  currentLabel: chartSlideLabel,
+  next: nextChartSlide,
+  prev: prevChartSlide,
+  swipeHandlers: chartSwipe,
+} = useCarousel(chartSlides)
 
-interface SummaryStatItem {
-  key: string
-  label: string
-  value: string
-  valueClass?: string
-}
-
-const SUMMARY_STATS_PER_PAGE = 4
-const cryptoSummaryStatsPage = ref(0)
-
-function chunkSummaryStats(stats: SummaryStatItem[]): SummaryStatItem[][] {
-  if (!stats.length) return []
-
-  const chunks: SummaryStatItem[][] = []
-  for (let i = 0; i < stats.length; i += SUMMARY_STATS_PER_PAGE) {
-    chunks.push(stats.slice(i, i + SUMMARY_STATS_PER_PAGE))
-  }
-  return chunks
-}
 /** Non-blocking balance warning shown after a transaction is created. */
 const txWarning = ref<string | null>(null)
 /** Informational message shown after a transaction is created. */
@@ -1154,12 +1140,8 @@ const cryptoDateOrFallbackStat = computed<SummaryStatItem>(() => {
   return cryptoContextFallbackStat.value
 })
 
-watch(selectedAccountId, () => {
-  cryptoSummaryStatsPage.value = 0
-})
-
-watch(isSingleMode, () => {
-  cryptoSummaryStatsPage.value = 0
+watch([selectedAccountId, isSingleMode], () => {
+  resetCryptoSummaryStatsPage()
 })
 
 function parsePnlValue(value: unknown): number | null {
@@ -1260,19 +1242,12 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
   ]
 })
 
-const cryptoSummaryStatPages = computed(() => chunkSummaryStats(cryptoSummaryStats.value))
-
-const activeCryptoSummaryStats = computed<SummaryStatItem[]>(() => {
-  const pages = cryptoSummaryStatPages.value
-  if (!pages.length) return []
-  return pages[cryptoSummaryStatsPage.value] ?? pages[0] ?? []
-})
-
-watch(cryptoSummaryStatPages, (pages) => {
-  if (!pages.length || cryptoSummaryStatsPage.value >= pages.length) {
-    cryptoSummaryStatsPage.value = 0
-  }
-}, { immediate: true })
+const {
+  page: cryptoSummaryStatsPage,
+  pages: cryptoSummaryStatPages,
+  activeStats: activeCryptoSummaryStats,
+  resetPage: resetCryptoSummaryStatsPage,
+} = useStatsPager(cryptoSummaryStats)
 
 const pnlChartSeries = computed(() => {
   const dailyPnlSeries = cryptoDailyPnlPoints.value
@@ -1337,51 +1312,6 @@ const allocationSegments = computed(() => {
     .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value)
 })
-
-function nextChartSlide(): void {
-  if (!chartSlides.length) return
-  const idx = chartSlides.findIndex((s) => s.key === chartSlide.value)
-  const normalizedIdx = idx >= 0 ? idx : 0
-  const nextSlide = chartSlides[(normalizedIdx + 1) % chartSlides.length]
-  if (nextSlide) chartSlide.value = nextSlide.key
-}
-
-function prevChartSlide(): void {
-  if (!chartSlides.length) return
-  const idx = chartSlides.findIndex((s) => s.key === chartSlide.value)
-  const normalizedIdx = idx >= 0 ? idx : 0
-  const prevSlide = chartSlides[(normalizedIdx - 1 + chartSlides.length) % chartSlides.length]
-  if (prevSlide) chartSlide.value = prevSlide.key
-}
-
-// Lightweight swipe handler for chart slide cards (avoids blocking page scroll)
-function makeChartSwipeHandlers() {
-  let startX = 0
-  let startY = 0
-  const THRESHOLD = 60
-  const MAX_VERTICAL = 60
-
-  function onTouchStart(e: TouchEvent) {
-    const t = e.touches[0]
-    if (!t) return
-    startX = t.clientX
-    startY = t.clientY
-  }
-
-  function onTouchEnd(e: TouchEvent) {
-    const t = e.changedTouches[0]
-    if (!t) return
-    const dx = t.clientX - startX
-    const dy = Math.abs(t.clientY - startY)
-    if (dy > MAX_VERTICAL) return
-    if (dx > THRESHOLD) prevChartSlide()
-    else if (dx < -THRESHOLD) nextChartSlide()
-  }
-
-  return { onTouchStart, onTouchEnd }
-}
-
-const chartSwipe = makeChartSwipeHandlers()
 
 async function loadCryptoChartHistories(force = false): Promise<void> {
   await Promise.all([
