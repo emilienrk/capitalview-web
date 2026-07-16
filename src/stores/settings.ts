@@ -34,11 +34,17 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  function reset(): void {
+    settings.value = null
+    error.value = null
+  }
+
   return {
     settings,
     isLoading,
     error,
     fetchSettings,
     updateSettings,
+    reset,
   }
 })

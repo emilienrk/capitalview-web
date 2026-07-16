@@ -326,6 +326,16 @@ export const useCommunityStore = defineStore('community', () => {
     )
   }
 
+  function reset(): void {
+    settings.value = null
+    availablePositions.value = null
+    profiles.value = []
+    searchResults.value = []
+    viewedProfile.value = null
+    myPicks.value = []
+    error.value = null
+  }
+
   return {
     settings,
     isLoadingSettings,
@@ -354,5 +364,6 @@ export const useCommunityStore = defineStore('community', () => {
     updatePick,
     deletePick,
     hasPicked,
+    reset,
   }
 })

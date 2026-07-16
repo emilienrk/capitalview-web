@@ -53,5 +53,9 @@ export const useImportsStore = defineStore('imports', () => {
     return apiClient.post<ImportConfirmResponse>(`/imports/${sourceId}/confirm`, payload)
   }
 
-  return { sources, fetchSources, sourcesFor, detect, preview, confirm }
+  function reset(): void {
+    sources.value = []
+  }
+
+  return { sources, fetchSources, sourcesFor, detect, preview, confirm, reset }
 })

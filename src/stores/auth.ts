@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiClient, setSessionExpiredHandler } from '@/api/client'
+import { resetAllSessionState } from '@/services/sessionReset'
 import type {
   User,
   TokenResponse,
@@ -40,6 +41,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     isAuthenticated.value = false
     apiClient.setToken(null)
+    // Wipe caches and data stores so nothing from this session leaks into
+    // the next one (logout or session expiry, same tab, no reload).
+    void resetAllSessionState()
   }
 
   function _registerSessionExpiredHandler() {
@@ -61,6 +65,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Finalize a session once a full TokenResponse is available (login or 2FA step 2). */
   async function _finishSession(response: TokenResponse): Promise<void> {
+    // Start from a clean slate: a previous session (another user, or stale
+    // data from before a session expiry) must not survive into this one.
+    await resetAllSessionState()
     setToken(response.access_token)
     user.value = await apiClient.get<User>('/auth/me')
     resetForms()
@@ -125,6 +132,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await apiClient.post<TokenResponse>('/auth/register', registerData)
+      await resetAllSessionState()
       setToken(response.access_token)
       isAuthenticated.value = true
       return true
