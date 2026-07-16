@@ -2,11 +2,13 @@
 import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
 import { BaseCard, BaseButton, BaseAlert, BaseSkeleton } from '@/components'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig } from '@/types'
 
 const settingsStore = useSettingsStore()
+const { confirmDialog } = useConfirm()
 
 // --- State ---
 const aiOptions = ref<AIOptionsResponse | null>(null)
@@ -103,7 +105,12 @@ async function clearProviderKey(providerId: string) {
   const label = aiOptions.value?.capabilities.vision.find(o => o.provider === providerId)?.label
     ?? aiOptions.value?.capabilities.chat.find(o => o.provider === providerId)?.label
     ?? providerId
-  if (!confirm(`Supprimer la clé API ${label} ?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Supprimer la clé API',
+    message: `Supprimer la clé API ${label} ?`,
+    confirmLabel: 'Supprimer',
+  })
+  if (!confirmed) return
 
   savingProvider.value = providerId
   try {

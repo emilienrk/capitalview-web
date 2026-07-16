@@ -8,6 +8,7 @@ import { useBankStore } from '@/stores/bank'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
 import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
+import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -32,6 +33,7 @@ const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass
 const { displayCurrency, usdToEurRate, fetchRate } = useCurrencyToggle()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
+const { confirmDialog } = useConfirm()
 
 // ── State ────────────────────────────────────────────────────
 const showAccountModal = ref(false)
@@ -76,6 +78,12 @@ const {
 const editingTxId = ref<string | null>(null)
 const editingAccountId = ref<string | null>(null)
 const showMobilePnlLabels = ref(false)
+/** Inline validation error shown inside the transaction modal. */
+const txFormError = ref<string | null>(null)
+/** Inline validation error shown inside the account modal. */
+const accountFormError = ref<string | null>(null)
+/** Inline validation error shown inside the deposit modal. */
+const depositFormError = ref<string | null>(null)
 
 const accountForm = reactive<StockAccountCreate>({
   name: '',
@@ -609,6 +617,7 @@ watch(selectedAccountId, () => {
 
 // ── Actions ──────────────────────────────────────────────────
 function openCreateAccount(): void {
+  accountFormError.value = null
   editingAccountId.value = null
   accountForm.name = ''
   // Default to CTO, or PEA if no PEA exists yet
@@ -620,6 +629,7 @@ function openCreateAccount(): void {
 }
 
 function openEditAccount(account: any): void {
+  accountFormError.value = null
   editingAccountId.value = account.id
   accountForm.name = account.name
   accountForm.account_type = account.account_type
@@ -639,11 +649,12 @@ function checkDateValid(dateStr: string | null | undefined): string | null {
 }
 
 async function handleSubmitAccount(): Promise<void> {
-  const dateErr = checkDateValid(accountForm.opened_at);
+  const dateErr = checkDateValid(accountForm.opened_at)
   if (dateErr) {
-    alert(dateErr);
-    return;
+    accountFormError.value = dateErr
+    return
   }
+  accountFormError.value = null
   showAccountModal.value = false
   let result
   if (editingAccountId.value) {
@@ -661,6 +672,7 @@ async function handleSubmitAccount(): Promise<void> {
 }
 
 async function openAddTransaction(accountId: string): Promise<void> {
+  txFormError.value = null
   editingTxId.value = null
   txForm.account_id = accountId
   txForm.symbol = ''
@@ -699,6 +711,7 @@ function openCsvImport(accountId?: string): void {
 }
 
 async function openDeposit(accountId?: string): Promise<void> {
+  depositFormError.value = null
   depositAccountId.value = accountId ?? null
   depositStockAccountId.value = accountId ?? stocks.accounts[0]?.id ?? null
   editingDepositId.value = null
@@ -715,6 +728,7 @@ async function openDeposit(accountId?: string): Promise<void> {
 }
 
 function openEditDeposit(tx: TransactionResponse): void {
+  depositFormError.value = null
   depositAccountId.value = selectedAccountId.value
   editingDepositId.value = tx.id
   depositForm.amount = tx.amount
@@ -727,19 +741,19 @@ function openEditDeposit(tx: TransactionResponse): void {
 }
 
 async function handleSubmitDeposit(): Promise<void> {
-  const dateErr = checkDateValid(depositForm.executed_at);
+  const dateErr = checkDateValid(depositForm.executed_at)
   if (dateErr) {
-    alert(dateErr);
-    return;
+    depositFormError.value = dateErr
+    return
   }
 
   if (depositForm.amount <= 0) {
-    alert('Le montant doit être strictement positif.')
+    depositFormError.value = 'Le montant doit être strictement positif.'
     return
   }
 
   if (depositForm.fees < 0) {
-    alert('Les frais doivent être positifs ou nuls.')
+    depositFormError.value = 'Les frais doivent être positifs ou nuls.'
     return
   }
 
@@ -748,9 +762,11 @@ async function handleSubmitDeposit(): Promise<void> {
   const netAmountPreview = grossAmount - feesAmount
 
   if (netAmountPreview <= 0) {
-    alert('Le montant net (montant - frais) doit être strictement positif.')
+    depositFormError.value = 'Le montant net (montant - frais) doit être strictement positif.'
     return
   }
+
+  depositFormError.value = null
 
   // Editing an existing deposit
   if (editingDepositId.value) {
@@ -781,9 +797,12 @@ async function handleSubmitDeposit(): Promise<void> {
   if (deductFromBank.value && selectedBankAccountId.value) {
     const bankAcc = sortedBankAccounts.value.find(a => a.id === selectedBankAccountId.value)
     if (bankAcc && Number(bankAcc.balance) < grossAmount) {
-      const ok = confirm(
-        `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance)}) est insuffisant. Continuer quand même ?`
-      )
+      const ok = await confirmDialog({
+        title: 'Solde insuffisant',
+        message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance)}) est insuffisant. Continuer quand même ?`,
+        confirmLabel: 'Continuer',
+        variant: 'primary',
+      })
       if (!ok) return
     }
   }
@@ -881,6 +900,7 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
 }
 
 function openEditTransaction(tx: any): void {
+  txFormError.value = null
   editingTxId.value = tx.id
   txForm.account_id = selectedAccountId.value!
   txForm.symbol = tx.symbol
@@ -911,31 +931,33 @@ function openEditTransaction(tx: any): void {
 }
 
 async function handleSubmitTransaction(): Promise<void> {
-  const dateErr = checkDateValid(txForm.executed_at);
+  const dateErr = checkDateValid(txForm.executed_at)
   if (dateErr) {
-    alert(dateErr);
-    return;
+    txFormError.value = dateErr
+    return
   }
 
   if (!txForm.asset_key || txForm.asset_key.trim() === '') {
-    alert("L'ISIN est obligatoire.")
+    txFormError.value = "L'ISIN est obligatoire."
     return
   }
 
   // Basic ISIN format check (2 letters + 9 alphanum + 1 digit/char check) - length 12
   if (txForm.asset_key.length !== 12) {
-      alert("Format ISIN invalide (doit faire 12 caractères).")
-      return
+    txFormError.value = 'Format ISIN invalide (doit faire 12 caractères).'
+    return
   }
 
   if (txForm.amount <= 0) {
-    alert("La quantité doit être strictement positive.")
+    txFormError.value = 'La quantité doit être strictement positive.'
     return
   }
   if (txForm.price_per_unit < 0 || (txForm.fees !== undefined && txForm.fees < 0)) {
-    alert("Le prix et les frais doivent être positifs ou nuls.")
+    txFormError.value = 'Le prix et les frais doivent être positifs ou nuls.'
     return
   }
+
+  txFormError.value = null
 
   let result
   showTxModal.value = false
@@ -977,7 +999,12 @@ async function handleSubmitTransaction(): Promise<void> {
 }
 
 async function deleteTransaction(id: string): Promise<void> {
-  if (confirm('Supprimer cette transaction ?')) {
+  const confirmed = await confirmDialog({
+    title: 'Supprimer la transaction',
+    message: 'Supprimer cette transaction ?',
+    confirmLabel: 'Supprimer',
+  })
+  if (confirmed) {
     const wasDepositModal = !!editingDepositId.value
     showTxModal.value = false
     showDepositModal.value = false
@@ -1564,6 +1591,9 @@ onMounted(async () => {
 
     <!-- ── Create Account Modal ─────────────────────────── -->
     <BaseModal :open="showAccountModal" :title="editingAccountId ? 'Modifier le compte' : 'Nouveau compte bourse'" @close="showAccountModal = false">
+      <BaseAlert v-if="accountFormError" variant="danger" dismissible class="mb-4" @dismiss="accountFormError = null">
+        {{ accountFormError }}
+      </BaseAlert>
       <form @submit.prevent="handleSubmitAccount" class="space-y-4">
         <BaseSelect
           v-model="accountForm.account_type"
@@ -1600,6 +1630,9 @@ onMounted(async () => {
 
     <!-- ── Create/Edit Transaction Modal ─────────────────────── -->
     <BaseModal :open="showTxModal" :title="editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction'" @close="showTxModal = false">
+      <BaseAlert v-if="txFormError" variant="danger" dismissible class="mb-4" @dismiss="txFormError = null">
+        {{ txFormError }}
+      </BaseAlert>
       <form @submit.prevent="handleSubmitTransaction" class="space-y-4">
 
         <!-- Type first so the asset picker scope adapts immediately -->
@@ -1801,6 +1834,9 @@ onMounted(async () => {
 
     <!-- ── EUR Deposit Modal ──────────────────────────── -->
     <BaseModal :open="showDepositModal" :title="editingDepositId ? 'Modifier le dépôt' : 'Déposer des euros'" @close="showDepositModal = false">
+      <BaseAlert v-if="depositFormError" variant="danger" dismissible class="mb-4" @dismiss="depositFormError = null">
+        {{ depositFormError }}
+      </BaseAlert>
       <form @submit.prevent="handleSubmitDeposit" class="space-y-4">
         <!-- Stock account selector (only for new deposits) -->
         <div v-if="!editingDepositId">

@@ -9,6 +9,7 @@ import { useBankStore } from '@/stores/bank'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
 import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
+import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -51,6 +52,7 @@ const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass
 const { fetchRate, displayCurrency, usdToEurRate, toggleCurrency } = useCurrencyToggle()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
+const { confirmDialog } = useConfirm()
 
 const isSingleMode = computed(
   () =>
@@ -137,6 +139,10 @@ const {
 const txWarning = ref<string | null>(null)
 /** Informational message shown after a transaction is created. */
 const txInfo = ref<string | null>(null)
+/** Inline validation error shown inside the transaction modal. */
+const txFormError = ref<string | null>(null)
+/** Inline validation error shown inside the account modal. */
+const accountFormError = ref<string | null>(null)
 
 // Bank deduction state for DEPOSIT
 const deductFromBank = ref(true)
@@ -561,6 +567,7 @@ watch(isFiatWithdraw, async (enabled) => {
 })
 
 function openCreateAccount(): void {
+  accountFormError.value = null
   editingAccountId.value = null
   accountForm.name = ''
   accountForm.platform = ''
@@ -570,6 +577,7 @@ function openCreateAccount(): void {
 }
 
 function openEditAccount(account: any): void {
+  accountFormError.value = null
   editingAccountId.value = account.id
   accountForm.name = account.name
   accountForm.platform = account.platform || ''
@@ -588,11 +596,12 @@ function checkDateValid(dateStr: string | null | undefined): string | null {
 }
 
 async function handleSubmitAccount(): Promise<void> {
-  const dateErr = checkDateValid(accountForm.opened_at);
+  const dateErr = checkDateValid(accountForm.opened_at)
   if (dateErr) {
-    alert(dateErr);
-    return;
+    accountFormError.value = dateErr
+    return
   }
+  accountFormError.value = null
   showAccountModal.value = false
   let result
   if (editingAccountId.value) {
@@ -608,6 +617,7 @@ async function handleSubmitAccount(): Promise<void> {
 async function openAddTransaction(accountId: string): Promise<void> {
   txWarning.value = null
   txInfo.value = null
+  txFormError.value = null
   editingTxId.value = null
   txForm.account_id = accountId
   txForm.asset_key = ''
@@ -745,6 +755,7 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
 }
 
 function openEditTransaction(tx: any): void {
+  txFormError.value = null
   editingTxId.value = tx.id
   editingGroupUuid.value = tx.group_uuid || null
   txForm.account_id = selectedAccountId.value!
@@ -1375,30 +1386,31 @@ function isFiatSymbol(symbol: string): boolean {
 }
 
 async function handleSubmitTransaction(): Promise<void> {
-  const dateErr = checkDateValid(txForm.executed_at);
+  const dateErr = checkDateValid(txForm.executed_at)
   if (dateErr) {
-    alert(dateErr);
-    return;
+    txFormError.value = dateErr
+    return
   }
 
   txWarning.value = null
   txInfo.value = null
+  txFormError.value = null
 
   if (!txForm.asset_key && searchQuery.value) {
     txForm.asset_key = searchQuery.value.toUpperCase()
   }
 
   if (txForm.type !== 'ANCHOR' && txForm.amount <= 0) {
-    alert('La quantité doit être strictement positive.')
+    txFormError.value = 'La quantité doit être strictement positive.'
     return
   } else if (txForm.type === 'ANCHOR' && txForm.amount < 0) {
-    alert('La quantité ne peut pas être négative.')
+    txFormError.value = 'La quantité ne peut pas être négative.'
     return
   }
 
   if (feeMode.value === 'separate' && txForm.type !== 'BUY_SPOT' && txForm.type !== 'EXIT' && txForm.type !== 'TRANSFER_TO_ACCOUNT') {
     if (!txForm.fee_eur && !txForm.fee_percentage) {
-      alert('Frais séparés : veuillez renseigner le montant en euros ou le pourcentage.')
+      txFormError.value = 'Frais séparés : veuillez renseigner le montant en euros ou le pourcentage.'
       return
     }
     if (!txForm.fee_eur && txForm.fee_percentage) {
@@ -1411,23 +1423,23 @@ async function handleSubmitTransaction(): Promise<void> {
 
   if (feeMode.value !== 'none') {
     if (txForm.fee_asset_key && (!txForm.fee_amount || Number(txForm.fee_amount) <= 0)) {
-      alert('Frais en token : veuillez renseigner la quantité prélevée.')
+      txFormError.value = 'Frais en token : veuillez renseigner la quantité prélevée.'
       return
     }
     if (!txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0) {
-      alert('Frais en token : veuillez renseigner le symbole du token.')
+      txFormError.value = 'Frais en token : veuillez renseigner le symbole du token.'
       return
     }
   }
 
   if (txForm.price_per_unit !== undefined && txForm.price_per_unit < 0) {
-    alert('Le prix doit être positif ou nul.')
+    txFormError.value = 'Le prix doit être positif ou nul.'
     return
   }
 
   if (txForm.type === 'TRANSFER_TO_ACCOUNT') {
     if (!transferToAccountId.value) {
-      alert('Veuillez sélectionner un compte de destination.')
+      txFormError.value = 'Veuillez sélectionner un compte de destination.'
       return
     }
     const transferPayload: CrossAccountTransferCreate = {
@@ -1504,9 +1516,12 @@ async function handleSubmitTransaction(): Promise<void> {
       if (bankAcc) {
         if (txForm.type === 'FIAT_DEPOSIT') {
           if (Number(bankAcc.balance) < Number(txForm.amount)) {
-            const ok = confirm(
-              `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance)}) est insuffisant. Déduire quand même ?`
-            )
+            const ok = await confirmDialog({
+              title: 'Solde insuffisant',
+              message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance)}) est insuffisant. Déduire quand même ?`,
+              confirmLabel: 'Déduire quand même',
+              variant: 'primary',
+            })
             if (ok) {
               await bank.updateAccount(selectedBankAccountId.value, {
                 balance: Number(bankAcc.balance) - Number(txForm.amount),
@@ -1541,7 +1556,12 @@ async function deleteTransaction(id: string): Promise<void> {
     ? 'Cette transaction fait partie d\'un groupe. La suppression supprimera toutes les transactions du groupe. Continuer ?'
     : 'Supprimer cette transaction ?'
 
-  if (confirm(confirmationMessage)) {
+  const confirmed = await confirmDialog({
+    title: 'Supprimer la transaction',
+    message: confirmationMessage,
+    confirmLabel: 'Supprimer',
+  })
+  if (confirmed) {
     showTxModal.value = false
     await crypto.deleteTransaction(id)
     if (selectedAccountId.value) {
@@ -1581,7 +1601,12 @@ async function selectAccount(id: string): Promise<void> {
 }
 
 async function handleDeleteAccount(id: string): Promise<void> {
-  if (confirm('Supprimer ce portefeuille crypto et toutes ses transactions ?')) {
+  const confirmed = await confirmDialog({
+    title: 'Supprimer le portefeuille',
+    message: 'Supprimer ce portefeuille crypto et toutes ses transactions ? Cette action est définitive.',
+    confirmLabel: 'Supprimer',
+  })
+  if (confirmed) {
     showAccountModal.value = false
     await crypto.deleteAccount(id)
     await loadCryptoChartHistories(true)
@@ -2506,6 +2531,9 @@ onMounted(async () => {
 
     <!-- Create/Edit Account Modal -->
     <BaseModal :open="showAccountModal" :title="editingAccountId ? 'Modifier le portefeuille' : 'Nouveau portefeuille crypto'" @close="showAccountModal = false">
+      <BaseAlert v-if="accountFormError" variant="danger" dismissible class="mb-4" @dismiss="accountFormError = null">
+        {{ accountFormError }}
+      </BaseAlert>
       <form @submit.prevent="handleSubmitAccount" class="space-y-4">
         <BaseInput v-model="accountForm.name" label="Nom" placeholder="Nom du portefeuille" required />
         <BaseInput v-model="accountForm.platform!" label="Nom du wallet" placeholder="Nom du wallet" />
@@ -2546,6 +2574,9 @@ onMounted(async () => {
           </Transition>
         </div>
       </template>
+      <BaseAlert v-if="txFormError" variant="danger" dismissible class="mb-4" @dismiss="txFormError = null">
+        {{ txFormError }}
+      </BaseAlert>
       <!-- Edit mode -->
       <form v-if="editingTxId" @submit.prevent="handleSubmitTransaction" class="space-y-4">
         <!-- Read-only symbol & name -->

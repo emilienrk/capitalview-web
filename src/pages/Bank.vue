@@ -4,6 +4,7 @@ import { Pencil, RefreshCw, Upload } from 'lucide-vue-next'
 import { onMounted, ref, reactive, computed } from 'vue'
 import { useBankStore } from '@/stores/bank'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
+import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -22,6 +23,7 @@ const bank = useBankStore()
 const { formatCurrency, formatDate, formatAccountType } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
+const { confirmDialog } = useConfirm()
 
 const showCreateModal = ref(false)
 const showHistoryImportModal = ref(false)
@@ -131,7 +133,12 @@ async function handleSubmit(): Promise<void> {
 }
 
 async function handleDelete(id: string): Promise<void> {
-  if (confirm('Supprimer ce compte ?')) {
+  const confirmed = await confirmDialog({
+    title: 'Supprimer le compte',
+    message: 'Supprimer ce compte bancaire ? Cette action est définitive.',
+    confirmLabel: 'Supprimer',
+  })
+  if (confirmed) {
     showCreateModal.value = false
     const success = await bank.deleteAccount(id)
     if (!success) {

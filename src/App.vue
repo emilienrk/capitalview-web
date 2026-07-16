@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import BlankLayout from '@/layouts/BlankLayout.vue'
+import BaseConfirmDialog from '@/components/base/BaseConfirmDialog.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -28,4 +29,6 @@ const layout = computed(() => {
   <component v-else :is="layout">
     <RouterView />
   </component>
+
+  <BaseConfirmDialog />
 </template>
