@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { apiClient, setSessionExpiredHandler } from '@/api/client'
 import { resetAllSessionState } from '@/services/sessionReset'
 import type {
@@ -25,11 +24,6 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const isAuthenticated = ref(false)
   const isInitialized = ref(false)
-
-  const loginForm = ref({ email: '', password: '' })
-  const registerForm = ref({ username: '', email: '', password: '' })
-  const isRegisterMode = ref(false)
-
 
   function setToken(token: string | null) {
     accessToken.value = token
@@ -57,12 +51,6 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  function resetForms() {
-    loginForm.value = { email: '', password: '' }
-    registerForm.value = { username: '', email: '', password: '' }
-    error.value = null
-  }
-
   /** Finalize a session once a full TokenResponse is available (login or 2FA step 2). */
   async function _finishSession(response: TokenResponse): Promise<void> {
     // Start from a clean slate: a previous session (another user, or stale
@@ -70,21 +58,16 @@ export const useAuthStore = defineStore('auth', () => {
     await resetAllSessionState()
     setToken(response.access_token)
     user.value = await apiClient.get<User>('/auth/me')
-    resetForms()
+    error.value = null
     isAuthenticated.value = true
   }
 
-  async function login(credentials?: LoginRequest): Promise<LoginOutcome> {
+  async function login(credentials: LoginRequest): Promise<LoginOutcome> {
     isLoading.value = true
     error.value = null
 
-    const creds = credentials || {
-      email: loginForm.value.email,
-      password: loginForm.value.password,
-    }
-
     try {
-      const response = await apiClient.post<TokenResponse | TwoFARequiredResponse>('/auth/login', creds)
+      const response = await apiClient.post<TokenResponse | TwoFARequiredResponse>('/auth/login', credentials)
       // 2FA enabled: no session yet, complete via completeLogin2fa()
       if ('two_fa_required' in response && response.two_fa_required) {
         return { status: '2fa', pendingToken: response.pending_token, expiresIn: response.expires_in }
@@ -120,18 +103,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(data?: RegisterRequest): Promise<boolean> {
+  async function register(data: RegisterRequest): Promise<boolean> {
     isLoading.value = true
     error.value = null
 
-    const registerData = data || {
-      username: registerForm.value.username,
-      email: registerForm.value.email,
-      password: registerForm.value.password,
-    }
-
     try {
-      const response = await apiClient.post<TokenResponse>('/auth/register', registerData)
+      const response = await apiClient.post<TokenResponse>('/auth/register', data)
       await resetAllSessionState()
       setToken(response.access_token)
       isAuthenticated.value = true
@@ -141,35 +118,6 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     } finally {
       isLoading.value = false
-    }
-  }
-
-  async function submitForm(router: ReturnType<typeof useRouter>): Promise<void> {
-    if (isRegisterMode.value) {
-      const success = await register()
-      if (success) {
-        await login({
-          email: registerForm.value.email,
-          password: registerForm.value.password,
-        })
-        router.push('/')
-      }
-    } else {
-      const outcome = await login()
-      if (outcome.status === 'success') {
-        router.push('/')
-      }
-    }
-  }
-
-  async function refreshToken(): Promise<boolean> {
-    try {
-      const response = await apiClient.post<TokenResponse>('/auth/refresh')
-      setToken(response.access_token)
-      return true
-    } catch {
-      clearSession()
-      return false
     }
   }
 
@@ -282,16 +230,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     error,
     isAuthenticated,
-    loginForm,
-    registerForm,
-    isRegisterMode,
     isInitialized,
-    resetForms,
     login,
     completeLogin2fa,
     register,
-    submitForm,
-    refreshToken,
     checkAuth,
     updateProfile,
     changePassword,

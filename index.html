@@ -14,6 +14,11 @@
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
     <meta name="description" content="CapitalView - Personal wealth management and investment tracking application">
     
+    <!-- Fonts: preconnect so the request starts in parallel with the app CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+
     <!-- Favicons -->
     <link rel="icon" href="/capitalview.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -29,9 +34,6 @@
     <meta name="twitter:title" content="CapitalView">
     <meta name="twitter:description" content="Application de gestion de patrimoine et de suivi des investissements">
     <meta name="twitter:image" content="/capitalview.svg">
-    <!-- Umami -->
-    <script defer src="https://stats.capitalview.fr/script.js" data-website-id="f37ecaa9-ddf8-41c6-bc17-32d4336eebb9"></script>
-    
     <title>CapitalView</title>
     <script>
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
