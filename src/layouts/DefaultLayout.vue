@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { lockScroll, unlockScroll } from '@/services/scrollLock'
 import { useRoute } from 'vue-router'
 import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, NotebookPen, Settings, TrendingUp, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
@@ -21,13 +22,12 @@ useSwipe({
 })
 
 watch(sidebarOpen, (isOpen) => {
-  if (isOpen) {
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-  } else {
-    document.body.style.overflow = ''
-    document.documentElement.style.overflow = ''
-  }
+  if (isOpen) lockScroll()
+  else unlockScroll()
+})
+
+onUnmounted(() => {
+  if (sidebarOpen.value) unlockScroll()
 })
 
 interface NavItem {
@@ -136,8 +136,8 @@ onMounted(async () => {
     >
       <div
         v-if="sidebarOpen"
-        class="fixed z-30 bg-black/30 lg:hidden"
-        style="top: -200vh; left: 0; right: 0; bottom: -200vh; height: 500vh;"
+        class="fixed inset-0 z-30 bg-black/30 lg:hidden"
+        style="overscroll-behavior: contain;"
         @click="sidebarOpen = false"
       />
     </Transition>
