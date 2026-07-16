@@ -73,17 +73,17 @@ const projectionSlides = [
   {
     key: 'stock',
     title: 'Projection actions (10 ans)',
-    subtitle: 'Valeur projetee des actions',
+    subtitle: 'Valeur projetée des actions',
   },
   {
     key: 'crypto',
     title: 'Projection crypto (10 ans)',
-    subtitle: 'Valeur projetee du portefeuille crypto',
+    subtitle: 'Valeur projetée du portefeuille crypto',
   },
   {
     key: 'total',
     title: 'Projection globale (10 ans)',
-    subtitle: 'Patrimoine total projete',
+    subtitle: 'Patrimoine total projeté',
   },
 ] as const
 
@@ -185,15 +185,15 @@ const projectedValueSeries = computed<Array<{ name: string; history: AccountHist
 
   return [
     {
-      name: 'Valeur actions projetee',
+      name: 'Valeur actions projetée',
       history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_stock_value)),
     },
     {
-      name: 'Valeur crypto projetee',
+      name: 'Valeur crypto projetée',
       history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_crypto_value)),
     },
     {
-      name: 'Patrimoine total projete',
+      name: 'Patrimoine total projeté',
       history: history.map((snapshot) => buildProjectionSnapshot(snapshot.snapshot_date, snapshot.projected_total_value)),
     },
   ]

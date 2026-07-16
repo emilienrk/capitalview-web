@@ -122,7 +122,7 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  if ((to.name === 'login' || to.name === 'register') && auth.isAuthenticated) {
+  if ((to.name === 'login' || to.name === 'register' || to.name === 'recover') && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }
 })

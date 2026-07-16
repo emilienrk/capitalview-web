@@ -36,7 +36,9 @@ async function handleLogin() {
       step.value = '2fa'
       twoFaCode.value = ''
     } else {
-      error.value = 'Identifiants invalides'
+      // Show the real backend message (rate-limit, server down…) instead of
+      // always claiming the credentials are wrong.
+      error.value = outcome.message || 'Identifiants invalides'
     }
   } catch {
     error.value = 'Une erreur est survenue lors de la connexion'

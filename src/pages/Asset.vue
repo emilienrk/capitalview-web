@@ -57,7 +57,7 @@ async function fetchAssetHistory(force = false): Promise<void> {
       new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime()
     )
   } catch (e) {
-    assetHistoryError.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'evolution des bien'
+    assetHistoryError.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'évolution des biens'
   } finally {
     isLoadingAssetHistory.value = false
   }

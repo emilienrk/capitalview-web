@@ -92,7 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
       await _finishSession(response as TokenResponse)
       return { status: 'success' }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Login failed'
+      const message = e instanceof Error ? e.message : 'Échec de la connexion'
       error.value = message
       return { status: 'error', message }
     } finally {
@@ -112,7 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
       await _finishSession(response)
       return { status: 'success' }
     } catch (e) {
-      const message = e instanceof Error ? e.message : '2FA verification failed'
+      const message = e instanceof Error ? e.message : 'Échec de la vérification 2FA'
       error.value = message
       return { status: 'error', message }
     } finally {
@@ -137,7 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
       isAuthenticated.value = true
       return true
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Registration failed'
+      error.value = e instanceof Error ? e.message : 'Échec de l\'inscription'
       return false
     } finally {
       isLoading.value = false

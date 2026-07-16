@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, Circle, DollarSign, Pencil, Scale, Search, Trash2 } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed } from 'vue'
+import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { useCashflowStore } from '@/stores/cashflow'
 import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
@@ -70,6 +70,9 @@ const amountInput = ref('0')
 
 const selectedDay = ref(new Date().getDate())
 const selectedMonth = ref(new Date().getMonth() + 1)
+// Preserved when editing an existing cashflow (not exposed in the UI):
+// without it, editing a December entry in January silently shifted it a year.
+const selectedYear = ref(new Date().getFullYear())
 
 const monthOptions = [
   { label: 'Janvier', value: 1 },
@@ -92,9 +95,16 @@ const monthLabels: Record<number, string> = {
   9: 'septembre', 10: 'octobre', 11: 'novembre', 12: 'décembre',
 }
 
-const dayOptions = computed(() =>
-  Array.from({ length: 31 }, (_, i) => ({ label: String(i + 1), value: i + 1 }))
-)
+// Only offer days that exist in the selected month (no silent "31 février")
+const dayOptions = computed(() => {
+  const daysInMonth = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
+  return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), value: i + 1 }))
+})
+
+watch([selectedMonth, selectedYear], () => {
+  const daysInMonth = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
+  if (selectedDay.value > daysInMonth) selectedDay.value = daysInMonth
+})
 
 const flowTypeOptions = [
   { label: 'Revenu', value: 'INFLOW' },
@@ -248,17 +258,17 @@ function resetForm(): void {
   amountInput.value = ''
   selectedDay.value = new Date().getDate()
   selectedMonth.value = new Date().getMonth() + 1
+  selectedYear.value = new Date().getFullYear()
   errors.name = ''
   errors.category = ''
   errors.amount = ''
 }
 
-/** Build a date string from the selected day/month (year = current year). */
+/** Build a date string from the selected day/month (year preserved on edit). */
 function buildDateFromDayMonth(): string {
-  const year = new Date().getFullYear()
   const month = String(selectedMonth.value).padStart(2, '0')
   const day = String(selectedDay.value).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return `${selectedYear.value}-${month}-${day}`
 }
 
 /** Format a date string as "le {day} {month}" for display. */
@@ -289,6 +299,7 @@ function openEdit(item: CashflowResponse): void {
   const d = new Date(item.transaction_date)
   selectedDay.value = d.getDate()
   selectedMonth.value = d.getMonth() + 1
+  selectedYear.value = d.getFullYear()
   showFormModal.value = true
 }
 
