@@ -540,8 +540,23 @@ const stockChartSeries = computed(() => {
 })
 
 async function loadStockChartHistories(force = false): Promise<void> {
-  await stocks.fetchHistory(force)
-  await Promise.all(stocks.accounts.map((account) => stocks.fetchHistoryForAccount(account.id, force)))
+  await Promise.all([
+    stocks.fetchHistory(force),
+    ...stocks.accounts.map((account) => stocks.fetchHistoryForAccount(account.id, force)),
+  ])
+}
+
+/**
+ * After a mutation, refresh only the global history and the affected
+ * account instead of force-reloading every account. Other accounts'
+ * cache entries are invalidated so any later read refetches lazily.
+ */
+async function reloadChartsAfterMutation(accountId?: string | null): Promise<void> {
+  stocks.invalidateHistoryCache()
+  await Promise.all([
+    stocks.fetchHistory(true),
+    ...(accountId ? [stocks.fetchHistoryForAccount(accountId, true)] : []),
+  ])
 }
 
 const modalPositions = ref<PositionResponse[]>([])
@@ -667,7 +682,7 @@ async function handleSubmitAccount(): Promise<void> {
     return
   }
   if (result) {
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(editingAccountId.value ?? result.id)
   }
 }
 
@@ -788,7 +803,7 @@ async function handleSubmitDeposit(): Promise<void> {
           fetchAccountTransactions(selectedAccountId.value),
         ])
       }
-      await loadStockChartHistories(true)
+      void reloadChartsAfterMutation(selectedAccountId.value)
     }
     return
   }
@@ -838,7 +853,7 @@ async function handleSubmitDeposit(): Promise<void> {
     } else if (targetStockAccountId) {
       await stocks.fetchAccounts()
     }
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(targetStockAccountId)
   }
 }
 
@@ -849,9 +864,9 @@ async function handleCsvImport(transactions: StockTransactionBulkCreate[]): Prom
   
   if (result) {
     showCsvImportModal.value = false
-    await selectAccount(csvImportAccountId.value)
+    await refreshAccountView(csvImportAccountId.value)
     stocks.fetchTransactions()
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(csvImportAccountId.value)
     return true
   }
   return false
@@ -865,9 +880,9 @@ function openPlatformImport(accountId?: string): void {
 async function handlePlatformImported(): Promise<void> {
   showPlatformImportModal.value = false
   if (platformImportAccountId.value) {
-    await selectAccount(platformImportAccountId.value)
+    await refreshAccountView(platformImportAccountId.value)
     stocks.fetchTransactions()
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(platformImportAccountId.value)
   }
 }
 
@@ -894,9 +909,9 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
   if (bulkItems.length === 0) return
 
   await stocks.bulkImportTransactions(photoImportAccountId.value, bulkItems)
-  await selectAccount(photoImportAccountId.value)
+  await refreshAccountView(photoImportAccountId.value)
   stocks.fetchTransactions()
-  await loadStockChartHistories(true)
+  void reloadChartsAfterMutation(photoImportAccountId.value)
 }
 
 function openEditTransaction(tx: any): void {
@@ -992,7 +1007,7 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     stocks.fetchTransactions()
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(txForm.account_id)
   } else {
     showTxModal.value = true
   }
@@ -1021,7 +1036,7 @@ async function deleteTransaction(id: string): Promise<void> {
       ])
     }
     stocks.fetchTransactions()
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(selectedAccountId.value)
   }
 }
 
@@ -1029,13 +1044,8 @@ async function fetchAccountTransactions(id: string): Promise<void> {
   accountTransactions.value = await stocks.fetchAccountTransactions(id)
 }
 
-async function selectAccount(id: string): Promise<void> {
-  if (selectedAccountId.value === id) {
-    // Toggle: deselect
-    selectedAccountId.value = null
-    stocks.currentAccount = null
-    return
-  }
+/** Select (or re-select) an account and reload its data — never toggles. */
+async function refreshAccountView(id: string): Promise<void> {
   selectedAccountId.value = id
   activeDetailTab.value = 'positions'
   // First load: fast cached data from DB
@@ -1046,6 +1056,16 @@ async function selectAccount(id: string): Promise<void> {
   ])
   // Then refresh in background with live market data
   stocks.refreshAccount(id)
+}
+
+async function selectAccount(id: string): Promise<void> {
+  if (selectedAccountId.value === id) {
+    // Toggle: deselect
+    selectedAccountId.value = null
+    stocks.currentAccount = null
+    return
+  }
+  await refreshAccountView(id)
 }
 
 function confirmDeleteAccount(account: { id: string; name: string }): void {
@@ -1069,7 +1089,7 @@ async function handleDelete(): Promise<void> {
       selectedAccountId.value = null
       stocks.currentAccount = null
     }
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation()
   } else {
     // Legacy delete path via confirmation modal, if used
     const success = await stocks.deleteTransaction(deleteTarget.value.id)
@@ -1083,7 +1103,7 @@ async function handleDelete(): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value)
       ])
     }
-    await loadStockChartHistories(true)
+    void reloadChartsAfterMutation(selectedAccountId.value)
   }
 
   deleteTarget.value = null

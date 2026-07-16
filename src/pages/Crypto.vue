@@ -610,7 +610,7 @@ async function handleSubmitAccount(): Promise<void> {
     result = await crypto.createAccount({ ...accountForm })
   }
   if (result) {
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(editingAccountId.value ?? result.id)
   }
 }
 
@@ -685,9 +685,9 @@ function openBinanceImport(accountId?: string): void {
 async function handleBinanceImported(): Promise<void> {
   showBinanceImportModal.value = false
   if (binanceImportAccountId.value) {
-    await selectAccount(binanceImportAccountId.value)
+    await refreshAccountView(binanceImportAccountId.value)
     crypto.fetchTransactions()
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(binanceImportAccountId.value)
   }
 }
 
@@ -699,9 +699,9 @@ function openPlatformImport(accountId?: string): void {
 async function handlePlatformImported(): Promise<void> {
   showPlatformImportModal.value = false
   if (platformImportAccountId.value) {
-    await selectAccount(platformImportAccountId.value)
+    await refreshAccountView(platformImportAccountId.value)
     crypto.fetchTransactions()
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(platformImportAccountId.value)
   }
 }
 
@@ -712,9 +712,9 @@ async function handleCsvImport(transactions: CryptoCompositeBulkItem[]): Promise
 
   if (result) {
     showCsvImportModal.value = false
-    await selectAccount(csvImportAccountId.value)
+    await refreshAccountView(csvImportAccountId.value)
     crypto.fetchTransactions()
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(csvImportAccountId.value)
     return true
   }
   return false
@@ -728,30 +728,30 @@ function openPhotoImport(accountId: string): void {
 async function handlePhotoImport(transactions: any[]): Promise<void> {
   if (!photoImportAccountId.value || transactions.length === 0) return
 
-  for (const tx of transactions) {
-    try {
-      await crypto.createCompositeTransaction({
-        account_id: photoImportAccountId.value,
-        type: tx.type as any,
-        asset_key: tx.asset_key,
-        amount: Number(tx.amount),
-        quote_asset_key: tx.quote_asset_key ?? undefined,
-        quote_amount: tx.quote_amount ? Number(tx.quote_amount) : undefined,
-        fee_included: false,
-        fee_asset_key: tx.fee_asset_key ?? undefined,
-        fee_amount: tx.fee_amount ? Number(tx.fee_amount) : undefined,
-        executed_at: tx.executed_at,
-        notes: tx.notes ?? undefined,
-        tx_hash: tx.tx_hash ?? undefined,
-      })
-    } catch (e) {
-      console.error('[PhotoImport] erreur transaction:', e)
-    }
+  // Single bulk request instead of N sequential ones; the backend reports
+  // per-line failures so the user gets feedback instead of silent drops.
+  const items: CryptoCompositeBulkItem[] = transactions.map((tx) => ({
+    type: tx.type,
+    asset_key: tx.asset_key,
+    amount: Number(tx.amount),
+    quote_asset_key: tx.quote_asset_key ?? undefined,
+    quote_amount: tx.quote_amount ? Number(tx.quote_amount) : undefined,
+    fee_included: false,
+    fee_asset_key: tx.fee_asset_key ?? undefined,
+    fee_amount: tx.fee_amount ? Number(tx.fee_amount) : undefined,
+    executed_at: tx.executed_at,
+    notes: tx.notes ?? undefined,
+    tx_hash: tx.tx_hash ?? undefined,
+  }))
+
+  const result = await crypto.bulkCompositeImportTransactions(photoImportAccountId.value, items)
+  if (result) {
+    txInfo.value = `${result.groups_count} opération(s) importée(s) depuis la photo.`
   }
 
-  await selectAccount(photoImportAccountId.value)
+  await refreshAccountView(photoImportAccountId.value)
   crypto.fetchTransactions()
-  await loadCryptoChartHistories(true)
+  void reloadChartsAfterMutation(photoImportAccountId.value)
 }
 
 function openEditTransaction(tx: any): void {
@@ -1331,6 +1331,20 @@ async function loadCryptoChartHistories(force = false): Promise<void> {
   ])
 }
 
+/**
+ * After a mutation, refresh only the global history and the affected
+ * account(s) instead of force-reloading every account. Other accounts'
+ * cache entries are invalidated so any later read refetches lazily.
+ */
+async function reloadChartsAfterMutation(...accountIds: Array<string | null | undefined>): Promise<void> {
+  crypto.invalidateHistoryCache()
+  const ids = accountIds.filter((id): id is string => !!id)
+  await Promise.all([
+    crypto.fetchHistory(true),
+    ...ids.map((id) => crypto.fetchHistoryForAccount(id, true)),
+  ])
+}
+
 const multiRowGroups = computed(() => {
   const counts: Record<string, number> = {}
   for (const tx of accountTransactions.value) {
@@ -1459,13 +1473,16 @@ async function handleSubmitTransaction(): Promise<void> {
     if (result) {
       if (result.warning) txWarning.value = result.warning
       if (result.info) txInfo.value = result.info
-      await Promise.all([
-        crypto.fetchAccount(txForm.account_id),
-        crypto.fetchAccount(transferToAccountId.value),
-        fetchAccountTransactions(selectedAccountId.value!),
-      ])
+      // Only the displayed account feeds `currentAccount` — fetching both
+      // in parallel would race and leave a random winner on screen.
+      if (selectedAccountId.value) {
+        await Promise.all([
+          crypto.fetchAccount(selectedAccountId.value),
+          fetchAccountTransactions(selectedAccountId.value),
+        ])
+      }
       crypto.fetchTransactions()
-      await loadCryptoChartHistories(true)
+      void reloadChartsAfterMutation(txForm.account_id, transferToAccountId.value)
     }
     return
   }
@@ -1547,7 +1564,7 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     crypto.fetchTransactions()
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(txForm.account_id)
   }
 }
 
@@ -1571,7 +1588,7 @@ async function deleteTransaction(id: string): Promise<void> {
       ])
     }
     crypto.fetchTransactions()
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation(selectedAccountId.value)
   }
 }
 
@@ -1581,14 +1598,8 @@ async function fetchAccountTransactions(id: string): Promise<void> {
 
 const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
 
-async function selectAccount(id: string): Promise<void> {
-  if (selectedAccountId.value === id) {
-    selectedAccountId.value = null
-    accountTransactions.value = []
-    crypto.currentAccount = null
-    return
-  }
-
+/** Select (or re-select) an account and reload its data — never toggles. */
+async function refreshAccountView(id: string): Promise<void> {
   selectedAccountId.value = id
   activeDetailTab.value = 'positions'
   // First load: fast cached data from DB
@@ -1600,6 +1611,17 @@ async function selectAccount(id: string): Promise<void> {
   crypto.refreshAccount(id)
 }
 
+async function selectAccount(id: string): Promise<void> {
+  if (selectedAccountId.value === id) {
+    selectedAccountId.value = null
+    accountTransactions.value = []
+    crypto.currentAccount = null
+    return
+  }
+
+  await refreshAccountView(id)
+}
+
 async function handleDeleteAccount(id: string): Promise<void> {
   const confirmed = await confirmDialog({
     title: 'Supprimer le portefeuille',
@@ -1609,7 +1631,7 @@ async function handleDeleteAccount(id: string): Promise<void> {
   if (confirmed) {
     showAccountModal.value = false
     await crypto.deleteAccount(id)
-    await loadCryptoChartHistories(true)
+    void reloadChartsAfterMutation()
     if (selectedAccountId.value === id) {
       selectedAccountId.value = null
       crypto.currentAccount = null
