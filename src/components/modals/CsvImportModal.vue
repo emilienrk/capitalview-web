@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Check, Circle, Download, X } from 'lucide-vue-next'
+import Papa from 'papaparse'
 
 import { ref, computed, watch } from 'vue'
 import BaseModal from '@/components/base/BaseModal.vue'
@@ -60,6 +61,17 @@ const csvExample = computed(() => {
   )
 })
 
+/** Map of common header aliases to canonical field names. */
+const HEADER_ALIASES: Record<string, string> = {
+  isin: 'asset_key',
+}
+
+/** Normalize a raw CSV header to its canonical field name. */
+function normalizeHeader(raw: string): string {
+  const trimmed = raw.trim().toLowerCase()
+  return HEADER_ALIASES[trimmed] ?? trimmed
+}
+
 function onFileSelect(event: Event): void {
   error.value = null
   parsedTransactions.value = []
@@ -94,63 +106,62 @@ function onFileSelect(event: Event): void {
   reader.readAsText(file)
 }
 
+/** Normalize French decimal commas to dots in a single field value (e.g. "30,552" → "30.552"). */
+function normalizeDecimal(value: string): string {
+  return value.replace(/(\d),(\d)/g, '$1.$2')
+}
+
 function parseCSV(text: string): void {
-  const firstLine = text.split('\n')[0]
-  let delimiter = ','
-  if (firstLine?.includes(';')) {
-    delimiter = ';'
-  } else if (firstLine?.includes('\t')) {
-    delimiter = '\t'
-  }
-  
-  // Normalize French decimal commas to dots (always safe — regex only matches digit,digit)
-  const normalizedText = text.replace(/(\d),(\d)/g, '$1.$2')
-  
-  // Normalize DD/MM/YYYY dates to ISO
-  const lines = normalizedText.trim().split('\n').map((line, index) => {
+  // Normalize DD/MM/YYYY dates to ISO (skip header line)
+  const lines = text.split('\n')
+  const dateNormalized = lines.map((line, index) => {
     if (index === 0) return line // Skip header
     return line.replace(/(\d{2})\/(\d{2})\/(\d{4})/g, '$3-$2-$1T00:00:00')
+  }).join('\n')
+
+  // Use PapaParse for robust CSV parsing (handles quoted fields, mixed delimiters, etc.)
+  const result = Papa.parse<Record<string, string>>(dateNormalized.trim(), {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: normalizeHeader,
+    delimiter: '', // auto-detect
   })
 
-  if (lines.length < 2) {
-    error.value = 'Le fichier CSV est vide ou invalide'
+  if (result.errors.length > 0) {
+    const firstError = result.errors[0]
+    const lineInfo = firstError?.row != null ? `Ligne ${firstError.row + 2}` : 'Fichier CSV'
+    error.value = `${lineInfo} : ${firstError?.message ?? 'Erreur de parsing CSV'}`
+    console.error('PapaParse errors:', result.errors)
     return
   }
 
-  const headers = lines[0]?.split(delimiter).map((h) => h.trim()) || []
+  if (result.data.length === 0) {
+    error.value = 'Le fichier CSV est vide ou ne contient aucune ligne de données'
+    return
+  }
+
   const transactions: any[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]
-    if (!line || !line.trim()) continue
-    
-    const values = line.split(delimiter).map((v) => v.trim())
-
-    // Pad missing optional trailing columns
-    while (values.length < headers.length) {
-      values.push('')
-    }
-
-    if (values.length > headers.length) {
-      error.value = `Ligne ${i + 1} : trop de colonnes (${values.length} au lieu de ${headers.length}). Vérifiez qu'il n'y a pas de virgules dans vos données textuelles.`
-      console.error(`Ligne ${i + 1}:`, { headers, values, line })
-      return
-    }
+  for (let i = 0; i < result.data.length; i++) {
+    const row = result.data[i]
+    if (!row) continue
 
     const transaction: any = {}
+    const csvLineNumber = i + 2 // +1 for 0-index, +1 for header row
 
-    headers.forEach((header, index) => {
-      const value = values[index]
+    for (const [header, rawValue] of Object.entries(row)) {
+      const value = rawValue?.trim() ?? ''
 
-      // Numeric fields
+      // Numeric fields — normalize French decimal commas per-field (safe after delimiter parsing)
       const numericFields = props.assetType === 'stocks'
         ? ['amount', 'price_per_unit', 'fees']
         : ['amount', 'eur_amount', 'quote_amount', 'fee_amount']
 
       if (numericFields.includes(header)) {
-        const numValue = value ? parseFloat(value) : 0
-        if (value && isNaN(numValue)) {
-          error.value = `Ligne ${i + 1} : valeur numérique invalide pour "${header}" : "${value}"`
+        const normalized = normalizeDecimal(value)
+        const numValue = normalized ? parseFloat(normalized) : 0
+        if (normalized && isNaN(numValue)) {
+          error.value = `Ligne ${csvLineNumber} : valeur numérique invalide pour « ${header} » : « ${value} »`
           return
         }
         transaction[header] = numValue
@@ -159,14 +170,16 @@ function parseCSV(text: string): void {
       } else {
         transaction[header] = value || ''
       }
-    })
+    }
 
     try {
       validateTransaction(transaction)
       transactions.push(transaction)
     } catch (err) {
-      error.value = `Ligne ${i + 1} : ${err instanceof Error ? err.message : 'Données invalides'}`
-      console.error(`Ligne ${i + 1} validation error:`, transaction, err)
+      const preview = Object.values(row).join(' | ')
+      const truncated = preview.length > 80 ? preview.slice(0, 80) + '…' : preview
+      error.value = `Ligne ${csvLineNumber} : ${err instanceof Error ? err.message : 'Données invalides'}\n→ ${truncated}`
+      console.error(`Ligne ${csvLineNumber} validation error:`, transaction, err)
       return
     }
   }
@@ -189,30 +202,30 @@ function validateTransaction(transaction: any): void {
 
   for (const field of requiredFields) {
     if (!transaction[field] || transaction[field] === '') {
-      throw new Error(`Champ "${field}" manquant ou vide`)
+      throw new Error(`Champ « ${field} » manquant ou vide`)
     }
   }
 
   if (props.assetType === 'stocks') {
     const validTypes = ['BUY', 'SELL', 'DEPOSIT', 'DIVIDEND']
     if (!validTypes.includes(transaction.type)) {
-      throw new Error(`Type "${transaction.type}" invalide (valeurs: ${validTypes.join(', ')})`)
+      throw new Error(`Type « ${transaction.type} » invalide (valeurs acceptées : ${validTypes.join(', ')})`)
     }
 
     if (transaction.fees !== undefined && (isNaN(transaction.fees) || transaction.fees < 0)) {
-      throw new Error('Frais invalides')
+      throw new Error('Les frais doivent être un nombre positif ou nul')
     }
 
     if (transaction.type === 'DEPOSIT') {
       if (transaction.asset_key && transaction.asset_key !== 'EUR') {
-        throw new Error('Pour un dépôt, ISIN doit être vide ou EUR')
+        throw new Error('Pour un dépôt, le champ ISIN doit être vide ou « EUR »')
       }
 
       const grossAmount = Number(transaction.amount)
       const fees = Number(transaction.fees || 0)
       const netAmount = grossAmount - fees
       if (netAmount <= 0) {
-        throw new Error('Pour un dépôt, le montant doit être supérieur aux frais')
+        throw new Error(`Pour un dépôt, le montant (${grossAmount}) doit être supérieur aux frais (${fees})`)
       }
 
       // Normalize deposit to EUR source of truth and store only the net value.
@@ -222,17 +235,18 @@ function validateTransaction(transaction: any): void {
       transaction.fees = 0
     } else {
       if (!transaction.asset_key || transaction.asset_key.length !== 12) {
-        throw new Error('Format ISIN invalide (doit faire 12 caractères)')
+        const got = transaction.asset_key ? `« ${transaction.asset_key} » (${transaction.asset_key.length} car.)` : 'vide'
+        throw new Error(`ISIN invalide : ${got} — un code ISIN fait exactement 12 caractères`)
       }
 
       if (isNaN(transaction.price_per_unit) || transaction.price_per_unit < 0) {
-        throw new Error('Prix invalide (doit être >= 0)')
+        throw new Error(`Prix unitaire invalide : « ${transaction.price_per_unit} » (doit être ≥ 0)`)
       }
     }
   } else {
     const normalizedType = normalizeCompositeImportType(transaction.type)
     if (!normalizedType) {
-      throw new Error(`Type "${transaction.type}" invalide (valeurs: ${CRYPTO_COMPOSITE_ALLOWED_IMPORT_TYPES.join(', ')})`)
+      throw new Error(`Type « ${transaction.type} » invalide (valeurs acceptées : ${CRYPTO_COMPOSITE_ALLOWED_IMPORT_TYPES.join(', ')})`)
     }
     transaction.type = normalizedType
 
@@ -240,27 +254,27 @@ function validateTransaction(transaction: any): void {
     if (['BUY', 'CRYPTO_DEPOSIT', 'SELL_TO_FIAT'].includes(transaction.type)) {
       const eur = Number(transaction.eur_amount)
       if (isNaN(eur) || eur < 0) {
-        throw new Error(`"eur_amount" invalide pour le type ${transaction.type}`)
+        throw new Error(`« eur_amount » invalide pour le type ${transaction.type}`)
       }
     }
 
     // quote_amount required if quote_asset_key is set
     if (transaction.quote_asset_key && (!transaction.quote_amount || Number(transaction.quote_amount) <= 0)) {
-      throw new Error('"quote_amount" requis quand "quote_asset_key" est renseigné')
+      throw new Error('« quote_amount » requis quand « quote_asset_key » est renseigné')
     }
 
     // fee_amount required if fee_asset_key is set
     if (transaction.fee_asset_key && (!transaction.fee_amount || Number(transaction.fee_amount) <= 0)) {
-      throw new Error('"fee_amount" requis quand "fee_asset_key" est renseigné')
+      throw new Error('« fee_amount » requis quand « fee_asset_key » est renseigné')
     }
   }
 
   if (isNaN(transaction.amount) || transaction.amount <= 0) {
-    throw new Error('Quantité invalide (doit être > 0)')
+    throw new Error(`Quantité invalide : « ${transaction.amount} » (doit être > 0)`)
   }
 
   if (!isValidDate(transaction.executed_at)) {
-    throw new Error('Date invalide (format accepté: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss ou DD/MM/YYYY)')
+    throw new Error(`Date invalide : « ${transaction.executed_at} » (formats acceptés : YYYY-MM-DD, YYYY-MM-DDTHH:mm:ss, DD/MM/YYYY)`)
   }
 }
 
@@ -364,13 +378,14 @@ function downloadTemplate(): void {
           {{ csvTemplate }}
         </code>
         <p class="mt-2 text-xs text-text-muted dark:text-text-dark-muted">
-          Séparateurs et décimales détectés automatiquement.
+          Séparateurs (<code>,</code> <code>;</code> <code>tab</code>) et décimales détectés automatiquement.
+          Le header <code>isin</code> est aussi accepté.
         </p>
       </div>
 
       <!-- Error Alert -->
       <BaseAlert v-if="error" variant="danger" dismissible @dismiss="error = null">
-        {{ error }}
+        <span style="white-space: pre-line">{{ error }}</span>
       </BaseAlert>
 
       <!-- File Upload -->
