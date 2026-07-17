@@ -3,6 +3,7 @@ import { AlertCircle, Pencil } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { BaseBadge, BaseButton, BaseEmptyState, BaseSegmentedControl } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
+import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import { isFiatSymbol } from '@/utils/cryptoTransactionTypes'
 import type { PositionResponse, TransactionResponse } from '@/types'
 
@@ -26,7 +27,8 @@ const emit = defineEmits<{
   (e: 'edit-transaction', tx: TransactionResponse): void
 }>()
 
-const { formatNumber, formatPercent, profitLossClass } = useFormatters()
+const { formatNumber, formatPercent, formatDateShort, profitLossClass } = useFormatters()
+const { effectiveTimezoneLabel } = useDisplayTimezone()
 
 const TX_TYPE_ORDER: Record<string, number> = {
   REWARD: 0,
@@ -233,7 +235,7 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
                     style="top: 0; bottom: 0;"
                   />
                 </td>
-                <td class="px-4 py-3 text-text-muted dark:text-text-dark-muted whitespace-nowrap">{{ new Date(tx.executed_at).toLocaleDateString() }}</td>
+                <td class="px-4 py-3 text-text-muted dark:text-text-dark-muted whitespace-nowrap">{{ formatDateShort(tx.executed_at) }}</td>
                 <td class="px-4 py-3">
                   <span class="inline-flex items-center gap-1.5">
                     <BaseBadge :variant="txBadgeVariant(tx.type)">
@@ -265,6 +267,9 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
               </tr>
             </tbody>
           </table>
+          <p class="px-4 pt-2 text-xs text-text-muted dark:text-text-dark-muted">
+            Dates affichées en {{ effectiveTimezoneLabel }}
+          </p>
         </div>
         <!-- Mobile cards -->
         <div class="md:hidden space-y-2">
@@ -291,7 +296,7 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
               </BaseButton>
             </div>
             <div class="flex items-center justify-between text-xs">
-              <span class="text-text-muted dark:text-text-dark-muted">{{ new Date(tx.executed_at).toLocaleDateString() }}</span>
+              <span class="text-text-muted dark:text-text-dark-muted">{{ formatDateShort(tx.executed_at) }}</span>
               <span
                 class="font-mono font-medium"
                 :class="tx.type === 'ANCHOR' ? 'text-text-muted dark:text-text-dark-muted' : isNegativeType(tx.type) ? 'text-danger' : 'text-success'"

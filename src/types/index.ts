@@ -785,6 +785,8 @@ export interface AIOptionsResponse {
 export interface UserSettingsUpdate {
   objectives?: string | null
   theme?: string
+  /** IANA timezone for date display. null = follow the browser. */
+  display_timezone?: string | null
   flat_tax_rate?: number
   tax_pea_rate?: number
   yield_expectation?: number
@@ -805,6 +807,8 @@ export interface UserSettingsUpdate {
 export interface UserSettingsResponse {
   objectives: string | null
   theme: string
+  /** IANA timezone for date display. null = follow the browser. */
+  display_timezone: string | null
   flat_tax_rate: number
   tax_pea_rate: number
   yield_expectation: number

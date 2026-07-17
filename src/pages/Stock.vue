@@ -10,6 +10,8 @@ import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
+import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
+import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -29,7 +31,8 @@ import type { StockAccountCreate, StockTransactionCreate, StockAccountType, Tran
 
 const stocks = useStocksStore()
 const bank = useBankStore()
-const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass } = useFormatters()
+const { formatCurrency, formatPercent, formatNumber, formatDate, formatDateShort, profitLossClass } = useFormatters()
+const { effectiveTimezoneLabel } = useDisplayTimezone()
 const { displayCurrency, usdToEurRate, fetchRate } = useCurrencyToggle()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
@@ -102,13 +105,13 @@ const txForm = reactive<StockTransactionCreate>({
   amount: 0,
   price_per_unit: 0,
   fees: 0,
-  executed_at: new Date().toISOString().slice(0, 16),
+  executed_at: nowDatetimeLocal(),
 })
 
 const depositForm = reactive<EurDepositCreate>({
   amount: 0,
   fees: 0,
-  executed_at: new Date().toISOString().slice(0, 16),
+  executed_at: nowDatetimeLocal(),
   notes: '',
 })
 
@@ -697,7 +700,7 @@ async function openAddTransaction(accountId: string): Promise<void> {
   txForm.amount = 0
   txForm.price_per_unit = 0
   txForm.fees = 0
-  txForm.executed_at = new Date().toISOString().slice(0, 16)
+  txForm.executed_at = nowDatetimeLocal()
   assetQuery.value = ''
 
   // Load the target account's positions for the modal without expanding the card in the UI
@@ -732,7 +735,7 @@ async function openDeposit(accountId?: string): Promise<void> {
   editingDepositId.value = null
   depositForm.amount = 0
   depositForm.fees = 0
-  depositForm.executed_at = new Date().toISOString().slice(0, 16)
+  depositForm.executed_at = nowDatetimeLocal()
   depositForm.notes = ''
   deductFromBank.value = true
   // Fetch bank accounts to pre-select
@@ -748,7 +751,7 @@ function openEditDeposit(tx: TransactionResponse): void {
   editingDepositId.value = tx.id
   depositForm.amount = tx.amount
   depositForm.fees = Number(tx.fees ?? 0)
-  depositForm.executed_at = tx.executed_at.slice(0, 16)
+  depositForm.executed_at = isoToDatetimeLocal(tx.executed_at)
   depositForm.notes = tx.notes ?? ''
   // Don't deduct from bank: the deduction already happened at creation
   deductFromBank.value = false
@@ -789,7 +792,7 @@ async function handleSubmitDeposit(): Promise<void> {
     const result = await stocks.updateTransaction(editingDepositId.value, {
       amount: grossAmount,
       fees: feesAmount,
-      executed_at: depositForm.executed_at,
+      executed_at: datetimeLocalToIso(depositForm.executed_at),
       notes: depositForm.notes || undefined,
     })
     if (!result) {
@@ -828,7 +831,7 @@ async function handleSubmitDeposit(): Promise<void> {
   const result = await stocks.depositEur(targetStockAccountId!, {
     amount: grossAmount,
     fees: feesAmount,
-    executed_at: depositForm.executed_at,
+    executed_at: datetimeLocalToIso(depositForm.executed_at),
     notes: depositForm.notes || undefined,
   })
   if (!result) {
@@ -925,7 +928,7 @@ function openEditTransaction(tx: any): void {
   txForm.amount = tx.amount
   txForm.price_per_unit = tx.price_per_unit
   txForm.fees = tx.fees
-  txForm.executed_at = tx.executed_at.slice(0, 16)
+  txForm.executed_at = isoToDatetimeLocal(tx.executed_at)
   dividendMode.value = 'cash'
   
   // Populate positions for the modal
@@ -988,16 +991,16 @@ async function handleSubmitTransaction(): Promise<void> {
       amount: txForm.amount,
       price_per_unit: 0,
       fees: 0,
-      executed_at: txForm.executed_at,
+      executed_at: datetimeLocalToIso(txForm.executed_at),
       notes: 'Dividende en actions',
     }
     result = editingTxId.value
       ? await stocks.updateTransaction(editingTxId.value, payload)
       : await stocks.createTransaction(payload)
   } else if (editingTxId.value) {
-    result = await stocks.updateTransaction(editingTxId.value, { ...txForm })
+    result = await stocks.updateTransaction(editingTxId.value, { ...txForm, executed_at: datetimeLocalToIso(txForm.executed_at) })
   } else {
-    result = await stocks.createTransaction({ ...txForm })
+    result = await stocks.createTransaction({ ...txForm, executed_at: datetimeLocalToIso(txForm.executed_at) })
   }
   if (result) {
     if (selectedAccountId.value) {
@@ -1554,7 +1557,7 @@ onMounted(async () => {
                 <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
                   <tr v-for="tx in sortedTransactions" :key="tx.id"
                     :class="['transition-colors', tx.asset_key === 'EUR' ? 'bg-info/5 dark:bg-info/10' : 'hover:bg-surface-hover dark:hover:bg-surface-dark-hover']">
-                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted">{{ new Date(tx.executed_at).toLocaleDateString() }}</td>
+                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted">{{ formatDateShort(tx.executed_at) }}</td>
                     <td class="px-4 py-2.5">
                       <BaseBadge :variant="tx.asset_key === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
                         {{ tx.type }}
@@ -1575,6 +1578,9 @@ onMounted(async () => {
                   </tr>
                 </tbody>
               </table>
+              <p class="px-4 pt-2 text-xs text-text-muted dark:text-text-dark-muted">
+                Dates affichées en {{ effectiveTimezoneLabel }}
+              </p>
             </div>
             <BaseEmptyState v-else title="Aucune transaction" description="L'historique des transactions est vide" />
           </div>

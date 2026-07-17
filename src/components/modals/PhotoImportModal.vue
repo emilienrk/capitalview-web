@@ -5,6 +5,7 @@ import BaseModal from '@/components/base/BaseModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import { apiClient } from '@/api/client'
+import { datetimeLocalToIso, ensureUtc, toDatetimeLocalValue } from '@/utils/datetime'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -171,10 +172,9 @@ function removeTransaction(index: number) {
 function formatDatetimeLocal(isoStr: string): string {
   if (!isoStr) return ''
   try {
-    const d = new Date(isoStr)
+    const d = new Date(ensureUtc(isoStr))
     if (isNaN(d.getTime())) return isoStr
-    // Format: YYYY-MM-DDTHH:mm
-    return d.toISOString().slice(0, 16)
+    return toDatetimeLocalValue(d)
   } catch {
     return isoStr
   }
@@ -182,7 +182,7 @@ function formatDatetimeLocal(isoStr: string): string {
 
 function handleDateInput(index: number, value: string) {
   const tx = extractedTransactions.value[index]
-  if (tx) tx.executed_at = value
+  if (tx) tx.executed_at = datetimeLocalToIso(value)
 }
 
 // ── Confirm & close ───────────────────────────────────────────────────────────

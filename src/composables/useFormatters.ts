@@ -6,6 +6,9 @@
  * string and number values and coerce strings to numbers transparently.
  */
 
+import { ensureUtc, isDateOnly } from '@/utils/datetime'
+import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
+
 type NumericValue = number | string | null | undefined
 
 /** Safely coerce a value (number or Decimal-string from API) to a number. */
@@ -51,13 +54,26 @@ export function useFormatters(): {
     return `${sign}${formatted} %`
   }
 
+  const { displayTimezone } = useDisplayTimezone()
+
+  /**
+   * API datetimes are UTC; render them in the user's display timezone.
+   * Civil dates (YYYY-MM-DD) are timezone-less: format them in UTC so the
+   * calendar day never shifts.
+   */
+  function tzFor(value: string): string | undefined {
+    if (isDateOnly(value)) return 'UTC'
+    return displayTimezone.value || undefined
+  }
+
   function formatDate(value: string | null | undefined): string {
     if (!value) return '—'
     return new Intl.DateTimeFormat('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    }).format(new Date(value))
+      timeZone: tzFor(value),
+    }).format(new Date(ensureUtc(value)))
   }
 
   function formatDateTime(value: string | null | undefined): string {
@@ -68,7 +84,8 @@ export function useFormatters(): {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(value))
+      timeZone: tzFor(value),
+    }).format(new Date(ensureUtc(value)))
   }
 
   function formatNumber(value: NumericValue, maxDecimals = 3): string {
@@ -87,7 +104,8 @@ export function useFormatters(): {
       year: '2-digit',
       month: '2-digit',
       day: '2-digit',
-    }).format(new Date(value))
+      timeZone: tzFor(value),
+    }).format(new Date(ensureUtc(value)))
   }
 
   /** Returns 'text-success' or 'text-danger' based on sign */

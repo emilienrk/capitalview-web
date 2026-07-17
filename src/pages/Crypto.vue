@@ -11,6 +11,7 @@ import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
+import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
 import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -261,7 +262,7 @@ const txForm = reactive<TxFormData>({
   fee_eur: undefined,
   fee_asset_key: undefined,
   fee_amount: undefined,
-  executed_at: new Date().toISOString().slice(0, 16),
+  executed_at: nowDatetimeLocal(),
 })
 
 const quoteMode = ref<'EUR' | 'crypto'>('EUR')
@@ -637,7 +638,7 @@ async function openAddTransaction(accountId: string): Promise<void> {
   txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   feeMode.value = 'none'
-  txForm.executed_at = new Date().toISOString().slice(0, 16)
+  txForm.executed_at = nowDatetimeLocal()
   txForm.tx_hash = undefined
   txForm.notes = undefined
   searchQuery.value = ''
@@ -775,7 +776,7 @@ function openEditTransaction(tx: any): void {
   txForm.fee_eur = undefined
   txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
-  txForm.executed_at = tx.executed_at.slice(0, 16)
+  txForm.executed_at = isoToDatetimeLocal(tx.executed_at)
 
   // Populate positions for the modal
   modalPositions.value = crypto.currentAccount?.positions ?? []
@@ -1389,7 +1390,7 @@ async function handleSubmitTransaction(): Promise<void> {
       amount: txForm.amount,
       fee_asset_key: feeMode.value !== 'none' ? (txForm.fee_asset_key || undefined) : undefined,
       fee_amount: feeMode.value !== 'none' ? (txForm.fee_amount || undefined) : undefined,
-      executed_at: txForm.executed_at,
+      executed_at: datetimeLocalToIso(txForm.executed_at),
       tx_hash: txForm.tx_hash || undefined,
       notes: txForm.notes || undefined,
     }
@@ -1422,7 +1423,7 @@ async function handleSubmitTransaction(): Promise<void> {
       type: txForm.type as CryptoTransactionUpdate['type'],
       amount: txForm.amount,
       price_per_unit: txForm.price_per_unit,
-      executed_at: txForm.executed_at,
+      executed_at: datetimeLocalToIso(txForm.executed_at),
       tx_hash: txForm.tx_hash || undefined,
       notes: txForm.notes || undefined,
     }
@@ -1432,6 +1433,7 @@ async function handleSubmitTransaction(): Promise<void> {
     const payload: CryptoCompositeTransactionCreate = {
       ...txForm,
       asset_key: txForm.asset_key || undefined,
+      executed_at: datetimeLocalToIso(txForm.executed_at),
       type: toCompositeApiType(txForm.type as CryptoUiTransactionType | CryptoCompositeTransactionType),
     } as CryptoCompositeTransactionCreate
 
