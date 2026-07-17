@@ -8,6 +8,7 @@
 
 import { ensureUtc, isDateOnly } from '@/utils/datetime'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
+import { useDisplayLocale } from '@/composables/useDisplayLocale'
 
 type NumericValue = number | string | null | undefined
 
@@ -32,10 +33,13 @@ export function useFormatters(): {
   profitLossClass: (value: NumericValue) => string
   formatAccountType: (type: string) => string
 } {
+  const { displayTimezone } = useDisplayTimezone()
+  const { effectiveLocale } = useDisplayLocale()
+
   function formatCurrency(value: NumericValue, currency: string = 'EUR'): string {
     const n = toNumber(value)
     if (n === null) return '—'
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat(effectiveLocale.value, {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,
@@ -47,14 +51,12 @@ export function useFormatters(): {
     const n = toNumber(value)
     if (n === null) return '—'
     const sign = n >= 0 ? '+' : ''
-    const formatted = new Intl.NumberFormat('fr-FR', {
+    const formatted = new Intl.NumberFormat(effectiveLocale.value, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(n)
     return `${sign}${formatted} %`
   }
-
-  const { displayTimezone } = useDisplayTimezone()
 
   /**
    * API datetimes are UTC; render them in the user's display timezone.
@@ -68,7 +70,7 @@ export function useFormatters(): {
 
   function formatDate(value: string | null | undefined): string {
     if (!value) return '—'
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(effectiveLocale.value, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -78,7 +80,7 @@ export function useFormatters(): {
 
   function formatDateTime(value: string | null | undefined): string {
     if (!value) return '—'
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(effectiveLocale.value, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -91,7 +93,7 @@ export function useFormatters(): {
   function formatNumber(value: NumericValue, maxDecimals = 3): string {
     const n = toNumber(value)
     if (n === null) return '—'
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat(effectiveLocale.value, {
       minimumFractionDigits: 0,
       maximumFractionDigits: Math.min(maxDecimals, 6),
     }).format(n)
@@ -100,7 +102,7 @@ export function useFormatters(): {
   /** Short date format DD/MM/YY — useful for mobile. */
   function formatDateShort(value: string | null | undefined): string {
     if (!value) return '—'
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(effectiveLocale.value, {
       year: '2-digit',
       month: '2-digit',
       day: '2-digit',

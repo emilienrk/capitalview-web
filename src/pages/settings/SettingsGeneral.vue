@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { FileText, User, Sun, Moon, Monitor, Globe } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
@@ -7,71 +7,134 @@ import { useSettingsStore } from '@/stores/settings'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useFormatters } from '@/composables/useFormatters'
 import { useDisplayTimezone, utcOffsetLabel } from '@/composables/useDisplayTimezone'
-import { BaseCard, BaseAutocomplete } from '@/components'
+import { useDisplayLocale, DEFAULT_DISPLAY_LOCALE, SUPPORTED_DISPLAY_LOCALES } from '@/composables/useDisplayLocale'
+import { BaseCard, BaseSelect } from '@/components'
+import type { SelectOption } from '@/components/base/BaseSelect.vue'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const { themePreference, setTheme } = useDarkMode()
-const { formatDateTime, formatDate } = useFormatters()
+const { formatDateTime, formatDate, formatCurrency } = useFormatters()
 const { displayTimezone, setDisplayTimezone, browserTimezone } = useDisplayTimezone()
+const { displayLocale, setDisplayLocale, effectiveLocale } = useDisplayLocale()
 
-// ── Display timezone selector ────────────────────────────────────────────────
+const dateSettingsError = ref<string | null>(null)
 
-interface TimezoneOption {
-  tz: string // IANA name, or '' for "browser default"
-  label: string
-}
+// ── Display timezone: curated list of major cities ──────────────────────────
 
-// Intl.supportedValuesOf is ES2022; fall back to a short list on older engines.
-const intlWithValues = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] }
-const supportedTimezones: string[] = intlWithValues.supportedValuesOf?.('timeZone')
-  ?? ['UTC', 'Europe/Paris', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo']
-
-function timezoneLabel(tz: string): string {
-  const offset = utcOffsetLabel(tz)
-  const name = tz.split('_').join(' ')
-  return offset ? `(${offset}) ${name}` : name
-}
-
-const autoOption: TimezoneOption = {
-  tz: '',
-  label: `Automatique — ${timezoneLabel(browserTimezone)}`,
-}
-
-const timezoneOptions: TimezoneOption[] = [
-  autoOption,
-  ...supportedTimezones
-    .map(tz => ({ tz, label: timezoneLabel(tz) }))
-    .sort((a, b) => a.label.localeCompare(b.label)),
+const CITY_TIMEZONES: { tz: string; city: string }[] = [
+  { tz: 'UTC', city: 'UTC' },
+  { tz: 'Europe/Paris', city: 'Paris' },
+  { tz: 'Europe/London', city: 'Londres' },
+  { tz: 'Europe/Berlin', city: 'Berlin' },
+  { tz: 'Europe/Madrid', city: 'Madrid' },
+  { tz: 'Europe/Lisbon', city: 'Lisbonne' },
+  { tz: 'Europe/Zurich', city: 'Zurich' },
+  { tz: 'Europe/Athens', city: 'Athènes' },
+  { tz: 'Europe/Istanbul', city: 'Istanbul' },
+  { tz: 'Europe/Moscow', city: 'Moscou' },
+  { tz: 'Africa/Casablanca', city: 'Casablanca' },
+  { tz: 'Africa/Cairo', city: 'Le Caire' },
+  { tz: 'Africa/Johannesburg', city: 'Johannesburg' },
+  { tz: 'America/New_York', city: 'New York' },
+  { tz: 'America/Chicago', city: 'Chicago' },
+  { tz: 'America/Denver', city: 'Denver' },
+  { tz: 'America/Los_Angeles', city: 'Los Angeles' },
+  { tz: 'America/Toronto', city: 'Toronto' },
+  { tz: 'America/Mexico_City', city: 'Mexico' },
+  { tz: 'America/Sao_Paulo', city: 'São Paulo' },
+  { tz: 'America/Argentina/Buenos_Aires', city: 'Buenos Aires' },
+  { tz: 'Asia/Dubai', city: 'Dubaï' },
+  { tz: 'Asia/Kolkata', city: 'New Delhi' },
+  { tz: 'Asia/Bangkok', city: 'Bangkok' },
+  { tz: 'Asia/Singapore', city: 'Singapour' },
+  { tz: 'Asia/Hong_Kong', city: 'Hong Kong' },
+  { tz: 'Asia/Shanghai', city: 'Shanghai' },
+  { tz: 'Asia/Tokyo', city: 'Tokyo' },
+  { tz: 'Asia/Seoul', city: 'Séoul' },
+  { tz: 'Australia/Sydney', city: 'Sydney' },
+  { tz: 'Pacific/Auckland', city: 'Auckland' },
 ]
 
-function currentTimezoneLabel(): string {
-  if (!displayTimezone.value) return autoOption.label
-  return timezoneLabel(displayTimezone.value)
+/** Offset in minutes, for sorting cities from west to east. */
+function offsetMinutes(tz: string): number {
+  const label = utcOffsetLabel(tz) // "UTC+05:30"
+  const match = label.match(/UTC([+-])(\d{2}):(\d{2})/)
+  if (!match) return 0
+  const sign = match[1] === '-' ? -1 : 1
+  return sign * (Number(match[2]) * 60 + Number(match[3]))
 }
 
-const timezoneQuery = ref(currentTimezoneLabel())
-const timezoneSaveError = ref<string | null>(null)
-
-// Keep the input in sync if the preference changes elsewhere (e.g. settings load).
-watch(displayTimezone, () => {
-  timezoneQuery.value = currentTimezoneLabel()
+const timezoneOptions = computed<SelectOption[]>(() => {
+  const cities = [...CITY_TIMEZONES]
+  // A timezone picked outside this list (older UI, other client) must stay visible.
+  if (displayTimezone.value && !cities.some(c => c.tz === displayTimezone.value)) {
+    cities.push({ tz: displayTimezone.value, city: displayTimezone.value.split('/').pop()?.split('_').join(' ') ?? displayTimezone.value })
+  }
+  return [
+    { label: `Automatique — ${browserTimezone.split('_').join(' ')} (${utcOffsetLabel(browserTimezone)})`, value: 'auto' },
+    ...cities
+      .map(({ tz, city }) => ({ label: `(${utcOffsetLabel(tz)}) ${city}`, value: tz, minutes: offsetMinutes(tz) }))
+      .sort((a, b) => a.minutes - b.minutes || a.label.localeCompare(b.label))
+      .map(({ label, value }) => ({ label, value })),
+  ]
 })
 
-async function selectTimezone(option: TimezoneOption): Promise<void> {
-  timezoneSaveError.value = null
+const selectedTimezone = computed<string>({
+  get: () => displayTimezone.value || 'auto',
+  set: (value) => { void saveTimezone(!value || value === 'auto' ? '' : value) },
+})
+
+async function saveTimezone(tz: string): Promise<void> {
+  dateSettingsError.value = null
   const previous = displayTimezone.value
-  setDisplayTimezone(option.tz)
-  const saved = await settingsStore.updateSettings({ display_timezone: option.tz || null })
+  setDisplayTimezone(tz)
+  const saved = await settingsStore.updateSettings({ display_timezone: tz || null })
   if (!saved) {
     setDisplayTimezone(previous)
-    timezoneQuery.value = currentTimezoneLabel()
-    timezoneSaveError.value = settingsStore.error ?? 'Impossible de sauvegarder le fuseau horaire.'
+    dateSettingsError.value = settingsStore.error ?? 'Impossible de sauvegarder le fuseau horaire.'
   }
 }
 
-/** Live preview of how dates will be rendered with the current preference. */
-const timezonePreview = computed(() => formatDateTime(new Date().toISOString()))
+// ── Date format (locale) ─────────────────────────────────────────────────────
+
+/** Fixed sample instant so every option shows the same date. */
+const SAMPLE_DATE = new Date(Date.UTC(2026, 6, 17, 15, 30))
+
+function sampleFormat(locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  }).format(SAMPLE_DATE)
+}
+
+const localeOptions: SelectOption[] = SUPPORTED_DISPLAY_LOCALES.map(({ locale, label }) => ({
+  value: locale,
+  label: `${label} — ${sampleFormat(locale)}`,
+}))
+
+const selectedLocale = computed<string>({
+  get: () => effectiveLocale.value,
+  set: (value) => { void saveLocale(value || DEFAULT_DISPLAY_LOCALE) },
+})
+
+async function saveLocale(locale: string): Promise<void> {
+  dateSettingsError.value = null
+  const previous = displayLocale.value
+  setDisplayLocale(locale)
+  const saved = await settingsStore.updateSettings({ display_locale: locale })
+  if (!saved) {
+    setDisplayLocale(previous)
+    dateSettingsError.value = settingsStore.error ?? 'Impossible de sauvegarder le format de date.'
+  }
+}
+
+/** Live preview of how dates and amounts render with the current preferences. */
+const displayPreview = computed(() => `${formatDateTime(new Date().toISOString())} · ${formatCurrency(1234.56)}`)
 </script>
 
 <template>
@@ -192,23 +255,27 @@ const timezonePreview = computed(() => formatDateTime(new Date().toISOString()))
       </template>
       <div class="flex flex-col gap-4">
         <div>
-          <p class="font-medium text-text-main dark:text-text-dark-main">Fuseau horaire d'affichage</p>
+          <p class="font-medium text-text-main dark:text-text-dark-main">Affichage des dates</p>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">
-            Les dates sont enregistrées en UTC ; ce réglage n'affecte que leur affichage.
-            Il est sauvegardé sur votre compte et suivi sur tous vos appareils.
+            Les dates sont enregistrées en UTC ; ces réglages n'affectent que leur affichage.
+            Ils sont sauvegardés sur votre compte et suivis sur tous vos appareils.
           </p>
         </div>
-        <BaseAutocomplete
-          v-model="timezoneQuery"
-          :options="timezoneOptions"
-          :display-value="(opt: TimezoneOption) => opt.label"
-          :show-all-on-focus="true"
-          :error="timezoneSaveError ?? undefined"
-          placeholder="Rechercher un fuseau (ex. Paris, UTC, New York)…"
-          @select="selectTimezone"
-        />
+        <div class="grid gap-4 sm:grid-cols-2">
+          <BaseSelect
+            v-model="selectedLocale"
+            label="Format de date"
+            :options="localeOptions"
+          />
+          <BaseSelect
+            v-model="selectedTimezone"
+            label="Fuseau horaire"
+            :options="timezoneOptions"
+          />
+        </div>
+        <p v-if="dateSettingsError" class="text-sm text-danger">{{ dateSettingsError }}</p>
         <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Exemple d'affichage : <span class="font-medium text-text-main dark:text-text-dark-main">{{ timezonePreview }}</span>
+          Exemple d'affichage : <span class="font-medium text-text-main dark:text-text-dark-main">{{ displayPreview }}</span>
         </p>
       </div>
     </BaseCard>

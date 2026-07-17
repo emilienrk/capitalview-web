@@ -787,6 +787,8 @@ export interface UserSettingsUpdate {
   theme?: string
   /** IANA timezone for date display. null = follow the browser. */
   display_timezone?: string | null
+  /** BCP 47 locale for date/number formatting. null = app default (fr-FR). */
+  display_locale?: string | null
   flat_tax_rate?: number
   tax_pea_rate?: number
   yield_expectation?: number
@@ -809,6 +811,8 @@ export interface UserSettingsResponse {
   theme: string
   /** IANA timezone for date display. null = follow the browser. */
   display_timezone: string | null
+  /** BCP 47 locale for date/number formatting. null = app default (fr-FR). */
+  display_locale: string | null
   flat_tax_rate: number
   tax_pea_rate: number
   yield_expectation: number
