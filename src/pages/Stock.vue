@@ -1112,7 +1112,7 @@ async function handleDelete(): Promise<void> {
   deleteTarget.value = null
 }
 
-const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+const chartPerformance = ref<{ diff: number; percent: number | null } | null>(null)
 
 function badgeVariant(type: string): 'primary' | 'info' | 'warning' {
   if (type === 'PEA') return 'primary'

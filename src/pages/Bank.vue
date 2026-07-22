@@ -156,7 +156,7 @@ onMounted(async () => {
   void loadChartHistories()
 })
 
-const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+const chartPerformance = ref<{ diff: number; percent: number | null } | null>(null)
 </script>
 
 <template>

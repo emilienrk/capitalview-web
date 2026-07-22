@@ -1523,7 +1523,7 @@ async function fetchAccountTransactions(id: string): Promise<void> {
   accountTransactions.value = await crypto.fetchAccountTransactions(id)
 }
 
-const chartPerformance = ref<{ diff: number; percent: number } | null>(null)
+const chartPerformance = ref<{ diff: number; percent: number | null } | null>(null)
 
 /** Select (or re-select) an account and reload its data — never toggles. */
 async function refreshAccountView(id: string): Promise<void> {
@@ -1835,6 +1835,7 @@ onMounted(async () => {
                 :is-dark="isDark"
                 :granularity="historyGranularity"
                 show-performance
+                absolute-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
