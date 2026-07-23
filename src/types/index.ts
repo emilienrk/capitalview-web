@@ -731,6 +731,7 @@ export interface AccountSummaryResponse {
   total_fees: number
   currency: string
   current_value: number | null
+  cash_balance: number
   profit_loss: number | null
   profit_loss_percentage: number | null
   positions: PositionResponse[]

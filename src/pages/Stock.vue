@@ -408,7 +408,7 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
     {
       key: 'cash_balance',
       label: 'Liquidités',
-      value: maskValue(formatCurrency(summary.positions.find((p) => p.asset_key === 'EUR')?.total_amount ?? 0)),
+      value: maskValue(formatCurrency(summary.cash_balance ?? 0)),
     },
   ]
 })

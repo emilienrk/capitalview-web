@@ -1225,6 +1225,11 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       label: 'Retraits cumulés',
       value: maskAmount(summary.total_withdrawals),
     },
+    {
+      key: 'cash_balance',
+      label: 'Liquidités',
+      value: maskAmount(summary.cash_balance ?? 0),
+    },
     cryptoDateOrFallbackStat.value,
   ]
 })
