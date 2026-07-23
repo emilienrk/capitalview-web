@@ -1368,6 +1368,7 @@ onMounted(async () => {
             :is-dark="isDark"
             :granularity="historyGranularity"
             show-performance
+            absolute-performance
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
