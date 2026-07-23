@@ -21,10 +21,13 @@ const props = defineProps<{
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   hideControls?: boolean
   showPerformance?: boolean
+  // For P/L series (cumulative P/L): a percentage relative to the window's first
+  // point is meaningless (the line crosses zero). Show only the € change instead.
+  absolutePerformance?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:performance', val: { diff: number; percent: number } | null): void
+  (e: 'update:performance', val: { diff: number; percent: number | null } | null): void
 }>()
 
 const updateOptions = {
@@ -414,9 +417,11 @@ const visiblePerformance = computed(() => {
     }
   }
 
-  if (startVal == null || endVal == null || startVal === 0) return null
+  if (startVal == null || endVal == null) return null
 
   const diff = endVal - startVal
+  if (props.absolutePerformance) return { diff, percent: null }
+  if (startVal === 0) return null
   const percent = (diff / Math.abs(startVal)) * 100
 
   return { diff, percent }
