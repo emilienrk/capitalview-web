@@ -730,10 +730,13 @@ export interface AccountSummaryResponse {
   total_withdrawals: number
   total_fees: number
   currency: string
+  total_dividends: number
   current_value: number | null
   cash_balance: number
   profit_loss: number | null
   profit_loss_percentage: number | null
+  realized_profit_loss: number | null
+  total_profit_loss: number | null
   positions: PositionResponse[]
 }
 

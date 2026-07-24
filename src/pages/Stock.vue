@@ -362,55 +362,115 @@ const selectedStockOpenedAt = computed<string | null>(() => {
   return selectedStockAccountMeta.value?.opened_at ?? selectedStockAccountMeta.value?.created_at ?? null
 })
 
+const PNL_VIEWS = ['latent', 'realized', 'total'] as const
+const pnlView = ref<(typeof PNL_VIEWS)[number]>('latent')
+function cyclePnlView(): void {
+  const i = PNL_VIEWS.indexOf(pnlView.value)
+  pnlView.value = PNL_VIEWS[(i + 1) % PNL_VIEWS.length]!
+}
+
+// Card set is curated per account type: a PEA/PEA-PME has a legal deposit ceiling,
+// so "déposé" and the opening date (5-year tax clock) matter more than cost basis;
+// a CTO has no ceiling, so "investi" (PRU) is the relevant anchor. Zero-valued cards
+// (dividends, cash, withdrawals) are dropped to keep the grid meaningful.
 const stockSummaryStats = computed<SummaryStatItem[]>(() => {
   const summary = selectedAccountSummary.value
   if (!summary) return []
 
-  return [
-    {
+  const accountType = selectedStockAccountMeta.value?.account_type ?? 'CTO'
+  const isPea = accountType === 'PEA' || accountType === 'PEA_PME'
+
+  // Percentages for realized/total reuse the latent base (cost basis / invested) so the
+  // three views share one denominator; undefined when there is nothing invested.
+  const pct = (v: number | null) =>
+    v != null && Number(summary.total_invested) > 0
+      ? (Number(v) / Number(summary.total_invested)) * 100
+      : null
+  const pnlByView = {
+    latent: { label: 'P/L latent', perfLabel: 'Perf. latente', value: summary.profit_loss, pct: summary.profit_loss_percentage },
+    realized: { label: 'P/L réalisé', perfLabel: 'Perf. réalisée', value: summary.realized_profit_loss, pct: pct(summary.realized_profit_loss) },
+    total: { label: 'P/L total', perfLabel: 'Perf. totale', value: summary.total_profit_loss, pct: pct(summary.total_profit_loss) },
+  } as const
+  const pnl = pnlByView[pnlView.value]
+
+  const card: Record<string, SummaryStatItem> = {
+    invested: {
       key: 'invested',
       label: 'Investi',
       value: maskValue(formatCurrency(summary.total_invested)),
     },
-    {
+    current_value: {
       key: 'current_value',
       label: 'Valeur actuelle',
       value: maskValue(formatCurrency(summary.current_value)),
     },
-    {
+    profit_loss: {
       key: 'profit_loss',
-      label: 'P/L',
-      value: maskValue(formatCurrency(summary.profit_loss)),
-      valueClass: profitLossClass(summary.profit_loss),
+      label: pnl.label,
+      value: maskValue(formatCurrency(pnl.value)),
+      valueClass: profitLossClass(pnl.value),
+      hint: 'Appuyez pour changer',
+      onSelect: cyclePnlView,
     },
-    {
+    performance: {
       key: 'performance',
-      label: 'Performance',
-      value: formatPercent(summary.profit_loss_percentage),
-      valueClass: profitLossClass(summary.profit_loss_percentage),
+      label: pnl.perfLabel,
+      value: formatPercent(pnl.pct),
+      valueClass: profitLossClass(pnl.pct),
+      hint: 'Appuyez pour changer',
+      onSelect: cyclePnlView,
     },
-    {
+    dividends: {
+      key: 'dividends',
+      label: 'Dividendes',
+      value: maskValue(formatCurrency(summary.total_dividends ?? 0)),
+    },
+    daily_pnl: {
       key: 'daily_pnl',
       label: 'P/L journalier',
       value: maskValue(formatCurrency(selectedStockDailyPnl.value)),
       valueClass: profitLossClass(selectedStockDailyPnl.value),
     },
-    {
+    total_deposits: {
       key: 'total_deposits',
       label: 'Dépôts cumulés',
       value: maskValue(formatCurrency(summary.total_deposits)),
     },
-    {
+    total_withdrawals: {
       key: 'total_withdrawals',
       label: 'Retraits cumulés',
       value: maskValue(formatCurrency(summary.total_withdrawals)),
     },
-    {
+    cash_balance: {
       key: 'cash_balance',
       label: 'Liquidités',
       value: maskValue(formatCurrency(summary.cash_balance ?? 0)),
     },
-  ]
+    opened_at: {
+      key: 'opened_at',
+      label: "Date d'ouverture",
+      value: selectedStockOpenedAt.value ? formatDate(selectedStockOpenedAt.value) : '—',
+    },
+  }
+
+  // Order matters: most relevant first (first page = the 4 that fit above the fold).
+  const order = isPea
+    ? ['current_value', 'total_deposits', 'profit_loss', 'performance',
+       'dividends', 'cash_balance', 'opened_at', 'daily_pnl']
+    : ['invested', 'current_value', 'profit_loss', 'performance',
+       'dividends', 'cash_balance', 'total_deposits', 'total_withdrawals', 'daily_pnl']
+
+  const hasValue = (n: number | null | undefined) => n != null && Number(n) !== 0
+  const dropIfZero: Record<string, boolean> = {
+    dividends: !hasValue(summary.total_dividends),
+    cash_balance: !hasValue(summary.cash_balance),
+    total_withdrawals: !hasValue(summary.total_withdrawals),
+    daily_pnl: !hasValue(selectedStockDailyPnl.value),
+  }
+
+  return order
+    .filter((key) => !dropIfZero[key])
+    .map((key) => card[key]!)
 })
 
 const {
@@ -1454,16 +1514,21 @@ onMounted(async () => {
           <!-- Account summary stats -->
           <div class="mb-6 space-y-3">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div
+              <component
+                :is="stat.onSelect ? 'button' : 'div'"
                 v-for="stat in activeStockSummaryStats"
                 :key="stat.key"
-                class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border p-3.5"
+                :type="stat.onSelect ? 'button' : undefined"
+                class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border p-3.5 text-left w-full"
+                :class="stat.onSelect ? 'cursor-pointer hover:border-primary/60 transition-colors' : ''"
+                @click="stat.onSelect?.()"
               >
                 <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">{{ stat.label }}</p>
                 <p :class="['text-lg font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
                   {{ stat.value }}
                 </p>
-              </div>
+                <p v-if="stat.hint" class="mt-0.5 text-[10px] text-text-muted dark:text-text-dark-muted">{{ stat.hint }}</p>
+              </component>
             </div>
 
             <div v-if="stockSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">

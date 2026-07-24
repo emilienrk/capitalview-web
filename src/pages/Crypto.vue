@@ -1182,9 +1182,27 @@ const cryptoDailyPnlAverage = computed<number | null>(() => {
   return sum / dailyValues.length
 })
 
+const PNL_VIEWS = ['latent', 'realized', 'total'] as const
+const pnlView = ref<(typeof PNL_VIEWS)[number]>('latent')
+function cyclePnlView(): void {
+  const i = PNL_VIEWS.indexOf(pnlView.value)
+  pnlView.value = PNL_VIEWS[(i + 1) % PNL_VIEWS.length]!
+}
+
 const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
   const summary = crypto.currentAccount
   if (!summary) return []
+
+  const pct = (v: number | null) =>
+    v != null && Number(summary.total_invested) > 0
+      ? (Number(v) / Number(summary.total_invested)) * 100
+      : null
+  const pnlByView = {
+    latent: { label: 'P/L latent', perfLabel: 'Perf. latente', value: summary.profit_loss, pct: summary.profit_loss_percentage },
+    realized: { label: 'P/L réalisé', perfLabel: 'Perf. réalisée', value: summary.realized_profit_loss, pct: pct(summary.realized_profit_loss) },
+    total: { label: 'P/L total', perfLabel: 'Perf. totale', value: summary.total_profit_loss, pct: pct(summary.total_profit_loss) },
+  } as const
+  const pnl = pnlByView[pnlView.value]
 
   return [
     {
@@ -1199,15 +1217,19 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
     },
     {
       key: 'profit_loss',
-      label: 'P/L',
-      value: maskAmount(summary.profit_loss),
-      valueClass: profitLossClass(summary.profit_loss),
+      label: pnl.label,
+      value: maskAmount(pnl.value),
+      valueClass: profitLossClass(pnl.value),
+      hint: 'Appuyez pour changer',
+      onSelect: cyclePnlView,
     },
     {
       key: 'performance',
-      label: 'Performance',
-      value: formatPercent(summary.profit_loss_percentage),
-      valueClass: profitLossClass(summary.profit_loss_percentage),
+      label: pnl.perfLabel,
+      value: formatPercent(pnl.pct),
+      valueClass: profitLossClass(pnl.pct),
+      hint: 'Appuyez pour changer',
+      onSelect: cyclePnlView,
     },
     {
       key: 'daily_pnl',
@@ -1706,16 +1728,21 @@ onMounted(async () => {
         <!-- Summary Stats -->
         <div class="mb-6 space-y-3">
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div
+            <component
+              :is="stat.onSelect ? 'button' : 'div'"
               v-for="stat in activeCryptoSummaryStats"
               :key="stat.key"
-              class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4"
+              :type="stat.onSelect ? 'button' : undefined"
+              class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4 text-left w-full"
+              :class="stat.onSelect ? 'cursor-pointer hover:border-primary/60 transition-colors' : ''"
+              @click="stat.onSelect?.()"
             >
               <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">{{ stat.label }}</p>
               <p :class="['text-xl font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
                 {{ stat.value }}
               </p>
-            </div>
+              <p v-if="stat.hint" class="mt-1 text-[10px] text-text-muted dark:text-text-dark-muted">{{ stat.hint }}</p>
+            </component>
           </div>
 
           <div v-if="cryptoSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">
