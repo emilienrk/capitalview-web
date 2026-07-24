@@ -33,6 +33,9 @@ export const useStocksStore = defineStore('stocks', () => {
   const transactions = ref<TransactionResponse[]>([])
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const accountHistoryById = ref<Record<string, AccountHistorySnapshotResponse[]>>({})
+  // 'YYYY-MM-DD' dates closed on every held exchange (weekends + holidays), used
+  // to strip flat segments from the stock charts. Empty ⇒ no filtering.
+  const nonTradingDays = ref<Set<string>>(new Set())
   const isLoading = ref(false)
   const historyLoading = ref(false)
   const error = ref<string | null>(null)
@@ -215,6 +218,47 @@ export const useStocksStore = defineStore('stocks', () => {
     invalidateCachePrefix('stocks:history:account:')
   }
 
+  // Resolve the days closed on every held exchange over the current history span.
+  // Uses the union of the owned stocks' MIC codes; when none are known we leave
+  // the set empty so the charts are never filtered on uncertain data.
+  async function fetchNonTradingDays(): Promise<void> {
+    const dates = history.value
+      .map((h) => h.snapshot_date)
+      .filter((d): d is string => !!d)
+      .sort()
+    if (dates.length < 2) {
+      nonTradingDays.value = new Set()
+      return
+    }
+    const fromDate = dates[0]!
+    const toDate = dates[dates.length - 1]!
+
+    let mics: string[] = []
+    try {
+      const assets = await apiClient.get<Array<{ exchange?: string | null }>>(
+        '/market/assets?asset_type=STOCK',
+      )
+      mics = [...new Set(assets.map((a) => a.exchange).filter((e): e is string => !!e))]
+    } catch {
+      mics = []
+    }
+    if (!mics.length) {
+      nonTradingDays.value = new Set()
+      return
+    }
+
+    const params = new URLSearchParams({ from_date: fromDate, to_date: toDate })
+    for (const mic of mics) params.append('mic', mic)
+    try {
+      const res = await apiClient.get<{ days: string[] }>(
+        `/market/non-trading-days?${params.toString()}`,
+      )
+      nonTradingDays.value = new Set(res.days)
+    } catch {
+      nonTradingDays.value = new Set()
+    }
+  }
+
   async function createTransaction(data: StockTransactionCreate): Promise<StockTransactionBasicResponse | null> {
     isLoading.value = true
     error.value = null
@@ -294,6 +338,7 @@ export const useStocksStore = defineStore('stocks', () => {
     transactions.value = []
     history.value = []
     accountHistoryById.value = {}
+    nonTradingDays.value = new Set()
     invalidateHistoryCache()
     error.value = null
   }
@@ -304,6 +349,7 @@ export const useStocksStore = defineStore('stocks', () => {
     transactions,
     history,
     accountHistoryById,
+    nonTradingDays,
     isLoading,
     historyLoading,
     error,
@@ -318,6 +364,7 @@ export const useStocksStore = defineStore('stocks', () => {
     fetchAccountTransactions,
     fetchHistory,
     fetchHistoryForAccount,
+    fetchNonTradingDays,
     invalidateHistoryCache,
     isAccountHistoryCacheValid,
     createTransaction,

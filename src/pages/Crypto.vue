@@ -1220,7 +1220,6 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       label: pnl.label,
       value: maskAmount(pnl.value),
       valueClass: profitLossClass(pnl.value),
-      hint: 'Appuyez pour changer',
       onSelect: cyclePnlView,
     },
     {
@@ -1228,7 +1227,6 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       label: pnl.perfLabel,
       value: formatPercent(pnl.pct),
       valueClass: profitLossClass(pnl.pct),
-      hint: 'Appuyez pour changer',
       onSelect: cyclePnlView,
     },
     {
@@ -1741,7 +1739,6 @@ onMounted(async () => {
               <p :class="['text-xl font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
                 {{ stat.value }}
               </p>
-              <p v-if="stat.hint" class="mt-1 text-[10px] text-text-muted dark:text-text-dark-muted">{{ stat.hint }}</p>
             </component>
           </div>
 
@@ -1849,7 +1846,6 @@ onMounted(async () => {
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
                     <RefreshCw class="w-4 h-4" />
                   </BaseButton>
-                  <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                 </template>
               </HistoryLineChart>
             </template>
@@ -1867,7 +1863,6 @@ onMounted(async () => {
                 :is-dark="isDark"
                 :granularity="historyGranularity"
                 show-performance
-                absolute-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>

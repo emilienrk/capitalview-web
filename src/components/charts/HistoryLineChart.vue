@@ -21,9 +21,6 @@ const props = defineProps<{
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   hideControls?: boolean
   showPerformance?: boolean
-  // For P/L series (cumulative P/L): a percentage relative to the window's first
-  // point is meaningless (the line crosses zero). Show only the € change instead.
-  absolutePerformance?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -420,8 +417,10 @@ const visiblePerformance = computed(() => {
   if (startVal == null || endVal == null) return null
 
   const diff = endVal - startVal
-  if (props.absolutePerformance) return { diff, percent: null }
-  if (startVal === 0) return null
+  // Percentage relative to the window's first point. For a cumulative-P/L curve
+  // that starts near zero the ratio explodes (and can flip sign), so guard it:
+  // below 1 € of starting value we show only the € change, no percentage.
+  if (Math.abs(startVal) < 1) return { diff, percent: null }
   const percent = (diff / Math.abs(startVal)) * 100
 
   return { diff, percent }

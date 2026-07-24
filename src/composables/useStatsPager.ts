@@ -5,7 +5,6 @@ export interface SummaryStatItem {
   label: string
   value: string
   valueClass?: string
-  hint?: string
   /** When set, the stat card is a button that cycles through views on click. */
   onSelect?: () => void
 }

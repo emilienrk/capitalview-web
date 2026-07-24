@@ -409,7 +409,6 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
       label: pnl.label,
       value: maskValue(formatCurrency(pnl.value)),
       valueClass: profitLossClass(pnl.value),
-      hint: 'Appuyez pour changer',
       onSelect: cyclePnlView,
     },
     performance: {
@@ -417,7 +416,6 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
       label: pnl.perfLabel,
       value: formatPercent(pnl.pct),
       valueClass: profitLossClass(pnl.pct),
-      hint: 'Appuyez pour changer',
       onSelect: cyclePnlView,
     },
     dividends: {
@@ -480,9 +478,19 @@ const {
   resetPage: resetStockSummaryStatsPage,
 } = useStatsPager(stockSummaryStats)
 
+// Drop weekends/holidays (days closed on every held exchange) from stock charts.
+// Empty set ⇒ no filtering (e.g. before non-trading days are resolved).
+function stripNonTradingDays<T extends { snapshot_date: string }>(list: T[]): T[] {
+  const closed = stocks.nonTradingDays
+  if (!closed.size) return list
+  return list.filter((point) => !closed.has(point.snapshot_date))
+}
+
 const historyForGranularity = computed<AccountHistorySnapshotResponse[]>(() => {
-  return [...(stocks.history ?? [])].sort(
-    (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
+  return stripNonTradingDays(
+    [...(stocks.history ?? [])].sort(
+      (a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime(),
+    ),
   )
 })
 
@@ -586,11 +594,11 @@ const allocationSegments = computed(() => {
 })
 
 const stockChartSeries = computed(() => {
-  const totalHistory = applyGranularity(stocks.history)
+  const totalHistory = applyGranularity(stripNonTradingDays(stocks.history))
   const accountSeries = (stocks.accounts ?? [])
     .map((account) => ({
       name: account.name,
-      history: applyGranularity(stocks.accountHistoryById[account.id] ?? []),
+      history: applyGranularity(stripNonTradingDays(stocks.accountHistoryById[account.id] ?? [])),
     }))
     .filter((series) => series.history.length > 0)
 
@@ -607,6 +615,8 @@ async function loadStockChartHistories(force = false): Promise<void> {
     stocks.fetchHistory(force),
     ...stocks.accounts.map((account) => stocks.fetchHistoryForAccount(account.id, force)),
   ])
+  // Resolve trading days once history bounds are known (depends on global history).
+  await stocks.fetchNonTradingDays()
 }
 
 /**
@@ -620,6 +630,7 @@ async function reloadChartsAfterMutation(accountId?: string | null): Promise<voi
     stocks.fetchHistory(true),
     ...(accountId ? [stocks.fetchHistoryForAccount(accountId, true)] : []),
   ])
+  await stocks.fetchNonTradingDays()
 }
 
 const modalPositions = ref<PositionResponse[]>([])
@@ -1410,7 +1421,6 @@ onMounted(async () => {
               <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
                 <RefreshCw class="w-4 h-4" />
               </BaseButton>
-              <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </template>
           </HistoryLineChart>
         </template>
@@ -1428,7 +1438,6 @@ onMounted(async () => {
             :is-dark="isDark"
             :granularity="historyGranularity"
             show-performance
-            absolute-performance
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
@@ -1527,7 +1536,6 @@ onMounted(async () => {
                 <p :class="['text-lg font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
                   {{ stat.value }}
                 </p>
-                <p v-if="stat.hint" class="mt-0.5 text-[10px] text-text-muted dark:text-text-dark-muted">{{ stat.hint }}</p>
               </component>
             </div>
 
