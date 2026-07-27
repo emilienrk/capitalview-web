@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight, Camera } from 'lucide-vue-next'
+import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight, Camera, BarChart3 } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
@@ -22,6 +22,7 @@ import {
   BaseSpinner, BaseAutocomplete,
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
+import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
@@ -33,7 +34,7 @@ const stocks = useStocksStore()
 const bank = useBankStore()
 const { formatCurrency, formatPercent, formatNumber, formatDate, formatDateShort, profitLossClass } = useFormatters()
 const { effectiveTimezoneLabel } = useDisplayTimezone()
-const { displayCurrency, usdToEurRate, fetchRate } = useCurrencyToggle()
+const { displayCurrency, usdToEurRate, fetchRate } = useCurrencyToggle('stock')
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
@@ -960,6 +961,16 @@ async function handlePlatformImported(): Promise<void> {
   }
 }
 
+const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
+  { key: 'csv', label: 'CSV générique', icon: BarChart3 },
+  { key: 'platform', label: 'Plateformes / courtiers', icon: Upload },
+]
+
+function onImportMenuSelect(key: string): void {
+  if (key === 'csv') openCsvImport()
+  else if (key === 'platform') openPlatformImport()
+}
+
 function openPhotoImport(accountId: string): void {
   photoImportAccountId.value = accountId
   showPhotoImportModal.value = true
@@ -1309,12 +1320,12 @@ onMounted(async () => {
         <BaseButton size="sm" variant="outline" @click="openDeposit()" :disabled="!stocks.accounts.length">
           <Banknote class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Déposer</span>
         </BaseButton>
-        <BaseButton size="sm" variant="outline" @click="openCsvImport()" :disabled="!stocks.accounts.length">
-          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
-        </BaseButton>
-        <BaseButton size="sm" variant="outline" @click="openPlatformImport()" :disabled="!stocks.accounts.length">
-          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Courtiers</span>
-        </BaseButton>
+        <ImportMenu
+          size="sm"
+          :items="IMPORT_MENU_ITEMS"
+          :disabled="!stocks.accounts.length"
+          @select="onImportMenuSelect"
+        />
         <BaseAddButton size="sm" @click="openCreateAccount">Nouveau compte</BaseAddButton>
       </template>
     </PageHeader>

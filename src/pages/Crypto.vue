@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, ArrowLeftRight, BarChart3, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
+import { AlertCircle, ArrowLeftRight, BarChart3, Camera, Check, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
@@ -23,6 +23,7 @@ import {
 } from '@/components'
 import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
+import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
@@ -52,7 +53,7 @@ const crypto = useCryptoStore()
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
 const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass } = useFormatters()
-const { fetchRate, displayCurrency, usdToEurRate, toggleCurrency } = useCurrencyToggle()
+const { fetchRate, displayCurrency, usdToEurRate, toggleCurrency } = useCurrencyToggle('crypto')
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
@@ -113,9 +114,6 @@ const csvImportAccountId = ref<string | null>(null)
 const showMobilePnlLabels = ref(false)
 const binanceImportAccountId = ref<string | null>(null)
 const photoImportAccountId = ref<string | null>(null)
-// Import dropdown state: SINGLE mode (boolean) and MULTI mode (account id)
-const showImportDropdown = ref(false)
-const importDropdownAccountId = ref<string | null>(null)
 const selectedAccountId = ref<string | null>(null)
 const transferToAccountId = ref<string>('')
 const accountTransactions = ref<TransactionResponse[]>([])
@@ -706,6 +704,18 @@ async function handlePlatformImported(): Promise<void> {
     crypto.fetchTransactions()
     void reloadChartsAfterMutation(platformImportAccountId.value)
   }
+}
+
+const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
+  { key: 'csv', label: 'CSV générique', icon: BarChart3 },
+  { key: 'binance', label: 'Binance CSV', icon: Circle },
+  { key: 'platform', label: 'Autres plateformes', icon: Upload },
+]
+
+function onImportMenuSelect(key: string, accountId?: string): void {
+  if (key === 'csv') openCsvImport(accountId)
+  else if (key === 'binance') openBinanceImport(accountId)
+  else if (key === 'platform') openPlatformImport(accountId)
 }
 
 async function handleCsvImport(transactions: CryptoCompositeBulkItem[]): Promise<boolean> {
@@ -1632,75 +1642,20 @@ onMounted(async () => {
         </BaseButton>
         <!-- SINGLE mode: actions directly in header (no account management) -->
         <template v-if="isSingleMode && selectedAccountId">
-          <!-- Import dropdown -->
-          <div class="relative">
-            <BaseButton variant="outline" size="sm" @click.stop="showImportDropdown = !showImportDropdown">
-              <Upload class="w-4 h-4" />
-              <span class="hidden sm:inline">Importer</span>
-              <ChevronDown class="w-3 h-3 ml-1" />
-            </BaseButton>
-            <!-- Overlay to close on outside click -->
-            <div v-if="showImportDropdown" class="fixed inset-0 z-40" @click="showImportDropdown = false" />
-            <!-- Dropdown menu -->
-            <div v-if="showImportDropdown" class="absolute right-0 top-full mt-1 z-50 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-primary shadow-card min-w-45 overflow-hidden">
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openCsvImport(selectedAccountId!); showImportDropdown = false"
-              >
-                <BarChart3 class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                CSV générique
-              </button>
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openBinanceImport(selectedAccountId!); showImportDropdown = false"
-              >
-                <Circle class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                Binance CSV
-              </button>
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openPlatformImport(selectedAccountId!); showImportDropdown = false"
-              >
-                <Upload class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                Autres plateformes
-              </button>
-            </div>
-          </div>
+          <ImportMenu
+            size="sm"
+            :items="IMPORT_MENU_ITEMS"
+            @select="key => onImportMenuSelect(key, selectedAccountId!)"
+          />
           <BaseAddButton size="sm" @click="openAddTransaction(selectedAccountId!)">transaction</BaseAddButton>
         </template>
         <!-- MULTI mode: import + account creation -->
         <template v-else-if="!isSingleMode">
-          <div class="relative" v-if="crypto.accounts.length">
-            <BaseButton variant="outline" @click.stop="showImportDropdown = !showImportDropdown">
-              <Upload class="w-5 h-5" />
-              <span class="hidden sm:inline">Importer</span>
-              <ChevronDown class="w-3 h-3 ml-1" />
-            </BaseButton>
-            <div v-if="showImportDropdown" class="fixed inset-0 z-40" @click="showImportDropdown = false" />
-            <div v-if="showImportDropdown" class="absolute right-0 top-full mt-1 z-50 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-primary shadow-card min-w-45 overflow-hidden">
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openCsvImport(); showImportDropdown = false"
-              >
-                <BarChart3 class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                CSV générique
-              </button>
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openBinanceImport(); showImportDropdown = false"
-              >
-                <Circle class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                Binance CSV
-              </button>
-              <button
-                class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-                @click.stop="openPlatformImport(); showImportDropdown = false"
-              >
-                <Upload class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-                Autres plateformes
-              </button>
-            </div>
-          </div>
+          <ImportMenu
+            v-if="crypto.accounts.length"
+            :items="IMPORT_MENU_ITEMS"
+            @select="key => onImportMenuSelect(key)"
+          />
           <BaseAddButton size="sm" @click="openCreateAccount">Nouveau portefeuille</BaseAddButton>
         </template>
       </template>

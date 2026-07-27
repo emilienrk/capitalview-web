@@ -1,21 +1,50 @@
 /**
- * Composable for toggling crypto display currency between USD and EUR.
+ * Composable for toggling display currency between USD and EUR.
  *
  * Crypto data is stored/fetched in USD. This composable provides a reactive
  * toggle and a conversion helper so the UI can optionally display values in EUR.
+ *
+ * The choice is scoped per page: "USD" means dollars on Crypto but "native
+ * currency" on Stock, so a native-currency choice on Stock must not drag Crypto
+ * into dollars. The USD→EUR rate itself stays shared — it is the same rate, and
+ * a shared TTL avoids fetching it twice.
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch, type Ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { useFormatters } from '@/composables/useFormatters'
 
 export type DisplayCurrency = 'USD' | 'EUR'
 
+/** Pages holding an independent currency preference. */
+export type CurrencyScope = 'crypto' | 'stock'
+
+export const DEFAULT_DISPLAY_CURRENCY: DisplayCurrency = 'EUR'
+
+const STORAGE_KEY_PREFIX = 'capitalview:display-currency'
+
 /** Fallback rate – mirrored from backend services/exchange_rate.py _FALLBACK_USD_EUR */
 const DEFAULT_USD_EUR_RATE = 0.92
 
-// Singleton state shared across all component instances
-const displayCurrency = ref<DisplayCurrency>('USD')
+const storage: Storage | null = typeof localStorage === 'undefined' ? null : localStorage
+
+function readStored(scope: CurrencyScope): DisplayCurrency {
+  const value = storage?.getItem(`${STORAGE_KEY_PREFIX}:${scope}`)
+  return value === 'USD' || value === 'EUR' ? value : DEFAULT_DISPLAY_CURRENCY
+}
+
+// Singleton state shared across all component instances, one ref per scope
+const currencyByScope: Record<CurrencyScope, Ref<DisplayCurrency>> = {
+  crypto: ref<DisplayCurrency>(readStored('crypto')),
+  stock: ref<DisplayCurrency>(readStored('stock')),
+}
+
+// Persist through a watcher rather than the setters: Stock binds the ref
+// directly with v-model, which never goes through setCurrency/toggleCurrency.
+for (const [scope, currency] of Object.entries(currencyByScope)) {
+  watch(currency, (value) => storage?.setItem(`${STORAGE_KEY_PREFIX}:${scope}`, value))
+}
+
 const usdToEurRate = ref<number>(DEFAULT_USD_EUR_RATE)
 const rateLoading = ref(false)
 
@@ -49,8 +78,9 @@ async function fetchRate(): Promise<void> {
 
 type NumericValue = number | string | null | undefined
 
-export function useCurrencyToggle() {
+export function useCurrencyToggle(scope: CurrencyScope = 'crypto') {
   const { formatCurrency } = useFormatters()
+  const displayCurrency = currencyByScope[scope]
 
   /** Convert a USD value to the currently selected display currency. */
   function convertFromUsd(value: NumericValue): number | null {
