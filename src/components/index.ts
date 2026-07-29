@@ -14,6 +14,7 @@ export { default as BaseSkeleton } from './base/BaseSkeleton.vue'
 export { default as BaseSpinner } from './base/BaseSpinner.vue'
 export { default as BaseStatCard } from './base/BaseStatCard.vue'
 export { default as BaseTextarea } from './base/BaseTextarea.vue'
+export { default as BaseToggle } from './base/BaseToggle.vue'
 
 export { default as AssetValueHistoryChart } from './charts/AssetValueHistoryChart.vue'
 export { default as ChartPerformanceBadge } from './charts/ChartPerformanceBadge.vue'

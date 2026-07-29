@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
-import { BaseCard, BaseButton, BaseAlert, BaseSkeleton } from '@/components'
+import { BaseCard, BaseButton, BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig } from '@/types'
 
 const settingsStore = useSettingsStore()
@@ -205,21 +205,11 @@ const allProviders = computed(() => {
               </p>
             </div>
           </div>
-          <button
-            @click="toggleAiFeature"
-            :class="[
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0',
-              isAiEnabled ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border',
-            ]"
-            :aria-pressed="isAiEnabled"
-          >
-            <span
-              :class="[
-                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
-                isAiEnabled ? 'translate-x-6' : 'translate-x-1',
-              ]"
-            />
-          </button>
+          <BaseToggle
+            :model-value="isAiEnabled"
+            aria-label="Activer les fonctionnalités IA"
+            @update:model-value="toggleAiFeature"
+          />
         </div>
       </template>
     </BaseCard>

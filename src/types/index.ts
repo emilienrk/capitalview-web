@@ -147,6 +147,7 @@ export interface CashflowCreate {
   frequency: Frequency
   transaction_date: string
   bank_account_id?: string
+  is_active?: boolean
 }
 
 export interface CashflowUpdate {
@@ -157,6 +158,7 @@ export interface CashflowUpdate {
   frequency?: Frequency
   transaction_date?: string
   bank_account_id?: string
+  is_active?: boolean
 }
 
 export interface CashflowResponse {
@@ -171,6 +173,8 @@ export interface CashflowResponse {
   created_at: string
   updated_at: string
   bank_account_id: string | null
+  /** false = excluded from the automatic bank balance sync */
+  is_active: boolean
 }
 
 export interface CashflowCategoryResponse {
@@ -561,6 +565,8 @@ export interface ImportSourceInfo {
   category: ImportCategory
   file_hint: string
   supports_mapping: boolean
+  /** Downloadable CSV skeleton, when the source documents one. */
+  template_csv: string | null
 }
 
 export interface ImportSourcesResponse {
@@ -801,6 +807,7 @@ export interface UserSettingsUpdate {
   crypto_mode?: 'SINGLE' | 'MULTI'
   crypto_show_negative_positions?: boolean
   bank_module_enabled?: boolean
+  bank_auto_sync_enabled?: boolean
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
@@ -825,6 +832,7 @@ export interface UserSettingsResponse {
   crypto_mode: 'SINGLE' | 'MULTI'
   crypto_show_negative_positions: boolean
   bank_module_enabled: boolean
+  bank_auto_sync_enabled: boolean
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean

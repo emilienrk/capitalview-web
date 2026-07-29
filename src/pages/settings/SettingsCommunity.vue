@@ -4,7 +4,7 @@ import { List, Lock, User } from 'lucide-vue-next'
 import { onMounted, ref, computed } from 'vue'
 import { useCommunityStore } from '@/stores/community'
 import { useAuthStore } from '@/stores/auth'
-import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea } from '@/components'
+import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
 
 const communityStore = useCommunityStore()
 const auth = useAuthStore()
@@ -136,22 +136,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                 Votre profil sera visible par les utilisateurs connectés
               </p>
             </div>
-            <button
-              type="button"
-              @click="communityActive = !communityActive"
-              :class="[
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0',
-                communityActive ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border',
-              ]"
-              :aria-pressed="communityActive"
-            >
-              <span
-                :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
-                  communityActive ? 'translate-x-6' : 'translate-x-1',
-                ]"
-              />
-            </button>
+            <BaseToggle v-model="communityActive" aria-label="Rejoindre la communauté" />
           </div>
 
           <!-- Privacy toggle (shown when active) -->
@@ -173,22 +158,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                   Votre profil n'apparaîtra que si on recherche votre pseudo exact. Vos positions ne seront visibles qu'aux abonnés mutuels.
                 </p>
               </div>
-              <button
-                type="button"
-                @click="isPrivate = !isPrivate"
-                :class="[
-                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0',
-                  isPrivate ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border',
-                ]"
-                :aria-pressed="isPrivate"
-              >
-                <span
-                  :class="[
-                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
-                    isPrivate ? 'translate-x-6' : 'translate-x-1',
-                  ]"
-                />
-              </button>
+              <BaseToggle v-model="isPrivate" aria-label="Profil privé" />
             </div>
           </Transition>
 
