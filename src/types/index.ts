@@ -1131,3 +1131,34 @@ export interface AccountHistorySnapshotResponse {
     percentage: number
   }[] | null
 }
+
+// ── Analytics ────────────────────────────────────────────────
+export type Reliability = 'solide' | 'indicatif' | 'insuffisant'
+
+export interface MetricOut {
+  value: number | string | null
+  unit: string
+  sample_size: number
+  reliability: Reliability
+  caveat: string | null
+}
+
+export interface InvestorGapResponse {
+  twr: MetricOut
+  twr_annualised: MetricOut
+  benchmark_annualised: MetricOut
+  mwr: MetricOut
+  gap: MetricOut
+  gap_eur: MetricOut
+  average_capital: number | string
+  auto_provision_share: number | string
+  verdict: string
+}
+
+export interface InvestorAnalyticsResponse {
+  period_start: string | null
+  period_end: string | null
+  days: number
+  benchmark_asset_key: string
+  investor_gap: InvestorGapResponse | null
+}
