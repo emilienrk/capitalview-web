@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { BarChart3, Wallet } from 'lucide-vue-next'
+import { BarChart3, RefreshCw, Wallet } from 'lucide-vue-next'
 
 import { onMounted, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea } from '@/components'
+import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
 
 const settingsStore = useSettingsStore()
 
@@ -16,6 +16,7 @@ const isSaving = ref(false)
 const saveSuccess = ref(false)
 const isSavingObjectives = ref(false)
 const saveObjectivesSuccess = ref(false)
+const bankAutoSync = ref(true)
 
 onMounted(() => {
   if (settingsStore.settings) {
@@ -24,8 +25,14 @@ onMounted(() => {
     yieldExpectation.value = +(settingsStore.settings.yield_expectation * 100).toFixed(2)
     inflationRate.value = +(settingsStore.settings.inflation_rate * 100).toFixed(2)
     objectives.value = settingsStore.settings.objectives ?? ''
+    bankAutoSync.value = settingsStore.settings.bank_auto_sync_enabled
   }
 })
+
+async function saveBankAutoSync(value: boolean): Promise<void> {
+  bankAutoSync.value = value
+  await settingsStore.updateSettings({ bank_auto_sync_enabled: value })
+}
 
 async function saveFinancialSettings(): Promise<void> {
   isSaving.value = true
@@ -98,6 +105,32 @@ async function saveObjectives(): Promise<void> {
           </div>
         </form>
       </template>
+    </BaseCard>
+
+    <!-- Bank sync -->
+    <BaseCard>
+      <template #header>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
+            <RefreshCw class="w-4 h-4 text-primary" stroke-width="2" />
+          </div>
+          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Synchronisation bancaire</h3>
+        </div>
+      </template>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="font-medium text-text-main dark:text-text-dark-main">Appliquer les flux aux soldes bancaires</p>
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Chaque revenu ou dépense lié à un compte ajuste automatiquement son solde à échéance.
+            Désactivé, les soldes ne bougent plus et les échéances passées ne sont pas rattrapées.
+          </p>
+        </div>
+        <BaseToggle
+          :model-value="bankAutoSync"
+          aria-label="Appliquer les flux aux soldes bancaires"
+          @update:model-value="saveBankAutoSync"
+        />
+      </div>
     </BaseCard>
 
     <!-- Objectives -->

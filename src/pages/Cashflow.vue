@@ -11,7 +11,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete,
+  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle,
 } from '@/components'
 import type { CashflowCreate, CashflowResponse, FlowType, Frequency } from '@/types'
 
@@ -52,6 +52,16 @@ const bankAccountOptions = computed(() => [
       value: a.id,
     })),
 ])
+
+const bankAccountNameById = computed(() => {
+  const map: Record<string, string> = {}
+  for (const account of bank.summary?.accounts ?? []) map[account.id] = account.name
+  return map
+})
+
+async function toggleActive(item: CashflowResponse, value: boolean): Promise<void> {
+  await cashflow.updateCashflow(item.id, { is_active: value })
+}
 
 const existingCategories = computed(() => {
   const categories = new Set(cashflow.cashflows.map(c => c.category))
@@ -555,6 +565,7 @@ onMounted(async () => {
               <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Catégorie</th>
               <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Type</th>
               <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Fréquence</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte lié</th>
               <th class="text-right px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
               <th class="text-right px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Mensuel</th>
               <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Date</th>
@@ -565,7 +576,10 @@ onMounted(async () => {
             <tr
               v-for="item in filteredCashflows"
               :key="item.id"
-              class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+              :class="[
+                'hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors',
+                item.is_active ? '' : 'opacity-60',
+              ]"
             >
               <td class="px-6 py-4">
                 <span class="text-sm font-medium text-text-main dark:text-text-dark-main">{{ item.name }}</span>
@@ -580,6 +594,12 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4">
                 <span class="text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
+              </td>
+              <td class="px-6 py-4">
+                <BaseBadge v-if="item.bank_account_id" variant="secondary">
+                  {{ bankAccountNameById[item.bank_account_id] ?? 'Compte supprimé' }}
+                </BaseBadge>
+                <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">—</span>
               </td>
               <td class="px-6 py-4 text-right">
                 <span :class="['text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
@@ -596,6 +616,12 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end gap-1">
+                  <BaseToggle
+                    v-if="item.bank_account_id"
+                    :model-value="item.is_active"
+                    :aria-label="`Synchroniser ${item.name} avec le compte bancaire`"
+                    @update:model-value="toggleActive(item, $event)"
+                  />
                   <BaseButton size="sm" variant="ghost" @click="openEdit(item)">
                     <Pencil class="w-4 h-4" />
                   </BaseButton>
