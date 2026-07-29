@@ -3,7 +3,7 @@ import { Database, LayoutGrid } from 'lucide-vue-next'
 
 import { onMounted, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseCard, BaseButton, BaseAlert, BaseSkeleton } from '@/components'
+import { BaseCard, BaseButton, BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
 
 const settingsStore = useSettingsStore()
 
@@ -103,9 +103,7 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Compte Bancaire</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche la gestion des comptes bancaires</p>
             </div>
-            <button type="button" @click="bankModuleEnabled = !bankModuleEnabled" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0', bankModuleEnabled ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border']" :aria-pressed="bankModuleEnabled">
-              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm', bankModuleEnabled ? 'translate-x-6' : 'translate-x-1']" />
-            </button>
+            <BaseToggle v-model="bankModuleEnabled" aria-label="Activer le module Banque" />
           </div>
 
           <!-- Cashflow -->
@@ -114,9 +112,7 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Cashflow</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche le suivi des flux de trésorerie</p>
             </div>
-            <button type="button" @click="cashflowModuleEnabled = !cashflowModuleEnabled" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0', cashflowModuleEnabled ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border']" :aria-pressed="cashflowModuleEnabled">
-              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm', cashflowModuleEnabled ? 'translate-x-6' : 'translate-x-1']" />
-            </button>
+            <BaseToggle v-model="cashflowModuleEnabled" aria-label="Activer le module Flux de trésorerie" />
           </div>
 
           <!-- Patrimoine -->
@@ -125,9 +121,7 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Patrimoine</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche la gestion du patrimoine</p>
             </div>
-            <button type="button" @click="wealthModuleEnabled = !wealthModuleEnabled" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0', wealthModuleEnabled ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border']" :aria-pressed="wealthModuleEnabled">
-              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm', wealthModuleEnabled ? 'translate-x-6' : 'translate-x-1']" />
-            </button>
+            <BaseToggle v-model="wealthModuleEnabled" aria-label="Activer le module Patrimoine" />
           </div>
 
           <div class="flex items-center justify-between pt-2">
@@ -166,9 +160,7 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Activer le module Crypto</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche l'entrée Crypto dans la navigation</p>
             </div>
-            <button type="button" @click="cryptoModuleEnabled = !cryptoModuleEnabled" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors', cryptoModuleEnabled ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border']" :aria-pressed="cryptoModuleEnabled">
-              <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm', cryptoModuleEnabled ? 'translate-x-6' : 'translate-x-1']" />
-            </button>
+            <BaseToggle v-model="cryptoModuleEnabled" aria-label="Activer le module Crypto" />
           </div>
 
           <!-- Crypto sub-settings (only when enabled) -->
@@ -213,9 +205,7 @@ async function saveCryptoSettings(): Promise<void> {
                     <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
                     <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
                   </div>
-                  <button type="button" @click="cryptoShowNegativePositions = !cryptoShowNegativePositions" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors', cryptoShowNegativePositions ? 'bg-primary' : 'bg-surface-border dark:bg-surface-dark-border']" :aria-pressed="cryptoShowNegativePositions">
-                    <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm', cryptoShowNegativePositions ? 'translate-x-6' : 'translate-x-1']" />
-                  </button>
+                  <BaseToggle v-model="cryptoShowNegativePositions" aria-label="Afficher les positions négatives" />
                 </div>
               </div>
             </div>

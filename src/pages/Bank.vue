@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Pencil, RefreshCw, Upload } from 'lucide-vue-next'
+import { FileSpreadsheet, Pencil, RefreshCw, Upload } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed } from 'vue'
 import { useBankStore } from '@/stores/bank'
+import { useSettingsStore } from '@/stores/settings'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
@@ -14,21 +15,22 @@ import {
   BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
   ChartPerformanceBadge,
 } from '@/components'
-import BankHistoryImportModal from '@/components/imports/BankHistoryImportModal.vue'
+import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import type { BankAccountCreate, BankAccountType } from '@/types'
 
 const bank = useBankStore()
+const settingsStore = useSettingsStore()
 const { formatCurrency, formatDate, formatAccountType } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
 
 const showCreateModal = ref(false)
-const showHistoryImportModal = ref(false)
 const showPlatformImportModal = ref(false)
 const platformImportAccountId = ref('')
+const importSourceId = ref('')
 const editingId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
 
@@ -84,9 +86,14 @@ async function loadChartHistories(force = false): Promise<void> {
   await Promise.all(accounts.map((account) => bank.fetchHistoryForAccount(account.id, force)))
 }
 
-async function handleHistoryImported(): Promise<void> {
-  showHistoryImportModal.value = false
-  await loadChartHistories(true)
+const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
+  { key: 'native_bank', label: 'Format CapitalView', icon: FileSpreadsheet },
+  { key: 'generic_bank', label: 'Relevé bancaire', icon: Upload },
+]
+
+function onImportMenuSelect(key: string): void {
+  importSourceId.value = key
+  showPlatformImportModal.value = true
 }
 
 async function handlePlatformImported(): Promise<void> {
@@ -163,12 +170,11 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
   <div>
     <PageHeader title="Comptes Bancaires" description="Gérez vos comptes courants et d'épargne">
       <template #actions>
-        <BaseButton variant="outline" @click="showHistoryImportModal = true" :disabled="!bank.summary?.accounts?.length">
-          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Importer</span>
-        </BaseButton>
-        <BaseButton variant="outline" @click="showPlatformImportModal = true" :disabled="!bank.summary?.accounts?.length">
-          <Upload class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Relevé</span>
-        </BaseButton>
+        <ImportMenu
+          :items="IMPORT_MENU_ITEMS"
+          :disabled="!bank.summary?.accounts?.length"
+          @select="onImportMenuSelect"
+        />
         <BaseAddButton @click="openCreate">Nouveau compte</BaseAddButton>
       </template>
     </PageHeader>
@@ -176,6 +182,10 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
     <!-- Error -->
     <BaseAlert v-if="bank.error" variant="danger" dismissible @dismiss="bank.error = null" class="mb-6">
       {{ bank.error }}
+    </BaseAlert>
+
+    <BaseAlert v-if="settingsStore.settings && !settingsStore.settings.bank_auto_sync_enabled" variant="info" class="mb-6">
+      Synchronisation automatique désactivée : les flux liés n'ajustent plus les soldes.
     </BaseAlert>
 
     <!-- Total balance -->
@@ -270,21 +280,13 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
       @action="openCreate"
     />
 
-    <!-- History Import Modal -->
-    <BankHistoryImportModal
-      v-if="bank.summary?.accounts?.length"
-      :open="showHistoryImportModal"
-      :accounts="bank.summary.accounts"
-      @close="showHistoryImportModal = false"
-      @imported="handleHistoryImported"
-    />
-
     <!-- Platform Import Modal (unified, multi-source) -->
     <PlatformImportModal
       v-if="bank.summary?.accounts?.length"
       :open="showPlatformImportModal"
       category="bank"
       :accounts="bank.summary.accounts"
+      :initial-source-id="importSourceId"
       v-model:accountId="platformImportAccountId"
       @close="showPlatformImportModal = false"
       @imported="handlePlatformImported"
