@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Upload, Wand2 } from 'lucide-vue-next'
+import { Download, Upload, Wand2 } from 'lucide-vue-next'
 import { ref, reactive, computed, watch } from 'vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -22,6 +22,7 @@ interface Props {
   category: ImportCategory
   accounts: { id: string; name: string }[]
   accountId?: string
+  initialSourceId?: string
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -82,7 +83,9 @@ watch(() => props.open, async (open) => {
   reset()
   try {
     sources.value = await imports.sourcesFor(props.category)
-    if (sources.value.length && !selectedSourceId.value) {
+    if (props.initialSourceId && sources.value.some((s) => s.source_id === props.initialSourceId)) {
+      selectedSourceId.value = props.initialSourceId
+    } else if (sources.value.length && !selectedSourceId.value) {
       // default to first non-generic source
       selectedSourceId.value = (sources.value.find((s) => !s.supports_mapping) ?? sources.value[0]!).source_id
     }
@@ -253,6 +256,17 @@ function handleClose() {
   emit('close')
 }
 
+function downloadTemplate() {
+  const template = selectedSource.value?.template_csv
+  if (!template) return
+  const url = URL.createObjectURL(new Blob([template], { type: 'text/csv' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `modele_${selectedSource.value!.source_id}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // ── Display helpers ──────────────────────────────────────────
 function fmtDate(iso: string): string {
   try {
@@ -292,7 +306,18 @@ function typeBadgeClass(t: string): string {
 
         <!-- Source -->
         <div>
-          <label class="block text-sm font-medium text-text-main dark:text-text-dark-main mb-1">Plateforme / format</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Plateforme / format</label>
+            <button
+              v-if="selectedSource?.template_csv"
+              type="button"
+              class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+              @click="downloadTemplate"
+            >
+              <Download class="w-3.5 h-3.5" />
+              Modèle
+            </button>
+          </div>
           <select v-model="selectedSourceId" class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
             <option v-for="s in sources" :key="s.source_id" :value="s.source_id">
               {{ s.label }}{{ s.source_id === detectedSourceId ? ' — détecté' : '' }}
