@@ -33,14 +33,24 @@ describe('useAnalysisStore', () => {
     expect(store.error).toBeNull()
   })
 
-  it('surfaces the error message and leaves data untouched', async () => {
+  it('keeps the previously loaded data when a forced refresh fails', async () => {
     const { apiClient } = await import('@/api/client')
-    vi.mocked(apiClient.get).mockRejectedValue(new Error('boom'))
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      period_start: '2026-01-01',
+      period_end: '2026-07-29',
+      days: 210,
+      benchmark_asset_key: 'IE00B4L5Y983',
+      investor_gap: null,
+    })
 
     const store = useAnalysisStore()
     await store.fetchAnalytics()
+    expect(store.data?.days).toBe(210)
 
-    expect(store.data).toBeNull()
+    vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('boom'))
+    await store.fetchAnalytics(true)
+
+    expect(store.data?.days).toBe(210)
     expect(store.error).toBe('boom')
     expect(store.isLoading).toBe(false)
   })
