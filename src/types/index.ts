@@ -1199,12 +1199,84 @@ export interface ExecutionResponse {
   verdict: string
 }
 
+export interface MonthlyAmountOut {
+  year: number
+  month: number
+  amount: number | string
+}
+
+export interface RegularityResponse {
+  monthly: MonthlyAmountOut[]
+  months_total: number
+  months_invested: number
+  purchase_count: number
+  invested_share: MetricOut
+  variation_coefficient: MetricOut
+  longest_gap_months: MetricOut
+  temporal_hhi: MetricOut
+  equivalent_monthly_purchases: MetricOut
+  day_of_month_spread: MetricOut
+  median_day_of_month: number | null
+  verdict: string
+}
+
+export interface DepositLagResponse {
+  median_days: MetricOut
+  q1_days: MetricOut
+  q3_days: MetricOut
+  p90_days: MetricOut
+  matched_eur: number | string
+  unmatched_eur: number | string
+  unmatched_share: number | string
+  never_invested_eur: number | string
+  deposit_variation: MetricOut
+  purchase_variation: MetricOut
+  idle_cash_opportunity: number | string | null
+  verdict: string
+}
+
+export interface DensityBinOut {
+  centre: number | string
+  purchase_share: number | string
+  session_share: number | string
+}
+
+export interface MarketPointOut {
+  day: string
+  amount: number | string
+  drawdown: number | string
+}
+
+export interface YearlyDrawdownOut {
+  label: string
+  drawdown: number | string
+}
+
+export interface MarketConditioningResponse {
+  weighted_drawdown: MetricOut
+  unconditional_drawdown: MetricOut
+  weighted_momentum: MetricOut
+  unconditional_momentum: MetricOut
+  density: DensityBinOut[]
+  points: MarketPointOut[]
+  yearly: YearlyDrawdownOut[]
+  p_value: number | string | null
+  percentile: number | string | null
+  is_detectable: boolean
+  sessions: number
+  verdict: string
+}
+
 export interface InvestorAnalyticsResponse {
   period_start: string | null
   period_end: string | null
   days: number
   benchmark_asset_key: string
+  verdict: string
   investor_gap: InvestorGapResponse | null
   counterfactual: CounterfactualResponse | null
   execution: ExecutionResponse | null
+  regularity: RegularityResponse | null
+  deposit_lag: DepositLagResponse | null
+  market_conditioning: MarketConditioningResponse | null
 }
