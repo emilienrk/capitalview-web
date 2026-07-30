@@ -68,8 +68,60 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         {{ bridge.covered_from }}, sur {{ bridge.covered_days }} jours.
       </li>
       <li>
+        Le <strong>coût des sorties</strong> compare la ligne vendue à l'indice sur un horizon fixe
+        d'un an. Les ventes trop récentes pour cet horizon sont exclues et comptées, jamais
+        évaluées sur quelques semaines.
+      </li>
+      <li>
+        Le <strong>taux de rotation</strong> retient le plus petit des deux côtés, achats ou
+        ventes : accumuler n'est pas tourner son portefeuille.
+      </li>
+      <li>
+        Le <strong>plan cible</strong> n'est évalué qu'à partir du mois que tu déclares, et sur les
+        mois complets uniquement. Appliqué rétroactivement, il produirait un verdict sur des mois
+        où tu n'avais rien promis ; en comptant le mois en cours, il montrerait un
+        sous-investissement à chaque ouverture de la page.
+      </li>
+      <li>
         Une métrique marquée « données insuffisantes » n'affiche ni valeur ni graphique. Un graphe
         vide est plus honnête qu'un graphe faux.
+      </li>
+    </ul>
+  </details>
+
+  <details class="mt-3 rounded-lg border border-border px-4 py-3 dark:border-border-dark">
+    <summary class="cursor-pointer text-sm font-medium text-text-main dark:text-text-dark-main">
+      Ce que cette page ne calcule pas, et pourquoi
+    </summary>
+    <ul
+      class="mt-3 list-disc space-y-2 pl-5 text-xs leading-relaxed text-text-muted dark:text-text-dark-muted"
+    >
+      <li>
+        <strong>Sharpe, Sortino, ratio d'information.</strong> Sur deux ans, c'est du bruit : la
+        t-stat d'un ratio d'information vaut environ IR·√T, il faudrait un IR supérieur à 1,4 pour
+        que le chiffre soit significatif. Les afficher échouerait au test du « et donc ? ».
+      </li>
+      <li>
+        <strong>Alpha et bêta contre le marché.</strong> Même problème d'échantillon, et redondant
+        avec les paris indépendants ci-dessus.
+      </li>
+      <li>
+        <strong>Le drawdown maximal en chiffre-titre.</strong> Descriptif, non actionnable, et déjà
+        lisible sur la courbe d'évolution.
+      </li>
+      <li>
+        <strong>L'attribution sectorielle (Brinson–Fachler).</strong> Elle exige les poids
+        sectoriels du portefeuille et de l'indice. Sans la composition des ETF, ce serait de la
+        fabrication.
+      </li>
+      <li>
+        <strong>L'implementation shortfall (Perold, 1988).</strong> Il exige l'horodatage du moment
+        où tu as décidé, que l'app ne collecte pas. Il n'est ni calculé ni prétendu.
+      </li>
+      <li>
+        <strong>La composition réelle de tes ETF (look-through).</strong> Elle demanderait une
+        source externe. Sans elle, impossible de dire « tu détiens Apple deux fois » — seulement à
+        quel point tes lignes bougent ensemble.
       </li>
     </ul>
   </details>

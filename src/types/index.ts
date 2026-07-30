@@ -817,6 +817,8 @@ export interface UserSettingsUpdate {
   usd_eur_rate?: number | null
   /** Reference index for the analytics. Empty string resets to the default. */
   benchmark_asset_key?: string | null
+  /** Target plan for the analytics. An empty object clears the stored one. */
+  investment_plan?: Record<string, unknown> | null
 }
 
 export interface UserSettingsResponse {
@@ -845,6 +847,8 @@ export interface UserSettingsResponse {
   usd_eur_rate: number | null
   /** null = the default MSCI World ETF is used */
   benchmark_asset_key: string | null
+  /** null = no target plan declared */
+  investment_plan: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -1267,6 +1271,111 @@ export interface MarketConditioningResponse {
   verdict: string
 }
 
+export interface TurnoverOut {
+  annual_rate: MetricOut
+  purchases_eur: number | string
+  sales_eur: number | string
+}
+
+export interface WeightOut {
+  asset_key: string
+  weight: number | string
+}
+
+export interface CorrelationOut {
+  left: string
+  right: string
+  value: number | string
+}
+
+export interface ConcentrationResponse {
+  lines: number
+  effective_positions: MetricOut
+  independent_bets: MetricOut
+  weights: WeightOut[]
+  correlations: CorrelationOut[]
+  max_correlation: number | string | null
+  overlap: number
+  dropped: string[]
+  verdict: string
+}
+
+export interface FeesResponse {
+  total_fees: MetricOut
+  fee_share: MetricOut
+  annual_bps: MetricOut
+  threshold_order_size: MetricOut
+  orders_below_threshold: number
+  cost_below_threshold: number | string
+  invested_below_threshold: number | string
+  average_fee: number | string | null
+  average_order: number | string | null
+  order_count: number
+  projection_eur: number | string | null
+  projection_note: string
+  ter_note: string
+  verdict: string
+}
+
+export interface EpisodeOut {
+  asset_key: string
+  opened: string
+  closed: string
+  profit: number | string
+}
+
+export interface ExitsResponse {
+  pgr: MetricOut
+  plr: MetricOut
+  ratio: MetricOut
+  cost_eur: MetricOut
+  realisations: number
+  recent_sales: number
+  measured_sales: number
+  horizon_days: number
+  hit_rate: MetricOut
+  payoff_ratio: MetricOut
+  episode_count: number
+  episodes: EpisodeOut[]
+  verdict: string
+}
+
+export interface MonthlyAdherenceOut {
+  year: number
+  month: number
+  target: number | string
+  invested: number | string
+}
+
+export interface AllocationDriftOut {
+  asset_key: string
+  target: number | string
+  actual: number | string
+}
+
+export interface PlanResponse {
+  monthly_target: number | string
+  since: string
+  months: MonthlyAdherenceOut[]
+  total_target: number | string
+  total_invested: number | string
+  adherence_ratio: MetricOut
+  average_monthly: MetricOut
+  drift: AllocationDriftOut[]
+  drift_l1: MetricOut
+  rebalance_eur: number | string | null
+  under_invested_months: number
+  under_in_down_months: number
+  verdict: string
+  error: string | null
+}
+
+export interface InvestmentPlanInput {
+  monthly_target: string
+  allocation: Record<string, string>
+  since?: string
+}
+
 export interface InvestorAnalyticsResponse {
   period_start: string | null
   period_end: string | null
@@ -1277,6 +1386,11 @@ export interface InvestorAnalyticsResponse {
   counterfactual: CounterfactualResponse | null
   execution: ExecutionResponse | null
   regularity: RegularityResponse | null
+  turnover: TurnoverOut | null
   deposit_lag: DepositLagResponse | null
   market_conditioning: MarketConditioningResponse | null
+  concentration: ConcentrationResponse | null
+  fees: FeesResponse | null
+  exits: ExitsResponse | null
+  plan: PlanResponse | null
 }
