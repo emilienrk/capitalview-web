@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { lockScroll, unlockScroll } from '@/services/scrollLock'
 import { useRoute } from 'vue-router'
-import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, NotebookPen, Settings, TrendingUp, Users } from 'lucide-vue-next'
+import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, Microscope, NotebookPen, Settings, TrendingUp, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useSwipe } from '@/composables/useSwipe'
@@ -58,6 +58,11 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: TrendingUp,
   },
   {
+    label: 'Analyse',
+    to: '/analyse',
+    icon: Microscope,
+  },
+  {
     label: 'Patrimoine',
     to: '/wealth',
     icon: Landmark,
@@ -95,6 +100,7 @@ const navItems = computed<NavItem[]>(() => {
   if (s?.cashflow_module_enabled ?? true) items.push(byPath('/cashflow'))
 
   items.push(byPath('/stock'))
+  items.push(byPath('/analyse'))
 
   if (s?.crypto_module_enabled) items.push(CRYPTO_NAV_ITEM)
 
