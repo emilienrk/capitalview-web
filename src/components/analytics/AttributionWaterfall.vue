@@ -23,14 +23,18 @@ interface Bar {
   isTotal: boolean
 }
 
-/** Stack an invisible base under each floating bar to draw a waterfall. */
+/**
+ * Bars are the decision terms cumulated from zero, not absolute portfolio values.
+ *
+ * Anchoring on the baseline would be unreadable: a few hundred euros of timing
+ * next to a six-figure portfolio renders as a hairline, and a chart nobody can
+ * read is worse than no chart. The absolute endpoints are stated as text beside
+ * it, so nothing is hidden — only rescaled to the quantity in question.
+ */
 const bars = computed<Bar[]>(() => {
-  const baseline = Number(props.bridge.baseline)
-  const out: Bar[] = [
-    { label: 'Robot', base: 0, delta: baseline, total: baseline, isTotal: true },
-  ]
+  const out: Bar[] = []
+  let running = 0
 
-  let running = baseline
   for (const step of props.bridge.steps) {
     const delta = Number(step.amount)
     out.push({
@@ -57,7 +61,7 @@ const bars = computed<Bar[]>(() => {
     running += residual
   }
 
-  out.push({ label: 'Ton portefeuille', base: 0, delta: running, total: running, isTotal: true })
+  out.push({ label: 'Total', base: running >= 0 ? 0 : running, delta: Math.abs(running), total: running, isTotal: true })
   return out
 })
 

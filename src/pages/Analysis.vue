@@ -111,6 +111,9 @@ onMounted(() => analysis.fetchAnalytics())
           {{ bridge.verdict }}
         </p>
 
+        <p class="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted">
+          Écart au robot, décision par décision
+        </p>
         <AttributionWaterfall :bridge="bridge" :is-dark="isDark" />
 
         <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted dark:text-text-dark-muted">
@@ -118,6 +121,9 @@ onMounted(() => analysis.fetchAnalytics())
           <span>Toi : {{ formatEur(bridge.final) }}</span>
           <span :class="profitLossClass(Number(bridge.behaviour_cost))">
             Écart : {{ formatEur(bridge.behaviour_cost) }}
+          </span>
+          <span v-if="Number(bridge.idle_cash) > 0">
+            Liquidités non investies : {{ formatEur(bridge.idle_cash) }}
           </span>
         </div>
       </BaseCard>
@@ -206,6 +212,12 @@ onMounted(() => analysis.fetchAnalytics())
             ({{ bridge?.order.join(' → ') }}) est un choix, et le réordonner déplacerait quelques
             euros entre termes voisins. La somme des termes réconcilie exactement avec ton
             portefeuille ; tout reliquat apparaît comme « non expliqué » plutôt que d'être absorbé.
+          </li>
+          <li>
+            Le robot part du <strong>même capital effectivement investi que toi</strong>, et se voit
+            attribuer les mêmes liquidités non investies. Sans ça, un gros dépôt laissé dormant se
+            lirait comme du talent d'investisseur. Ce que ce cash a renoncé à gagner est chiffré à
+            part, dans le verdict.
           </li>
           <li>
             Le test de permutation re-date chaque achat au hasard parmi les jours de bourse de son

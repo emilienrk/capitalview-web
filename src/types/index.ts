@@ -1171,6 +1171,8 @@ export interface CounterfactualResponse {
   residual: number | string
   final: number | string
   behaviour_cost: number | string
+  idle_cash: number | string
+  idle_cash_opportunity: number | string | null
   covered_from: string
   covered_days: number
   truncated: boolean
