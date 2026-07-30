@@ -36,7 +36,7 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
         <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />
-        <MetricTile label="Dérive d'allocation" :metric="plan.drift_l1" kind="count" />
+        <MetricTile label="Dérive d'allocation" :metric="plan.drift_l1" kind="points" />
       </div>
 
       <div class="mb-3 text-xs text-text-muted dark:text-text-dark-muted">

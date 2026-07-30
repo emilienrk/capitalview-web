@@ -24,13 +24,18 @@ const settingsStore = useSettingsStore()
 
 interface Line {
   asset_key: string
-  share: string
+  share: string | number
+}
+
+/** BaseInput emits a number for type="number", so nothing here may assume a string. */
+function text(value: string | number | null | undefined): string {
+  return value === null || value === undefined ? '' : String(value).trim()
 }
 
 const isOpen = ref(false)
 const isSaving = ref(false)
 const localError = ref<string | null>(null)
-const monthlyTarget = ref('')
+const monthlyTarget = ref<string | number>('')
 const since = ref('')
 const lines = ref<Line[]>([])
 
@@ -71,7 +76,7 @@ async function save(): Promise<void> {
     localError.value = 'Indique un montant mensuel supérieur à zéro.'
     return
   }
-  const filled = lines.value.filter((line) => line.asset_key.trim() && line.share.trim())
+  const filled = lines.value.filter((line) => text(line.asset_key) && text(line.share))
   if (filled.length && Math.abs(allocationTotal.value - 100) > 1) {
     localError.value = `Ton allocation fait ${allocationTotal.value} % au lieu de 100 %.`
     return
@@ -79,15 +84,15 @@ async function save(): Promise<void> {
 
   const allocation: Record<string, string> = {}
   filled.forEach((line) => {
-    allocation[line.asset_key.trim().toUpperCase()] = line.share.trim()
+    allocation[text(line.asset_key).toUpperCase()] = text(line.share)
   })
 
   isSaving.value = true
   const ok = await settingsStore.updateSettings({
     investment_plan: {
-      monthly_target: monthlyTarget.value.trim(),
+      monthly_target: text(monthlyTarget.value),
       allocation,
-      ...(since.value.trim() ? { since: since.value.trim() } : {}),
+      ...(text(since.value) ? { since: text(since.value) } : {}),
     },
   })
   isSaving.value = false

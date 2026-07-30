@@ -13,7 +13,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import ReliabilityBadge from '@/components/analytics/ReliabilityBadge.vue'
 import type { MetricOut } from '@/types'
 
-type Kind = 'pct' | 'eur' | 'bps' | 'days' | 'months' | 'count' | 'ratio'
+type Kind = 'pct' | 'eur' | 'bps' | 'days' | 'months' | 'points' | 'count' | 'ratio'
 
 const props = withDefaults(
   defineProps<{
@@ -36,8 +36,11 @@ const display = computed(() => {
   if (!hasValue.value) return '—'
   const n = Number(props.metric.value)
   switch (props.kind) {
-    case 'pct':
-      return formatPercent(n * 100)
+    case 'pct': {
+      const formatted = formatPercent(n * 100)
+      // formatPercent always signs; a share or a rate is not a variation.
+      return props.signed ? formatted : formatted.replace(/^\+/, '')
+    }
     case 'eur':
       return maskValue(formatCurrency(n))
     case 'bps':
@@ -46,6 +49,8 @@ const display = computed(() => {
       return `${Math.round(n)} j`
     case 'months':
       return `${Math.round(n)} mois`
+    case 'points':
+      return `${n.toFixed(1)} pts`
     case 'count':
       return n.toFixed(1)
     default:
