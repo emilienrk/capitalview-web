@@ -21,6 +21,7 @@ const gap = computed(() => analysis.data?.investor_gap ?? null)
 const bridge = computed(() => analysis.data?.counterfactual ?? null)
 const execution = computed(() => analysis.data?.execution ?? null)
 const benchmarkKey = computed(() => analysis.data?.benchmark_asset_key ?? '')
+const hasAnyBlock = computed(() => Boolean(gap.value || bridge.value || execution.value))
 
 const cards = computed(() => {
   const g = gap.value
@@ -68,8 +69,11 @@ onMounted(() => analysis.fetchAnalytics())
       {{ analysis.error }}
     </BaseAlert>
 
+    <!-- Each block stands on its own data: the counterfactual and the execution
+         cost need only transactions and prices, so a portfolio whose daily
+         snapshots have not been rebuilt yet must still see them. -->
     <BaseEmptyState
-      v-else-if="!gap"
+      v-else-if="!hasAnyBlock"
       title="Pas encore assez d'historique"
       description="L'analyse comportementale demande plusieurs mois de transactions pour dire quoi que ce soit d'utile."
     />
@@ -79,11 +83,11 @@ onMounted(() => analysis.fetchAnalytics())
         <BenchmarkPicker :current="benchmarkKey" @changed="reload" />
       </BaseCard>
 
-      <BaseCard class="mb-6">
+      <BaseCard v-if="gap" class="mb-6">
         <p class="text-sm leading-relaxed text-text-main dark:text-text-dark-main">{{ gap.verdict }}</p>
       </BaseCard>
 
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div v-if="gap" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <BaseCard v-for="card in cards" :key="card.key">
           <p class="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted">
             {{ card.label }}
