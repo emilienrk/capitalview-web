@@ -815,6 +815,8 @@ export interface UserSettingsUpdate {
   ai_chat_provider?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
   usd_eur_rate?: number | null
+  /** Reference index for the analytics. Empty string resets to the default. */
+  benchmark_asset_key?: string | null
 }
 
 export interface UserSettingsResponse {
@@ -841,6 +843,8 @@ export interface UserSettingsResponse {
   ai_providers: AIProviderConfig[]
   /** null = live rate is used automatically */
   usd_eur_rate: number | null
+  /** null = the default MSCI World ETF is used */
+  benchmark_asset_key: string | null
   created_at: string
   updated_at: string
 }
@@ -1155,10 +1159,50 @@ export interface InvestorGapResponse {
   verdict: string
 }
 
+export interface BridgeStepOut {
+  key: string
+  label: string
+  amount: number | string
+}
+
+export interface CounterfactualResponse {
+  baseline: number | string
+  steps: BridgeStepOut[]
+  residual: number | string
+  final: number | string
+  behaviour_cost: number | string
+  covered_from: string
+  covered_days: number
+  truncated: boolean
+  order: string[]
+  verdict: string
+}
+
+export interface SlippageDistributionOut {
+  minimum: number | string
+  q1: number | string
+  median: number | string
+  q3: number | string
+  maximum: number | string
+}
+
+export interface ExecutionResponse {
+  slippage_bps: MetricOut
+  cost_eur: MetricOut
+  order_count: number
+  distribution: SlippageDistributionOut | null
+  p_value: number | string | null
+  percentile: number | string | null
+  is_detectable: boolean
+  verdict: string
+}
+
 export interface InvestorAnalyticsResponse {
   period_start: string | null
   period_end: string | null
   days: number
   benchmark_asset_key: string
   investor_gap: InvestorGapResponse | null
+  counterfactual: CounterfactualResponse | null
+  execution: ExecutionResponse | null
 }
