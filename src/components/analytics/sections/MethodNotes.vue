@@ -23,6 +23,38 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         dormant.
       </li>
       <li>
+        <strong>La régularité se mesure sur la courbe de capital cumulé</strong>, pas sur les mois
+        calendaires : on regarde l'écart moyen à la droite qui joindrait le premier au dernier
+        jour de la fenêtre, rapporté au capital total. Un rythme strict de 30 jours dérive d'un
+        mois sur l'autre sans que la discipline change ; jugé au mois, il était sanctionné à tort.
+        Les indicateurs mensuels restent affichés à titre d'illustration. Des ordres discrets
+        laissent un plancher d'environ 1/(2n) : quelques pour cent d'écart, c'est une droite.
+      </li>
+      <li>
+        <strong>La cadence est détectée, jamais déclarée.</strong> Elle est lue sur les ordres —
+        soit un jour du mois, soit un intervalle médian — et c'est le plus resserré des deux qui
+        est nommé. Aucun « mode d'investissement » n'est demandé : la page cherche la stratégie
+        réelle, pas la stratégie annoncée.
+      </li>
+      <li>
+        <strong>Le seuil de frais par ordre est un calibrage, pas un verdict.</strong> C'est la
+        charge annuelle en points de base qui dit s'il y a quelque chose à corriger : chez un
+        courtier à moins d'un euro l'ordre, tous les ordres passent sous le seuil alors que la
+        charge totale reste dérisoire.
+      </li>
+      <li>
+        <strong>Les paris indépendants ne discriminent presque pas</strong> entre deux
+        portefeuilles actions long-only : la première composante principale y porte 98 à 99 % de la
+        variance, et la mesure sort presque toujours entre 1 et 1,5. Elle répond « un seul pari :
+        les actions », ce qui est exact et peu actionnable — c'est une propriété de la mesure de
+        Meucci, pas un défaut du portefeuille.
+      </li>
+      <li>
+        <strong>Un plan cible peut être fractionné en périodes.</strong> Chaque mois complet est
+        alors confronté à la cible en vigueur ce mois-là, et la dérive d'allocation lit la période
+        courante — c'est elle qui dit vers quoi rééquilibrer aujourd'hui.
+      </li>
+      <li>
         Le prix de référence d'un achat est la <strong>moyenne des clôtures journalières</strong>
         de son mois calendaire (TWAP). Ce n'est pas un VWAP : les volumes intra-journaliers ne sont
         pas stockés. Le véritable <em>implementation shortfall</em> demanderait un horodatage de

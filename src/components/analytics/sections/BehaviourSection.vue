@@ -3,13 +3,16 @@
  * Block 1 of the design — "what I actually do": purchase rhythm, the wait
  * between depositing and investing, and where in the market cycle the money
  * lands.
+ *
+ * Each card folds itself away when its gate withheld the headline number. The
+ * verdict sits under the figures, not above them: the numbers are the block, the
+ * sentence is the reading.
  */
-import { BaseCard } from '@/components'
+import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import ContributionHeatmap from '@/components/analytics/ContributionHeatmap.vue'
 import DensityComparison from '@/components/analytics/DensityComparison.vue'
 import MarketStateScatter from '@/components/analytics/MarketStateScatter.vue'
-import ReliabilityBadge from '@/components/analytics/ReliabilityBadge.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type {
@@ -40,11 +43,12 @@ function eur(value: number | string | null): string {
     </h2>
 
     <!-- ── 2.1 · purchase rhythm ─────────────────────────────────── -->
-    <BaseCard v-if="regularity" class="mb-4">
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ regularity.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="regularity"
+      title="Rythme réel des achats"
+      :measurable="regularity.deployment_gap.value !== null"
+      :summary="regularity.deployment_gap.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- The measure that judges regularity: distance to a straight-line
              deployment, which has no notion of a calendar month and so cannot be
@@ -88,21 +92,22 @@ function eur(value: number | string | null): string {
         :is-dark="isDark"
       />
 
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ regularity.verdict }}
+      </p>
       <p class="mt-2 text-xs italic text-text-muted dark:text-text-dark-muted">
         Les chiffres mensuels ci-dessus illustrent, ils ne jugent pas : un rythme de 30 jours
         dérive d'un mois sur l'autre sans que la discipline change.
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
 
     <!-- ── 2.4 · deposit to purchase lag ─────────────────────────── -->
-    <BaseCard v-if="depositLag" class="mb-4">
-      <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Entre le virement et l'investissement
-      </h3>
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ depositLag.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="depositLag"
+      title="Entre le virement et l'investissement"
+      :measurable="depositLag.median_days.value !== null"
+      :summary="depositLag.median_days.caveat"
+    >
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile label="Délai médian" :metric="depositLag.median_days" kind="days" />
         <MetricTile label="Délai au 9ᵉ décile" :metric="depositLag.p90_days" kind="days" />
@@ -118,11 +123,15 @@ function eur(value: number | string | null): string {
         />
       </div>
 
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ depositLag.verdict }}
+      </p>
+
       <p
         v-if="Number(depositLag.unmatched_share) > 0"
         class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
       >
-        {{ Math.round(Number(depositLag.unmatched_share) * 100) }} % de tes achats sont financés
+        {{ Math.round(Number(depositLag.unmatched_share) * 100) }} % des achats sont financés
         par des provisions automatiques : l'app crée le dépôt au moment de l'achat, donc leur
         délai réel est inconnu et ils sont exclus du calcul plutôt qu'appariés de force.
       </p>
@@ -132,20 +141,18 @@ function eur(value: number | string | null): string {
       >
         {{ eur(depositLag.never_invested_eur) }} déposés n'ont jamais été investis.
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
 
     <!-- ── 2.2 · market conditioning ─────────────────────────────── -->
-    <BaseCard v-if="conditioning">
-      <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Contrarian ou suiveur ?
-      </h3>
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ conditioning.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="conditioning"
+      title="Contrarian ou suiveur ?"
+      :measurable="conditioning.weighted_drawdown.value !== null"
+      :summary="conditioning.weighted_drawdown.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
-          label="Ton euro moyen entre à"
+          label="L'euro moyen entre à"
           :metric="conditioning.weighted_drawdown"
           kind="pct"
         />
@@ -155,7 +162,7 @@ function eur(value: number | string | null): string {
           kind="pct"
         />
         <MetricTile
-          label="Élan du marché à tes achats"
+          label="Élan du marché aux achats"
           :metric="conditioning.weighted_momentum"
           kind="pct"
         />
@@ -174,11 +181,10 @@ function eur(value: number | string | null): string {
           :is-dark="isDark"
         />
       </template>
-      <ReliabilityBadge
-        v-else
-        :reliability="conditioning.weighted_drawdown.reliability"
-        :caveat="conditioning.weighted_drawdown.caveat"
-      />
+
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ conditioning.verdict }}
+      </p>
 
       <div
         v-if="conditioning.yearly.length"
@@ -197,6 +203,6 @@ function eur(value: number | string | null): string {
         Test de permutation : p = {{ Number(conditioning.p_value).toFixed(3) }}
         <template v-if="!conditioning.is_detectable"> — indistinguable du hasard.</template>
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
   </section>
 </template>

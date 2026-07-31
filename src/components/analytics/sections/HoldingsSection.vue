@@ -4,9 +4,9 @@
  * effective positions, how many genuinely independent bets.
  */
 import { BaseCard } from '@/components'
+import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import CorrelationMatrix from '@/components/analytics/CorrelationMatrix.vue'
-import ReliabilityBadge from '@/components/analytics/ReliabilityBadge.vue'
 import type { ConcentrationResponse, TurnoverOut } from '@/types'
 
 defineProps<{
@@ -19,14 +19,15 @@ defineProps<{
 <template>
   <section v-if="concentration || turnover" class="mt-8">
     <h2 class="mb-3 text-base font-semibold text-text-main dark:text-text-dark-main">
-      Ce que tu détiens vraiment
+      Ce qui est réellement détenu
     </h2>
 
-    <BaseCard v-if="concentration" class="mb-4">
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ concentration.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="concentration"
+      title="Paris réellement indépendants"
+      :measurable="concentration.effective_positions.value !== null"
+      :summary="concentration.effective_positions.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <p
@@ -55,11 +56,10 @@ defineProps<{
         :correlations="concentration.correlations"
         :is-dark="isDark"
       />
-      <ReliabilityBadge
-        v-else
-        :reliability="concentration.independent_bets.reliability"
-        :caveat="concentration.independent_bets.caveat"
-      />
+
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ concentration.verdict }}
+      </p>
 
       <p
         v-if="concentration.dropped.length"
@@ -69,10 +69,12 @@ defineProps<{
         {{ concentration.dropped.map((line) => line.name).join(', ') }}.
       </p>
       <p class="mt-2 text-xs italic text-text-muted dark:text-text-dark-muted">
-        Ce n'est pas une analyse de la composition de tes ETF — elle n'est pas stockée. On mesure
-        la redondance de comportement : à quel point tes lignes bougent ensemble.
+        Ce n'est pas une analyse de la composition des ETF — elle n'est pas stockée. La mesure
+        porte sur la redondance de comportement : à quel point les lignes bougent ensemble. Sur un
+        portefeuille actions long-only, elle sort presque toujours entre 1 et 1,5 : c'est une
+        propriété de la mesure, pas un défaut du portefeuille.
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
 
     <BaseCard v-if="turnover">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -90,7 +92,7 @@ defineProps<{
         </div>
       </div>
       <p class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
-        La rotation prend le plus petit des deux côtés : accumuler n'est pas tourner son
+        La rotation prend le plus petit des deux côtés : accumuler n'est pas tourner un
         portefeuille. C'est la variable que Barber &amp; Odean (2000) trouvent corrélée à la
         sous-performance.
       </p>
