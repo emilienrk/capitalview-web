@@ -4,13 +4,13 @@
  * rendering, so this file stays readable as blocks are added.
  */
 import { computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
+import { Settings } from 'lucide-vue-next'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseAlert, BaseCard, BaseEmptyState, BaseSpinner } from '@/components'
-import BenchmarkPicker from '@/components/analytics/BenchmarkPicker.vue'
+import { BaseAlert, BaseButton, BaseEmptyState, BaseSpinner } from '@/components'
 import VerdictBanner from '@/components/analytics/VerdictBanner.vue'
-import InvestmentPlanForm from '@/components/analytics/InvestmentPlanForm.vue'
 import BehaviourSection from '@/components/analytics/sections/BehaviourSection.vue'
 import CostSection from '@/components/analytics/sections/CostSection.vue'
 import FeesSection from '@/components/analytics/sections/FeesSection.vue'
@@ -34,10 +34,6 @@ const turnover = computed(() => analysis.data?.turnover ?? null)
 const fees = computed(() => analysis.data?.fees ?? null)
 const exits = computed(() => analysis.data?.exits ?? null)
 const plan = computed(() => analysis.data?.plan ?? null)
-const benchmarkKey = computed(() => analysis.data?.benchmark_asset_key ?? '')
-const declaredPlan = computed(
-  () => (settingsStore.settings?.investment_plan as Record<string, unknown> | null) ?? null,
-)
 
 /**
  * Each block stands on its own data — the replay blocks need only transactions
@@ -58,13 +54,20 @@ const hasAnyBlock = computed(() =>
   ),
 )
 
-async function reload(): Promise<void> {
-  await analysis.fetchAnalytics(true)
-}
+/**
+ * Repair a stale cache rather than trust whoever changed the setting.
+ *
+ * The analysis is cached for an hour, and the benchmark is now set from the
+ * settings page. Comparing the two on arrival means the page recovers on its own
+ * whichever route was taken to change it — including a second tab.
+ */
+onMounted(async () => {
+  await Promise.all([analysis.fetchAnalytics(), settingsStore.fetchSettings()])
 
-onMounted(() => {
-  analysis.fetchAnalytics()
-  settingsStore.fetchSettings()
+  const declared = settingsStore.settings?.benchmark_asset_key
+  if (declared && analysis.data && analysis.data.benchmark_asset_key !== declared) {
+    await analysis.fetchAnalytics(true)
+  }
 })
 </script>
 
@@ -73,7 +76,16 @@ onMounted(() => {
     <PageHeader
       title="Analyse"
       description="Ce que tes données disent de ton comportement d'investisseur"
-    />
+    >
+      <template #actions>
+        <RouterLink :to="{ path: '/settings', query: { tab: 'analyse' } }">
+          <BaseButton variant="outline" size="sm">
+            <Settings class="h-4 w-4" stroke-width="2" />
+            <span class="hidden sm:inline">Indice et plan cible</span>
+          </BaseButton>
+        </RouterLink>
+      </template>
+    </PageHeader>
 
     <div v-if="analysis.isLoading && !analysis.data" class="flex justify-center py-20">
       <BaseSpinner size="lg" label="Analyse en cours..." />
@@ -84,19 +96,6 @@ onMounted(() => {
     </BaseAlert>
 
     <template v-else>
-      <BaseCard class="mb-6">
-        <BenchmarkPicker :current="benchmarkKey" @changed="reload" />
-      </BaseCard>
-
-      <BaseCard class="mb-6">
-        <InvestmentPlanForm
-          :plan="declaredPlan"
-          :held="concentration?.weights ?? []"
-          :error="plan?.error ?? null"
-          @changed="reload"
-        />
-      </BaseCard>
-
       <BaseEmptyState
         v-if="!hasAnyBlock"
         title="Pas encore assez d'historique"

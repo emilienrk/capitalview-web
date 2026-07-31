@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutGrid, Lock, User, Users, Sparkles } from 'lucide-vue-next'
+import { LayoutGrid, Lock, Microscope, User, Users, Sparkles } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseAlert } from '@/components'
@@ -12,6 +12,7 @@ import SettingsModules from './settings/SettingsModules.vue'
 import SettingsCommunity from './settings/SettingsCommunity.vue'
 import SettingsSecurity from './settings/SettingsSecurity.vue'
 import SettingsAI from './settings/SettingsAI.vue'
+import SettingsAnalytics from './settings/SettingsAnalytics.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,6 +50,12 @@ const tabs: Tab[] = [
     label: 'IA',
     shortLabel: 'IA',
     icon: Sparkles,
+  },
+  {
+    id: 'analyse',
+    label: 'Analyse',
+    shortLabel: 'Analyse',
+    icon: Microscope,
   },
   {
     id: 'communaute',
@@ -119,7 +126,7 @@ onMounted(async () => {
         </nav>
 
         <!-- Mobile: grouped card grid, no horizontal scroll -->
-        <nav class="lg:hidden grid grid-cols-5 gap-1 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-card shadow-card p-1.5">
+        <nav class="lg:hidden grid grid-cols-3 sm:grid-cols-6 gap-1 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-card shadow-card p-1.5">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -144,6 +151,7 @@ onMounted(async () => {
           <!-- <SettingsFinances v-else-if="activeTab === 'finances'" /> -->
           <SettingsModules v-else-if="activeTab === 'modules'" />
           <SettingsAI v-else-if="activeTab === 'ia'" />
+          <SettingsAnalytics v-else-if="activeTab === 'analyse'" />
           <SettingsCommunity v-else-if="activeTab === 'communaute'" />
           <SettingsSecurity v-else-if="activeTab === 'securite'" />
         </KeepAlive>
