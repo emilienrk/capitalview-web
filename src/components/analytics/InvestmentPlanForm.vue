@@ -61,6 +61,15 @@ const allocationTotal = computed(() =>
   lines.value.reduce((sum, line) => sum + (Number(line.share) || 0), 0),
 )
 
+/** Held lines by key, so a typed ISIN can be echoed back as a readable name. */
+const heldNames = computed(() =>
+  Object.fromEntries(props.held.map((weight) => [weight.asset_key, weight.name])),
+)
+
+function nameFor(assetKey: string | number): string {
+  return heldNames.value[text(assetKey).toUpperCase()] ?? ''
+}
+
 function addLine(): void {
   lines.value.push({ asset_key: '', share: '' })
 }
@@ -171,6 +180,12 @@ async function clear(): Promise<void> {
               placeholder="IE00B4L5Y983"
               :disabled="isSaving"
             />
+            <p
+              v-if="nameFor(line.asset_key)"
+              class="mt-1 text-[11px] text-text-muted dark:text-text-dark-muted"
+            >
+              {{ nameFor(line.asset_key) }}
+            </p>
           </div>
           <div class="w-28">
             <BaseInput

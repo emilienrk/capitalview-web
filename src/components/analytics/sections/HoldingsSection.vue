@@ -65,7 +65,8 @@ defineProps<{
         v-if="concentration.dropped.length"
         class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
       >
-        Écartées faute d'historique suffisant : {{ concentration.dropped.join(', ') }}.
+        Écartées faute d'historique suffisant :
+        {{ concentration.dropped.map((line) => line.name).join(', ') }}.
       </p>
       <p class="mt-2 text-xs italic text-text-muted dark:text-text-dark-muted">
         Ce n'est pas une analyse de la composition de tes ETF — elle n'est pas stockée. On mesure

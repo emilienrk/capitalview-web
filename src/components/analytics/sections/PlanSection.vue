@@ -58,7 +58,7 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
         </thead>
         <tbody class="text-text-main dark:text-text-dark-main">
           <tr v-for="row in drift" :key="row.asset_key" class="border-t border-border dark:border-border-dark">
-            <td class="py-1">{{ row.asset_key }}</td>
+            <td class="py-1" :title="row.asset_key">{{ row.name }}</td>
             <td class="py-1 text-right tabular-nums">{{ Number(row.target).toFixed(1) }} %</td>
             <td class="py-1 text-right tabular-nums">{{ Number(row.actual).toFixed(1) }} %</td>
             <td class="py-1 text-right tabular-nums">
