@@ -98,6 +98,13 @@ function eur(value: number | string): string {
         </span>
       </div>
 
+      <!-- Said, not implied: the close of the current day does not exist yet, so
+           these figures are yesterday's and a live statement will differ. -->
+      <p class="mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+        Valorisé au {{ new Date(bridge.valued_at).toLocaleDateString('fr-FR') }}, à la clôture de
+        la veille : un relevé consulté aujourd'hui affichera une journée de marché de plus.
+      </p>
+
       <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
         {{ bridge.verdict }}
       </p>

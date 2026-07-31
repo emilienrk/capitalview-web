@@ -139,7 +139,14 @@ function eur(value: number | string | null): string {
         v-if="Number(depositLag.never_invested_eur) > 0"
         class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
       >
-        {{ eur(depositLag.never_invested_eur) }} déposés n'ont jamais été investis.
+        {{ eur(depositLag.never_invested_eur) }} déposés n'ont pas été investis — dépôts moins
+        achats, le chiffre que ton relevé confirme.
+        <template
+          v-if="Number(depositLag.unpaired_deposits_eur) > Number(depositLag.never_invested_eur)"
+        >
+          L'appariement FIFO en laisse {{ eur(depositLag.unpaired_deposits_eur) }} sans achat en
+          face : les achats financés par une provision automatique ne consomment rien de la file.
+        </template>
       </p>
     </CollapsibleBlock>
 
