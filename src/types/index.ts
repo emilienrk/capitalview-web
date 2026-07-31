@@ -1214,6 +1214,11 @@ export interface RegularityResponse {
   months_total: number
   months_invested: number
   purchase_count: number
+  /** Distance to a straight-line deployment. This is what judges regularity. */
+  deployment_gap: MetricOut
+  /** Descriptive, never declared: "achats autour du 6 du mois". */
+  cadence_label: string
+  median_gap_days: number | null
   invested_share: MetricOut
   variation_coefficient: MetricOut
   longest_gap_months: MetricOut
