@@ -1367,8 +1367,16 @@ export interface AllocationDriftOut extends AssetLabelOut {
   actual: number | string
 }
 
-export interface PlanResponse {
+export interface PlanPeriodOut {
+  since: string
   monthly_target: number | string
+  allocation: Record<string, number | string>
+}
+
+export interface PlanResponse {
+  /** The target in force today, when the plan is split into periods. */
+  monthly_target: number | string
+  periods: PlanPeriodOut[]
   since: string
   months: MonthlyAdherenceOut[]
   total_target: number | string
@@ -1384,10 +1392,21 @@ export interface PlanResponse {
   error: string | null
 }
 
-export interface InvestmentPlanInput {
+export interface InvestmentPlanPeriodInput {
+  since: string
   monthly_target: string
   allocation: Record<string, string>
+}
+
+/**
+ * A plan that never changed is stored flat; one that did carries its periods.
+ * The shape says which it is, so no mode has to be persisted alongside it.
+ */
+export interface InvestmentPlanInput {
+  monthly_target?: string
+  allocation?: Record<string, string>
   since?: string
+  periods?: InvestmentPlanPeriodInput[]
 }
 
 export interface InvestorAnalyticsResponse {

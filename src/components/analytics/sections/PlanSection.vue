@@ -47,6 +47,16 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
         </template>
       </div>
 
+      <!-- Each month is scored against the target in force that month, so a plan
+           that changed does not create a shortfall it never had. -->
+      <div v-if="plan.periods.length > 1" class="mb-3 text-xs text-text-muted dark:text-text-dark-muted">
+        Plan en {{ plan.periods.length }} périodes :
+        <span v-for="(period, index) in plan.periods" :key="period.since">
+          <template v-if="index">, </template>
+          {{ eur(period.monthly_target) }}/mois depuis {{ period.since.slice(0, 7) }}
+        </span>
+      </div>
+
       <table v-if="drift.length" class="w-full text-left text-xs">
         <thead class="text-text-muted dark:text-text-dark-muted">
           <tr>
