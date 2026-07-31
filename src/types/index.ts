@@ -1179,6 +1179,8 @@ export interface CounterfactualResponse {
   idle_cash_opportunity: number | string | null
   covered_from: string
   covered_days: number
+  /** Valuation day — yesterday's close, since today's does not exist yet. */
+  valued_at: string
   truncated: boolean
   order: string[]
   verdict: string
@@ -1200,6 +1202,9 @@ export interface ExecutionResponse {
   p_value: number | string | null
   percentile: number | string | null
   is_detectable: boolean
+  median_absolute_bps: number | string | null
+  /** False when paid and stored prices look like two different quote venues. */
+  prices_are_plausible: boolean
   verdict: string
 }
 
@@ -1238,6 +1243,7 @@ export interface DepositLagResponse {
   unmatched_eur: number | string
   unmatched_share: number | string
   never_invested_eur: number | string
+  unpaired_deposits_eur: number | string
   deposit_variation: MetricOut
   purchase_variation: MetricOut
   idle_cash_opportunity: number | string | null
