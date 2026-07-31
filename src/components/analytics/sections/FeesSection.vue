@@ -33,9 +33,12 @@ function eur(value: number | string | null): string {
         <MetricTile label="Frais payés" :metric="fees.total_fees" kind="eur" />
         <MetricTile label="Part du capital déployé" :metric="fees.fee_share" kind="pct" />
         <MetricTile label="Coût annuel" :metric="fees.annual_bps" kind="bps" />
-        <MetricTile label="Seuil de rentabilité par ordre" :metric="fees.threshold_order_size" kind="eur" />
+        <MetricTile label="Seuil de calibrage par ordre" :metric="fees.threshold_order_size" kind="eur" />
       </div>
 
+      <!-- The threshold is calibration, the annual charge is the verdict. Saying
+           "group your orders" while the annual load is already under the target
+           contradicts the tile right above it. -->
       <p
         v-if="fees.orders_below_threshold"
         class="mb-2 text-xs text-text-muted dark:text-text-dark-muted"
@@ -43,6 +46,10 @@ function eur(value: number | string | null): string {
         {{ fees.orders_below_threshold }} ordres sur {{ fees.order_count }} sont sous le seuil :
         {{ eur(fees.cost_below_threshold) }} de frais pour
         {{ eur(fees.invested_below_threshold) }} investis.
+        <template v-if="!fees.avoidable">
+          La charge annuelle reste sous la cible : le seuil est ici une information de calibrage,
+          pas un problème à corriger.
+        </template>
       </p>
 
       <p
@@ -61,7 +68,7 @@ function eur(value: number | string | null): string {
 
     <BaseCard v-if="exits">
       <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Ce que tu fais de tes sorties
+        Ce que deviennent les sorties
       </h3>
       <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
         {{ exits.verdict }}
@@ -73,7 +80,7 @@ function eur(value: number | string | null): string {
           :metric="exits.ratio"
           kind="count"
         />
-        <MetricTile label="Ce que sortir t'a coûté" :metric="exits.cost_eur" kind="eur" signed invert />
+        <MetricTile label="Ce que sortir a coûté" :metric="exits.cost_eur" kind="eur" signed invert />
         <MetricTile label="Taux de réussite" :metric="exits.hit_rate" kind="pct" />
         <MetricTile label="Gain moyen / perte moyenne" :metric="exits.payoff_ratio" kind="count" />
       </div>
@@ -82,8 +89,8 @@ function eur(value: number | string | null): string {
         Le coût des sorties compare, sur {{ exits.horizon_days }} jours après chaque vente, ce que
         la ligne vendue a fait contre l'indice.
         <template v-if="exits.recent_sales">
-          {{ exits.recent_sales }} vente(s) sont trop récentes pour cet horizon : elles sont
-          exclues du calcul plutôt que mesurées sur quelques semaines.
+          {{ exits.recent_sales }} vente{{ exits.recent_sales > 1 ? 's' : '' }} trop récente{{ exits.recent_sales > 1 ? 's' : '' }} pour cet horizon :
+          exclue{{ exits.recent_sales > 1 ? 's' : '' }} du calcul plutôt que mesurée sur quelques semaines.
         </template>
       </p>
     </BaseCard>
