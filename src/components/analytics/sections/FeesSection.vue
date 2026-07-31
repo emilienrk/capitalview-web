@@ -2,7 +2,7 @@
 /**
  * Blocks 4 and 3.2 — fees, and what happens on the way out.
  */
-import { BaseCard } from '@/components'
+import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -24,11 +24,12 @@ function eur(value: number | string | null): string {
       Frais et sorties
     </h2>
 
-    <BaseCard v-if="fees" class="mb-4">
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ fees.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="fees"
+      title="Frais de courtage"
+      :measurable="fees.total_fees.value !== null"
+      :summary="fees.total_fees.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile label="Frais payés" :metric="fees.total_fees" kind="eur" />
         <MetricTile label="Part du capital déployé" :metric="fees.fee_share" kind="pct" />
@@ -60,20 +61,22 @@ function eur(value: number | string | null): string {
         {{ fees.projection_note }}
       </p>
 
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ fees.verdict }}
+      </p>
+
       <!-- Not conditional: the fee that matters most is the one not visible here. -->
       <p class="mt-3 rounded-md bg-surface-active px-3 py-2 text-xs italic text-text-muted dark:bg-surface-dark-active dark:text-text-dark-muted">
         {{ fees.ter_note }}
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
 
-    <BaseCard v-if="exits">
-      <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Ce que deviennent les sorties
-      </h3>
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ exits.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="exits"
+      title="Ce que deviennent les sorties"
+      :measurable="exits.ratio.value !== null"
+      :summary="exits.verdict"
+    >
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
           label="Gains coupés / pertes coupées"
@@ -85,6 +88,10 @@ function eur(value: number | string | null): string {
         <MetricTile label="Gain moyen / perte moyenne" :metric="exits.payoff_ratio" kind="count" />
       </div>
 
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ exits.verdict }}
+      </p>
+
       <p class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         Le coût des sorties compare, sur {{ exits.horizon_days }} jours après chaque vente, ce que
         la ligne vendue a fait contre l'indice.
@@ -93,6 +100,6 @@ function eur(value: number | string | null): string {
           exclue{{ exits.recent_sales > 1 ? 's' : '' }} du calcul plutôt que mesurée sur quelques semaines.
         </template>
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
   </section>
 </template>

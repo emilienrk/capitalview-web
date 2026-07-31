@@ -4,7 +4,7 @@
  * declared: the form in the page header is what brings it into existence.
  */
 import { computed } from 'vue'
-import { BaseCard } from '@/components'
+import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -25,14 +25,14 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
 <template>
   <section v-if="plan && !plan.error" class="mt-8">
     <h2 class="mb-3 text-base font-semibold text-text-main dark:text-text-dark-main">
-      Adhérence à ton plan
+      Adhérence au plan cible
     </h2>
 
-    <BaseCard>
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ plan.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      :measurable="plan.adherence_ratio.value !== null"
+      title="Adhérence au plan"
+      :summary="plan.adherence_ratio.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
         <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />
@@ -77,6 +77,10 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
           </tr>
         </tbody>
       </table>
-    </BaseCard>
+
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ plan.verdict }}
+      </p>
+    </CollapsibleBlock>
   </section>
 </template>
