@@ -1321,6 +1321,8 @@ export interface FeesResponse {
   annual_bps: MetricOut
   threshold_order_size: MetricOut
   orders_below_threshold: number
+  /** Whether grouping orders is worth recommending, not merely possible. */
+  avoidable: boolean
   cost_below_threshold: number | string
   invested_below_threshold: number | string
   average_fee: number | string | null
