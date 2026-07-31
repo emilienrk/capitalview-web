@@ -15,6 +15,7 @@ const Settings = () => import('@/pages/Settings.vue')
 const Register = () => import('@/pages/Register.vue')
 const Recover = () => import('@/pages/Recover.vue')
 const Community = () => import('@/pages/Community.vue')
+const Analysis = () => import('@/pages/Analysis.vue')
 
 const routes = [
   {
@@ -86,6 +87,12 @@ const routes = [
     path: '/notes',
     name: 'notes',
     component: Notes,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/analyse',
+    name: 'analysis',
+    component: Analysis,
     meta: { requiresAuth: true },
   },
   {

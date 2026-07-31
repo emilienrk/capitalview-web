@@ -815,6 +815,10 @@ export interface UserSettingsUpdate {
   ai_chat_provider?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
   usd_eur_rate?: number | null
+  /** Reference index for the analytics. Empty string resets to the default. */
+  benchmark_asset_key?: string | null
+  /** Target plan for the analytics. An empty object clears the stored one. */
+  investment_plan?: Record<string, unknown> | null
 }
 
 export interface UserSettingsResponse {
@@ -841,6 +845,10 @@ export interface UserSettingsResponse {
   ai_providers: AIProviderConfig[]
   /** null = live rate is used automatically */
   usd_eur_rate: number | null
+  /** null = the default MSCI World ETF is used */
+  benchmark_asset_key: string | null
+  /** null = no target plan declared */
+  investment_plan: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -1130,4 +1138,259 @@ export interface AccountHistorySnapshotResponse {
     invested: number
     percentage: number
   }[] | null
+}
+
+// ── Analytics ────────────────────────────────────────────────
+export type Reliability = 'solide' | 'indicatif' | 'insuffisant'
+
+export interface MetricOut {
+  value: number | string | null
+  unit: string
+  sample_size: number
+  reliability: Reliability
+  caveat: string | null
+}
+
+export interface InvestorGapResponse {
+  twr: MetricOut
+  twr_annualised: MetricOut
+  benchmark_annualised: MetricOut
+  mwr: MetricOut
+  gap: MetricOut
+  gap_eur: MetricOut
+  average_capital: number | string
+  auto_provision_share: number | string
+  verdict: string
+}
+
+export interface BridgeStepOut {
+  key: string
+  label: string
+  amount: number | string
+}
+
+export interface CounterfactualResponse {
+  baseline: number | string
+  steps: BridgeStepOut[]
+  residual: number | string
+  final: number | string
+  behaviour_cost: number | string
+  idle_cash: number | string
+  idle_cash_opportunity: number | string | null
+  covered_from: string
+  covered_days: number
+  truncated: boolean
+  order: string[]
+  verdict: string
+}
+
+export interface SlippageDistributionOut {
+  minimum: number | string
+  q1: number | string
+  median: number | string
+  q3: number | string
+  maximum: number | string
+}
+
+export interface ExecutionResponse {
+  slippage_bps: MetricOut
+  cost_eur: MetricOut
+  order_count: number
+  distribution: SlippageDistributionOut | null
+  p_value: number | string | null
+  percentile: number | string | null
+  is_detectable: boolean
+  verdict: string
+}
+
+export interface MonthlyAmountOut {
+  year: number
+  month: number
+  amount: number | string
+}
+
+export interface RegularityResponse {
+  monthly: MonthlyAmountOut[]
+  months_total: number
+  months_invested: number
+  purchase_count: number
+  invested_share: MetricOut
+  variation_coefficient: MetricOut
+  longest_gap_months: MetricOut
+  temporal_hhi: MetricOut
+  equivalent_monthly_purchases: MetricOut
+  day_of_month_spread: MetricOut
+  median_day_of_month: number | null
+  verdict: string
+}
+
+export interface DepositLagResponse {
+  median_days: MetricOut
+  q1_days: MetricOut
+  q3_days: MetricOut
+  p90_days: MetricOut
+  matched_eur: number | string
+  unmatched_eur: number | string
+  unmatched_share: number | string
+  never_invested_eur: number | string
+  deposit_variation: MetricOut
+  purchase_variation: MetricOut
+  idle_cash_opportunity: number | string | null
+  verdict: string
+}
+
+export interface DensityBinOut {
+  centre: number | string
+  purchase_share: number | string
+  session_share: number | string
+}
+
+export interface MarketPointOut {
+  day: string
+  amount: number | string
+  drawdown: number | string
+}
+
+export interface YearlyDrawdownOut {
+  label: string
+  drawdown: number | string
+}
+
+export interface MarketConditioningResponse {
+  weighted_drawdown: MetricOut
+  unconditional_drawdown: MetricOut
+  weighted_momentum: MetricOut
+  unconditional_momentum: MetricOut
+  density: DensityBinOut[]
+  points: MarketPointOut[]
+  yearly: YearlyDrawdownOut[]
+  p_value: number | string | null
+  percentile: number | string | null
+  is_detectable: boolean
+  sessions: number
+  verdict: string
+}
+
+export interface TurnoverOut {
+  annual_rate: MetricOut
+  purchases_eur: number | string
+  sales_eur: number | string
+}
+
+export interface WeightOut {
+  asset_key: string
+  weight: number | string
+}
+
+export interface CorrelationOut {
+  left: string
+  right: string
+  value: number | string
+}
+
+export interface ConcentrationResponse {
+  lines: number
+  effective_positions: MetricOut
+  independent_bets: MetricOut
+  weights: WeightOut[]
+  correlations: CorrelationOut[]
+  max_correlation: number | string | null
+  overlap: number
+  dropped: string[]
+  verdict: string
+}
+
+export interface FeesResponse {
+  total_fees: MetricOut
+  fee_share: MetricOut
+  annual_bps: MetricOut
+  threshold_order_size: MetricOut
+  orders_below_threshold: number
+  cost_below_threshold: number | string
+  invested_below_threshold: number | string
+  average_fee: number | string | null
+  average_order: number | string | null
+  order_count: number
+  projection_eur: number | string | null
+  projection_note: string
+  ter_note: string
+  verdict: string
+}
+
+export interface EpisodeOut {
+  asset_key: string
+  opened: string
+  closed: string
+  profit: number | string
+}
+
+export interface ExitsResponse {
+  pgr: MetricOut
+  plr: MetricOut
+  ratio: MetricOut
+  cost_eur: MetricOut
+  realisations: number
+  recent_sales: number
+  measured_sales: number
+  horizon_days: number
+  hit_rate: MetricOut
+  payoff_ratio: MetricOut
+  episode_count: number
+  episodes: EpisodeOut[]
+  verdict: string
+}
+
+export interface MonthlyAdherenceOut {
+  year: number
+  month: number
+  target: number | string
+  invested: number | string
+}
+
+export interface AllocationDriftOut {
+  asset_key: string
+  target: number | string
+  actual: number | string
+}
+
+export interface PlanResponse {
+  monthly_target: number | string
+  since: string
+  months: MonthlyAdherenceOut[]
+  total_target: number | string
+  total_invested: number | string
+  adherence_ratio: MetricOut
+  average_monthly: MetricOut
+  drift: AllocationDriftOut[]
+  drift_l1: MetricOut
+  rebalance_eur: number | string | null
+  under_invested_months: number
+  under_in_down_months: number
+  verdict: string
+  error: string | null
+}
+
+export interface InvestmentPlanInput {
+  monthly_target: string
+  allocation: Record<string, string>
+  since?: string
+}
+
+export interface InvestorAnalyticsResponse {
+  period_start: string | null
+  period_end: string | null
+  days: number
+  benchmark_asset_key: string
+  verdict: string
+  investor_gap: InvestorGapResponse | null
+  counterfactual: CounterfactualResponse | null
+  execution: ExecutionResponse | null
+  regularity: RegularityResponse | null
+  turnover: TurnoverOut | null
+  deposit_lag: DepositLagResponse | null
+  market_conditioning: MarketConditioningResponse | null
+  concentration: ConcentrationResponse | null
+  fees: FeesResponse | null
+  exits: ExitsResponse | null
+  plan: PlanResponse | null
 }

@@ -1,0 +1,72 @@
+<script setup lang="ts">
+/**
+ * Block 5 — adherence to the declared plan. Absent entirely when no plan is
+ * declared: the form in the page header is what brings it into existence.
+ */
+import { computed } from 'vue'
+import { BaseCard } from '@/components'
+import MetricTile from '@/components/analytics/MetricTile.vue'
+import { useFormatters } from '@/composables/useFormatters'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import type { PlanResponse } from '@/types'
+
+const props = defineProps<{ plan: PlanResponse | null }>()
+
+const { formatCurrency } = useFormatters()
+const { maskValue } = usePrivacyMode()
+
+function eur(value: number | string | null): string {
+  return value === null ? '—' : maskValue(formatCurrency(Number(value)))
+}
+
+const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(row.target) || Number(row.actual)))
+</script>
+
+<template>
+  <section v-if="plan && !plan.error" class="mt-8">
+    <h2 class="mb-3 text-base font-semibold text-text-main dark:text-text-dark-main">
+      Adhérence à ton plan
+    </h2>
+
+    <BaseCard>
+      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ plan.verdict }}
+      </p>
+
+      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
+        <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />
+        <MetricTile label="Dérive d'allocation" :metric="plan.drift_l1" kind="points" />
+      </div>
+
+      <div class="mb-3 text-xs text-text-muted dark:text-text-dark-muted">
+        Plan : {{ eur(plan.total_target) }} sur {{ plan.months.length }} mois complets depuis
+        {{ plan.since }}. Investi : {{ eur(plan.total_invested) }}.
+        <template v-if="plan.rebalance_eur">
+          À rééquilibrer : {{ eur(plan.rebalance_eur) }}.
+        </template>
+      </div>
+
+      <table v-if="drift.length" class="w-full text-left text-xs">
+        <thead class="text-text-muted dark:text-text-dark-muted">
+          <tr>
+            <th class="py-1 font-medium">Ligne</th>
+            <th class="py-1 text-right font-medium">Cible</th>
+            <th class="py-1 text-right font-medium">Réel</th>
+            <th class="py-1 text-right font-medium">Écart</th>
+          </tr>
+        </thead>
+        <tbody class="text-text-main dark:text-text-dark-main">
+          <tr v-for="row in drift" :key="row.asset_key" class="border-t border-border dark:border-border-dark">
+            <td class="py-1">{{ row.asset_key }}</td>
+            <td class="py-1 text-right tabular-nums">{{ Number(row.target).toFixed(1) }} %</td>
+            <td class="py-1 text-right tabular-nums">{{ Number(row.actual).toFixed(1) }} %</td>
+            <td class="py-1 text-right tabular-nums">
+              {{ (Number(row.actual) - Number(row.target)).toFixed(1) }} pts
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </BaseCard>
+  </section>
+</template>
