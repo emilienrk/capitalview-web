@@ -46,6 +46,15 @@ function eur(value: number | string | null): string {
       </p>
 
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- The measure that judges regularity: distance to a straight-line
+             deployment, which has no notion of a calendar month and so cannot be
+             fooled by one. -->
+        <MetricTile
+          label="Écart à un déploiement linéaire"
+          :metric="regularity.deployment_gap"
+          kind="pct"
+          invert
+        />
         <MetricTile
           label="Achats mensuels égaux équivalents"
           :metric="regularity.equivalent_monthly_purchases"
@@ -61,12 +70,15 @@ function eur(value: number | string | null): string {
           :metric="regularity.longest_gap_months"
           kind="months"
         />
-        <MetricTile
-          label="Dispersion du jour du mois"
-          :metric="regularity.day_of_month_spread"
-          kind="days"
-        />
       </div>
+
+      <p
+        v-if="regularity.cadence_label"
+        class="mb-3 text-xs text-text-muted dark:text-text-dark-muted"
+      >
+        Cadence détectée : {{ regularity.cadence_label }}. Elle est lue sur les ordres, jamais
+        déclarée.
+      </p>
 
       <!-- The heatmap is the same numbers in another shape: when the gate
            withheld them, the API sends an empty series and nothing is drawn. -->
@@ -75,6 +87,11 @@ function eur(value: number | string | null): string {
         :monthly="regularity.monthly"
         :is-dark="isDark"
       />
+
+      <p class="mt-2 text-xs italic text-text-muted dark:text-text-dark-muted">
+        Les chiffres mensuels ci-dessus illustrent, ils ne jugent pas : un rythme de 30 jours
+        dérive d'un mois sur l'autre sans que la discipline change.
+      </p>
     </BaseCard>
 
     <!-- ── 2.4 · deposit to purchase lag ─────────────────────────── -->
