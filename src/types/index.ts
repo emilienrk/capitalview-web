@@ -1277,8 +1277,14 @@ export interface TurnoverOut {
   sales_eur: number | string
 }
 
-export interface WeightOut {
+/** An ISIN identifies a line; the symbol and name are what a reader can use. */
+export interface AssetLabelOut {
   asset_key: string
+  symbol: string
+  name: string
+}
+
+export interface WeightOut extends AssetLabelOut {
   weight: number | string
 }
 
@@ -1286,6 +1292,10 @@ export interface CorrelationOut {
   left: string
   right: string
   value: number | string
+  left_symbol: string
+  right_symbol: string
+  left_name: string
+  right_name: string
 }
 
 export interface ConcentrationResponse {
@@ -1296,7 +1306,7 @@ export interface ConcentrationResponse {
   correlations: CorrelationOut[]
   max_correlation: number | string | null
   overlap: number
-  dropped: string[]
+  dropped: AssetLabelOut[]
   verdict: string
 }
 
@@ -1347,8 +1357,7 @@ export interface MonthlyAdherenceOut {
   invested: number | string
 }
 
-export interface AllocationDriftOut {
-  asset_key: string
+export interface AllocationDriftOut extends AssetLabelOut {
   target: number | string
   actual: number | string
 }

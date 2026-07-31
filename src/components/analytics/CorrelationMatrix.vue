@@ -24,6 +24,24 @@ const keys = computed(() =>
   [...new Set(props.correlations.flatMap((pair) => [pair.left, pair.right]))].sort(),
 )
 
+/**
+ * Axes carry the ticker — an ISIN is unreadable and there is no room for a full
+ * name — and the tooltip carries the name.
+ */
+const labels = computed(() => {
+  const short: Record<string, string> = {}
+  const full: Record<string, string> = {}
+  props.correlations.forEach((pair) => {
+    short[pair.left] = pair.left_symbol
+    short[pair.right] = pair.right_symbol
+    full[pair.left] = pair.left_name
+    full[pair.right] = pair.right_name
+  })
+  return { short, full }
+})
+
+const axisLabels = computed(() => keys.value.map((key) => labels.value.short[key] ?? key))
+
 const cells = computed(() => {
   const out: [number, number, number][] = []
   keys.value.forEach((key, index) => out.push([index, index, 1]))
@@ -44,10 +62,10 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
-    grid: { top: 8, left: 110, right: 12, bottom: 60 },
+    grid: { top: 8, left: 76, right: 12, bottom: 60 },
     xAxis: {
       type: 'category',
-      data: keys.value,
+      data: axisLabels.value,
       axisLabel: { color: textColor, fontSize: 10, rotate: 40 },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -55,7 +73,7 @@ const option = computed(() => {
     },
     yAxis: {
       type: 'category',
-      data: keys.value,
+      data: axisLabels.value,
       axisLabel: { color: textColor, fontSize: 10 },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -81,7 +99,11 @@ const option = computed(() => {
       textStyle: { color: tooltipText, fontSize: 12 },
       formatter: (params: { data: [number, number, number] }) => {
         const [x, y, value] = params.data
-        return `${keys.value[x]} / ${keys.value[y]}<br/>Corrélation ${value.toFixed(2)}`
+        const leftKey = keys.value[x] ?? ''
+        const rightKey = keys.value[y] ?? ''
+        const left = labels.value.full[leftKey] ?? leftKey
+        const right = labels.value.full[rightKey] ?? rightKey
+        return `${left} / ${right}<br/>Corrélation ${value.toFixed(2)}`
       },
     },
     series: [
