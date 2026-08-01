@@ -37,6 +37,22 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         réelle, pas la stratégie annoncée.
       </li>
       <li>
+        <strong>Deux conventions de frais cohabitent dans le bloc sorties, et c'est voulu.</strong>
+        L'effet de disposition compare le prix de vente au prix d'achat moyen <em>hors frais</em> :
+        c'est une mesure psychologique, et la théorie des perspectives situe le point de référence
+        au prix payé par titre, pas au seuil de rentabilité comptable (Odean, 1998). Le taux de
+        réussite et le rapport gain/perte, eux, sont <em>nets de frais des deux côtés</em>, parce
+        qu'ils demandent si l'aller-retour a rapporté — c'est exactement la distinction sur laquelle
+        repose Barber &amp; Odean (2000) : bruts de coûts, les particuliers sont à peu près au
+        marché ; nets, ils sous-performent. Une même vente peut donc être un gain pour la première
+        mesure et une position perdante pour la seconde : l'écart est exactement la commission.
+      </li>
+      <li>
+        <strong>Le P/L réalisé affiché sur la page Bourse peut différer</strong> de ce que dit ce
+        bloc sur la même vente. Ce n'est pas une incohérence : la page Bourse répond à la question
+        comptable — combien d'argent est rentré — et celle-ci à la question comportementale.
+      </li>
+      <li>
         <strong>Le seuil de frais par ordre est un calibrage, pas un verdict.</strong> C'est la
         charge annuelle en points de base qui dit s'il y a quelque chose à corriger : chez un
         courtier à moins d'un euro l'ordre, tous les ordres passent sous le seuil alors que la
