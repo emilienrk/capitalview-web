@@ -2,7 +2,7 @@
 /**
  * Blocks 4 and 3.2 — fees, and what happens on the way out.
  */
-import { BaseCard } from '@/components'
+import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -24,18 +24,22 @@ function eur(value: number | string | null): string {
       Frais et sorties
     </h2>
 
-    <BaseCard v-if="fees" class="mb-4">
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ fees.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="fees"
+      title="Frais de courtage"
+      :measurable="fees.total_fees.value !== null"
+      :summary="fees.total_fees.caveat"
+    >
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile label="Frais payés" :metric="fees.total_fees" kind="eur" />
         <MetricTile label="Part du capital déployé" :metric="fees.fee_share" kind="pct" />
         <MetricTile label="Coût annuel" :metric="fees.annual_bps" kind="bps" />
-        <MetricTile label="Seuil de rentabilité par ordre" :metric="fees.threshold_order_size" kind="eur" />
+        <MetricTile label="Seuil de calibrage par ordre" :metric="fees.threshold_order_size" kind="eur" />
       </div>
 
+      <!-- The threshold is calibration, the annual charge is the verdict. Saying
+           "group your orders" while the annual load is already under the target
+           contradicts the tile right above it. -->
       <p
         v-if="fees.orders_below_threshold"
         class="mb-2 text-xs text-text-muted dark:text-text-dark-muted"
@@ -43,6 +47,10 @@ function eur(value: number | string | null): string {
         {{ fees.orders_below_threshold }} ordres sur {{ fees.order_count }} sont sous le seuil :
         {{ eur(fees.cost_below_threshold) }} de frais pour
         {{ eur(fees.invested_below_threshold) }} investis.
+        <template v-if="!fees.avoidable">
+          La charge annuelle reste sous la cible : le seuil est ici une information de calibrage,
+          pas un problème à corriger.
+        </template>
       </p>
 
       <p
@@ -53,39 +61,45 @@ function eur(value: number | string | null): string {
         {{ fees.projection_note }}
       </p>
 
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ fees.verdict }}
+      </p>
+
       <!-- Not conditional: the fee that matters most is the one not visible here. -->
       <p class="mt-3 rounded-md bg-surface-active px-3 py-2 text-xs italic text-text-muted dark:bg-surface-dark-active dark:text-text-dark-muted">
         {{ fees.ter_note }}
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
 
-    <BaseCard v-if="exits">
-      <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Ce que tu fais de tes sorties
-      </h3>
-      <p class="mb-4 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
-        {{ exits.verdict }}
-      </p>
-
+    <CollapsibleBlock
+      v-if="exits"
+      title="Ce que deviennent les sorties"
+      :measurable="exits.ratio.value !== null"
+      :summary="exits.verdict"
+    >
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
           label="Gains coupés / pertes coupées"
           :metric="exits.ratio"
           kind="count"
         />
-        <MetricTile label="Ce que sortir t'a coûté" :metric="exits.cost_eur" kind="eur" signed invert />
+        <MetricTile label="Ce que sortir a coûté" :metric="exits.cost_eur" kind="eur" signed invert />
         <MetricTile label="Taux de réussite" :metric="exits.hit_rate" kind="pct" />
         <MetricTile label="Gain moyen / perte moyenne" :metric="exits.payoff_ratio" kind="count" />
       </div>
+
+      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+        {{ exits.verdict }}
+      </p>
 
       <p class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         Le coût des sorties compare, sur {{ exits.horizon_days }} jours après chaque vente, ce que
         la ligne vendue a fait contre l'indice.
         <template v-if="exits.recent_sales">
-          {{ exits.recent_sales }} vente(s) sont trop récentes pour cet horizon : elles sont
-          exclues du calcul plutôt que mesurées sur quelques semaines.
+          {{ exits.recent_sales }} vente{{ exits.recent_sales > 1 ? 's' : '' }} trop récente{{ exits.recent_sales > 1 ? 's' : '' }} pour cet horizon :
+          exclue{{ exits.recent_sales > 1 ? 's' : '' }} du calcul plutôt que mesurée sur quelques semaines.
         </template>
       </p>
-    </BaseCard>
+    </CollapsibleBlock>
   </section>
 </template>

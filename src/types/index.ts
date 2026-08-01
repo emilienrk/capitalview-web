@@ -1179,6 +1179,8 @@ export interface CounterfactualResponse {
   idle_cash_opportunity: number | string | null
   covered_from: string
   covered_days: number
+  /** Valuation day — yesterday's close, since today's does not exist yet. */
+  valued_at: string
   truncated: boolean
   order: string[]
   verdict: string
@@ -1214,6 +1216,11 @@ export interface RegularityResponse {
   months_total: number
   months_invested: number
   purchase_count: number
+  /** Distance to a straight-line deployment. This is what judges regularity. */
+  deployment_gap: MetricOut
+  /** Descriptive, never declared: "achats autour du 6 du mois". */
+  cadence_label: string
+  median_gap_days: number | null
   invested_share: MetricOut
   variation_coefficient: MetricOut
   longest_gap_months: MetricOut
@@ -1233,6 +1240,7 @@ export interface DepositLagResponse {
   unmatched_eur: number | string
   unmatched_share: number | string
   never_invested_eur: number | string
+  unpaired_deposits_eur: number | string
   deposit_variation: MetricOut
   purchase_variation: MetricOut
   idle_cash_opportunity: number | string | null
@@ -1277,8 +1285,14 @@ export interface TurnoverOut {
   sales_eur: number | string
 }
 
-export interface WeightOut {
+/** An ISIN identifies a line; the symbol and name are what a reader can use. */
+export interface AssetLabelOut {
   asset_key: string
+  symbol: string
+  name: string
+}
+
+export interface WeightOut extends AssetLabelOut {
   weight: number | string
 }
 
@@ -1286,6 +1300,10 @@ export interface CorrelationOut {
   left: string
   right: string
   value: number | string
+  left_symbol: string
+  right_symbol: string
+  left_name: string
+  right_name: string
 }
 
 export interface ConcentrationResponse {
@@ -1296,7 +1314,7 @@ export interface ConcentrationResponse {
   correlations: CorrelationOut[]
   max_correlation: number | string | null
   overlap: number
-  dropped: string[]
+  dropped: AssetLabelOut[]
   verdict: string
 }
 
@@ -1306,6 +1324,8 @@ export interface FeesResponse {
   annual_bps: MetricOut
   threshold_order_size: MetricOut
   orders_below_threshold: number
+  /** Whether grouping orders is worth recommending, not merely possible. */
+  avoidable: boolean
   cost_below_threshold: number | string
   invested_below_threshold: number | string
   average_fee: number | string | null
@@ -1347,14 +1367,21 @@ export interface MonthlyAdherenceOut {
   invested: number | string
 }
 
-export interface AllocationDriftOut {
-  asset_key: string
+export interface AllocationDriftOut extends AssetLabelOut {
   target: number | string
   actual: number | string
 }
 
-export interface PlanResponse {
+export interface PlanPeriodOut {
+  since: string
   monthly_target: number | string
+  allocation: Record<string, number | string>
+}
+
+export interface PlanResponse {
+  /** The target in force today, when the plan is split into periods. */
+  monthly_target: number | string
+  periods: PlanPeriodOut[]
   since: string
   months: MonthlyAdherenceOut[]
   total_target: number | string
@@ -1370,10 +1397,21 @@ export interface PlanResponse {
   error: string | null
 }
 
-export interface InvestmentPlanInput {
+export interface InvestmentPlanPeriodInput {
+  since: string
   monthly_target: string
   allocation: Record<string, string>
+}
+
+/**
+ * A plan that never changed is stored flat; one that did carries its periods.
+ * The shape says which it is, so no mode has to be persisted alongside it.
+ */
+export interface InvestmentPlanInput {
+  monthly_target?: string
+  allocation?: Record<string, string>
   since?: string
+  periods?: InvestmentPlanPeriodInput[]
 }
 
 export interface InvestorAnalyticsResponse {

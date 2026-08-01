@@ -24,6 +24,42 @@ const keys = computed(() =>
   [...new Set(props.correlations.flatMap((pair) => [pair.left, pair.right]))].sort(),
 )
 
+/**
+ * Axes carry the name, truncated to fit; the tooltip carries it in full with the
+ * ticker beside it.
+ *
+ * A ticker on the axis was only trading one code for another: IWDA.AS is no more
+ * a name than IE00B4L5Y983 is. The ISIN stays the technical key and never leaves
+ * the payload — it is simply not what a reader is shown.
+ */
+const AXIS_MAX = 22
+
+const labels = computed(() => {
+  const symbol: Record<string, string> = {}
+  const full: Record<string, string> = {}
+  props.correlations.forEach((pair) => {
+    symbol[pair.left] = pair.left_symbol
+    symbol[pair.right] = pair.right_symbol
+    full[pair.left] = pair.left_name
+    full[pair.right] = pair.right_name
+  })
+  return { symbol, full }
+})
+
+function truncate(value: string): string {
+  return value.length > AXIS_MAX ? `${value.slice(0, AXIS_MAX - 1).trimEnd()}…` : value
+}
+
+const axisLabels = computed(() =>
+  keys.value.map((key) => truncate(labels.value.full[key] ?? key)),
+)
+
+function describe(key: string): string {
+  const name = labels.value.full[key] ?? key
+  const ticker = labels.value.symbol[key]
+  return ticker && ticker !== name ? `${name} (${ticker})` : name
+}
+
 const cells = computed(() => {
   const out: [number, number, number][] = []
   keys.value.forEach((key, index) => out.push([index, index, 1]))
@@ -44,18 +80,18 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
-    grid: { top: 8, left: 110, right: 12, bottom: 60 },
+    grid: { top: 8, left: 150, right: 12, bottom: 90 },
     xAxis: {
       type: 'category',
-      data: keys.value,
-      axisLabel: { color: textColor, fontSize: 10, rotate: 40 },
+      data: axisLabels.value,
+      axisLabel: { color: textColor, fontSize: 10, rotate: 35 },
       axisLine: { show: false },
       axisTick: { show: false },
       splitArea: { show: true },
     },
     yAxis: {
       type: 'category',
-      data: keys.value,
+      data: axisLabels.value,
       axisLabel: { color: textColor, fontSize: 10 },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -81,7 +117,9 @@ const option = computed(() => {
       textStyle: { color: tooltipText, fontSize: 12 },
       formatter: (params: { data: [number, number, number] }) => {
         const [x, y, value] = params.data
-        return `${keys.value[x]} / ${keys.value[y]}<br/>Corrélation ${value.toFixed(2)}`
+        const left = describe(keys.value[x] ?? '')
+        const right = describe(keys.value[y] ?? '')
+        return `${left}<br/>${right}<br/>Corrélation ${value.toFixed(2)}`
       },
     },
     series: [
@@ -101,7 +139,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="h-64 w-full" style="touch-action: pan-y;">
+  <div ref="containerRef" class="h-80 w-full" style="touch-action: pan-y;">
     <VChart
       v-if="canRenderChart"
       ref="chartRef"
