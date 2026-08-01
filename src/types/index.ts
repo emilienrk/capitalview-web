@@ -1203,6 +1203,8 @@ export interface ExecutionResponse {
   percentile: number | string | null
   is_detectable: boolean
   median_absolute_bps: number | string | null
+  /** Share of orders paid at a price the asset was never quoted at that month. */
+  out_of_range_share: number | string | null
   /** False when paid and stored prices look like two different quote venues. */
   prices_are_plausible: boolean
   verdict: string
