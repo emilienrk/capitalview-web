@@ -261,7 +261,8 @@ const option = computed(() => {
     },
     grid: {
       top: 16,
-      left: isSmall ? 32 : 38,
+      // "12,4k€" needs more room than "12k€" did — 32px clipped the decimal.
+      left: isSmall ? 46 : 52,
       right: isSmall ? 4 : 12,
       bottom: 72,
     },
@@ -271,7 +272,12 @@ const option = computed(() => {
       boundaryGap: false,
       axisLine: { show: false },
       axisLabel: {
-        interval: xAxisInterval,
+        // 'auto' rather than a step computed from the full series: the zoom
+        // slider is locked to a window, and a fixed "every Nth category" step
+        // counts across all of them — zoomed in, that left a single date on the
+        // axis. ECharts spaces the visible window itself, and hideOverlap drops
+        // what collides.
+        interval: xAxisInterval === 0 ? 0 : 'auto',
         formatter: formatXAxisLabel,
         color: textColor,
         fontSize: 10,
@@ -287,8 +293,13 @@ const option = computed(() => {
       axisLabel: {
         color: textColor,
         fontSize: 10,
+        // One decimal, dropped when it is zero. Rounding thousands to the unit
+        // collapsed neighbouring ticks onto the same text: a portfolio moving
+        // between 11.9k and 12.4k drew "12k€" twice and read like a broken axis.
         formatter: (val: number) =>
-          Math.abs(val) >= 1000 ? `${(val / 1000).toFixed(0)}k€` : `${Math.round(val)}€`,
+          Math.abs(val) >= 1000
+            ? `${(val / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k€`
+            : `${Math.round(val)}€`,
       },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: gridColor } },
