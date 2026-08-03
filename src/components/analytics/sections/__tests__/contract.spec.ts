@@ -190,6 +190,28 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).not.toContain('undefined')
   })
 
+  it('une métrique fiable ne porte aucun marqueur', async () => {
+    const html = await render('HoldingsSection', { concentration, turnover: null })
+    expect(html).not.toContain('Fiable')
+    expect(html).not.toContain('role="tooltip"')
+  })
+
+  it('une métrique dégradée porte un marqueur, et sa phrase reste hors du flux', async () => {
+    const degraded = {
+      ...concentration,
+      independent_bets: {
+        ...metric(1.1),
+        reliability: 'indicatif',
+        caveat: 'Deux ans de rendements journaliers font une estimation bruitée.',
+      },
+    }
+    const html = await render('HoldingsSection', { concentration: degraded, turnover: null })
+    // Le marqueur est un bouton accessible, nommé par son niveau de fiabilité.
+    expect(html).toContain('aria-label="Indicatif"')
+    // La phrase n'encombre plus la page : elle attend le survol ou le tap.
+    expect(html).not.toContain('estimation bruitée')
+  })
+
   it('PlanSection rend le plan déclaré', async () => {
     const html = await render('PlanSection', { plan })
     expect(html).toContain('Air Liquide')
