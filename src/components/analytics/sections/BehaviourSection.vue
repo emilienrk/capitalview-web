@@ -10,6 +10,7 @@
  */
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
+import ReadingScale from '@/components/analytics/ReadingScale.vue'
 import ContributionHeatmap from '@/components/analytics/ContributionHeatmap.vue'
 import DensityComparison from '@/components/analytics/DensityComparison.vue'
 import MarketStateScatter from '@/components/analytics/MarketStateScatter.vue'
@@ -58,6 +59,23 @@ function eur(value: number | string | null): string {
           sanctionné à tort. Les indicateurs mensuels restent affichés à titre d'illustration.
           Des ordres discrets laissent un plancher d'environ 1/(2n) : quelques pour cent d'écart,
           c'est une droite.
+        </li>
+        <li>
+          <strong>Comment la lire.</strong> Le repère dépend du nombre d'ordres : avec
+          {{ regularity.purchase_count }} achats, des versements parfaitement réguliers
+          donneraient déjà environ
+          {{ (100 / (2 * regularity.purchase_count)).toFixed(1) }} % — c'est le plancher, pas un
+          défaut. On considère la droite tenue jusqu'au double de ce plancher. À l'autre bout,
+          50 % correspond à tout verser en une seule fois le premier jour.
+          <ReadingScale
+            :value="regularity.deployment_gap.value === null ? null : Number(regularity.deployment_gap.value) * 100"
+            :bands="[
+              { upTo: 100 / regularity.purchase_count, label: 'régulier', tone: 'good' },
+              { upTo: 25, label: 'des à-coups', tone: 'watch' },
+              { label: 'par à-coups massifs', tone: 'bad' },
+            ]"
+            :format="(n) => `${n.toFixed(1)} %`"
+          />
         </li>
         <li>
           <strong>La cadence est détectée, jamais déclarée.</strong> Elle est lue sur les ordres —
@@ -140,6 +158,21 @@ function eur(value: number | string | null): string {
           calculé sur tes <strong>achats</strong>. Les dépôts ne servent qu'à trois choses : la
           performance réelle de tes euros, le délai avant investissement, et le coût du cash resté
           dormant.
+        </li>
+        <li>
+          <strong>Comment le lire.</strong> Chaque euro déposé est suivi jusqu'à l'achat qui le
+          consomme, et le délai médian est celui de la moitié de tes euros. En dessous de deux
+          jours, l'app considère ton argent investi à l'arrivée ; au-delà d'une semaine, elle le
+          signale dans le verdict d'ensemble.
+          <ReadingScale
+            :value="depositLag.median_days.value"
+            :bands="[
+              { upTo: 2, label: 'investi à l’arrivée', tone: 'good' },
+              { upTo: 7, label: 'quelques jours', tone: 'watch' },
+              { label: 'le cash attend', tone: 'bad' },
+            ]"
+            :format="(n) => `${Math.round(n)} j`"
+          />
         </li>
       </template>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -6,6 +6,7 @@
 import { BaseCard } from '@/components'
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
+import ReadingScale from '@/components/analytics/ReadingScale.vue'
 import CorrelationMatrix from '@/components/analytics/CorrelationMatrix.vue'
 import type { ConcentrationResponse, TurnoverOut } from '@/types'
 
@@ -35,6 +36,21 @@ defineProps<{
           la variance, et la mesure sort presque toujours entre 1 et 1,5. Elle répond « un seul
           pari : les actions », ce qui est exact et peu actionnable — c'est une propriété de la
           mesure de Meucci, pas un défaut du portefeuille.
+        </li>
+        <li>
+          <strong>Comment le lire.</strong> On décompose la variance du portefeuille en
+          composantes indépendantes, puis on compte combien pèsent réellement. En dessous de 1,5
+          pari pour plusieurs lignes, l'app parle d'illusion de comptage. Deux lignes qui
+          corrèlent au-delà de 0,9 sont signalées à part : ce sont pratiquement les mêmes.
+          <ReadingScale
+            :value="concentration.independent_bets.value"
+            :bands="[
+              { upTo: 1.5, label: 'un seul pari', tone: 'bad' },
+              { upTo: 2.5, label: 'deux directions', tone: 'watch' },
+              { label: 'réellement réparti', tone: 'good' },
+            ]"
+            :format="(n) => n.toFixed(1)"
+          />
         </li>
         <li>
           Ce n'est pas une analyse de la composition des ETF — elle n'est pas stockée. La mesure

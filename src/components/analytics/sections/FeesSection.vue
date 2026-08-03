@@ -4,6 +4,7 @@
  */
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
+import ReadingScale from '@/components/analytics/ReadingScale.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { ExitsResponse, FeesResponse } from '@/types'
@@ -36,6 +37,21 @@ function eur(value: number | string | null): string {
           charge annuelle en points de base qui dit s'il y a quelque chose à corriger : chez un
           courtier à moins d'un euro l'ordre, tous les ordres passent sous le seuil alors que la
           charge totale reste dérisoire.
+        </li>
+        <li>
+          <strong>Comment les lire.</strong> La charge annuelle rapporte tes frais au capital
+          déployé, ramenés à l'année et exprimés en points de base (1 bp = 0,01 %). La ligne est
+          à 25 bps : c'est elle qui décide si le bloc parle d'un problème ou d'un simple
+          calibrage, pas le nombre d'ordres sous le seuil.
+          <ReadingScale
+            :value="fees.annual_bps.value"
+            :bands="[
+              { upTo: 25, label: 'sous la cible', tone: 'good' },
+              { upTo: 75, label: 'ça se voit', tone: 'watch' },
+              { label: 'ça pèse', tone: 'bad' },
+            ]"
+            :format="(n) => `${Math.round(n)} bps`"
+          />
         </li>
       </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -106,6 +122,20 @@ function eur(value: number | string | null): string {
           Le <strong>coût des sorties</strong> compare la ligne vendue à l'indice sur un horizon
           fixe d'un an. Les ventes trop récentes pour cet horizon sont exclues et comptées, jamais
           évaluées sur quelques semaines.
+        </li>
+        <li>
+          <strong>Comment le lire.</strong> Le rapport compare la facilité avec laquelle tu
+          réalises un gain à celle avec laquelle tu réalises une perte. Au-dessus de 1, tu coupes
+          ce qui monte et gardes ce qui baisse — l'effet de disposition d'Odean.
+          <ReadingScale
+            :value="exits.ratio.value"
+            :bands="[
+              { upTo: 1, label: 'pas d’effet', tone: 'good' },
+              { upTo: 2, label: 'tu coupes tes gains', tone: 'watch' },
+              { label: 'marqué', tone: 'bad' },
+            ]"
+            :format="(n) => `${n.toFixed(1)}×`"
+          />
         </li>
       </template>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
