@@ -28,6 +28,23 @@ defineProps<{
       :measurable="concentration.effective_positions.value !== null"
       :summary="concentration.effective_positions.caveat"
     >
+      <template #help>
+        <li>
+          <strong>Les paris indépendants ne discriminent presque pas</strong> entre deux
+          portefeuilles actions long-only : la première composante principale y porte 98 à 99 % de
+          la variance, et la mesure sort presque toujours entre 1 et 1,5. Elle répond « un seul
+          pari : les actions », ce qui est exact et peu actionnable — c'est une propriété de la
+          mesure de Meucci, pas un défaut du portefeuille.
+        </li>
+        <li>
+          Ce n'est pas une analyse de la composition des ETF — elle n'est pas stockée. La mesure
+          porte sur la redondance de comportement : à quel point les lignes bougent ensemble.
+        </li>
+        <li>
+          Le <strong>taux de rotation</strong> retient le plus petit des deux côtés, achats ou
+          ventes : accumuler n'est pas tourner son portefeuille.
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <p

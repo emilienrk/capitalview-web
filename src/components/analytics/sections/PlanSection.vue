@@ -33,6 +33,19 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
       title="Adhérence au plan"
       :summary="plan.adherence_ratio.caveat"
     >
+      <template #help>
+        <li>
+          Le <strong>plan cible</strong> n'est évalué qu'à partir du mois que tu déclares, et sur
+          les mois complets uniquement. Appliqué rétroactivement, il produirait un verdict sur des
+          mois où tu n'avais rien promis ; en comptant le mois en cours, il montrerait un
+          sous-investissement à chaque ouverture de la page.
+        </li>
+        <li>
+          <strong>Un plan cible peut être fractionné en périodes.</strong> Chaque mois complet est
+          alors confronté à la cible en vigueur ce mois-là, et la dérive d'allocation lit la
+          période courante — c'est elle qui dit vers quoi rééquilibrer aujourd'hui.
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
         <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />

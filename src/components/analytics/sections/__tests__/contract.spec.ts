@@ -212,6 +212,13 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).not.toContain('estimation bruitée')
   })
 
+  it('chaque bloc porte un « ? », dont le contenu reste replié', async () => {
+    const html = await render('HoldingsSection', { concentration, turnover: null })
+    expect(html).toContain('aria-label="Méthode et définitions"')
+    // Fermé par défaut : la prose ne pèse pas sur la page tant qu'on ne l'ouvre pas.
+    expect(html).not.toContain('propriété de la mesure de Meucci')
+  })
+
   it('PlanSection rend le plan déclaré', async () => {
     const html = await render('PlanSection', { plan })
     expect(html).toContain('Air Liquide')

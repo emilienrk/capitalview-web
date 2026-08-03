@@ -51,6 +51,19 @@ function eur(value: number | string): string {
       :measurable="gap.gap.value !== null"
       :summary="gap.gap.caveat"
     >
+      <template #help>
+        <li>
+          Le pont contrefactuel est <strong>dépendant du chemin</strong> : l'ordre des
+          substitutions est un choix, et le réordonner déplacerait quelques euros entre termes
+          voisins. La somme des termes réconcilie exactement avec ton portefeuille ; tout reliquat
+          apparaît comme « non expliqué » plutôt que d'être absorbé.
+        </li>
+        <li>
+          Le robot part du <strong>même capital effectivement investi que toi</strong>, et se voit
+          attribuer les mêmes liquidités non investies. Sans ça, un gros dépôt laissé dormant se
+          lirait comme du talent d'investisseur.
+        </li>
+      </template>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
           v-for="card in cards"
@@ -116,6 +129,19 @@ function eur(value: number | string): string {
       :measurable="execution.slippage_bps.value !== null"
       :summary="execution.slippage_bps.caveat"
     >
+      <template #help>
+        <li>
+          Le prix de référence d'un achat est la <strong>moyenne des clôtures journalières</strong>
+          de son mois calendaire (TWAP). Ce n'est pas un VWAP : les volumes intra-journaliers ne
+          sont pas stockés. Le véritable <em>implementation shortfall</em> demanderait un
+          horodatage de décision qui n'est pas collecté — il n'est ni calculé ni prétendu.
+        </li>
+        <li>
+          Les tests de permutation re-tirent tes achats au hasard (5 000 fois) en gelant tout le
+          reste. Le tirage est <strong>à graine fixe</strong> : deux consultations donnent le même
+          résultat. Au-delà de p = 0,10, la page dit « rien de détectable » — jamais « tu es bon ».
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <MetricTile
           label="Écart moyen au prix du mois"

@@ -30,6 +30,14 @@ function eur(value: number | string | null): string {
       :measurable="fees.total_fees.value !== null"
       :summary="fees.total_fees.caveat"
     >
+      <template #help>
+        <li>
+          <strong>Le seuil de frais par ordre est un calibrage, pas un verdict.</strong> C'est la
+          charge annuelle en points de base qui dit s'il y a quelque chose à corriger : chez un
+          courtier à moins d'un euro l'ordre, tous les ordres passent sous le seuil alors que la
+          charge totale reste dérisoire.
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile label="Frais payés" :metric="fees.total_fees" kind="eur" />
         <MetricTile label="Part du capital déployé" :metric="fees.fee_share" kind="pct" />
@@ -77,6 +85,29 @@ function eur(value: number | string | null): string {
       :measurable="exits.ratio.value !== null"
       :summary="exits.verdict"
     >
+      <template #help>
+        <li>
+          <strong>Deux conventions de frais cohabitent ici, et c'est voulu.</strong> L'effet de
+          disposition compare le prix de vente au prix d'achat moyen <em>hors frais</em> : c'est
+          une mesure psychologique, et la théorie des perspectives situe le point de référence au
+          prix payé par titre (Odean, 1998). Le taux de réussite et le rapport gain/perte, eux,
+          sont <em>nets de frais des deux côtés</em>, parce qu'ils demandent si l'aller-retour a
+          rapporté — la distinction sur laquelle repose Barber &amp; Odean (2000). Une même vente
+          peut donc être un gain pour la première mesure et une position perdante pour la seconde :
+          l'écart est exactement la commission.
+        </li>
+        <li>
+          <strong>Le P/L réalisé affiché sur la page Bourse peut différer</strong> de ce que dit ce
+          bloc sur la même vente. Ce n'est pas une incohérence : la page Bourse répond à la
+          question comptable — combien d'argent est rentré — et celle-ci à la question
+          comportementale.
+        </li>
+        <li>
+          Le <strong>coût des sorties</strong> compare la ligne vendue à l'indice sur un horizon
+          fixe d'un an. Les ventes trop récentes pour cet horizon sont exclues et comptées, jamais
+          évaluées sur quelques semaines.
+        </li>
+      </template>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
           label="Gains coupés / pertes coupées"

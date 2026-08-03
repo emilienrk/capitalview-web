@@ -49,6 +49,29 @@ function eur(value: number | string | null): string {
       :measurable="regularity.deployment_gap.value !== null"
       :summary="regularity.deployment_gap.caveat"
     >
+      <template #help>
+        <li>
+          <strong>La régularité se mesure sur la courbe de capital cumulé</strong>, pas sur les
+          mois calendaires : on regarde l'écart moyen à la droite qui joindrait le premier au
+          dernier jour de la fenêtre, rapporté au capital total. Un rythme strict de 30 jours
+          dérive d'un mois sur l'autre sans que la discipline change ; jugé au mois, il était
+          sanctionné à tort. Les indicateurs mensuels restent affichés à titre d'illustration.
+          Des ordres discrets laissent un plancher d'environ 1/(2n) : quelques pour cent d'écart,
+          c'est une droite.
+        </li>
+        <li>
+          <strong>La cadence est détectée, jamais déclarée.</strong> Elle est lue sur les ordres —
+          soit un jour du mois, soit un intervalle médian — et c'est le plus resserré des deux qui
+          est nommé. Aucun « mode d'investissement » n'est demandé : la page cherche la stratégie
+          réelle, pas la stratégie annoncée.
+        </li>
+        <li>
+          L'<strong>indice de concentration temporelle</strong> (HHI) appliqué à la répartition de
+          ton capital dans le temps est un usage maison : l'indice est standard, le porter sur
+          l'axe du temps est une lecture propre à cette page. Son inverse se lit en « achats
+          mensuels égaux équivalents ».
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- The measure that judges regularity: distance to a straight-line
              deployment, which has no notion of a calendar month and so cannot be
@@ -95,10 +118,6 @@ function eur(value: number | string | null): string {
       <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
         {{ regularity.verdict }}
       </p>
-      <p class="mt-2 text-xs italic text-text-muted dark:text-text-dark-muted">
-        Les chiffres mensuels ci-dessus illustrent, ils ne jugent pas : un rythme de 30 jours
-        dérive d'un mois sur l'autre sans que la discipline change.
-      </p>
     </CollapsibleBlock>
 
     <!-- ── 2.4 · deposit to purchase lag ─────────────────────────── -->
@@ -108,6 +127,21 @@ function eur(value: number | string | null): string {
       :measurable="depositLag.median_days.value !== null"
       :summary="depositLag.median_days.caveat"
     >
+      <template #help>
+        <li>
+          <strong>Deux conventions de coût coexistent</strong>, pour deux objets différents : le
+          délai dépôt → achat suit un <strong>FIFO sur les liquidités</strong> (on suit un euro),
+          là où les plus-values réalisées de l'app utilisent le <strong>coût moyen pondéré</strong>.
+          Ce n'est pas une incohérence, et aligner les deux ferait dire à cette page l'inverse de
+          tes encarts de la page Bourse.
+        </li>
+        <li>
+          <strong>Achat ≠ dépôt.</strong> Tout ce qui juge ton comportement d'investissement est
+          calculé sur tes <strong>achats</strong>. Les dépôts ne servent qu'à trois choses : la
+          performance réelle de tes euros, le délai avant investissement, et le coût du cash resté
+          dormant.
+        </li>
+      </template>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile label="Délai médian" :metric="depositLag.median_days" kind="days" />
         <MetricTile label="Délai au 9ᵉ décile" :metric="depositLag.p90_days" kind="days" />
@@ -157,6 +191,19 @@ function eur(value: number | string | null): string {
       :measurable="conditioning.weighted_drawdown.value !== null"
       :summary="conditioning.weighted_drawdown.caveat"
     >
+      <template #help>
+        <li>
+          L'état du marché est mesuré en <strong>séances</strong>, jamais en jours calendaires, et
+          un jour dont l'année glissante précédente n'est pas complète est écarté : un plus-haut
+          calculé sur une fenêtre tronquée afficherait un écart quasi nul et se lirait à tort
+          comme un achat dans le creux.
+        </li>
+        <li>
+          Les tests de permutation re-tirent tes achats au hasard (5 000 fois) en gelant tout le
+          reste. Le tirage est <strong>à graine fixe</strong> : deux consultations donnent le même
+          résultat. Au-delà de p = 0,10, la page dit « rien de détectable » — jamais « tu es bon ».
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
           label="L'euro moyen entre à"
