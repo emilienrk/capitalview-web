@@ -1,27 +1,49 @@
 <script setup lang="ts">
+/**
+ * How far a figure can be trusted — shown only when that is a warning.
+ *
+ * A "Fiable" badge under every number was noise: it is the expected case, and
+ * repeating it thirty times taught the reader to skip the badges entirely,
+ * including the ones that mattered. Solid figures now carry nothing.
+ *
+ * A degraded figure keeps a marker, because reading "1.1 paris indépendants" as
+ * a measurement rather than a noisy estimate is a wrong conclusion, not a
+ * cosmetic detail. The sentence explaining why sits behind it — hover on a
+ * pointer, tap on a phone.
+ */
 import { computed } from 'vue'
+import { CircleAlert, TriangleAlert } from 'lucide-vue-next'
+import BaseTooltip from '@/components/base/BaseTooltip.vue'
 import type { Reliability } from '@/types'
 
 const props = defineProps<{ reliability: Reliability; caveat?: string | null }>()
 
-const label = computed(() => ({
-  solide: 'Fiable',
-  indicatif: 'Indicatif',
-  insuffisant: 'Données insuffisantes',
-}[props.reliability]))
+const isSolid = computed(() => props.reliability === 'solide')
 
-const tone = computed(() => ({
-  solide: 'bg-success/10 text-success',
-  indicatif: 'bg-warning/10 text-warning',
-  insuffisant: 'bg-surface-active text-text-muted dark:bg-surface-dark-active dark:text-text-dark-muted',
-}[props.reliability]))
+const label = computed(
+  () =>
+    ({
+      solide: 'Fiable',
+      indicatif: 'Indicatif',
+      insuffisant: 'Données insuffisantes',
+    })[props.reliability] ?? '',
+)
+
+const tone = computed(() =>
+  props.reliability === 'indicatif'
+    ? 'text-warning'
+    : 'text-text-muted dark:text-text-dark-muted',
+)
+
+const icon = computed(() => (props.reliability === 'indicatif' ? TriangleAlert : CircleAlert))
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
-    <span :class="['inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-medium', tone]">
-      {{ label }}
-    </span>
-    <p v-if="caveat" class="text-xs text-text-muted dark:text-text-dark-muted">{{ caveat }}</p>
-  </div>
+  <BaseTooltip v-if="!isSolid" :label="label">
+    <template #trigger>
+      <component :is="icon" :class="['h-3.5 w-3.5', tone]" stroke-width="2" />
+    </template>
+    <span class="font-medium text-text-main dark:text-text-dark-main">{{ label }}</span>
+    <template v-if="caveat"> — {{ caveat }}</template>
+  </BaseTooltip>
 </template>

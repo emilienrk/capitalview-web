@@ -72,7 +72,11 @@ const toneClass = computed(() => {
     >
       {{ label }}
     </p>
-    <p :class="['mb-2 text-2xl font-bold tabular-nums', toneClass]">{{ display }}</p>
-    <ReliabilityBadge :reliability="metric.reliability" :caveat="metric.caveat" />
+    <!-- The marker sits against the figure it qualifies, not under it: a solid
+         metric renders nothing at all, so the tile keeps its height either way. -->
+    <p :class="['flex items-center gap-1.5 text-2xl font-bold tabular-nums', toneClass]">
+      {{ display }}
+      <ReliabilityBadge :reliability="metric.reliability" :caveat="metric.caveat" />
+    </p>
   </div>
 </template>

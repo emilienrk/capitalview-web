@@ -16,6 +16,7 @@
 import { ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { BaseCard } from '@/components'
+import BlockHelp from '@/components/analytics/BlockHelp.vue'
 
 withDefaults(
   defineProps<{
@@ -32,12 +33,16 @@ const isExpanded = ref(false)
 
 <template>
   <BaseCard v-if="measurable" class="mb-4">
-    <h3
-      v-if="title"
-      class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main"
-    >
-      {{ title }}
-    </h3>
+    <!-- Title and its "?" share one row: the method note belongs beside the
+         block it explains, not in a section at the foot of the page. -->
+    <div v-if="title || $slots.help" class="mb-1 flex items-start justify-between gap-2">
+      <h3 v-if="title" class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+        {{ title }}
+      </h3>
+      <BlockHelp v-if="$slots.help" class="shrink-0">
+        <slot name="help" />
+      </BlockHelp>
+    </div>
     <slot />
   </BaseCard>
 

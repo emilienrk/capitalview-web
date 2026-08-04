@@ -17,7 +17,7 @@ use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapCom
 
 const props = defineProps<{ correlations: CorrelationOut[]; isDark?: boolean }>()
 
-const { chartRef, containerRef, canRenderChart } = useChartResize()
+const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series', 'visualMap'] }
 
 const keys = computed(() =>
@@ -31,8 +31,15 @@ const keys = computed(() =>
  * A ticker on the axis was only trading one code for another: IWDA.AS is no more
  * a name than IE00B4L5Y983 is. The ISIN stays the technical key and never leaves
  * the payload — it is simply not what a reader is shown.
+ *
+ * On a phone the gutter that holds those names is the whole budget: 150px of a
+ * 375px screen leaves 5 columns fighting over the rest. So the narrow layout
+ * truncates harder and takes back the room — the full name is one tap away in
+ * the tooltip either way.
  */
 const AXIS_MAX = 22
+const AXIS_MAX_SMALL = 10
+const SMALL_WIDTH = 640
 
 const labels = computed(() => {
   const symbol: Record<string, string> = {}
@@ -46,13 +53,16 @@ const labels = computed(() => {
   return { symbol, full }
 })
 
-function truncate(value: string): string {
-  return value.length > AXIS_MAX ? `${value.slice(0, AXIS_MAX - 1).trimEnd()}…` : value
+const isSmall = computed(() => containerWidth.value > 0 && containerWidth.value < SMALL_WIDTH)
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value
 }
 
-const axisLabels = computed(() =>
-  keys.value.map((key) => truncate(labels.value.full[key] ?? key)),
-)
+const axisLabels = computed(() => {
+  const max = isSmall.value ? AXIS_MAX_SMALL : AXIS_MAX
+  return keys.value.map((key) => truncate(labels.value.full[key] ?? key, max))
+})
 
 function describe(key: string): string {
   const name = labels.value.full[key] ?? key
@@ -80,7 +90,14 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
-    grid: { top: 8, left: 150, right: 12, bottom: 90 },
+    // The gutter tracks the truncation: ~6px a character at fontSize 10, and the
+    // rotated x labels need roughly their own length again below the plot.
+    grid: {
+      top: 8,
+      left: isSmall.value ? 74 : 150,
+      right: 12,
+      bottom: isSmall.value ? 62 : 90,
+    },
     xAxis: {
       type: 'category',
       data: axisLabels.value,

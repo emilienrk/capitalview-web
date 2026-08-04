@@ -6,6 +6,7 @@
 import { computed } from 'vue'
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
+import ReadingScale from '@/components/analytics/ReadingScale.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { PlanResponse } from '@/types'
@@ -33,6 +34,33 @@ const drift = computed(() => (props.plan?.drift ?? []).filter((row) => Number(ro
       title="Adhérence au plan"
       :summary="plan.adherence_ratio.caveat"
     >
+      <template #help>
+        <li>
+          Le <strong>plan cible</strong> n'est évalué qu'à partir du mois que tu déclares, et sur
+          les mois complets uniquement. Appliqué rétroactivement, il produirait un verdict sur des
+          mois où tu n'avais rien promis ; en comptant le mois en cours, il montrerait un
+          sous-investissement à chaque ouverture de la page.
+        </li>
+        <li>
+          <strong>Un plan cible peut être fractionné en périodes.</strong> Chaque mois complet est
+          alors confronté à la cible en vigueur ce mois-là, et la dérive d'allocation lit la
+          période courante — c'est elle qui dit vers quoi rééquilibrer aujourd'hui.
+        </li>
+        <li>
+          <strong>Comment la lire.</strong> L'adhérence est ce que tu as investi divisé par ce
+          que tu avais promis, sur les mois complets depuis ta date de départ. L'app considère le
+          plan tenu à partir de 0,98, et signale la dérive d'allocation au-delà de 10 points.
+          <ReadingScale
+            :value="plan.adherence_ratio.value"
+            :bands="[
+              { upTo: 0.8, label: 'décroché', tone: 'bad' },
+              { upTo: 0.98, label: 'en retrait', tone: 'watch' },
+              { label: 'tenu', tone: 'good' },
+            ]"
+            :format="(n) => n.toFixed(2)"
+          />
+        </li>
+      </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
         <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />
