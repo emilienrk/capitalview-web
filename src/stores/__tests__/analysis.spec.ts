@@ -54,4 +54,38 @@ describe('useAnalysisStore', () => {
     expect(store.error).toBe('boom')
     expect(store.isLoading).toBe(false)
   })
+
+  it('loads the traded lines the settings pickers offer', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue([
+      {
+        asset_key: 'IE00B4L5Y983',
+        symbol: 'IWDA.AS',
+        name: 'iShares Core MSCI World',
+        held: true,
+        invested_eur: '12000',
+        first_bought: '2024-01-05',
+        last_activity: '2025-06-05',
+      },
+    ])
+
+    const store = useAnalysisStore()
+    await store.fetchAssets()
+
+    expect(apiClient.get).toHaveBeenCalledWith('/analytics/assets')
+    expect(store.assets[0]?.name).toBe('iShares Core MSCI World')
+  })
+
+  it('leaves the pickers usable when the list cannot be fetched', async () => {
+    // A failure here must not break the form: free ISIN entry still works.
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('boom'))
+
+    const store = useAnalysisStore()
+    await store.fetchAssets()
+
+    expect(store.assets).toEqual([])
+    expect(store.error).toBeNull()
+    expect(store.isLoadingAssets).toBe(false)
+  })
 })

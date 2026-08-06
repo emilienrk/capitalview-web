@@ -39,6 +39,9 @@ const plan = computed(() => analysis.data?.plan ?? null)
  * Each block stands on its own data — the replay blocks need only transactions
  * and prices, so a portfolio whose daily snapshots have not been rebuilt yet
  * must still see them.
+ *
+ * Turnover and the plan count too. Leaving them out sent a portfolio that has
+ * only those to the empty state, which then hid the very blocks it had.
  */
 const hasAnyBlock = computed(() =>
   Boolean(
@@ -49,10 +52,19 @@ const hasAnyBlock = computed(() =>
       depositLag.value ||
       conditioning.value ||
       concentration.value ||
+      turnover.value ||
       fees.value ||
-      exits.value,
+      exits.value ||
+      plan.value,
   ),
 )
+
+/**
+ * A plan declared but impossible to score says so here, not only in settings.
+ * Otherwise the block simply does not appear and the page reads as though no
+ * plan had ever been declared — the one reading that is certainly wrong.
+ */
+const planError = computed(() => plan.value?.error ?? null)
 
 /**
  * Repair a stale cache rather than trust whoever changed the setting.
@@ -78,7 +90,11 @@ onMounted(async () => {
       description="Ce que tes données disent de ton comportement d'investisseur"
     >
       <template #actions>
-        <RouterLink :to="{ path: '/settings', query: { tab: 'analyse' } }">
+        <RouterLink
+          :to="{ path: '/settings', query: { tab: 'analyse' } }"
+          aria-label="Réglages de l'analyse : indice et plan cible"
+          title="Réglages de l'analyse : indice et plan cible"
+        >
           <BaseButton variant="outline" size="sm">
             <Settings class="h-4 w-4" stroke-width="2" />
             <span class="hidden sm:inline">Indice et plan cible</span>
@@ -104,6 +120,16 @@ onMounted(async () => {
 
       <template v-else>
         <VerdictBanner v-if="analysis.data?.verdict" :verdict="analysis.data.verdict" />
+
+        <BaseAlert v-if="planError" variant="warning" class="mb-6">
+          Ton plan cible n'est pas évalué : {{ planError }}
+          <RouterLink
+            :to="{ path: '/settings', query: { tab: 'analyse' } }"
+            class="font-medium underline underline-offset-2"
+          >
+            Le corriger
+          </RouterLink>
+        </BaseAlert>
 
         <BehaviourSection
           :regularity="regularity"

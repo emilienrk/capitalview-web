@@ -1,9 +1,22 @@
 <script setup lang="ts">
+/**
+ * The index everything on /analyse is compared against.
+ *
+ * Two ways in. The curated list is the answer for almost everyone; below it,
+ * the same picker the plan uses, over the lines actually traded — because a
+ * benchmark that is not in the list is usually one already held, and asking for
+ * an ISIN was asking the one question nobody can answer from memory.
+ */
 import { computed, ref, watch } from 'vue'
-import { BaseButton, BaseInput, BaseSelect } from '@/components'
+import { BaseSelect } from '@/components'
+import AssetKeyPicker from '@/components/analytics/AssetKeyPicker.vue'
 import { useSettingsStore } from '@/stores/settings'
+import type { AnalysedAsset } from '@/types'
 
-const props = defineProps<{ current: string }>()
+const props = withDefaults(
+  defineProps<{ current: string; assets?: AnalysedAsset[] }>(),
+  { assets: () => [] },
+)
 const emit = defineEmits<{ changed: [] }>()
 
 const settingsStore = useSettingsStore()
@@ -32,11 +45,17 @@ watch(
   },
 )
 
+/** A benchmark set elsewhere must stay visible rather than silently snap back. */
 const options = computed(() => {
   const known = BENCHMARKS.map((b) => ({ value: b.value, label: b.label }))
-  // A benchmark set elsewhere must stay visible rather than silently snap back.
   if (selected.value && !known.some((o) => o.value === selected.value)) {
-    known.push({ value: selected.value, label: `${selected.value} (personnalisé)` })
+    const traded = props.assets.find(
+      (asset) => asset.asset_key.toUpperCase() === selected.value.toUpperCase(),
+    )
+    known.push({
+      value: selected.value,
+      label: traded ? `${traded.name} (personnalisé)` : `${selected.value} (personnalisé)`,
+    })
   }
   return known
 })
@@ -59,8 +78,8 @@ async function onChange(value: string | number | undefined): Promise<void> {
 const customKey = ref('')
 const showCustom = ref(false)
 
-async function submitCustom(): Promise<void> {
-  const key = customKey.value.trim().toUpperCase()
+async function onCustomPicked(key: string): Promise<void> {
+  customKey.value = key
   if (!key) return
   selected.value = key
   await apply(key)
@@ -71,7 +90,7 @@ async function submitCustom(): Promise<void> {
 
 <template>
   <div>
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex flex-col gap-2">
       <div class="w-full sm:max-w-md">
         <BaseSelect
           id="benchmark"
@@ -92,26 +111,22 @@ async function submitCustom(): Promise<void> {
       <button
         v-if="!showCustom"
         type="button"
-        class="text-xs text-text-muted underline dark:text-text-dark-muted"
+        class="text-xs font-medium text-primary underline-offset-2 hover:underline"
         @click="showCustom = true"
       >
-        Utiliser un autre ISIN
+        Utiliser un autre indice
       </button>
 
       <div v-else class="flex flex-col gap-2">
-        <div class="flex items-end gap-2">
-          <div class="w-full sm:max-w-xs">
-            <BaseInput
-              id="custom-benchmark"
-              v-model="customKey"
-              label="ISIN de l'indice"
-              placeholder="IE00B4L5Y983"
-              :disabled="isSaving"
-            />
-          </div>
-          <BaseButton :disabled="isSaving || !customKey.trim()" @click="submitCustom">
-            Appliquer
-          </BaseButton>
+        <div class="w-full sm:max-w-md">
+          <AssetKeyPicker
+            id="custom-benchmark"
+            :model-value="customKey"
+            :assets="assets"
+            label="Indice de référence"
+            :disabled="isSaving"
+            @update:model-value="onCustomPicked"
+          />
         </div>
         <p class="text-xs text-warning">
           Deux risques à vérifier toi-même : un ETF <strong>distribuant</strong> donnerait des
@@ -119,6 +134,13 @@ async function submitCustom(): Promise<void> {
           après ton premier achat tronquerait la comparaison — dans ce cas la page te dira à
           partir de quand elle démarre.
         </p>
+        <button
+          type="button"
+          class="self-start text-xs text-text-muted underline dark:text-text-dark-muted"
+          @click="showCustom = false"
+        >
+          Annuler
+        </button>
       </div>
     </div>
   </div>
