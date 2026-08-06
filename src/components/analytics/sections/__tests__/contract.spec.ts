@@ -127,7 +127,20 @@ const plan = {
   monthly_target: '500',
   since: '2024-01-01',
   periods: [
-    { since: '2024-01-01', monthly_target: '500', allocation: { FR0000120073: '100' } },
+    {
+      since: '2024-01-01',
+      until: null,
+      monthly_target: '500',
+      allocation: { FR0000120073: '100' },
+      months: 30,
+      target_eur: '15000',
+      invested_eur: '14000',
+      adherence_ratio: '0.93',
+      flow_drift_l1: '0',
+      flows: [
+        { asset_key: 'FR0000120073', symbol: 'AIR.PA', name: 'Air Liquide', target: '100', actual: '100' },
+      ],
+    },
   ],
   months: [{ year: 2025, month: 1, target: '500', invested: '500' }],
   total_target: '15000',
@@ -138,8 +151,42 @@ const plan = {
   drift_l1: metric(2),
   rebalance_eur: '120',
   under_invested_months: 3,
+  under_in_down_months: 1,
   error: null,
   verdict: 'Un verdict.',
+}
+
+/** Le même plan, révisé une fois : 200 €/mois en 50/50, puis 600 €/mois en 25/75. */
+const splitPlan = {
+  ...plan,
+  monthly_target: '600',
+  periods: [
+    {
+      since: '2024-01-01',
+      until: '2025-06-01',
+      monthly_target: '200',
+      allocation: { FR0000120073: '50', IE00B4L5Y983: '50' },
+      months: 17,
+      target_eur: '3400',
+      invested_eur: '3400',
+      adherence_ratio: '1',
+      flow_drift_l1: '0',
+      flows: [],
+    },
+    {
+      since: '2025-06-01',
+      until: null,
+      monthly_target: '600',
+      allocation: { FR0000120073: '25', IE00B4L5Y983: '75' },
+      months: 6,
+      target_eur: '3600',
+      invested_eur: '3600',
+      // Le montant a suivi, la répartition non : 50/50 au lieu de 25/75.
+      adherence_ratio: '1',
+      flow_drift_l1: '50',
+      flows: [],
+    },
+  ],
 }
 
 async function render(component: string, props: Record<string, unknown>) {
@@ -222,5 +269,32 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
   it('PlanSection rend le plan déclaré', async () => {
     const html = await render('PlanSection', { plan })
     expect(html).toContain('Air Liquide')
+    // Un mois lisible, pas la date ISO que renvoie l'API.
+    expect(html).toContain('janv. 2024')
+    // Une seule période ne mérite pas une liste de périodes.
+    expect(html).not.toContain('en cours')
+  })
+
+  it('PlanSection énumère les périodes avec leur intervalle', async () => {
+    const html = await render('PlanSection', { plan: splitPlan })
+    // Chaque période porte la tranche qu'elle couvre, la dernière étant en cours.
+    expect(html).toContain('janv. 2024 → juin 2025')
+    expect(html).toContain('Depuis juin 2025')
+    expect(html).toContain('en cours')
+    // Chaque période est jugée sur son propre montant.
+    expect(html).toContain('tenu à 100')
+  })
+
+  it('PlanSection signale la période dont la répartition a dérivé', async () => {
+    const html = await render('PlanSection', { plan: splitPlan })
+    // Le montant a suivi la révision, la répartition non — et seule la période
+    // concernée porte la phrase.
+    expect(html).toContain('50 points de la cible')
+    expect(html.match(/points de la cible/g)).toHaveLength(1)
+  })
+
+  it('le tableau de dérive défile dans sa boîte plutôt que de pousser la page', async () => {
+    const html = await render('PlanSection', { plan })
+    expect(html).toContain('overflow-x-auto')
   })
 })

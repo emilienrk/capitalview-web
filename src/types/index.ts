@@ -1296,6 +1296,19 @@ export interface WeightOut extends AssetLabelOut {
   weight: number | string
 }
 
+/**
+ * A line the user has traded, offered as a choice rather than typed.
+ * Served by /analytics/assets, separately from the analysis itself: a dropdown
+ * must not wait behind a full replay, nor need enough history to compute one.
+ */
+export interface AnalysedAsset extends AssetLabelOut {
+  /** Still in the portfolio, as opposed to fully sold. */
+  held: boolean
+  invested_eur: number | string
+  first_bought: string
+  last_activity: string
+}
+
 export interface CorrelationOut {
   left: string
   right: string
@@ -1372,10 +1385,29 @@ export interface AllocationDriftOut extends AssetLabelOut {
   actual: number | string
 }
 
+export interface PlanFlowOut extends AssetLabelOut {
+  target: number | string
+  actual: number | string
+}
+
 export interface PlanPeriodOut {
   since: string
+  /** Start of the next period, or null while this one is still running. */
+  until: string | null
   monthly_target: number | string
   allocation: Record<string, number | string>
+  /** Complete months scored inside this period. */
+  months: number
+  target_eur: number | string
+  invested_eur: number | string
+  adherence_ratio: number | string | null
+  /**
+   * Distance between the euros this period actually put in, split by line, and
+   * the split it declared. Distinct from the plan-level drift, which reads the
+   * portfolio held today and so says nothing about a period that has ended.
+   */
+  flow_drift_l1: number | string | null
+  flows: PlanFlowOut[]
 }
 
 export interface PlanResponse {
