@@ -17,6 +17,9 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { Check, ChevronDown, Search, X } from 'lucide-vue-next'
 import type { AnalysedAsset } from '@/types'
 
+/** Module-level, so two pickers on one form never share an ARIA id. */
+let instanceCount = 0
+
 const props = withDefaults(
   defineProps<{
     modelValue: string
@@ -33,8 +36,15 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const isOpen = ref(false)
 const query = ref('')
 const isFreeEntry = ref(false)
+const activeIndex = ref(0)
 const searchRef = ref<HTMLInputElement | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
+const listRef = ref<HTMLElement | null>(null)
+
+/** Ids the ARIA wiring needs: the listbox, and the option the search points at. */
+const uid = `asset-picker-${(instanceCount += 1)}`
+const listboxId = `${uid}-listbox`
+const optionId = (index: number) => `${uid}-option-${index}`
 
 const byKey = computed(
   () => new Map(props.assets.map((asset) => [asset.asset_key.toUpperCase(), asset])),
@@ -52,11 +62,25 @@ const matches = computed(() => {
   )
 })
 
+/** Typing narrows the list under the cursor, so the cursor goes back to the top. */
+watch(matches, () => {
+  activeIndex.value = 0
+})
+
 function open(): void {
   if (props.disabled) return
   isOpen.value = true
   query.value = ''
-  nextTick(() => searchRef.value?.focus())
+  // Open on the current choice rather than on the first line: reopening a
+  // picker to check what is in it should not move the cursor off the answer.
+  const current = matches.value.findIndex(
+    (asset) => asset.asset_key.toUpperCase() === props.modelValue.toUpperCase(),
+  )
+  activeIndex.value = current >= 0 ? current : 0
+  nextTick(() => {
+    searchRef.value?.focus()
+    scrollActiveIntoView()
+  })
 }
 
 function choose(assetKey: string): void {
@@ -69,17 +93,49 @@ function onFreeEntry(event: Event): void {
   emit('update:modelValue', (event.target as HTMLInputElement).value.toUpperCase())
 }
 
+/** Keep the highlighted option visible when the arrows walk past the fold. */
+function scrollActiveIntoView(): void {
+  const option = listRef.value?.querySelector<HTMLElement>(`#${CSS.escape(optionId(activeIndex.value))}`)
+  option?.scrollIntoView({ block: 'nearest' })
+}
+
+function move(delta: number): void {
+  const count = matches.value.length
+  if (!count) return
+  // Wrapping: from the last line, down returns to the first. A list of three
+  // funds is not somewhere to get stuck at an edge.
+  activeIndex.value = (activeIndex.value + delta + count) % count
+  nextTick(scrollActiveIntoView)
+}
+
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    isOpen.value = false
-    return
-  }
-  // Enter on a search that narrowed to one line picks it: typing three letters
-  // of a fund name and confirming is the whole interaction.
-  if (event.key === 'Enter' && matches.value.length >= 1) {
-    event.preventDefault()
-    const first = matches.value[0]
-    if (first) choose(first.asset_key)
+  switch (event.key) {
+    case 'Escape':
+      isOpen.value = false
+      return
+    case 'ArrowDown':
+      event.preventDefault()
+      move(1)
+      return
+    case 'ArrowUp':
+      event.preventDefault()
+      move(-1)
+      return
+    case 'Home':
+      event.preventDefault()
+      activeIndex.value = 0
+      nextTick(scrollActiveIntoView)
+      return
+    case 'Enter': {
+      // Enter takes the highlighted line, which is the first match until the
+      // arrows move it: typing three letters of a fund name and confirming is
+      // the whole interaction.
+      const active = matches.value[activeIndex.value]
+      if (active) {
+        event.preventDefault()
+        choose(active.asset_key)
+      }
+    }
   }
 }
 
@@ -140,6 +196,10 @@ watch(
         :id="id"
         type="button"
         :disabled="disabled"
+        aria-haspopup="listbox"
+        :aria-expanded="isOpen"
+        :aria-controls="isOpen ? listboxId : undefined"
+        :aria-label="selected ? `Ligne : ${selected.name}` : 'Choisir une ligne'"
         class="flex w-full items-center gap-2 rounded-input border border-surface-border bg-surface px-4 py-2.5 text-left transition-all duration-150 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-surface-dark-border dark:bg-surface-dark"
         @click="isOpen ? (isOpen = false) : open()"
       >
@@ -185,20 +245,45 @@ watch(
               ref="searchRef"
               v-model="query"
               type="text"
+              role="combobox"
               placeholder="Nom, ticker ou ISIN…"
               autocomplete="off"
+              aria-autocomplete="list"
+              :aria-controls="listboxId"
+              :aria-expanded="isOpen"
+              :aria-activedescendant="matches.length ? optionId(activeIndex) : undefined"
+              aria-label="Rechercher une ligne par nom, ticker ou ISIN"
               class="w-full rounded-input border border-surface-border bg-background-subtle py-2 pl-8 pr-2 text-sm text-text-main focus:border-primary focus:outline-none dark:border-surface-dark-border dark:bg-background-dark-subtle dark:text-text-dark-main"
               @keydown="onKeydown"
             />
           </div>
         </div>
 
-        <ul v-if="matches.length" class="max-h-64 overflow-y-auto py-1">
-          <li v-for="asset in matches" :key="asset.asset_key">
+        <ul
+          v-if="matches.length"
+          :id="listboxId"
+          ref="listRef"
+          role="listbox"
+          class="max-h-64 overflow-y-auto py-1"
+        >
+          <li
+            v-for="(asset, index) in matches"
+            :id="optionId(index)"
+            :key="asset.asset_key"
+            role="option"
+            :aria-selected="asset.asset_key.toUpperCase() === modelValue.toUpperCase()"
+          >
             <button
               type="button"
-              class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-active dark:hover:bg-surface-dark-hover"
+              tabindex="-1"
+              :class="[
+                'flex w-full items-center gap-2 px-3 py-2 text-left transition-colors',
+                index === activeIndex
+                  ? 'bg-surface-active dark:bg-surface-dark-hover'
+                  : 'hover:bg-surface-active dark:hover:bg-surface-dark-hover',
+              ]"
               @click="choose(asset.asset_key)"
+              @mousemove="activeIndex = index"
             >
               <span class="min-w-0 flex-1">
                 <span class="flex items-center gap-1.5">

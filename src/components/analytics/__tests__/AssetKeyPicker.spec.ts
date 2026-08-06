@@ -63,4 +63,25 @@ describe('AssetKeyPicker', () => {
 
     expect(html).toContain('LU1681043599')
   })
+
+  it('s’annonce comme une liste déroulante, nommée par la ligne choisie', async () => {
+    // Le déclencheur est une icône plus un nom tronqué : sans nom accessible,
+    // un lecteur d'écran n'annonce qu'un bouton vide.
+    const html = await render({ modelValue: 'IE00B4L5Y983' })
+
+    expect(html).toContain('aria-haspopup="listbox"')
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).toContain('aria-label="Ligne : iShares Core MSCI World"')
+  })
+
 })
+
+/*
+ * Ce que ces tests ne couvrent pas : la liste ouverte.
+ *
+ * Le rendu serveur ne monte jamais le composant, donc `isOpen` reste faux et
+ * tout ce qui vit dans la liste déroulante — flèches, `aria-activedescendant`,
+ * unicité des identifiants entre deux sélecteurs — est hors de portée. Le dépôt
+ * n'a pas de framework de test de composants, et en ajouter un était un choix
+ * plus lourd que ce que ce changement justifie.
+ */
