@@ -61,6 +61,17 @@ function eur(value: number | string | null): string {
         <MetricTile label="Seuil de calibrage par ordre" :metric="fees.threshold_order_size" kind="eur" />
       </div>
 
+      <!-- Partial data first, before any figure: a total drawn from a third of
+           the ledger is a floor, and reading it as a bill is the wrong alarm. -->
+      <p
+        v-if="fees.orders_with_fee < fees.order_count"
+        class="mb-3 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning"
+      >
+        Frais renseignés sur {{ fees.orders_with_fee }} de tes {{ fees.order_count }} ordres
+        seulement. Tout ce qui suit est un plancher, pas ta facture — et le seuil est calculé sur
+        les seuls ordres facturés.
+      </p>
+
       <!-- The threshold is calibration, the annual charge is the verdict. Saying
            "group your orders" while the annual load is already under the target
            contradicts the tile right above it. -->

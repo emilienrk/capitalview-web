@@ -1341,9 +1341,14 @@ export interface FeesResponse {
   avoidable: boolean
   cost_below_threshold: number | string
   invested_below_threshold: number | string
+  /** What the broker takes on a charged order. Free orders are not averaged in. */
   average_fee: number | string | null
   average_order: number | string | null
   order_count: number
+  /** Orders carrying a recorded fee — the real sample size of every figure here. */
+  orders_with_fee: number
+  /** orders_with_fee / order_count. Below one, every total is a floor. */
+  fee_coverage: number | string
   projection_eur: number | string | null
   projection_note: string
   ter_note: string

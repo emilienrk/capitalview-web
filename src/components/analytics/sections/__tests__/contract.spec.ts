@@ -93,6 +93,8 @@ const fees = {
   average_fee: '0.68',
   average_order: '120',
   order_count: 77,
+  orders_with_fee: 77,
+  fee_coverage: '1',
   projection_eur: '900',
   projection_note: 'Une note.',
   ter_note: 'Une note.',
@@ -227,6 +229,19 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
   it('FeesSection montre le message de calibrage quand la charge reste sous la cible', async () => {
     const html = await render('FeesSection', { fees, exits: null })
     expect(html).toContain('information de calibrage')
+  })
+
+  it('FeesSection prévient quand les frais ne sont renseignés qu’en partie', async () => {
+    // Un total tiré d'un tiers du registre est un plancher, pas une facture.
+    const partial = { ...fees, orders_with_fee: 8, fee_coverage: '0.1039' }
+    const html = await render('FeesSection', { fees: partial, exits: null })
+    expect(html).toContain('Frais renseignés sur 8 de tes 77 ordres')
+    expect(html).toContain('plancher, pas ta facture')
+  })
+
+  it('FeesSection ne prévient pas quand tous les ordres portent leurs frais', async () => {
+    const html = await render('FeesSection', { fees, exits: null })
+    expect(html).not.toContain('plancher, pas ta facture')
   })
 
   it('HoldingsSection rend la matrice avec des noms, pas des ISIN', async () => {
