@@ -30,5 +30,10 @@ jobs:
       - name: Type-check
         run: pnpm run type-check
 
+      # The suite existed but never ran here, so two files that could not even
+      # import stayed broken without anyone hearing about it.
+      - name: Test
+        run: pnpm run test
+
       - name: Build
         run: pnpm run build
