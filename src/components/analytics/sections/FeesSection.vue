@@ -58,8 +58,35 @@ function eur(value: number | string | null): string {
         <MetricTile label="Frais payés" :metric="fees.total_fees" kind="eur" />
         <MetricTile label="Part du capital déployé" :metric="fees.fee_share" kind="pct" />
         <MetricTile label="Coût annuel" :metric="fees.annual_bps" kind="bps" />
-        <MetricTile label="Seuil de calibrage par ordre" :metric="fees.threshold_order_size" kind="eur" />
+        <!-- Under a percentage tariff the entry cost is the same on a 100 € order
+             as on a 10 000 € one: there is no size to fall under, so the tile is
+             replaced rather than shown empty. -->
+        <div v-if="fees.model === 'proportionnel'">
+          <p
+            class="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted"
+          >
+            Tarif par ordre
+          </p>
+          <p class="text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
+            {{ fees.fee_rate === null ? '—' : `${(Number(fees.fee_rate) * 100).toFixed(2)} %` }}
+          </p>
+        </div>
+        <MetricTile
+          v-else
+          label="Seuil de calibrage par ordre"
+          :metric="fees.threshold_order_size"
+          kind="eur"
+        />
       </div>
+
+      <p
+        v-if="fees.model === 'proportionnel'"
+        class="mb-2 text-xs text-text-muted dark:text-text-dark-muted"
+      >
+        Ton courtier facture un pourcentage du montant, pas un forfait par ordre — lu sur tes
+        ordres, pas supposé. Regrouper tes achats ne changerait donc rien : le seul levier est le
+        tarif lui-même.
+      </p>
 
       <!-- Before any figure, not after: it is the reading condition for the
            three totals above, each of which also carries its own marker. -->
@@ -79,7 +106,7 @@ function eur(value: number | string | null): string {
            "group your orders" while the annual load is already under the target
            contradicts the tile right above it. -->
       <p
-        v-if="fees.orders_below_threshold"
+        v-if="fees.orders_below_threshold && fees.model !== 'proportionnel'"
         class="mb-2 text-xs text-text-muted dark:text-text-dark-muted"
       >
         {{ fees.orders_below_threshold }} ordres sur {{ fees.order_count }} sont sous le seuil :

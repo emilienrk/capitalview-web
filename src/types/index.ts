@@ -1340,6 +1340,14 @@ export interface FeesResponse {
   orders_below_threshold: number
   /** Whether grouping orders is worth recommending, not merely possible. */
   avoidable: boolean
+  /**
+   * How the broker appears to charge, read off the orders rather than assumed.
+   * Under `proportionnel` order size is irrelevant and grouping changes nothing.
+   * Same-size orders fit both models exactly and come back `indéterminé`.
+   */
+  model: 'fixe' | 'proportionnel' | 'indéterminé'
+  /** Fees over notional on the charged orders — what a percentage tariff is. */
+  fee_rate: number | string | null
   cost_below_threshold: number | string
   invested_below_threshold: number | string
   /** What the broker takes on a charged order. Free orders are not averaged in. */

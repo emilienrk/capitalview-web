@@ -97,6 +97,8 @@ const fees = {
   fee_coverage: '1',
   recorded_fees: '52',
   is_estimated: false,
+  model: 'fixe',
+  fee_rate: '0.0056',
   projection_eur: '900',
   projection_note: 'Une note.',
   ter_note: 'Une note.',
@@ -255,6 +257,20 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
   it('FeesSection n’annonce rien quand tous les ordres portent leurs frais', async () => {
     const html = await render('FeesSection', { fees, exits: null })
     expect(html).not.toContain('Totaux estimés')
+  })
+
+  it('FeesSection remplace le seuil par le tarif sur une commission proportionnelle', async () => {
+    // Sous un pourcentage, aucune taille d'ordre ne fait passer sous la cible :
+    // le seuil n'est pas un plus petit nombre, c'est une question sans objet.
+    const pct = { ...fees, model: 'proportionnel', fee_rate: '0.005' }
+    const html = await render('FeesSection', { fees: pct, exits: null })
+
+    expect(html).toContain('Tarif par ordre')
+    expect(html).toContain('0.50 %')
+    expect(html).not.toContain('Seuil de calibrage')
+    expect(html).toContain('Regrouper tes achats ne changerait donc rien')
+    // Et le décompte d'ordres sous le seuil disparaît avec lui.
+    expect(html).not.toContain('sont sous le seuil')
   })
 
   it('HoldingsSection rend la matrice avec des noms, pas des ISIN', async () => {
