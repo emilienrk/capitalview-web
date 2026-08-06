@@ -1141,7 +1141,8 @@ export interface AccountHistorySnapshotResponse {
 }
 
 // ── Analytics ────────────────────────────────────────────────
-export type Reliability = 'solide' | 'indicatif' | 'insuffisant'
+/** `estimé` = extrapolated from a partial ledger: a figure, not a reading. */
+export type Reliability = 'solide' | 'indicatif' | 'estimé' | 'insuffisant'
 
 export interface MetricOut {
   value: number | string | null
@@ -1347,8 +1348,12 @@ export interface FeesResponse {
   order_count: number
   /** Orders carrying a recorded fee — the real sample size of every figure here. */
   orders_with_fee: number
-  /** orders_with_fee / order_count. Below one, every total is a floor. */
+  /** orders_with_fee / order_count. */
   fee_coverage: number | string
+  /** What was actually keyed in. Equals total_fees on a complete ledger. */
+  recorded_fees: number | string
+  /** Whether the totals were extrapolated over the orders with nothing recorded. */
+  is_estimated: boolean
   projection_eur: number | string | null
   projection_note: string
   ter_note: string

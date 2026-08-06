@@ -61,15 +61,18 @@ function eur(value: number | string | null): string {
         <MetricTile label="Seuil de calibrage par ordre" :metric="fees.threshold_order_size" kind="eur" />
       </div>
 
-      <!-- Partial data first, before any figure: a total drawn from a third of
-           the ledger is a floor, and reading it as a bill is the wrong alarm. -->
+      <!-- Before any figure, not after: it is the reading condition for the
+           three totals above, each of which also carries its own marker. -->
       <p
-        v-if="fees.orders_with_fee < fees.order_count"
-        class="mb-3 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning"
+        v-if="fees.is_estimated"
+        class="mb-3 rounded-md bg-surface-active px-3 py-2 text-xs text-text-muted dark:bg-surface-dark-active dark:text-text-dark-muted"
       >
-        Frais renseignés sur {{ fees.orders_with_fee }} de tes {{ fees.order_count }} ordres
-        seulement. Tout ce qui suit est un plancher, pas ta facture — et le seuil est calculé sur
-        les seuls ordres facturés.
+        <strong class="text-text-main dark:text-text-dark-main">Totaux estimés.</strong>
+        Tes frais ne sont renseignés que sur {{ fees.orders_with_fee }} de tes
+        {{ fees.order_count }} ordres ({{ Math.round(Number(fees.fee_coverage) * 100) }} %), soit
+        {{ eur(fees.recorded_fees) }} saisis. Les autres sont comptés au même tarif — un frais non
+        saisi a quand même été payé. Le seuil par ordre, lui, est mesuré : il ne lit que les
+        ordres facturés.
       </p>
 
       <!-- The threshold is calibration, the annual charge is the verdict. Saying

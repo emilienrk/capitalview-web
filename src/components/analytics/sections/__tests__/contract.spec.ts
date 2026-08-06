@@ -95,6 +95,8 @@ const fees = {
   order_count: 77,
   orders_with_fee: 77,
   fee_coverage: '1',
+  recorded_fees: '52',
+  is_estimated: false,
   projection_eur: '900',
   projection_note: 'Une note.',
   ter_note: 'Une note.',
@@ -231,17 +233,28 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('information de calibrage')
   })
 
-  it('FeesSection prévient quand les frais ne sont renseignés qu’en partie', async () => {
-    // Un total tiré d'un tiers du registre est un plancher, pas une facture.
-    const partial = { ...fees, orders_with_fee: 8, fee_coverage: '0.1039' }
+  it('FeesSection annonce l’extrapolation quand les frais sont partiels', async () => {
+    // Un frais non saisi a quand même été payé : on l'estime, et on le dit.
+    const partial = {
+      ...fees,
+      orders_with_fee: 8,
+      fee_coverage: '0.1039',
+      recorded_fees: '52',
+      is_estimated: true,
+      total_fees: { ...metric(500), reliability: 'estimé', caveat: 'Estimé : 8 sur 77.' },
+    }
     const html = await render('FeesSection', { fees: partial, exits: null })
-    expect(html).toContain('Frais renseignés sur 8 de tes 77 ordres')
-    expect(html).toContain('plancher, pas ta facture')
+
+    expect(html).toContain('Totaux estimés')
+    expect(html).toContain('8 de tes 77 ordres')
+    expect(html).toContain('10 %')
+    // Et la tuile porte son propre marqueur, comme les autres fiabilités.
+    expect(html).toContain('aria-label="Estimé"')
   })
 
-  it('FeesSection ne prévient pas quand tous les ordres portent leurs frais', async () => {
+  it('FeesSection n’annonce rien quand tous les ordres portent leurs frais', async () => {
     const html = await render('FeesSection', { fees, exits: null })
-    expect(html).not.toContain('plancher, pas ta facture')
+    expect(html).not.toContain('Totaux estimés')
   })
 
   it('HoldingsSection rend la matrice avec des noms, pas des ISIN', async () => {

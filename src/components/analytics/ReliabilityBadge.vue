@@ -12,7 +12,7 @@
  * pointer, tap on a phone.
  */
 import { computed } from 'vue'
-import { CircleAlert, TriangleAlert } from 'lucide-vue-next'
+import { CircleAlert, Sigma, TriangleAlert } from 'lucide-vue-next'
 import BaseTooltip from '@/components/base/BaseTooltip.vue'
 import type { Reliability } from '@/types'
 
@@ -25,6 +25,9 @@ const label = computed(
     ({
       solide: 'Fiable',
       indicatif: 'Indicatif',
+      // Not a degraded reading — a figure that was computed rather than read.
+      // Its own marker, because "estimated" and "noisy" are different warnings.
+      estimé: 'Estimé',
       insuffisant: 'Données insuffisantes',
     })[props.reliability] ?? '',
 )
@@ -35,7 +38,11 @@ const tone = computed(() =>
     : 'text-text-muted dark:text-text-dark-muted',
 )
 
-const icon = computed(() => (props.reliability === 'indicatif' ? TriangleAlert : CircleAlert))
+const icon = computed(() => {
+  if (props.reliability === 'indicatif') return TriangleAlert
+  if (props.reliability === 'estimé') return Sigma
+  return CircleAlert
+})
 </script>
 
 <template>
