@@ -2,6 +2,7 @@
 import { Lock, User as UserIcon, Mail, KeyRound, ShieldCheck, LifeBuoy } from 'lucide-vue-next'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseBadge } from '@/components'
+import AgentAccessCard from '@/components/security/AgentAccessCard.vue'
 import TwoFactorSetupModal from '@/components/security/TwoFactorSetupModal.vue'
 import PasswordCodeModal from '@/components/security/PasswordCodeModal.vue'
 import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
@@ -457,6 +458,9 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
         </div>
       </div>
     </BaseCard>
+
+    <!-- ── Agent access (MCP tokens) ───────────────────── -->
+    <AgentAccessCard />
 
     <!-- ── Modals ──────────────────────────────────────── -->
     <TwoFactorSetupModal

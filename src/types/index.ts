@@ -81,6 +81,37 @@ export interface TwoFAEnableResponse {
   backup_codes: string[]
 }
 
+// ─── API tokens (agent / MCP access) ─────────────────────────
+
+/** A token as listed in settings. The secret itself is never returned here. */
+export interface ApiToken {
+  uuid: string
+  name: string
+  scopes: string[]
+  created_at: string
+  last_used_at: string | null
+  expires_at: string | null
+}
+
+/** The mint response — the only time the plaintext token is ever available. */
+export interface ApiTokenCreated extends ApiToken {
+  token: string
+}
+
+export interface ApiTokenCreateRequest {
+  password: string
+  totp_code?: string
+  name: string
+  expires_in_days?: number | null
+}
+
+/** Where to point an MCP client, as reported by the API. */
+export interface McpConnection {
+  url: string
+  transport: string
+  enabled: boolean
+}
+
 /** Discriminated result of a login attempt (password step). */
 export type LoginOutcome =
   | { status: 'success' }
