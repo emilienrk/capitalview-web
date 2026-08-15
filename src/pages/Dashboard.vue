@@ -201,9 +201,43 @@ const projectedValueSeries = computed<Array<{ name: string; history: AccountHist
   ]
 })
 
+/** Whole months between two ISO dates — the points are thinned, so their index is not the month. */
+function monthsBetween(from: string, to: string): number {
+  const start = new Date(from)
+  const end = new Date(to)
+  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+}
+
+/**
+ * The projected value, and beneath it what was actually paid in.
+ *
+ * Two curves rather than a sentence: the gap between them *is* the return, read
+ * at any point of the horizon instead of only at its end.
+ */
 const activeProjectedValueSeries = computed<Array<{ name: string; history: AccountHistorySnapshotResponse[] }>>(() => {
   const selectedSeries = projectedValueSeries.value[activeProjectionSlide.value]
-  return selectedSeries ? [selectedSeries] : []
+  const history = chartProjectedValueHistory.value
+  const first = history[0]
+  if (!selectedSeries || !first) return selectedSeries ? [selectedSeries] : []
+
+  const assets = dashboard.projection?.parameters_used.assets
+  const monthly = activeProjectionCategories.value.reduce(
+    (sum, category) => sum + (assets?.[category]?.monthly_injection ?? 0),
+    0,
+  )
+
+  const startingValue = selectedSeries.history[0]?.total_value ?? 0
+  const contributed = {
+    name: 'Capital investi',
+    history: history.map((point) =>
+      buildProjectionSnapshot(
+        point.snapshot_date,
+        startingValue + monthly * monthsBetween(first.snapshot_date, point.snapshot_date),
+      ),
+    ),
+  }
+
+  return [selectedSeries, contributed]
 })
 
 const chartHistory = computed<GlobalHistorySnapshotResponse[]>(() => {
@@ -216,51 +250,6 @@ const PROJECTION_MONTHS = 120
 const activeProjectionCategories = computed<ProjectionCategory[]>(() => {
   const slide = activeProjection.value.key
   return slide === 'total' ? ['STOCK', 'CRYPTO', 'BANK'] : [slide.toUpperCase() as ProjectionCategory]
-})
-
-/**
- * Where the projected total comes from: what is held today, what gets paid in,
- * and what the return adds. A single end figure hides whether the portfolio
- * earned the difference or the saver funded it.
- *
- * Contributions are counted rather than accumulated — the projection adds the
- * same injection every month — and growth is taken by difference, so the three
- * parts always add up to the value the curve draws.
- */
-const projectionOutcome = computed(() => {
-  const projection = dashboard.projection
-  const points = projection?.data ?? []
-  if (!projection || points.length < 2) return null
-
-  const slide = activeProjection.value.key
-  const categories: ProjectionCategory[] =
-    slide === 'total' ? ['STOCK', 'CRYPTO', 'BANK'] : [slide.toUpperCase() as ProjectionCategory]
-
-  const monthly = categories.reduce(
-    (sum, category) => sum + (projection.parameters_used.assets[category]?.monthly_injection ?? 0),
-    0,
-  )
-
-  const first = points[0]
-  const last = points[points.length - 1]
-  if (!first || !last) return null
-
-  const valueOf = (point: ProjectionDataPoint) =>
-    slide === 'total'
-      ? point.total_value
-      : categories.reduce((sum, category) => sum + getProjectedAssetValue(point, category), 0)
-
-  const startingValue = valueOf(first)
-  const finalValue = valueOf(last)
-  const contributed = monthly * (points.length - 1)
-
-  return {
-    startingValue,
-    contributed,
-    growth: finalValue - startingValue - contributed,
-    finalValue,
-    year: new Date(last.date).getFullYear(),
-  }
 })
 
 function recalculateProjection(
@@ -512,17 +501,6 @@ onMounted(() => {
                 title="Estimation impossible"
                 description="L'estimation à long terme donne un total perdant, ou il manque des données d'investissement"
               />
-
-              <p
-                v-if="projectionOutcome && !dashboard.projectionLoading && !dashboard.projectionError"
-                class="mt-2 text-sm text-text-muted dark:text-text-dark-muted"
-              >
-                <span class="font-medium text-text-main dark:text-text-dark-main">
-                  {{ projectionOutcome.year }} : {{ maskValue(formatCurrency(projectionOutcome.finalValue)) }}
-                </span>
-                — dont {{ maskValue(formatCurrency(projectionOutcome.contributed)) }} versés et
-                {{ maskValue(formatCurrency(projectionOutcome.growth)) }} gagnés
-              </p>
 
               <ProjectionAssumptions
                 :parameters-used="dashboard.projection?.parameters_used ?? null"
