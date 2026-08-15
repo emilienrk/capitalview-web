@@ -18,10 +18,17 @@ export const PROJECTION_ROWS: { key: ProjectionCategory; label: string }[] = [
   { key: 'BANK', label: 'Banque' },
 ]
 
-/** One row of the form. Strings, because a half-typed "0." is not a number. */
+/**
+ * One row of the form.
+ *
+ * Typed as both, because BaseInput hands back a `number` once `type="number"`
+ * parses what was typed, but keeps emitting the raw string for the in-between
+ * states ("0.", "-") a decimal field goes through. Assuming either one alone is
+ * what silently broke the recalculate button.
+ */
 export interface AssumptionDraft {
-  monthly: string
-  rate: string
+  monthly: string | number
+  rate: string | number
 }
 
 export type AssumptionDrafts = Record<string, AssumptionDraft>
@@ -46,7 +53,10 @@ export function measuredDrafts(
 }
 
 /** Parse a typed figure, tolerating the comma a French keyboard produces. */
-export function toNumber(value: string): number | null {
+export function toNumber(value: string | number | null | undefined): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (value === null || value === undefined) return null
+
   const trimmed = value.trim()
   if (!trimmed) return null
   const parsed = Number(trimmed.replace(',', '.'))
@@ -69,11 +79,17 @@ export function draftsToAssets(
   return assets
 }
 
-/** Whether the form still says exactly what the API reported. */
+/**
+ * Whether the form still says exactly what the API reported.
+ *
+ * Compared as numbers: the measured side is built as strings while the edited
+ * side comes back from the input as a number, so `'351.69' !== 351.69` would
+ * report every untouched form as modified.
+ */
 export function isDirty(drafts: AssumptionDrafts, measured: AssumptionDrafts): boolean {
   return PROJECTION_ROWS.some(
     (row) =>
-      drafts[row.key]?.monthly !== measured[row.key]?.monthly ||
-      drafts[row.key]?.rate !== measured[row.key]?.rate,
+      toNumber(drafts[row.key]?.monthly) !== toNumber(measured[row.key]?.monthly) ||
+      toNumber(drafts[row.key]?.rate) !== toNumber(measured[row.key]?.rate),
   )
 }

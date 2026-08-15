@@ -68,3 +68,25 @@ describe('projectionAssumptions', () => {
     expect(isDirty({ ...measured, STOCK: { monthly: '600', rate: '7.6' } }, measured)).toBe(true)
   })
 })
+
+describe('valeurs telles que BaseInput les rend', () => {
+  it('accepte un nombre là où le champ en émet un', () => {
+    // BaseInput émet un number dès que type="number" parvient à parser.
+    expect(toNumber(351.69)).toBe(351.69)
+    expect(toNumber(0)).toBe(0)
+    expect(toNumber(null)).toBeNull()
+  })
+
+  it('ne déclare pas modifié un champ que le champ a juste retypé', () => {
+    const measured = measuredDrafts(PARAMETERS_USED)
+    const retyped = { ...measured, STOCK: { monthly: 412.5, rate: 7.6 } }
+
+    expect(isDirty(retyped, measured)).toBe(false)
+  })
+
+  it('convertit un taux numérique en décimal sans planter', () => {
+    const assets = draftsToAssets({ STOCK: { monthly: 600, rate: 5 } })
+
+    expect(assets.STOCK).toEqual({ monthly_injection: 600, return_rate: 0.05 })
+  })
+})
