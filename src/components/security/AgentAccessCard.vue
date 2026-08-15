@@ -169,26 +169,17 @@ async function copyConfig() {
         Aucun token actif.
       </p>
 
-      <!-- Mint. The label sits above the whole row rather than inside the
-           field: keeping it in BaseInput made the input shorter than the button
-           beside it, and the two ends never lined up. -->
-      <div class="space-y-1.5">
-        <label
-          for="mcp-token-name"
-          class="block text-sm font-medium text-text-main dark:text-text-dark-main"
-        >
-          Nom du token
-        </label>
-        <div class="flex flex-col sm:flex-row sm:items-stretch gap-3">
-          <BaseInput
-            id="mcp-token-name"
-            v-model="tokenName"
-            placeholder="Claude Desktop"
-            class="flex-1"
-          />
-          <BaseButton size="sm" class="shrink-0" @click="openCreate">Générer un token</BaseButton>
-        </div>
-      </div>
+      <!-- Mint -->
+      <BaseInput
+        id="mcp-token-name"
+        v-model="tokenName"
+        label="Nom du token"
+        placeholder="Claude Desktop"
+      >
+        <template #action>
+          <BaseButton size="sm" @click="openCreate">Générer un token</BaseButton>
+        </template>
+      </BaseInput>
 
       <!-- Client configuration -->
       <div v-if="mcpUrl" class="pt-4 border-t border-surface-border dark:border-surface-dark-border space-y-2">

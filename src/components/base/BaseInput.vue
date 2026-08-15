@@ -94,27 +94,38 @@ function onBlur(event: FocusEvent): void {
       {{ props.label }}
       <span v-if="props.required" class="text-danger ml-0.5">*</span>
     </label>
-    <input
-      v-bind="$attrs"
-      :id="props.id"
-      :type="inputType"
-      :inputmode="inputMode"
-      :value="props.type === 'number' ? displayValue : props.modelValue"
-      :placeholder="props.placeholder"
-      :disabled="props.disabled"
-      :required="props.required"
-      @input="onInput"
-      @blur="onBlur"
-      :class="[
-        'w-full px-4 py-2.5 rounded-input border bg-surface dark:bg-surface-dark transition-all duration-150',
-        'text-text-main dark:text-text-dark-main placeholder:text-text-muted/50',
-        'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        props.error
-          ? 'border-danger focus:ring-danger/20 focus:border-danger'
-          : 'border-surface-border dark:border-surface-dark-border',
-      ]"
-    />
+    <!-- The `action` slot puts a control on the field's own row — a submit
+         beside a single input, typically. It lives here rather than in each
+         caller because the alternative is a hand-rolled <label> next to the
+         field, which copies these very classes and drifts the day they change.
+         `items-stretch` is what makes the two ends line up whatever the
+         control's own padding. -->
+    <div :class="$slots.action ? 'flex flex-col sm:flex-row sm:items-stretch gap-3' : ''">
+      <input
+        v-bind="$attrs"
+        :id="props.id"
+        :type="inputType"
+        :inputmode="inputMode"
+        :value="props.type === 'number' ? displayValue : props.modelValue"
+        :placeholder="props.placeholder"
+        :disabled="props.disabled"
+        :required="props.required"
+        @input="onInput"
+        @blur="onBlur"
+        :class="[
+          'w-full px-4 py-2.5 rounded-input border bg-surface dark:bg-surface-dark transition-all duration-150',
+          'text-text-main dark:text-text-dark-main placeholder:text-text-muted/50',
+          'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          props.error
+            ? 'border-danger focus:ring-danger/20 focus:border-danger'
+            : 'border-surface-border dark:border-surface-dark-border',
+        ]"
+      />
+      <div v-if="$slots.action" class="shrink-0 flex items-stretch">
+        <slot name="action" />
+      </div>
+    </div>
     <p v-if="props.error" class="text-xs text-danger mt-1">{{ props.error }}</p>
   </div>
 </template>
