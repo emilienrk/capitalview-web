@@ -7,7 +7,9 @@
  * the curve is off by a factor of a hundred without anything raising an error.
  */
 import type {
+  ProjectionAssetBasis,
   ProjectionAssetParameters,
+  ProjectionBasisWarning,
   ProjectionCategory,
   ProjectionResponse,
 } from '@/types'
@@ -112,4 +114,46 @@ export function isDirty(drafts: AssumptionDrafts, measured: AssumptionDrafts): b
       toNumber(drafts[row.key]?.monthly) !== toNumber(measured[row.key]?.monthly) ||
       toNumber(drafts[row.key]?.rate) !== toNumber(measured[row.key]?.rate),
   )
+}
+
+/**
+ * What a measured default rests on, in one line.
+ *
+ * The server sends codes and figures, never sentences: the wording belongs to
+ * whoever displays it, and a translation must not hinge on matching a string
+ * produced by the API.
+ */
+export function basisLabel(basis: ProjectionAssetBasis | null | undefined): string | null {
+  if (!basis) return null
+  if (basis.return === 'annualised_twr') {
+    return `mesuré sur ${basis.return_days} j — rendement time-weighted annualisé`
+  }
+  if (basis.contribution === 'net_external_flows') {
+    return `versements mesurés sur ${basis.contribution_months} mois`
+  }
+  return null
+}
+
+/** A reservation, spelled out. Unknown codes are shown rather than swallowed. */
+export function warningLabel(warning: ProjectionBasisWarning): string {
+  const days = warning.values?.days ?? 0
+  const share = Math.round((warning.values?.share ?? 0) * 100)
+  const rate = Math.round((warning.values?.annual_rate ?? 0) * 1000) / 10
+
+  switch (warning.code) {
+    case 'no_contribution_found':
+      return 'Aucun versement trouvé dans votre journal : projeté sans apport.'
+    case 'insufficient_history':
+      return `Moins d'un an d'historique (${days} j) : aucun rendement n'est déduit, la projection reste plate.`
+    case 'unaligned_flows':
+      return `${share} % des versements tombent un jour sans valorisation : le rendement serait surestimé, il n'est pas déduit.`
+    case 'weak_annualisation':
+      return `Rendement annualisé sur ${days} j seulement : statistiquement fragile.`
+    case 'extreme_rate':
+      return `Rendement de ${rate} %/an : peu susceptible de tenir sur toute la durée projetée.`
+    case 'not_measured':
+      return 'Les soldes bancaires bougent avec vos revenus et dépenses, pas avec une performance : rien n’est déduit ici.'
+    default:
+      return warning.code
+  }
 }

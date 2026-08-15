@@ -1008,9 +1008,25 @@ export interface ProjectionParameters {
   assets?: Partial<Record<ProjectionCategory, ProjectionAssetParameters>>
 }
 
+export interface ProjectionBasisWarning {
+  code: string
+  values: Record<string, number>
+}
+
+/** How a default was measured — absent on responses from before it was exposed. */
+export interface ProjectionAssetBasis {
+  contribution: string
+  contribution_months: number
+  contribution_total: number
+  return: string
+  return_days: number
+  warnings: ProjectionBasisWarning[]
+}
+
 export interface ProjectionAssetParametersUsed {
   monthly_injection: number
   return_rate: number
+  basis?: ProjectionAssetBasis | null
 }
 
 export interface ProjectionDataPoint {

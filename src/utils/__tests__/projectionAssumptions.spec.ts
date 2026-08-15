@@ -7,10 +7,12 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  basisLabel,
   draftsToAssets,
   isDirty,
   measuredDrafts,
   toNumber,
+  warningLabel,
 } from '@/utils/projectionAssumptions'
 
 const PARAMETERS_USED = {
@@ -108,5 +110,43 @@ describe('ce qui part réellement à l’API', () => {
     // Sinon une mesure deviendrait un paramètre figé, et un recalcul ultérieur
     // ignorerait des snapshots plus récents.
     expect(draftsToAssets(structuredClone(measured), measured)).toEqual({})
+  })
+})
+
+describe('provenance et réserves', () => {
+  it('dit sur quoi le rendement a été mesuré', () => {
+    expect(
+      basisLabel({
+        contribution: 'net_external_flows',
+        contribution_months: 48,
+        contribution_total: 19800,
+        return: 'annualised_twr',
+        return_days: 1460,
+        warnings: [],
+      }),
+    ).toBe('mesuré sur 1460 j — rendement time-weighted annualisé')
+  })
+
+  it('retombe sur les versements quand aucun taux n’a pu être mesuré', () => {
+    expect(
+      basisLabel({
+        contribution: 'net_external_flows',
+        contribution_months: 6,
+        contribution_total: 3000,
+        return: 'unavailable',
+        return_days: 200,
+        warnings: [],
+      }),
+    ).toBe('versements mesurés sur 6 mois')
+  })
+
+  it('écrit ses propres phrases à partir des codes du serveur', () => {
+    expect(warningLabel({ code: 'insufficient_history', values: { days: 200 } })).toContain('200 j')
+    expect(warningLabel({ code: 'extreme_rate', values: { annual_rate: 0.4523 } })).toContain('45.2 %/an')
+    expect(warningLabel({ code: 'unaligned_flows', values: { share: 0.12 } })).toContain('12 %')
+  })
+
+  it('montre un code inconnu au lieu de l’avaler', () => {
+    expect(warningLabel({ code: 'something_new', values: {} })).toBe('something_new')
   })
 })
