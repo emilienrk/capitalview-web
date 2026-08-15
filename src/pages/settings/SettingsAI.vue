@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
-import { BaseCard, BaseButton, BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseCard, BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseToggle } from '@/components'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig } from '@/types'
 
 const settingsStore = useSettingsStore()
@@ -171,6 +171,14 @@ function keyPlaceholder(providerId: string): string {
     : (prefixes[providerId] ?? 'Clé API...')
 }
 
+/** Model list as BaseSelect expects it, the default one saying so in its label. */
+function modelOptions(models: { id: string; label: string; default?: boolean }[]) {
+  return models.map((model) => ({
+    value: model.id,
+    label: `${model.label}${model.default ? ' (défaut)' : ''}`,
+  }))
+}
+
 // All unique providers from options
 const allProviders = computed(() => {
   const seen = new Set<string>()
@@ -263,46 +271,40 @@ const allProviders = computed(() => {
               </button>
             </div>
 
-            <!-- API Key input -->
-            <div class="flex gap-2">
-              <input
-                type="password"
-                v-model="apiKeyInputs[p.provider]"
-                :placeholder="keyPlaceholder(p.provider)"
-                class="flex-1 px-3 py-2 text-sm rounded-secondary border border-surface-border dark:border-surface-dark-border bg-surface-bg dark:bg-surface-dark-bg text-text-main dark:text-text-dark-main focus:outline-none focus:border-primary placeholder:text-text-muted/60"
-              />
-              <BaseButton
-                size="sm"
-                :loading="savingProvider === p.provider"
-                :disabled="!apiKeyInputs[p.provider]?.trim()"
-                @click="saveProviderKey(p.provider)"
-              >
-                Enregistrer
-              </BaseButton>
-            </div>
+            <!-- API Key input. Was a bare <input> painted with bg-surface-bg,
+                 a token the palette never defined: the class did nothing and
+                 the field stayed white in dark mode. -->
+            <BaseInput
+              type="password"
+              :model-value="apiKeyInputs[p.provider] ?? ''"
+              :placeholder="keyPlaceholder(p.provider)"
+              @update:model-value="apiKeyInputs[p.provider] = String($event)"
+            >
+              <template #action>
+                <BaseButton
+                  size="sm"
+                  :loading="savingProvider === p.provider"
+                  :disabled="!apiKeyInputs[p.provider]?.trim()"
+                  @click="saveProviderKey(p.provider)"
+                >
+                  Enregistrer
+                </BaseButton>
+              </template>
+            </BaseInput>
 
             <!-- Success / Error feedback -->
             <p v-if="providerSuccess[p.provider]" class="text-xs text-success">{{ providerSuccess[p.provider] }}</p>
             <p v-if="providerError[p.provider]" class="text-xs text-danger">{{ providerError[p.provider] }}</p>
 
             <!-- Model selector (only if key configured) -->
-            <div v-if="configuredProviders[p.provider]?.has_key && p.models.length > 1" class="space-y-1">
-              <label class="text-xs font-medium text-text-muted dark:text-text-dark-muted">Modèle</label>
-              <select
-                :value="configuredProviders[p.provider]?.selected_model ?? ''"
-                @change="saveModel(p.provider, ($event.target as HTMLSelectElement).value)"
-                class="w-full px-3 py-2 text-sm rounded-secondary border border-surface-border dark:border-surface-dark-border bg-surface-bg dark:bg-surface-dark-bg text-text-main dark:text-text-dark-main focus:outline-none focus:border-primary"
-              >
-                <option value="">Modèle par défaut</option>
-                <option
-                  v-for="m in p.models"
-                  :key="m.id"
-                  :value="m.id"
-                >
-                  {{ m.label }}{{ m.default ? ' (défaut)' : '' }}
-                </option>
-              </select>
-            </div>
+            <BaseSelect
+              v-if="configuredProviders[p.provider]?.has_key && p.models.length > 1"
+              label="Modèle"
+              placeholder="Modèle par défaut"
+              :model-value="configuredProviders[p.provider]?.selected_model ?? ''"
+              :options="modelOptions(p.models)"
+              @update:model-value="saveModel(p.provider, String($event))"
+            />
           </div>
         </div>
       </BaseCard>

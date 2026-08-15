@@ -8,6 +8,7 @@
  * was actually used, and editing a field asks for the same curve under a
  * different premise rather than correcting an error.
  */
+import { SlidersHorizontal } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { BaseButton, BaseInput } from '@/components'
 import {
@@ -74,19 +75,12 @@ function restore(): void {
 
 <template>
   <div class="border-t border-surface-border dark:border-surface-dark-border pt-3 mt-3">
-    <button
-      type="button"
-      class="flex w-full items-center justify-between text-sm font-medium text-text-main dark:text-text-dark-main"
-      :aria-expanded="isOpen"
-      @click="isOpen = !isOpen"
-    >
-      <span>Hypothèses</span>
-      <span class="text-text-muted dark:text-text-dark-muted">{{ isOpen ? '▴' : '▾' }}</span>
-    </button>
-
-    <p v-if="!isOpen" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
-      Versements et rendements déduits de votre historique — modifiables.
-    </p>
+    <!-- A control, not a chevron: what opens is a form, and the two curves
+         above already say what the projection assumed. -->
+    <BaseButton variant="ghost" size="sm" @click="isOpen = !isOpen">
+      <SlidersHorizontal class="w-4 h-4 mr-1.5" />
+      Paramétrage
+    </BaseButton>
 
     <div v-else class="mt-3 space-y-3">
       <!-- Units belong in the header: a placeholder disappears as soon as the
