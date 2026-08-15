@@ -63,16 +63,36 @@ export function toNumber(value: string | number | null | undefined): number | nu
   return Number.isFinite(parsed) ? parsed : null
 }
 
-/** Turn the form back into API parameters: euros, and a decimal rate. */
+/**
+ * Turn the form back into API parameters: euros, and a decimal rate.
+ *
+ * Only the categories that actually differ from the measurement are sent.
+ * Passing a measured value back as a parameter would freeze it into an
+ * override, and a later recalculation would keep using it long after fresher
+ * snapshots had moved the real figure. What the user did not touch stays
+ * measured.
+ */
 export function draftsToAssets(
   drafts: AssumptionDrafts,
+  measured: AssumptionDrafts = {},
 ): Partial<Record<ProjectionCategory, ProjectionAssetParameters>> {
   const assets: Partial<Record<ProjectionCategory, ProjectionAssetParameters>> = {}
   for (const row of PROJECTION_ROWS) {
     const draft = drafts[row.key]
-    const rate = toNumber(draft?.rate ?? '')
+    if (!draft) continue
+
+    const monthly = toNumber(draft.monthly)
+    const rate = toNumber(draft.rate)
+    const reference = measured[row.key]
+    const untouched =
+      reference !== undefined &&
+      monthly === toNumber(reference.monthly) &&
+      rate === toNumber(reference.rate)
+
+    if (untouched) continue
+
     assets[row.key] = {
-      monthly_injection: toNumber(draft?.monthly ?? ''),
+      monthly_injection: monthly,
       return_rate: rate === null ? null : rate / 100,
     }
   }

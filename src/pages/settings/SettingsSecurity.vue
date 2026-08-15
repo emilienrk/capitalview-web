@@ -266,23 +266,25 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
               Attention : Le changement de nom d'utilisateur est définitif. Vous ne pourrez le modifier qu'une seule fois.
             </BaseAlert>
 
-            <form @submit.prevent="handleUsernameChange" class="space-y-4">
+            <!-- Field and button on one row: the page is long, and a submit
+                 stacked under a single input costs a whole line for nothing. -->
+            <form @submit.prevent="handleUsernameChange" class="flex items-end gap-3">
               <BaseInput
                 v-model="newUsername"
                 label="Nouveau nom d'utilisateur"
                 placeholder="Votre pseudo"
                 :disabled="isSavingUsername"
+                class="flex-1"
               />
-              <div class="flex justify-end">
-                <BaseButton
-                  type="submit"
-                  :loading="isSavingUsername"
-                  :disabled="!newUsername || newUsername === authStore.user?.username"
-                  size="sm"
-                >
-                  Mettre à jour
-                </BaseButton>
-              </div>
+              <BaseButton
+                type="submit"
+                :loading="isSavingUsername"
+                :disabled="!newUsername || newUsername === authStore.user?.username"
+                size="sm"
+                class="shrink-0"
+              >
+                Mettre à jour
+              </BaseButton>
             </form>
           </div>
         </div>
@@ -303,24 +305,24 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           <BaseAlert v-if="emailSuccess" variant="success">{{ emailSuccess }}</BaseAlert>
           <BaseAlert v-if="isEmailLocked" variant="warning">{{ emailLockMessage }}</BaseAlert>
 
-          <form @submit.prevent="handleEmailChange" class="space-y-4">
+          <form @submit.prevent="handleEmailChange" class="flex items-end gap-3">
             <BaseInput
               v-model="newEmail"
               label="Nouvelle adresse email"
               type="email"
               placeholder="votre@email.com"
               :disabled="isEmailLocked || isSavingEmail"
+              class="flex-1"
             />
-            <div class="flex justify-end">
-              <BaseButton
-                type="submit"
-                :loading="isSavingEmail"
-                :disabled="isEmailLocked || !newEmail || newEmail === authStore.user?.email"
-                size="sm"
-              >
-                Mettre à jour
-              </BaseButton>
-            </div>
+            <BaseButton
+              type="submit"
+              :loading="isSavingEmail"
+              :disabled="isEmailLocked || !newEmail || newEmail === authStore.user?.email"
+              size="sm"
+              class="shrink-0"
+            >
+              Mettre à jour
+            </BaseButton>
           </form>
         </div>
       </div>

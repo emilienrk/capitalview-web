@@ -212,6 +212,12 @@ const chartHistory = computed<GlobalHistorySnapshotResponse[]>(() => {
 
 const PROJECTION_MONTHS = 120
 
+/** Which pockets the visible chart is made of — the assumptions panel shows those. */
+const activeProjectionCategories = computed<ProjectionCategory[]>(() => {
+  const slide = activeProjection.value.key
+  return slide === 'total' ? ['STOCK', 'CRYPTO', 'BANK'] : [slide.toUpperCase() as ProjectionCategory]
+})
+
 /**
  * Where the projected total comes from: what is held today, what gets paid in,
  * and what the return adds. A single end figure hides whether the portfolio
@@ -520,6 +526,7 @@ onMounted(() => {
 
               <ProjectionAssumptions
                 :parameters-used="dashboard.projection?.parameters_used ?? null"
+                :categories="activeProjectionCategories"
                 :loading="dashboard.projectionLoading"
                 @apply="recalculateProjection"
                 @reset="resetProjection"

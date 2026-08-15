@@ -90,3 +90,23 @@ describe('valeurs telles que BaseInput les rend', () => {
     expect(assets.STOCK).toEqual({ monthly_injection: 600, return_rate: 0.05 })
   })
 })
+
+describe('ce qui part réellement à l’API', () => {
+  it('n’envoie que la catégorie modifiée', () => {
+    const measured = measuredDrafts(PARAMETERS_USED)
+    const edited = { ...measured, STOCK: { monthly: '600', rate: '7.6' } }
+
+    const assets = draftsToAssets(edited, measured)
+
+    expect(Object.keys(assets)).toEqual(['STOCK'])
+    expect(assets.STOCK?.monthly_injection).toBe(600)
+  })
+
+  it('n’envoie rien quand rien n’a bougé', () => {
+    const measured = measuredDrafts(PARAMETERS_USED)
+
+    // Sinon une mesure deviendrait un paramètre figé, et un recalcul ultérieur
+    // ignorerait des snapshots plus récents.
+    expect(draftsToAssets(structuredClone(measured), measured)).toEqual({})
+  })
+})
