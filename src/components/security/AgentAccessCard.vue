@@ -121,7 +121,8 @@ async function copyConfig() {
       <BaseAlert variant="warning">
         Un token donne accès à l'ensemble de vos chiffres, y compris vos données chiffrées.
         Traitez-le comme votre mot de passe : il n'est affiché qu'une seule fois, et il est
-        révocable à tout moment ci-dessous.
+        révocable à tout moment ci-dessous. Changer votre mot de passe révoque tous vos
+        tokens — vos assistants devront en recevoir un nouveau.
       </BaseAlert>
 
       <BaseAlert v-if="!mcpEnabled" variant="info">
