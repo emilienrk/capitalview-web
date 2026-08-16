@@ -456,9 +456,18 @@ onMounted(() => {
         <BaseCard class="h-full" body-class="flex min-h-0 flex-1 flex-col">
           <template #header>
             <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ activeProjection.title }}</h3>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">{{ activeProjection.subtitle }}</p>
+              <div class="flex items-start gap-2">
+                <ProjectionAssumptions
+                  :parameters-used="dashboard.projection?.parameters_used ?? null"
+                  :categories="activeProjectionCategories"
+                  :loading="dashboard.projectionLoading"
+                  @apply="recalculateProjection"
+                  @reset="resetProjection"
+                />
+                <div>
+                  <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ activeProjection.title }}</h3>
+                  <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">{{ activeProjection.subtitle }}</p>
+                </div>
               </div>
               <div class="inline-flex items-center gap-1 rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1">
                 <button
@@ -502,13 +511,6 @@ onMounted(() => {
                 description="L'estimation à long terme donne un total perdant, ou il manque des données d'investissement"
               />
 
-              <ProjectionAssumptions
-                :parameters-used="dashboard.projection?.parameters_used ?? null"
-                :categories="activeProjectionCategories"
-                :loading="dashboard.projectionLoading"
-                @apply="recalculateProjection"
-                @reset="resetProjection"
-              />
             </div>
 
             <!-- Carousel Pagination -->

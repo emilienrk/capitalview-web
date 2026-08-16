@@ -10,7 +10,7 @@
  */
 import { AlertTriangle, SlidersHorizontal } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
-import { BaseButton, BaseInput, BaseTooltip } from '@/components'
+import { BaseButton, BaseInput, BaseModal, BaseTooltip } from '@/components'
 import {
   PROJECTION_ROWS,
   draftsToAssets,
@@ -95,6 +95,7 @@ const hasWarnings = computed(() => editableRows.value.some((row) => row.warnings
 
 function apply(): void {
   emit('apply', draftsToAssets(draft.value, measured.value))
+  isOpen.value = false
 }
 
 function restore(): void {
@@ -105,21 +106,29 @@ function restore(): void {
 </script>
 
 <template>
-  <div class="border-t border-surface-border dark:border-surface-dark-border pt-3 mt-3">
-    <!-- A control, not a chevron: what opens is a form, and the two curves
-         above already say what the projection assumed. -->
-    <BaseButton variant="ghost" size="sm" @click="isOpen = !isOpen">
-      <SlidersHorizontal class="w-4 h-4 mr-1.5" />
-      Paramétrage
-      <!-- A closed panel would otherwise hide the reason a curve is flat. -->
-      <span
-        v-if="hasWarnings"
-        class="ml-1.5 h-1.5 w-1.5 rounded-full bg-warning"
-        :title="'Une hypothèse mérite une réserve'"
-      />
-    </BaseButton>
+  <!-- Icon only, and it lives in the card header: the form is a detour from
+       reading the chart, not part of it. -->
+  <BaseTooltip align="left">
+    <template #trigger>
+      <button
+        type="button"
+        class="relative flex h-8 w-8 items-center justify-center rounded-button text-text-muted transition-colors hover:bg-surface-hover hover:text-text-main dark:text-text-dark-muted dark:hover:bg-surface-dark-hover dark:hover:text-text-dark-main"
+        aria-label="Paramétrage de la projection"
+        @click="isOpen = true"
+      >
+        <SlidersHorizontal class="h-4 w-4" />
+        <!-- A closed panel would otherwise hide the reason a curve is flat. -->
+        <span
+          v-if="hasWarnings"
+          class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-warning"
+        />
+      </button>
+    </template>
+    {{ hasWarnings ? 'Paramétrage — une hypothèse mérite une réserve' : 'Paramétrage de la projection' }}
+  </BaseTooltip>
 
-    <div v-if="isOpen" class="mt-3 space-y-3">
+  <BaseModal :open="isOpen" title="Paramétrage de la projection" @close="isOpen = false">
+    <div class="space-y-3">
       <!-- Units belong in the header: a placeholder disappears as soon as the
            field is filled, which is exactly when the two columns stop being
            distinguishable. -->
@@ -186,5 +195,5 @@ function restore(): void {
         </BaseButton>
       </div>
     </div>
-  </div>
+  </BaseModal>
 </template>
