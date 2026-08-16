@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { Calendar, Check, ChevronRight, Heart, Lock, Pencil, Search, Settings, ShieldCheck, Trash2, Users } from 'lucide-vue-next'
+import { Activity, Calendar, Check, ChevronRight, Heart, Info, Lock, Pencil, Search, Settings, ShieldCheck, Trash2, Users } from 'lucide-vue-next'
 
 import { onMounted, ref, watch, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useCommunityStore } from '@/stores/community'
+import { useFormatters } from '@/composables/useFormatters'
 import { useAuthStore } from '@/stores/auth'
 import { useStocksStore } from '@/stores/stocks'
 import { useCryptoStore } from '@/stores/crypto'
 import PageHeader from '@/components/PageHeader.vue'
+import PickScore from '@/components/community/PickScore.vue'
 import {
   BaseCard, BaseAlert, BaseSkeleton, BaseSpinner, BaseBadge,
   BaseButton, BaseModal, BaseAutocomplete, BaseInput, BaseTextarea,
@@ -15,6 +17,7 @@ import {
 import type { PickCreate, PickResponse, AssetSearchResult } from '@/types'
 
 const communityStore = useCommunityStore()
+const { formatCurrency, formatDate } = useFormatters()
 const authStore = useAuthStore()
 const stocksStore = useStocksStore()
 const cryptoStore = useCryptoStore()
@@ -25,6 +28,8 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Main view mode: 'list' (profiles), 'profile' (detail), 'my-picks' (own picks panel)
 const showMyPicks = ref(false)
+const showActivity = ref(false)
+const showPrivacyNote = ref(false)
 
 // Profile detail tab
 const profileTab = ref<'positions' | 'picks' | 'about'>('positions')
@@ -109,6 +114,7 @@ function formatAssetDisplay(asset: AssetSearchResult): string {
 
 async function viewProfile(username: string): Promise<void> {
   showMyPicks.value = false
+  showActivity.value = false
   selectedUsername.value = username
   profileTab.value = 'positions'
   await communityStore.fetchProfile(username)
@@ -120,6 +126,7 @@ function closeProfile(): void {
 }
 
 function openMyPicks(): void {
+  showActivity.value = false
   selectedUsername.value = null
   communityStore.viewedProfile = null
   showMyPicks.value = true
@@ -127,6 +134,18 @@ function openMyPicks(): void {
 
 function closeMyPicks(): void {
   showMyPicks.value = false
+}
+
+async function openActivity(): Promise<void> {
+  showMyPicks.value = false
+  selectedUsername.value = null
+  communityStore.viewedProfile = null
+  showActivity.value = true
+  await communityStore.fetchActivity()
+}
+
+function closeActivity(): void {
+  showActivity.value = false
 }
 
 async function handleFollow(username: string): Promise<void> {
@@ -269,6 +288,10 @@ const profilePicks = computed(() => {
             {{ communityStore.myPicks.length }}
           </span>
         </BaseButton>
+        <BaseButton variant="outline" size="sm" @click="openActivity">
+          <Activity class="w-4 h-4" stroke-width="2" />
+          Activité
+        </BaseButton>
         <RouterLink :to="{ path: '/settings', query: { tab: 'communaute' } }">
           <BaseButton variant="outline" size="sm">
             <Settings class="w-4 h-4" stroke-width="2" />
@@ -282,9 +305,96 @@ const profilePicks = computed(() => {
       {{ communityStore.error }}
     </BaseAlert>
 
+    <!-- Zero-knowledge caveat: this module is the one place the promise does
+         not hold, so it is stated here rather than buried in a settings page. -->
+    <div class="mb-4">
+      <button
+        class="inline-flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
+        @click="showPrivacyNote = !showPrivacyNote"
+      >
+        <Info class="w-3.5 h-3.5" :stroke-width="2" />
+        Ce que la communauté partage
+      </button>
+      <BaseAlert v-if="showPrivacyNote" variant="info" class="mt-2">
+        Le reste de CapitalView est chiffré avec votre mot de passe : le serveur ne peut pas lire vos
+        données. La communauté fait exception, par nécessité — pour montrer vos lignes à quelqu'un
+        d'autre, le serveur doit pouvoir les déchiffrer. Vos positions partagées le sont donc avec une
+        clé serveur, et le commentaire comme le prix cible de vos picks sont stockés en clair.
+        Ne partagez que ce que vous accepteriez de rendre public. Rien de tout cela ne concerne vos
+        comptes, montants ou quantités, qui restent chiffrés et ne sont jamais partagés.
+      </BaseAlert>
+    </div>
+
     <div>
+      <!-- Activity feed -->
+      <template v-if="showActivity">
+        <button
+          @click="closeActivity"
+          class="mb-4 text-sm text-primary hover:underline flex items-center gap-1"
+        >
+          <Check class="w-4 h-4" stroke-width="2" />
+          Retour
+        </button>
+
+        <BaseCard>
+          <template #header>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
+                <Activity class="w-4 h-4 text-primary" :stroke-width="2" />
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Activité</h3>
+                <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                  Les derniers picks des investisseurs que vous suivez
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="communityStore.isLoadingActivity" class="flex justify-center py-8">
+            <BaseSpinner />
+          </div>
+
+          <p v-else-if="!communityStore.activity.length" class="py-8 text-center text-sm text-text-muted dark:text-text-dark-muted">
+            Rien à afficher. Suivez des investisseurs pour voir leurs picks apparaître ici.
+          </p>
+
+          <div v-else class="divide-y divide-surface-border dark:divide-surface-dark-border">
+            <div v-for="(item, i) in communityStore.activity" :key="i" class="py-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                  <BaseBadge :variant="item.asset_type === 'CRYPTO' ? 'info' : 'secondary'" size="sm">
+                    {{ item.asset_type }}
+                  </BaseBadge>
+                  <button class="text-sm font-medium text-primary hover:underline truncate" @click="viewProfile(item.username)">
+                    {{ item.display_name || item.username }}
+                  </button>
+                  <span class="text-sm text-text-muted dark:text-text-dark-muted truncate">
+                    a liké {{ item.asset_key }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <BaseBadge v-if="item.type === 'target_reached'" variant="success">Objectif atteint</BaseBadge>
+                  <span
+                    v-if="item.performance_pct !== null"
+                    class="text-sm font-semibold tabular-nums"
+                    :class="pnlColorClass(item.performance_pct)"
+                  >
+                    {{ formatPnl(item.performance_pct) }}
+                  </span>
+                </div>
+              </div>
+              <p v-if="item.comment" class="mt-1 text-sm text-text-body dark:text-text-dark-main">{{ item.comment }}</p>
+              <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+                {{ formatDate(item.occurred_at) }}
+              </p>
+            </div>
+          </div>
+        </BaseCard>
+      </template>
+
       <!-- My picks panel -->
-      <template v-if="showMyPicks">
+      <template v-else-if="showMyPicks">
         <button
           @click="closeMyPicks"
           class="mb-4 text-sm text-primary hover:underline flex items-center gap-1"
@@ -358,6 +468,7 @@ const profilePicks = computed(() => {
               <p v-if="pick.comment" class="mt-2 text-sm text-text-body dark:text-text-dark-main">
                 {{ pick.comment }}
               </p>
+              <PickScore :pick="pick" />
               <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
                 {{ new Date(pick.created_at).toLocaleDateString('fr-FR') }}
               </p>
@@ -503,9 +614,16 @@ const profilePicks = computed(() => {
                       <span v-if="pos.name" class="block text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</span>
                     </div>
                   </div>
-                  <span class="font-semibold tabular-nums" :class="pnlColorClass(pos.pnl_percentage)">
-                    {{ formatPnl(pos.pnl_percentage) }}
-                  </span>
+                  <div class="text-right">
+                    <span class="font-semibold tabular-nums block" :class="pnlColorClass(pos.pnl_percentage)">
+                      {{ formatPnl(pos.pnl_percentage) }}
+                    </span>
+                    <span class="text-xs text-text-muted dark:text-text-dark-muted tabular-nums">
+                      <template v-if="pos.pru !== null">PRU {{ formatCurrency(pos.pru) }}</template>
+                      <template v-if="pos.pru !== null && pos.first_bought_at"> · </template>
+                      <template v-if="pos.first_bought_at">depuis {{ formatDate(pos.first_bought_at) }}</template>
+                    </span>
+                  </div>
                 </div>
               </div>
             </template>
@@ -599,6 +717,7 @@ const profilePicks = computed(() => {
                   <p v-if="pick.comment" class="mt-2 text-sm text-text-body dark:text-text-dark-main">
                     {{ pick.comment }}
                   </p>
+                  <PickScore :pick="pick" />
                   <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
                     {{ new Date(pick.created_at).toLocaleDateString('fr-FR') }}
                   </p>

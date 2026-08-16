@@ -52,6 +52,13 @@ export interface PasswordChangeRequest {
   totp_code?: string
 }
 
+export interface AccountDeleteRequest {
+  password: string
+  totp_code?: string
+  /** Must equal the account's own username — the deletion cannot be undone. */
+  confirm_username: string
+}
+
 export interface RecoveryKeyGenerateRequest {
   password: string
 }
@@ -1069,6 +1076,9 @@ export interface CommunityPositionResponse {
   name: string | null
   asset_type: 'CRYPTO' | 'STOCK'
   pnl_percentage: number | null
+  /** Average entry price. Never reveals the quantity held. */
+  pru: number | null
+  first_bought_at: string | null
 }
 
 export interface CommunityProfileResponse {
@@ -1147,6 +1157,11 @@ export interface PickResponse {
   target_price: number | null
   created_at: string
   updated_at: string
+  price_at_pick: number | null
+  current_price: number | null
+  performance_pct: number | null
+  /** null = no target was set, which is not the same as a missed target. */
+  target_reached: boolean | null
 }
 
 // ─── Dashboard History ────────────────────────────────────────
@@ -1528,4 +1543,33 @@ export interface InvestorAnalyticsResponse {
   fees: FeesResponse | null
   exits: ExitsResponse | null
   plan: PlanResponse | null
+}
+
+// ─── Community activity & notifications ───────────────────────
+
+export interface ActivityItem {
+  type: 'pick' | 'target_reached'
+  username: string
+  display_name: string | null
+  asset_key: string
+  asset_type: 'CRYPTO' | 'STOCK'
+  comment: string | null
+  target_price: number | null
+  performance_pct: number | null
+  occurred_at: string
+}
+
+export interface NotificationResponse {
+  id: number
+  type: 'new_follower' | 'mutual_follow' | 'pick_target_reached'
+  message: string
+  actor_username: string | null
+  asset_key: string | null
+  read_at: string | null
+  created_at: string
+}
+
+export interface NotificationListResponse {
+  unread_count: number
+  notifications: NotificationResponse[]
 }
