@@ -17,6 +17,7 @@ import {
   isDirty as draftsDiffer,
   basisLabel,
   measuredDrafts,
+  shortWarningLabel,
   warningLabel,
   type AssumptionDrafts,
 } from '@/utils/projectionAssumptions'
@@ -41,14 +42,28 @@ const emit = defineEmits<{
 const isOpen = ref(false)
 const draft = ref<AssumptionDrafts>(measuredDrafts(props.parametersUsed))
 
+/**
+ * Whether the user has edited anything.
+ *
+ * Tracked rather than inferred from a value comparison: the form is built
+ * before the projection has loaded, so its zeros differ from the measurement
+ * that arrives a moment later. Reading that difference as "the user typed
+ * something" is what left every field showing 0.
+ */
+const touched = ref(false)
+
 const measured = computed(() => measuredDrafts(props.parametersUsed))
 const isDirty = computed(() => draftsDiffer(draft.value, measured.value))
 
-// Only adopt fresh figures the user has not started editing, so a recalculation
-// landing mid-edit does not wipe what they were typing.
-watch(measured, (next) => {
-  if (!isDirty.value) draft.value = structuredClone(next)
-})
+// Adopt fresh figures until the user takes over, so a recalculation — or the
+// first load — fills the form without wiping what they were typing.
+watch(
+  measured,
+  (next) => {
+    if (!touched.value) draft.value = structuredClone(next)
+  },
+  { immediate: true, deep: true },
+)
 
 /**
  * Rows paired with their editable values, so the template needs no fallback.
@@ -62,11 +77,12 @@ const editableRows = computed(() =>
       const values = draft.value[row.key]
       if (!values) return []
       const basis = props.parametersUsed?.assets?.[row.key]?.basis ?? null
+      const warnings = (basis?.warnings ?? []).filter((w) => w.code !== 'not_measured')
       return [
         {
           ...row,
           values,
-          warnings: basis?.warnings ?? [],
+          warnings,
           provenance: basisLabel(basis),
         },
       ]
@@ -83,6 +99,7 @@ function apply(): void {
 
 function restore(): void {
   draft.value = structuredClone(measured.value)
+  touched.value = false
   emit('reset')
 }
 </script>
@@ -121,6 +138,7 @@ function restore(): void {
             :id="`projection-monthly-${row.key}`"
             v-model="row.values.monthly"
             type="number"
+            @update:model-value="touched = true"
             :aria-label="`Versement mensuel ${row.label} en euros`"
             placeholder="€/mois"
           />
@@ -128,6 +146,7 @@ function restore(): void {
             :id="`projection-rate-${row.key}`"
             v-model="row.values.rate"
             type="number"
+            @update:model-value="touched = true"
             :aria-label="`Rendement annuel ${row.label} en pourcent`"
             placeholder="%/an"
           />
@@ -141,7 +160,7 @@ function restore(): void {
             <template #trigger>
               <span class="inline-flex items-center gap-1 text-warning">
                 <AlertTriangle class="w-3.5 h-3.5" />
-                {{ row.warnings.length > 1 ? `${row.warnings.length} réserves` : 'à nuancer' }}
+                {{ shortWarningLabel(row.warnings) }}
               </span>
             </template>
             <span v-for="(warning, index) in row.warnings" :key="index" class="block">

@@ -11,6 +11,7 @@ import {
   draftsToAssets,
   isDirty,
   measuredDrafts,
+  shortWarningLabel,
   toNumber,
   warningLabel,
 } from '@/utils/projectionAssumptions'
@@ -148,5 +149,44 @@ describe('provenance et réserves', () => {
 
   it('montre un code inconnu au lieu de l’avaler', () => {
     expect(warningLabel({ code: 'something_new', values: {} })).toBe('something_new')
+  })
+})
+
+describe('le formulaire face à des données qui arrivent après coup', () => {
+  it('ne confond pas "valeurs différentes" et "utilisateur a tapé"', () => {
+    // Le panneau est monté avant que la projection soit chargée : ses zéros
+    // diffèrent de la mesure qui arrive ensuite. Lire cet écart comme une
+    // saisie utilisateur, c'est laisser les champs à 0 pour toujours.
+    const empty = measuredDrafts(null)
+    const loaded = measuredDrafts(PARAMETERS_USED)
+
+    expect(empty.STOCK).toEqual({ monthly: '0', rate: '0' })
+    expect(isDirty(empty, loaded)).toBe(true)
+  })
+
+  it('explique la banque au lieu de la signaler', () => {
+    expect(
+      basisLabel({
+        contribution: 'unavailable',
+        contribution_months: 0,
+        contribution_total: 0,
+        return: 'unavailable',
+        return_days: 0,
+        warnings: [{ code: 'not_measured', values: {} }],
+      }),
+    ).toContain('revenus et dépenses')
+  })
+
+  it('nomme la réserve au lieu de dire "à nuancer"', () => {
+    expect(shortWarningLabel([{ code: 'insufficient_history', values: { days: 200 } }])).toBe(
+      'historique trop court',
+    )
+    expect(
+      shortWarningLabel([
+        { code: 'extreme_rate', values: { annual_rate: 0.5 } },
+        { code: 'weak_annualisation', values: { days: 400 } },
+      ]),
+    ).toBe('rendement élevé +1')
+    expect(shortWarningLabel([])).toBe('')
   })
 })

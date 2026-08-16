@@ -125,6 +125,11 @@ export function isDirty(drafts: AssumptionDrafts, measured: AssumptionDrafts): b
  */
 export function basisLabel(basis: ProjectionAssetBasis | null | undefined): string | null {
   if (!basis) return null
+  // Not a reservation about a figure but the reason there is none — it belongs
+  // with the provenance, in grey, rather than flagged in every single render.
+  if (basis.warnings?.some((warning) => warning.code === 'not_measured')) {
+    return 'non déduit : les soldes suivent vos revenus et dépenses'
+  }
   if (basis.return === 'annualised_twr') {
     return `mesuré sur ${basis.return_days} j — rendement time-weighted annualisé`
   }
@@ -156,4 +161,26 @@ export function warningLabel(warning: ProjectionBasisWarning): string {
     default:
       return warning.code
   }
+}
+
+/**
+ * The reservation in two or three words, for a row that has no space for more.
+ *
+ * A generic "à nuancer" forces a hover just to learn *what* is uncertain, which
+ * is the one thing worth reading at a glance. The full sentence stays in the
+ * tooltip.
+ */
+export function shortWarningLabel(warnings: ProjectionBasisWarning[]): string {
+  const first = warnings[0]
+  if (!first) return ''
+
+  const short: Record<string, string> = {
+    no_contribution_found: 'aucun versement trouvé',
+    insufficient_history: 'historique trop court',
+    unaligned_flows: 'versements non valorisés',
+    weak_annualisation: 'historique court',
+    extreme_rate: 'rendement élevé',
+  }
+  const label = short[first.code] ?? first.code
+  return warnings.length > 1 ? `${label} +${warnings.length - 1}` : label
 }
