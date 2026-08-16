@@ -1,76 +1,52 @@
 <script setup lang="ts">
-import { Database, LayoutGrid } from 'lucide-vue-next'
+import { Bitcoin, LayoutGrid, RefreshCw } from 'lucide-vue-next'
 
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseCard, BaseButton, BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
+import SettingsSection from './SettingsSection.vue'
+import type { UserSettingsUpdate } from '@/types'
 
 const settingsStore = useSettingsStore()
 
 // Module toggles
 const bankModuleEnabled = ref(true)
+const bankAutoSyncEnabled = ref(true)
 const cashflowModuleEnabled = ref(true)
 const wealthModuleEnabled = ref(true)
-const isSavingModules = ref(false)
-const saveModulesSuccess = ref(false)
 
 // Crypto settings
 const cryptoModuleEnabled = ref(false)
 const cryptoShowNegativePositions = ref(false)
 const cryptoMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
-const cryptoPreviousMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
-const isSavingCrypto = ref(false)
-const saveCryptoSuccess = ref(false)
-const cryptoErrorMessage = ref<string | null>(null)
 
-onMounted(() => {
-  if (settingsStore.settings) {
-    bankModuleEnabled.value = settingsStore.settings.bank_module_enabled ?? true
-    cashflowModuleEnabled.value = settingsStore.settings.cashflow_module_enabled ?? true
-    wealthModuleEnabled.value = settingsStore.settings.wealth_module_enabled ?? true
-    cryptoModuleEnabled.value = settingsStore.settings.crypto_module_enabled
-    cryptoShowNegativePositions.value = settingsStore.settings.crypto_show_negative_positions ?? false
-    cryptoMode.value = settingsStore.settings.crypto_mode
-    cryptoPreviousMode.value = settingsStore.settings.crypto_mode
-  }
-})
+const errorMessage = ref<string | null>(null)
 
-async function saveModulesSettings(): Promise<void> {
-  isSavingModules.value = true
-  saveModulesSuccess.value = false
-  const success = await settingsStore.updateSettings({
-    bank_module_enabled: bankModuleEnabled.value,
-    cashflow_module_enabled: cashflowModuleEnabled.value,
-    wealth_module_enabled: wealthModuleEnabled.value,
-  })
-  isSavingModules.value = false
-  if (success) {
-    saveModulesSuccess.value = true
-    setTimeout(() => { saveModulesSuccess.value = false }, 2000)
-  }
+function syncFromStore(): void {
+  const settings = settingsStore.settings
+  if (!settings) return
+  bankModuleEnabled.value = settings.bank_module_enabled ?? true
+  bankAutoSyncEnabled.value = settings.bank_auto_sync_enabled ?? true
+  cashflowModuleEnabled.value = settings.cashflow_module_enabled ?? true
+  wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
+  cryptoModuleEnabled.value = settings.crypto_module_enabled
+  cryptoShowNegativePositions.value = settings.crypto_show_negative_positions ?? false
+  cryptoMode.value = settings.crypto_mode
 }
 
-async function saveCryptoSettings(): Promise<void> {
-  isSavingCrypto.value = true
-  saveCryptoSuccess.value = false
-  cryptoErrorMessage.value = null
-  
-  const success = await settingsStore.updateSettings({
-    crypto_module_enabled: cryptoModuleEnabled.value,
-    crypto_show_negative_positions: cryptoShowNegativePositions.value,
-    crypto_mode: cryptoModuleEnabled.value ? cryptoMode.value : undefined,
-  })
-  
-  isSavingCrypto.value = false
-  
-  if (success) {
-    saveCryptoSuccess.value = true
-    cryptoPreviousMode.value = cryptoMode.value
-    setTimeout(() => { saveCryptoSuccess.value = false }, 2000)
-  } else {
-    cryptoErrorMessage.value = settingsStore.error ?? 'Une erreur est survenue lors de l\'enregistrement.'
-    // Reset mode to previous value on error
-    cryptoMode.value = cryptoPreviousMode.value
+/**
+ * The store may still be loading when this tab mounts (child `mounted` hooks run
+ * before the parent's fetch), so sync on every settings change, not just once.
+ */
+watch(() => settingsStore.settings, syncFromStore, { immediate: true })
+
+/** Save immediately, and put the controls back on the stored values if it fails. */
+async function save(patch: UserSettingsUpdate): Promise<void> {
+  errorMessage.value = null
+  const success = await settingsStore.updateSettings(patch)
+  if (!success) {
+    errorMessage.value = settingsStore.error ?? 'Une erreur est survenue lors de l\'enregistrement.'
+    syncFromStore()
   }
 }
 </script>
@@ -78,24 +54,17 @@ async function saveCryptoSettings(): Promise<void> {
 <template>
   <div class="space-y-6">
     <!-- Modules -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <LayoutGrid class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Modules d'affichage</h3>
-        </div>
-      </template>
+    <SettingsSection
+      :icon="LayoutGrid"
+      title="Modules d'affichage"
+      description="Choisissez les modules à afficher dans la navigation. Chaque changement est enregistré aussitôt."
+    >
       <template v-if="settingsStore.isLoading && !settingsStore.settings">
         <div class="space-y-4">
           <BaseSkeleton v-for="i in 3" :key="i" variant="rect" height="2.5rem" />
         </div>
       </template>
       <template v-else>
-        <p class="text-sm text-text-muted dark:text-text-dark-muted mb-4">
-          Choisissez les modules à afficher dans la navigation.
-        </p>
         <div class="space-y-5">
           <!-- Compte Bancaire -->
           <div class="flex items-center justify-between">
@@ -103,7 +72,27 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Compte Bancaire</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche la gestion des comptes bancaires</p>
             </div>
-            <BaseToggle v-model="bankModuleEnabled" aria-label="Activer le module Banque" />
+            <BaseToggle
+              v-model="bankModuleEnabled"
+              aria-label="Activer le module Banque"
+              @update:model-value="save({ bank_module_enabled: $event })"
+            />
+          </div>
+
+          <!-- Bank auto-sync -->
+          <div v-if="bankModuleEnabled" class="flex items-center justify-between gap-4 pl-4 border-l-2 border-surface-border dark:border-surface-dark-border">
+            <div class="flex items-start gap-2">
+              <RefreshCw class="w-4 h-4 mt-0.5 shrink-0 text-text-muted dark:text-text-dark-muted" />
+              <div>
+                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Synchronisation automatique</p>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted">Applique les flux récurrents aux soldes de vos comptes</p>
+              </div>
+            </div>
+            <BaseToggle
+              v-model="bankAutoSyncEnabled"
+              aria-label="Activer la synchronisation automatique des comptes bancaires"
+              @update:model-value="save({ bank_auto_sync_enabled: $event })"
+            />
           </div>
 
           <!-- Cashflow -->
@@ -112,7 +101,11 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Cashflow</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche le suivi des flux de trésorerie</p>
             </div>
-            <BaseToggle v-model="cashflowModuleEnabled" aria-label="Activer le module Flux de trésorerie" />
+            <BaseToggle
+              v-model="cashflowModuleEnabled"
+              aria-label="Activer le module Flux de trésorerie"
+              @update:model-value="save({ cashflow_module_enabled: $event })"
+            />
           </div>
 
           <!-- Patrimoine -->
@@ -121,38 +114,28 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Patrimoine</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche la gestion du patrimoine</p>
             </div>
-            <BaseToggle v-model="wealthModuleEnabled" aria-label="Activer le module Patrimoine" />
-          </div>
-
-          <div class="flex items-center justify-between pt-2">
-            <BaseAlert v-if="saveModulesSuccess" variant="success" class="flex-1 mr-4 py-1.5!">Modules sauvegardés.</BaseAlert>
-            <div class="ml-auto">
-              <BaseButton @click="saveModulesSettings" :loading="isSavingModules" size="sm">Enregistrer</BaseButton>
-            </div>
+            <BaseToggle
+              v-model="wealthModuleEnabled"
+              aria-label="Activer le module Patrimoine"
+              @update:model-value="save({ wealth_module_enabled: $event })"
+            />
           </div>
         </div>
       </template>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- Crypto Module -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <Database class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Module Crypto</h3>
-        </div>
-      </template>
+    <SettingsSection
+      :icon="Bitcoin"
+      title="Module Crypto"
+      description="Activez et configurez le suivi de vos crypto-monnaies."
+    >
       <template v-if="settingsStore.isLoading && !settingsStore.settings">
         <div class="space-y-4">
           <BaseSkeleton variant="rect" height="2.5rem" />
         </div>
       </template>
       <template v-else>
-        <p class="text-sm text-text-muted dark:text-text-dark-muted mb-4">
-          Activez et configurez le suivi de vos crypto-monnaies.
-        </p>
         <div class="space-y-5">
           <!-- Enable toggle -->
           <div class="flex items-center justify-between">
@@ -160,7 +143,11 @@ async function saveCryptoSettings(): Promise<void> {
               <p class="font-medium text-text-main dark:text-text-dark-main">Activer le module Crypto</p>
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche l'entrée Crypto dans la navigation</p>
             </div>
-            <BaseToggle v-model="cryptoModuleEnabled" aria-label="Activer le module Crypto" />
+            <BaseToggle
+              v-model="cryptoModuleEnabled"
+              aria-label="Activer le module Crypto"
+              @update:model-value="save({ crypto_module_enabled: $event })"
+            />
           </div>
 
           <!-- Crypto sub-settings (only when enabled) -->
@@ -177,7 +164,7 @@ async function saveCryptoSettings(): Promise<void> {
                 <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Mode de gestion</p>
 
                 <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'SINGLE' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
-                  <input type="radio" name="cryptoMode" value="SINGLE" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" />
+                  <input type="radio" name="cryptoMode" value="SINGLE" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'SINGLE' })" />
                   <div>
                     <p class="font-medium text-text-main dark:text-text-dark-main">
                       Patrimoine Global
@@ -188,7 +175,7 @@ async function saveCryptoSettings(): Promise<void> {
                 </label>
 
                 <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'MULTI' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
-                  <input type="radio" name="cryptoMode" value="MULTI" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" />
+                  <input type="radio" name="cryptoMode" value="MULTI" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'MULTI' })" />
                   <div>
                     <p class="font-medium text-text-main dark:text-text-dark-main">
                       Gestion Multi-Comptes
@@ -205,23 +192,21 @@ async function saveCryptoSettings(): Promise<void> {
                     <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
                     <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
                   </div>
-                  <BaseToggle v-model="cryptoShowNegativePositions" aria-label="Afficher les positions négatives" />
+                  <BaseToggle
+                    v-model="cryptoShowNegativePositions"
+                    aria-label="Afficher les positions négatives"
+                    @update:model-value="save({ crypto_show_negative_positions: $event })"
+                  />
                 </div>
               </div>
             </div>
           </Transition>
-
-          <div class="flex items-center justify-between pt-2">
-            <div class="flex-1 mr-4">
-              <BaseAlert v-if="saveCryptoSuccess" variant="success" class="py-1.5!">Préférences Crypto sauvegardées.</BaseAlert>
-              <BaseAlert v-else-if="cryptoErrorMessage" variant="danger" class="py-1.5!">{{ cryptoErrorMessage }}</BaseAlert>
-            </div>
-            <div class="ml-auto">
-              <BaseButton @click="saveCryptoSettings" :loading="isSavingCrypto" size="sm">Enregistrer</BaseButton>
-            </div>
-          </div>
         </div>
       </template>
-    </BaseCard>
+    </SettingsSection>
+
+    <BaseAlert v-if="errorMessage" variant="danger" dismissible @dismiss="errorMessage = null">
+      {{ errorMessage }}
+    </BaseAlert>
   </div>
 </template>

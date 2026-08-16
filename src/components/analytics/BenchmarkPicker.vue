@@ -102,7 +102,7 @@ async function onCustomPicked(key: string): Promise<void> {
         />
       </div>
       <p v-if="isCustom" class="text-xs text-warning">
-        Indice personnalisé : vérifie qu'il est capitalisant et qu'il couvre tout ton historique,
+        Indice personnalisé : vérifiez qu'il est capitalisant et qu'il couvre tout votre historique,
         sinon les comparaisons seront fausses ou tronquées.
       </p>
     </div>
@@ -129,9 +129,9 @@ async function onCustomPicked(key: string): Promise<void> {
           />
         </div>
         <p class="text-xs text-warning">
-          Deux risques à vérifier toi-même : un ETF <strong>distribuant</strong> donnerait des
+          Deux risques à vérifier vous-même : un ETF <strong>distribuant</strong> donnerait des
           comparaisons fausses (son cours n'inclut pas les dividendes versés), et un ETF lancé
-          après ton premier achat tronquerait la comparaison — dans ce cas la page te dira à
+          après votre premier achat tronquerait la comparaison — dans ce cas la page indique à
           partir de quand elle démarre.
         </p>
         <button

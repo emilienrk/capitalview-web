@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check } from 'lucide-vue-next'
+import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check, KeyRound, SlidersHorizontal } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
-import { BaseCard, BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseToggle } from '@/components'
+import SettingsSection from './SettingsSection.vue'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig } from '@/types'
 
 const settingsStore = useSettingsStore()
@@ -199,38 +200,27 @@ const allProviders = computed(() => {
   <div class="space-y-6">
 
     <!-- Enable AI toggle -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles class="w-4 h-4 text-primary" stroke-width="2" />
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Intelligence Artificielle</h3>
-              <p class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
-                Activez les fonctionnalités IA pour l'import par image et l'analyse de portefeuille
-              </p>
-            </div>
-          </div>
-          <BaseToggle
-            :model-value="isAiEnabled"
-            aria-label="Activer les fonctionnalités IA"
-            @update:model-value="toggleAiFeature"
-          />
-        </div>
+    <SettingsSection
+      :icon="Sparkles"
+      title="Intelligence Artificielle"
+      subtitle="Activez les fonctionnalités IA pour l'import par image et l'analyse de portefeuille"
+    >
+      <template #header-action>
+        <BaseToggle
+          :model-value="isAiEnabled"
+          aria-label="Activer les fonctionnalités IA"
+          @update:model-value="toggleAiFeature"
+        />
       </template>
-    </BaseCard>
+    </SettingsSection>
 
     <template v-if="isAiEnabled">
       <!-- API Keys & Models per provider -->
-      <BaseCard>
-        <template #header>
-          <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Clés API & Modèles</h3>
-          <p class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
-            Vos clés sont chiffrées de bout en bout avec votre Master Key avant d'être stockées.
-          </p>
-        </template>
+      <SettingsSection
+        :icon="KeyRound"
+        title="Clés API & Modèles"
+        subtitle="Vos clés sont chiffrées de bout en bout avec votre Master Key avant d'être stockées."
+      >
 
         <template v-if="isLoadingOptions">
           <div class="space-y-4">
@@ -307,16 +297,14 @@ const allProviders = computed(() => {
             />
           </div>
         </div>
-      </BaseCard>
+      </SettingsSection>
 
       <!-- Capability preferences -->
-      <BaseCard>
-        <template #header>
-          <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Préférences par usage</h3>
-          <p class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
-            Choisissez quel provider utiliser pour chaque type de tâche IA.
-          </p>
-        </template>
+      <SettingsSection
+        :icon="SlidersHorizontal"
+        title="Préférences par usage"
+        subtitle="Choisissez quel provider utiliser pour chaque type de tâche IA."
+      >
 
         <template v-if="isLoadingOptions">
           <div class="space-y-4">
@@ -414,7 +402,7 @@ const allProviders = computed(() => {
             </div>
           </div>
         </div>
-      </BaseCard>
+      </SettingsSection>
     </template>
 
   </div>

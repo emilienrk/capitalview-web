@@ -260,7 +260,7 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
                   {{ tx.type === 'ANCHOR' ? '' : isNegativeType(tx.type) ? '−' : '+' }}{{ formatNumber(tx.amount, 6) }}
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <BaseButton size="sm" variant="ghost" @click="emit('edit-transaction', tx)">
+                  <BaseButton size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} ${tx.asset_key} du ${formatDateShort(tx.executed_at)}`" @click="emit('edit-transaction', tx)">
                     <Pencil class="w-4 h-4" />
                   </BaseButton>
                 </td>
@@ -291,7 +291,7 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
                 </BaseBadge>
                 <span class="font-semibold text-sm text-text-main dark:text-text-dark-main truncate">{{ tx.asset_key }}</span>
               </div>
-              <BaseButton size="sm" variant="ghost" @click="emit('edit-transaction', tx)">
+              <BaseButton size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} ${tx.asset_key} du ${formatDateShort(tx.executed_at)}`" @click="emit('edit-transaction', tx)">
                 <Pencil class="w-4 h-4" />
               </BaseButton>
             </div>

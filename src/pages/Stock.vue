@@ -1520,7 +1520,7 @@ onMounted(async () => {
           </div>
           <div class="flex items-center gap-2 shrink-0 self-start">
               <BaseAddButton variant="ghost" size="sm" @click.stop="openAddTransaction(account.id)">Transaction</BaseAddButton>
-            <BaseButton size="sm" variant="ghost" @click.stop="openEditAccount(account)">
+            <BaseButton size="sm" variant="ghost" :aria-label="`Modifier le compte ${account.name}`" @click.stop="openEditAccount(account)">
               <Pencil class="w-4 h-4" />
             </BaseButton>
           </div>
@@ -1579,7 +1579,9 @@ onMounted(async () => {
 
           <!-- Positions table -->
           <div v-if="activeDetailTab === 'positions'">
-            <div v-if="sortedPositions.length" class="overflow-x-auto">
+            <template v-if="sortedPositions.length">
+            <!-- Desktop table -->
+            <div class="hidden md:block overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
                   <tr class="text-left text-xs text-text-muted dark:text-text-dark-muted uppercase tracking-wider border-b border-surface-border dark:border-surface-dark-border">
@@ -1619,6 +1621,49 @@ onMounted(async () => {
                 </tbody>
               </table>
             </div>
+
+            <!-- Mobile cards — "Investi" is dropped here, it is the least actionable column -->
+            <div class="md:hidden space-y-3">
+              <div
+                v-for="pos in sortedPositions"
+                :key="`${pos.asset_key ?? pos.symbol}-${pos.exchange || 'NONE'}`"
+                class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4"
+              >
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="min-w-0">
+                    <p class="font-semibold text-text-main dark:text-text-dark-main truncate">{{ pos.name || (pos.asset_key ?? pos.symbol) }}</p>
+                    <p v-if="pos.exchange" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.exchange }}</p>
+                  </div>
+                  <div class="text-right whitespace-nowrap">
+                    <p :class="['text-sm font-semibold', profitLossClass(posProfitLossEur(pos))]">
+                      {{ maskValue(formatCurrency(posProfitLossEur(pos))) }}
+                    </p>
+                    <p :class="['text-xs', profitLossClass(posProfitLossPctEur(pos))]">
+                      {{ formatPercent(posProfitLossPctEur(pos)) }}
+                    </p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <p class="text-text-muted dark:text-text-dark-muted">Quantité</p>
+                    <p class="font-mono font-medium text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-text-muted dark:text-text-dark-muted">Valeur</p>
+                    <p class="font-semibold text-text-main dark:text-text-dark-main">{{ maskValue(formatPosPrice(pos.current_value, pos.currency)) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-text-muted dark:text-text-dark-muted">PRU</p>
+                    <p class="text-text-body dark:text-text-dark-body">{{ formatPru(pos.average_buy_price, pos.currency) }}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-text-muted dark:text-text-dark-muted">Cours</p>
+                    <p class="text-text-body dark:text-text-dark-body">{{ formatPosPrice(pos.current_price, pos.currency) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </template>
             <div v-else class="py-6 text-center">
               <p class="text-sm text-text-muted dark:text-text-dark-muted">Aucune position — ajoutez des transactions pour commencer</p>
             </div>
@@ -1626,7 +1671,9 @@ onMounted(async () => {
 
           <!-- History Tab -->
           <div v-else>
-            <div v-if="sortedTransactions.length" class="overflow-x-auto">
+            <template v-if="sortedTransactions.length">
+            <!-- Desktop table -->
+            <div class="hidden md:block overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
                   <tr class="text-left text-xs text-text-muted dark:text-text-dark-muted uppercase tracking-wider border-b border-surface-border dark:border-surface-dark-border">
@@ -1653,10 +1700,10 @@ onMounted(async () => {
                     <td class="px-4 py-2.5 text-right">{{ tx.asset_key === 'EUR' ? '—' : formatCurrency(tx.price_per_unit) }}</td>
                     <td class="px-4 py-2.5 text-right font-medium">{{ maskValue(formatCurrency(transactionDisplayedTotal(tx))) }}</td>
                     <td class="px-4 py-2.5 text-right">
-                      <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" @click="openEditTransaction(tx)">
+                      <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
                         <Pencil class="w-4 h-4" />
                       </BaseButton>
-                      <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" @click="openEditDeposit(tx)">
+                      <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" :aria-label="`Modifier le dépôt du ${formatDateShort(tx.executed_at)}`" @click="openEditDeposit(tx)">
                         <Pencil class="w-4 h-4" />
                       </BaseButton>
                     </td>
@@ -1667,6 +1714,51 @@ onMounted(async () => {
                 Dates affichées en {{ effectiveTimezoneLabel }}
               </p>
             </div>
+
+            <!-- Mobile cards -->
+            <div class="md:hidden space-y-2">
+              <div
+                v-for="tx in sortedTransactions" :key="tx.id"
+                :class="[
+                  'rounded-secondary p-3',
+                  tx.asset_key === 'EUR'
+                    ? 'bg-info/5 dark:bg-info/10 border-l-2 border-info/30'
+                    : 'border border-surface-border dark:border-surface-dark-border',
+                ]"
+              >
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <BaseBadge :variant="tx.asset_key === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
+                      {{ tx.type }}
+                    </BaseBadge>
+                    <span v-if="tx.asset_key !== 'EUR'" class="text-xs text-text-muted dark:text-text-dark-muted truncate">
+                      {{ tx.asset_key || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-sm font-semibold text-text-main dark:text-text-dark-main whitespace-nowrap">
+                    {{ maskValue(formatCurrency(transactionDisplayedTotal(tx))) }}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between gap-2 text-xs text-text-muted dark:text-text-dark-muted">
+                  <span class="whitespace-nowrap">{{ formatDateShort(tx.executed_at) }}</span>
+                  <div class="flex items-center gap-2">
+                    <span v-if="tx.asset_key !== 'EUR'" class="font-mono whitespace-nowrap">
+                      {{ formatNumber(tx.amount, 4) }} × {{ formatCurrency(tx.price_per_unit) }}
+                    </span>
+                    <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
+                      <Pencil class="w-4 h-4" />
+                    </BaseButton>
+                    <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" :aria-label="`Modifier le dépôt du ${formatDateShort(tx.executed_at)}`" @click="openEditDeposit(tx)">
+                      <Pencil class="w-4 h-4" />
+                    </BaseButton>
+                  </div>
+                </div>
+              </div>
+              <p class="px-1 pt-1 text-xs text-text-muted dark:text-text-dark-muted">
+                Dates affichées en {{ effectiveTimezoneLabel }}
+              </p>
+            </div>
+            </template>
             <BaseEmptyState v-else title="Aucune transaction" description="L'historique des transactions est vide" />
           </div>
         </div>

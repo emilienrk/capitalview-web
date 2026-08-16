@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Lock, User as UserIcon, Mail, KeyRound, ShieldCheck, LifeBuoy } from 'lucide-vue-next'
 import { ref, reactive, onMounted, computed } from 'vue'
-import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseBadge } from '@/components'
+import { BaseButton, BaseInput, BaseAlert, BaseBadge } from '@/components'
+import SettingsSection from './SettingsSection.vue'
 import AgentAccessCard from '@/components/security/AgentAccessCard.vue'
 import TwoFactorSetupModal from '@/components/security/TwoFactorSetupModal.vue'
 import PasswordCodeModal from '@/components/security/PasswordCodeModal.vue'
@@ -227,15 +228,7 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
 <template>
   <div class="space-y-6">
     <!-- ── Profile (username / email) ──────────────────── -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <Lock class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Sécurité & Profil</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="Lock" title="Sécurité & Profil">
       <div class="space-y-8">
         <!-- Encryption status -->
         <div class="flex items-center gap-2 pb-6 border-b border-surface-border dark:border-surface-dark-border">
@@ -328,18 +321,10 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </form>
         </div>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- ── Password change ─────────────────────────────── -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <KeyRound class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Mot de passe</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="KeyRound" title="Mot de passe">
 
       <div class="space-y-4">
         <p class="text-sm text-text-muted dark:text-text-dark-muted">
@@ -397,18 +382,10 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </div>
         </form>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- ── Two-factor authentication ───────────────────── -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <ShieldCheck class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Double authentification (2FA)</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="ShieldCheck" title="Double authentification (2FA)">
 
       <div class="space-y-4">
         <div class="flex items-center gap-2">
@@ -434,18 +411,10 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </BaseButton>
         </div>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- ── Recovery key ────────────────────────────────── -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <LifeBuoy class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Clé de récupération</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="LifeBuoy" title="Clé de récupération">
 
       <div class="space-y-4">
         <p class="text-sm text-text-muted dark:text-text-dark-muted">
@@ -461,7 +430,7 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </BaseButton>
         </div>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- ── Agent access (MCP tokens) ───────────────────── -->
     <AgentAccessCard />

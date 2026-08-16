@@ -4,7 +4,8 @@ import { List, Lock, User } from 'lucide-vue-next'
 import { onMounted, ref, computed } from 'vue'
 import { useCommunityStore } from '@/stores/community'
 import { useAuthStore } from '@/stores/auth'
-import { BaseCard, BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
+import { BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
+import SettingsSection from './SettingsSection.vue'
 
 const communityStore = useCommunityStore()
 const auth = useAuthStore()
@@ -103,15 +104,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
 <template>
   <div class="space-y-6">
     <!-- Profile Card -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <User class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Profil communautaire</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="User" title="Profil communautaire">
 
       <template v-if="isLoading && !communityStore.settings">
         <div class="space-y-4">
@@ -204,7 +197,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
           </Transition>
         </div>
       </template>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- Position Selection -->
     <Transition
@@ -215,20 +208,12 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
       leave-from-class="opacity-100 max-h-[200rem]"
       leave-to-class="opacity-0 max-h-0"
     >
-      <BaseCard v-if="communityActive">
-        <template #header>
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-              <List class="w-4 h-4 text-primary" stroke-width="2" />
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Positions partagées</h3>
-              <p v-if="totalSelected > 0" class="text-xs text-text-muted dark:text-text-dark-muted">
-                {{ totalSelected }} position(s) sélectionnée(s)
-              </p>
-            </div>
-          </div>
-        </template>
+      <SettingsSection
+        v-if="communityActive"
+        :icon="List"
+        title="Positions partagées"
+        :subtitle="totalSelected > 0 ? `${totalSelected} position(s) sélectionnée(s)` : undefined"
+      >
 
         <template v-if="communityStore.isLoadingPositions">
           <div class="space-y-3">
@@ -349,7 +334,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
             </div>
           </div>
         </template>
-      </BaseCard>
+      </SettingsSection>
     </Transition>
 
     <!-- Save button -->

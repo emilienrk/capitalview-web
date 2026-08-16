@@ -1999,7 +1999,7 @@ onMounted(async () => {
               <BaseAddButton variant="ghost" size="sm" @click.stop="openAddTransaction(account.id)">
                 Transaction
               </BaseAddButton>
-              <BaseButton size="sm" variant="ghost" @click.stop="openEditAccount(account)">
+              <BaseButton size="sm" variant="ghost" :aria-label="`Modifier le compte ${account.name}`" @click.stop="openEditAccount(account)">
                 <Pencil class="w-4 h-4" />
               </BaseButton>
             </div>

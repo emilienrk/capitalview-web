@@ -561,15 +561,11 @@ onMounted(async () => {
         <table class="w-full">
           <thead>
             <tr class="border-b border-surface-border dark:border-surface-dark-border">
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Nom</th>
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Catégorie</th>
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Type</th>
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Fréquence</th>
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte lié</th>
-              <th class="text-right px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
-              <th class="text-right px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Mensuel</th>
-              <th class="text-left px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Date</th>
-              <th class="text-right px-6 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Actions</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Flux</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Récurrence</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
@@ -581,40 +577,40 @@ onMounted(async () => {
                 item.is_active ? '' : 'opacity-60',
               ]"
             >
-              <td class="px-6 py-4">
-                <span class="text-sm font-medium text-text-main dark:text-text-dark-main">{{ item.name }}</span>
+              <td class="px-4 py-3">
+                <div class="flex items-start gap-2.5">
+                  <span
+                    :class="[
+                      'mt-1.5 w-2 h-2 shrink-0 rounded-full',
+                      item.flow_type === 'INFLOW' ? 'bg-success' : 'bg-danger',
+                    ]"
+                    :title="item.flow_type === 'INFLOW' ? 'Revenu' : 'Dépense'"
+                  />
+                  <div class="min-w-0">
+                    <span class="block text-sm font-medium text-text-main dark:text-text-dark-main">{{ item.name }}</span>
+                    <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ capitalize(item.category) }}</span>
+                  </div>
+                </div>
               </td>
-              <td class="px-6 py-4">
-                <BaseBadge variant="secondary">{{ item.category }}</BaseBadge>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="block text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
+                <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ formatDayMonth(item.transaction_date) }}</span>
               </td>
-              <td class="px-6 py-4">
-                <BaseBadge :variant="item.flow_type === 'INFLOW' ? 'success' : 'danger'">
-                  {{ item.flow_type === 'INFLOW' ? 'Revenu' : 'Dépense' }}
-                </BaseBadge>
-              </td>
-              <td class="px-6 py-4">
-                <span class="text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
-              </td>
-              <td class="px-6 py-4">
-                <BaseBadge v-if="item.bank_account_id" variant="secondary">
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span v-if="item.bank_account_id" class="text-sm text-text-body dark:text-text-dark-body">
                   {{ bankAccountNameById[item.bank_account_id] ?? 'Compte supprimé' }}
-                </BaseBadge>
+                </span>
                 <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">—</span>
               </td>
-              <td class="px-6 py-4 text-right">
-                <span :class="['text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <span :class="['block text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
                   {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
                 </span>
-              </td>
-              <td class="px-6 py-4 text-right">
-                <span class="text-sm text-text-body dark:text-text-dark-body">
-                  {{ formatCurrency(item.monthly_amount) }}
+                <span v-if="item.frequency !== 'MONTHLY'" class="block text-xs text-text-muted dark:text-text-dark-muted">
+                  ≈ {{ formatCurrency(item.monthly_amount) }}/mois
                 </span>
               </td>
-              <td class="px-6 py-4">
-                <span class="text-sm text-text-muted dark:text-text-dark-muted">{{ formatDayMonth(item.transaction_date) }}</span>
-              </td>
-              <td class="px-6 py-4 text-right">
+              <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
                   <BaseToggle
                     v-if="item.bank_account_id"
@@ -622,10 +618,10 @@ onMounted(async () => {
                     :aria-label="`Synchroniser ${item.name} avec le compte bancaire`"
                     @update:model-value="toggleActive(item, $event)"
                   />
-                  <BaseButton size="sm" variant="ghost" @click="openEdit(item)">
+                  <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${item.name}`" @click="openEdit(item)">
                     <Pencil class="w-4 h-4" />
                   </BaseButton>
-                  <BaseButton size="sm" variant="ghost" @click="deleteConfirmId = item.id">
+                  <BaseButton size="sm" variant="ghost" :aria-label="`Supprimer ${item.name}`" @click="deleteConfirmId = item.id">
                     <Trash2 class="w-4 h-4 text-danger" />
                   </BaseButton>
                 </div>

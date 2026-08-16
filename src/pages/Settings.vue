@@ -7,7 +7,6 @@ import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseAlert } from '@/components'
 import SettingsGeneral from './settings/SettingsGeneral.vue'
-import SettingsFinances from './settings/SettingsFinances.vue'
 import SettingsModules from './settings/SettingsModules.vue'
 import SettingsCommunity from './settings/SettingsCommunity.vue'
 import SettingsSecurity from './settings/SettingsSecurity.vue'
@@ -22,56 +21,26 @@ const appVersion = __APP_VERSION__
 interface Tab {
   id: string
   label: string
-  shortLabel: string
   icon: Component
 }
 
 const tabs: Tab[] = [
-  {
-    id: 'general',
-    label: 'Général',
-    shortLabel: 'Général',
-    icon: User,
-  },
-  // {
-  //   id: 'finances',
-  //   label: 'Finances',
-  //   shortLabel: 'Finances',
-  //   icon: Wallet,
-  // },
-  {
-    id: 'modules',
-    label: 'Modules',
-    shortLabel: 'Modules',
-    icon: LayoutGrid,
-  },
-  {
-    id: 'ia',
-    label: 'IA',
-    shortLabel: 'IA',
-    icon: Sparkles,
-  },
-  {
-    id: 'analyse',
-    label: 'Analyse',
-    shortLabel: 'Analyse',
-    icon: Microscope,
-  },
-  {
-    id: 'communaute',
-    label: 'Communauté',
-    shortLabel: 'Communauté',
-    icon: Users,
-  },
-  {
-    id: 'securite',
-    label: 'Sécurité',
-    shortLabel: 'Sécurité',
-    icon: Lock,
-  },
+  { id: 'general', label: 'Général', icon: User },
+  { id: 'modules', label: 'Modules', icon: LayoutGrid },
+  { id: 'ia', label: 'IA', icon: Sparkles },
+  { id: 'analyse', label: 'Analyse', icon: Microscope },
+  { id: 'communaute', label: 'Communauté', icon: Users },
+  { id: 'securite', label: 'Sécurité', icon: Lock },
 ]
 
-const activeTab = ref<string>((route.query.tab as string) || 'general')
+const DEFAULT_TAB = 'general'
+
+function resolveTab(value: unknown): string {
+  return typeof value === 'string' && tabs.some(t => t.id === value) ? value : DEFAULT_TAB
+}
+
+// An unknown ?tab= must fall back, otherwise no branch below renders and the page is blank.
+const activeTab = ref<string>(resolveTab(route.query.tab))
 
 watch(activeTab, (tab) => {
   router.replace({ query: { ...route.query, tab } })
@@ -139,7 +108,7 @@ onMounted(async () => {
             ]"
           >
             <component :is="tab.icon" class="w-5 h-5 shrink-0" :stroke-width="1.75" />
-            <span class="w-full text-center truncate">{{ tab.shortLabel }}</span>
+            <span class="w-full text-center truncate">{{ tab.label }}</span>
           </button>
         </nav>
       </aside>
@@ -148,7 +117,6 @@ onMounted(async () => {
       <main class="flex-1 min-w-0">
         <KeepAlive>
           <SettingsGeneral v-if="activeTab === 'general'" />
-          <!-- <SettingsFinances v-else-if="activeTab === 'finances'" /> -->
           <SettingsModules v-else-if="activeTab === 'modules'" />
           <SettingsAI v-else-if="activeTab === 'ia'" />
           <SettingsAnalytics v-else-if="activeTab === 'analyse'" />

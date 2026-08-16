@@ -220,7 +220,7 @@ function serialise(period: Period, index: number): InvestmentPlanPeriodInput | s
 
   const filled = period.lines.filter((line) => text(line.asset_key) && text(line.share))
   if (filled.length && Math.abs(allocationTotal(period) - 100) > 1) {
-    return `${label}ton allocation fait ${allocationTotal(period)} % au lieu de 100 %.`
+    return `${label}votre allocation fait ${allocationTotal(period)} % au lieu de 100 %.`
   }
 
   const keys = filled.map((line) => text(line.asset_key).toUpperCase())
@@ -298,8 +298,7 @@ async function clear(): Promise<void> {
   <div>
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
-        <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Plan cible</p>
-        <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+        <p class="text-sm text-text-muted dark:text-text-dark-muted">
           <template v-if="hasPlan">
             {{ periods[periods.length - 1]?.monthly_target }} €/mois investis
             <template v-if="periods.length > 1">
@@ -311,7 +310,7 @@ async function clear(): Promise<void> {
           </template>
           <template v-else>
             Optionnel. Sans plan, tout le reste de la page fonctionne — avec, une comparaison de
-            plus : ce que tu avais écrit contre ce que tu as fait.
+            plus : ce que vous aviez écrit contre ce que vous avez fait.
           </template>
         </p>
       </div>

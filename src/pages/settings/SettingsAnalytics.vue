@@ -9,9 +9,9 @@
  * traded lines, which are cheap and available even when the analysis is not.
  */
 import { computed, onMounted } from 'vue'
-import { ArrowRight } from 'lucide-vue-next'
+import { ArrowRight, Target, Map } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
-import { BaseCard } from '@/components'
+import SettingsSection from './SettingsSection.vue'
 import BenchmarkPicker from '@/components/analytics/BenchmarkPicker.vue'
 import InvestmentPlanForm from '@/components/analytics/InvestmentPlanForm.vue'
 import { useAnalysisStore } from '@/stores/analysis'
@@ -48,36 +48,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <div>
-      <h2 class="text-base font-semibold text-text-main dark:text-text-dark-main">
-        Réglages de l'analyse
-      </h2>
-      <p class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
-        Deux réglages, tous deux optionnels. Ils ne changent pas tes données — seulement ce à quoi
-        la page Analyse te compare.
-        <RouterLink
-          to="/analyse"
-          class="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
-        >
-          Ouvrir l'analyse
-          <ArrowRight class="h-3 w-3" stroke-width="2.5" />
-        </RouterLink>
-      </p>
-    </div>
-
-    <BaseCard>
-      <h3 class="mb-1 text-sm font-semibold text-text-main dark:text-text-dark-main">
-        Indice de référence
-      </h3>
-      <p class="mb-4 text-xs text-text-muted dark:text-text-dark-muted">
-        Sert de base à toutes les comparaisons de la page Analyse : l'écart investisseur, le pont
-        contrefactuel et le conditionnement au marché.
-      </p>
+  <div class="space-y-6">
+    <SettingsSection
+      :icon="Target"
+      title="Indice de référence"
+      description="Sert de base à toutes les comparaisons de la page Analyse : l'écart investisseur, le pont contrefactuel et le conditionnement au marché."
+    >
       <BenchmarkPicker :current="benchmarkKey" :assets="analysis.assets" @changed="onChanged" />
-    </BaseCard>
+    </SettingsSection>
 
-    <BaseCard>
+    <SettingsSection :icon="Map" title="Plan d'investissement">
       <InvestmentPlanForm
         :plan="declaredPlan"
         :held="held"
@@ -85,6 +65,14 @@ onMounted(() => {
         :error="analysis.data?.plan?.error ?? null"
         @changed="onChanged"
       />
-    </BaseCard>
+    </SettingsSection>
+
+    <RouterLink
+      to="/analyse"
+      class="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-2 hover:underline"
+    >
+      Ouvrir l'analyse
+      <ArrowRight class="h-3 w-3" stroke-width="2.5" />
+    </RouterLink>
   </div>
 </template>

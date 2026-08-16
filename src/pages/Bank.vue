@@ -264,7 +264,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             </p>
           </div>
           <div class="flex gap-2">
-            <BaseButton size="sm" variant="ghost" @click="openEdit(account)">
+            <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click="openEdit(account)">
               <Pencil class="w-4 h-4" />
             </BaseButton>
           </div>

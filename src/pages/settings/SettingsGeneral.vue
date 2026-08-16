@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { FileText, User, Sun, Moon, Monitor, Globe } from 'lucide-vue-next'
+import { Palette, User, Sun, Moon, Monitor, Globe } from 'lucide-vue-next'
+import type { Component } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-import { useDarkMode } from '@/composables/useDarkMode'
+import { useDarkMode, type ThemePreference } from '@/composables/useDarkMode'
 import { useFormatters } from '@/composables/useFormatters'
 import { useDisplayTimezone, utcOffsetLabel } from '@/composables/useDisplayTimezone'
 import { useDisplayLocale, DEFAULT_DISPLAY_LOCALE, SUPPORTED_DISPLAY_LOCALES } from '@/composables/useDisplayLocale'
-import { BaseCard, BaseSelect } from '@/components'
+import { BaseSelect } from '@/components'
+import SettingsSection from './SettingsSection.vue'
 import type { SelectOption } from '@/components/base/BaseSelect.vue'
 
 const auth = useAuthStore()
@@ -19,6 +21,26 @@ const { displayTimezone, setDisplayTimezone, browserTimezone } = useDisplayTimez
 const { displayLocale, setDisplayLocale, effectiveLocale } = useDisplayLocale()
 
 const dateSettingsError = ref<string | null>(null)
+const themeError = ref<string | null>(null)
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: Component }[] = [
+  { value: 'light', label: 'Clair', icon: Sun },
+  { value: 'dark', label: 'Sombre', icon: Moon },
+  { value: 'system', label: 'Système', icon: Monitor },
+]
+
+async function selectTheme(theme: ThemePreference): Promise<void> {
+  themeError.value = null
+  const previous = themePreference.value
+  setTheme(theme)
+  const saved = await settingsStore.updateSettings({ theme })
+  if (!saved) {
+    setTheme(previous)
+    themeError.value = settingsStore.error ?? 'Impossible de sauvegarder le thème.'
+  }
+}
 
 // ── Display timezone: curated list of major cities ──────────────────────────
 
@@ -140,15 +162,7 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
 <template>
   <div class="space-y-6">
     <!-- Profile -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <User class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Compte</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="User" title="Compte">
       <div class="space-y-4">
         <div class="flex items-center gap-4">
           <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -180,18 +194,10 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
           </div>
         </div>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- Appearance -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <FileText class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Apparence</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="Palette" title="Apparence">
       <div class="flex flex-col gap-4">
         <div>
           <p class="font-medium text-text-main dark:text-text-dark-main">Thème de l'application</p>
@@ -199,66 +205,35 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
             Choisissez le thème ou suivez les paramètres de votre système
           </p>
         </div>
-        
+
         <div class="grid grid-cols-3 gap-3">
           <button
-            @click="setTheme('light')"
+            v-for="option in THEME_OPTIONS"
+            :key="option.value"
+            :aria-pressed="themePreference === option.value"
+            @click="selectTheme(option.value)"
             :class="[
-              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
-              themePreference === 'light' 
-                ? 'border-primary bg-primary/5 text-primary' 
-                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
+              'flex flex-col items-center gap-2 p-4 rounded-card border-2 transition-all',
+              themePreference === option.value
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted',
             ]"
           >
-            <Sun class="w-6 h-6" />
-            <span class="text-sm font-medium">Clair</span>
-          </button>
-          
-          <button
-            @click="setTheme('dark')"
-            :class="[
-              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
-              themePreference === 'dark' 
-                ? 'border-primary bg-primary/5 text-primary' 
-                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
-            ]"
-          >
-            <Moon class="w-6 h-6" />
-            <span class="text-sm font-medium">Sombre</span>
-          </button>
-          
-          <button
-            @click="setTheme('system')"
-            :class="[
-              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
-              themePreference === 'system' 
-                ? 'border-primary bg-primary/5 text-primary' 
-                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted'
-            ]"
-          >
-            <Monitor class="w-6 h-6" />
-            <span class="text-sm font-medium">Système</span>
+            <component :is="option.icon" class="w-6 h-6" />
+            <span class="text-sm font-medium">{{ option.label }}</span>
           </button>
         </div>
+        <p v-if="themeError" class="text-sm text-danger">{{ themeError }}</p>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
     <!-- Dates & timezone -->
-    <BaseCard>
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-secondary bg-primary/10 flex items-center justify-center shrink-0">
-            <Globe class="w-4 h-4 text-primary" stroke-width="2" />
-          </div>
-          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Dates et fuseau horaire</h3>
-        </div>
-      </template>
+    <SettingsSection :icon="Globe" title="Dates et fuseau horaire">
       <div class="flex flex-col gap-4">
         <div>
           <p class="font-medium text-text-main dark:text-text-dark-main">Affichage des dates</p>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">
             Les dates sont enregistrées en UTC ; ces réglages n'affectent que leur affichage.
-            Ils sont sauvegardés sur votre compte et suivis sur tous vos appareils.
           </p>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
@@ -278,7 +253,7 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
           Exemple d'affichage : <span class="font-medium text-text-main dark:text-text-dark-main">{{ displayPreview }}</span>
         </p>
       </div>
-    </BaseCard>
+    </SettingsSection>
 
   </div>
 </template>
