@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { apiClient, setSessionExpiredHandler } from '@/api/client'
 import { resetAllSessionState } from '@/services/sessionReset'
 import type {
+  AccountDeleteRequest,
   User,
   TokenResponse,
   LoginRequest,
@@ -224,6 +225,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** Full decrypted dump of the account, for the user to download. */
+  async function exportData(): Promise<unknown> {
+    return apiClient.get<unknown>('/auth/me/export')
+  }
+
+  /**
+   * Delete the account for good. Clears the session here rather than leaving it
+   * to the caller: the moment the server returns, the tokens in memory point at
+   * a user that no longer exists.
+   */
+  async function deleteAccount(payload: AccountDeleteRequest): Promise<void> {
+    await apiClient.delete('/auth/me', payload)
+    clearSession()
+  }
+
   return {
     user,
     accessToken,
@@ -243,6 +259,8 @@ export const useAuthStore = defineStore('auth', () => {
     enable2fa,
     disable2fa,
     regenerateBackupCodes,
+    exportData,
+    deleteAccount,
     logout
   }
 })
