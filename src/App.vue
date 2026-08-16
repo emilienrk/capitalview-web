@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import BlankLayout from '@/layouts/BlankLayout.vue'
 import BaseConfirmDialog from '@/components/base/BaseConfirmDialog.vue'
+import NotificationBubble from '@/components/NotificationBubble.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -31,4 +32,5 @@ const layout = computed(() => {
   </component>
 
   <BaseConfirmDialog />
+  <NotificationBubble />
 </template>

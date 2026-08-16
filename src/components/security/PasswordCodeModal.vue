@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import BaseInput from '@/components/base/BaseInput.vue'
@@ -15,6 +15,9 @@ interface Props {
   loading?: boolean
   error?: string
   danger?: boolean
+  /** When set, an extra field appears and must be typed back exactly. */
+  confirmValue?: string
+  confirmLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,25 +26,38 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   error: '',
   danger: false,
+  confirmValue: '',
+  confirmLabel: 'Confirmation',
 })
 
 const emit = defineEmits<{
   close: []
-  submit: [payload: { password: string; code: string }]
+  submit: [payload: { password: string; code: string; confirm: string }]
 }>()
 
 const password = ref('')
 const code = ref('')
+const confirm = ref('')
+
+const confirmMatches = computed(
+  () => !props.confirmValue || confirm.value.trim() === props.confirmValue,
+)
 
 watch(() => props.open, (open) => {
   if (open) {
     password.value = ''
     code.value = ''
+    confirm.value = ''
   }
 })
 
 function submit() {
-  emit('submit', { password: password.value, code: code.value.trim() })
+  if (!confirmMatches.value) return
+  emit('submit', {
+    password: password.value,
+    code: code.value.trim(),
+    confirm: confirm.value.trim(),
+  })
 }
 </script>
 
@@ -69,6 +85,15 @@ function submit() {
         :disabled="props.loading"
         required
       />
+      <BaseInput
+        v-if="props.confirmValue"
+        v-model="confirm"
+        :label="props.confirmLabel"
+        :placeholder="props.confirmValue"
+        autocomplete="off"
+        :disabled="props.loading"
+        required
+      />
       <BaseAlert v-if="props.error" variant="danger">{{ props.error }}</BaseAlert>
     </form>
 
@@ -77,7 +102,7 @@ function submit() {
       <BaseButton
         :variant="props.danger ? 'danger' : 'primary'"
         :loading="props.loading"
-        :disabled="!password || (props.requireCode && !code)"
+        :disabled="!password || (props.requireCode && !code) || !confirmMatches"
         @click="submit"
       >
         {{ props.submitLabel }}

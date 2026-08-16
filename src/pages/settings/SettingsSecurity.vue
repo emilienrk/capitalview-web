@@ -4,6 +4,8 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { BaseButton, BaseInput, BaseAlert, BaseBadge } from '@/components'
 import SettingsSection from './SettingsSection.vue'
 import AgentAccessCard from '@/components/security/AgentAccessCard.vue'
+import DataExportCard from '@/components/security/DataExportCard.vue'
+import DeleteAccountCard from '@/components/security/DeleteAccountCard.vue'
 import TwoFactorSetupModal from '@/components/security/TwoFactorSetupModal.vue'
 import PasswordCodeModal from '@/components/security/PasswordCodeModal.vue'
 import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
@@ -434,6 +436,12 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
 
     <!-- ── Agent access (MCP tokens) ───────────────────── -->
     <AgentAccessCard />
+
+    <!-- ── Data export ─────────────────────────────────── -->
+    <DataExportCard />
+
+    <!-- ── Danger zone ─────────────────────────────────── -->
+    <DeleteAccountCard />
 
     <!-- ── Modals ──────────────────────────────────────── -->
     <TwoFactorSetupModal

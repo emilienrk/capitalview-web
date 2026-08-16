@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiClient } from '@/api/client'
 import type {
+  ActivityItem,
   AvailablePositionsResponse,
   CommunitySettingsResponse,
   CommunitySettingsUpdate,
@@ -19,6 +20,8 @@ type RawCommunityPosition = {
   name: string | null
   asset_type: 'CRYPTO' | 'STOCK'
   pnl_percentage: number | null
+  pru: number | null
+  first_bought_at: string | null
 }
 
 type RawAvailablePosition = {
@@ -89,6 +92,8 @@ export const useCommunityStore = defineStore('community', () => {
 
   // ── Single profile view ────────────────────────────────────
   const viewedProfile = ref<CommunityProfileResponse | null>(null)
+  const activity = ref<ActivityItem[]>([])
+  const isLoadingActivity = ref(false)
   const isLoadingProfile = ref(false)
 
   const error = ref<string | null>(null)
@@ -143,6 +148,18 @@ export const useCommunityStore = defineStore('community', () => {
   }
 
   // ── Profile listing ────────────────────────────────────────
+
+  async function fetchActivity(): Promise<void> {
+    isLoadingActivity.value = true
+    try {
+      activity.value = await apiClient.get<ActivityItem[]>('/community/activity')
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Impossible de charger l'activité"
+      activity.value = []
+    } finally {
+      isLoadingActivity.value = false
+    }
+  }
 
   async function fetchProfiles(): Promise<void> {
     isLoadingProfiles.value = true
@@ -333,6 +350,7 @@ export const useCommunityStore = defineStore('community', () => {
     searchResults.value = []
     viewedProfile.value = null
     myPicks.value = []
+    activity.value = []
     error.value = null
   }
 
@@ -347,6 +365,9 @@ export const useCommunityStore = defineStore('community', () => {
     isSearching,
     viewedProfile,
     isLoadingProfile,
+    activity,
+    isLoadingActivity,
+    fetchActivity,
     error,
     fetchSettings,
     updateSettings,
