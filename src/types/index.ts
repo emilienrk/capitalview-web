@@ -165,11 +165,84 @@ export interface BankAccountResponse {
   created_at: string
   updated_at: string
   balance_updated_at: string | null
+  /** Attached to a real bank through Enable Banking. */
+  is_linked: boolean
+  /** Last successful synchronisation (YYYY-MM-DD), null = never. */
+  last_synced_at: string | null
+  /** null = the period reconciles; a value means a movement is missing or counted twice. */
+  reconciliation_gap: number | null
+  /** Consent state to surface, "à reconnecter" included. */
+  link_status: string | null
 }
 
 export interface BankSummaryResponse {
   total_balance: number
   accounts: BankAccountResponse[]
+}
+
+// ─── Connexion bancaire (Enable Banking) ─────────────────────
+
+export interface BankConnectionStatus {
+  has_credentials: boolean
+  application_id: string | null
+}
+
+/** Field absent = unchanged, empty string = deletion. The key is never read back. */
+export interface BankConnectionUpdate {
+  application_id?: string
+  private_key?: string
+}
+
+export interface BankConfigCheck {
+  configured: boolean
+  key_valid: boolean
+  application_active: boolean
+  callback_url_declared: boolean
+  /** The URL to declare as a redirect URL in the Enable Banking portal. */
+  callback_url: string
+  error: string | null
+}
+
+export interface AspspSummary {
+  name: string
+  country: string
+  logo: string | null
+  beta: boolean
+  maximum_consent_validity: number
+}
+
+export interface BankAuthorizeRequest {
+  aspsp_name: string
+  aspsp_country: string
+}
+
+export interface BankAuthorizeResponse {
+  auth_url: string
+}
+
+export interface BankSessionAccount {
+  /** Durable attachment key: the bank's own account uid dies with the session. */
+  identification_hash: string
+  name: string | null
+  product: string | null
+  /** Unusable as a currency (real accounts return the "no currency" ISO code). */
+  currency: string | null
+  cash_account_type: string | null
+  usage: string | null
+  account_id: string | null
+  linked: boolean
+  bank_account_uuid: string | null
+}
+
+export interface BankAccountLinkRequest {
+  identification_hash: string
+  bank_account_uuid: string
+}
+
+export interface BankAccountLinkResult {
+  bank_account_uuid: string
+  identification_hash: string
+  reconnected: boolean
 }
 
 // ─── Cashflow ────────────────────────────────────────────────
