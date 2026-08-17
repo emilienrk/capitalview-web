@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { Check, Copy, FileKey, KeyRound, Link2, ListOrdered, Stethoscope, Trash2 } from 'lucide-vue-next'
+import { Check, Copy, FileKey, KeyRound, Landmark, Link2, ListOrdered, Stethoscope, Trash2 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
+import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
 import { BaseAlert, BaseButton, BaseInput, BaseSkeleton } from '@/components'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
+import BankLinkModal from '@/components/banking/BankLinkModal.vue'
 import SettingsSection from './SettingsSection.vue'
 
 const settingsStore = useSettingsStore()
+const bank = useBankStore()
+const route = useRoute()
+const router = useRouter()
 const { confirmDialog } = useConfirm()
 
 const isLoading = ref(true)
@@ -177,6 +183,55 @@ async function runCheck(): Promise<void> {
   }
 }
 
+// --- Linking journey ---
+const showLinkModal = ref(false)
+const bankSessionUuid = ref<string | null>(null)
+const isReady = computed(() => {
+  const c = check.value
+  return Boolean(c?.configured && c.key_valid && c.application_active && c.callback_url_declared)
+})
+
+async function openLinkModal(): Promise<void> {
+  // Starting a new journey over a pending session would strand its accounts.
+  if (bankSessionUuid.value) {
+    const confirmed = await confirmDialog({
+      title: 'Autorisation en attente',
+      message: 'Une autorisation bancaire attend encore son rattachement. En démarrer une nouvelle l\'abandonne, et y revenir demandera une nouvelle authentification auprès de votre banque.',
+      confirmLabel: 'Démarrer quand même',
+      cancelLabel: 'Reprendre celle en attente',
+    })
+    if (!confirmed) {
+      resumeLinkModal()
+      return
+    }
+    discardLinkSession()
+  }
+  showLinkModal.value = true
+}
+
+/** Reopens the pending session on its attachment step. */
+function resumeLinkModal(): void {
+  showLinkModal.value = true
+}
+
+/**
+ * Plain dismissal — the session stays in the URL so a reload, or the "Reprendre"
+ * button, still finds it. Losing it would cost a new strong authentication.
+ */
+function dismissLinkModal(): void {
+  showLinkModal.value = false
+}
+
+/** The session is spent: everything is attached, or the user chose to drop it. */
+function discardLinkSession(): void {
+  showLinkModal.value = false
+  bankSessionUuid.value = null
+  if (route.query.bank_session) {
+    const { bank_session: _dropped, ...query } = route.query
+    void router.replace({ query })
+  }
+}
+
 onMounted(async () => {
   try {
     await settingsStore.fetchBankingStatus()
@@ -188,6 +243,13 @@ onMounted(async () => {
     error.value = e instanceof Error ? e.message : 'Impossible de charger la connexion bancaire.'
   } finally {
     isLoading.value = false
+  }
+
+  // The bank's return lands here with the session opened by the callback.
+  const returned = route.query.bank_session
+  if (typeof returned === 'string' && returned) {
+    bankSessionUuid.value = returned
+    showLinkModal.value = true
   }
 })
 </script>
@@ -306,6 +368,22 @@ onMounted(async () => {
         <p class="font-medium">{{ diagnosis.title }}</p>
         <p class="mt-0.5 opacity-90">{{ diagnosis.detail }}</p>
       </BaseAlert>
+
+      <BaseAlert v-if="bankSessionUuid && !showLinkModal" variant="info" class="mt-4">
+        <p class="font-medium">Une autorisation bancaire attend son rattachement.</p>
+        <p class="mt-0.5 opacity-90">
+          Reprenez-la maintenant : une fois abandonnée, revenir sur ces comptes demandera une
+          nouvelle authentification auprès de votre banque.
+        </p>
+        <BaseButton size="sm" class="mt-2" @click="resumeLinkModal">Reprendre</BaseButton>
+      </BaseAlert>
+
+      <div v-if="isReady" class="mt-4">
+        <BaseButton @click="openLinkModal">
+          <Landmark class="w-4 h-4 mr-1.5" />
+          Connecter une banque
+        </BaseButton>
+      </div>
     </SettingsSection>
 
     <!-- The seven steps -->
@@ -337,6 +415,14 @@ onMounted(async () => {
         </p>
       </BaseAlert>
     </SettingsSection>
+
+    <BankLinkModal
+      :open="showLinkModal"
+      :bank-session-uuid="bankSessionUuid"
+      @close="dismissLinkModal"
+      @discard="discardLinkSession"
+      @linked="bank.fetchAccounts()"
+    />
 
   </div>
 </template>

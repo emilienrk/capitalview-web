@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { FileSpreadsheet, Pencil, RefreshCw, Upload } from 'lucide-vue-next'
+import { FileSpreadsheet, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed } from 'vue'
+import { nextTick, onMounted, ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
@@ -21,6 +22,7 @@ import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import type { BankAccountCreate, BankAccountType } from '@/types'
 
 const bank = useBankStore()
+const router = useRouter()
 const settingsStore = useSettingsStore()
 const { formatCurrency, formatDate, formatAccountType } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
@@ -156,11 +158,32 @@ async function handleDelete(id: string): Promise<void> {
   }
 }
 
+/** Only "à reconnecter" is a documented state; anything else stays neutral. */
+function linkStatusVariant(status: string): 'warning' | 'secondary' {
+  return /reconnect/i.test(status) ? 'warning' : 'secondary'
+}
+
+async function syncNow(): Promise<void> {
+  if (await bank.syncBanking()) await loadChartHistories(true)
+}
+
+/**
+ * Spec §D1: the synchronisation is fired after the page has rendered, never
+ * before. The daily cap is re-checked server-side, so a redundant call is
+ * harmless — a blocking one would not be.
+ */
+async function autoSyncAfterRender(): Promise<void> {
+  await nextTick()
+  if (!bank.hasStaleSync) return
+  await syncNow()
+}
+
 onMounted(async () => {
   await bank.fetchAccounts()
   hasFetchedOnce.value = true
   // Chart histories load in the background (the chart has a skeleton state)
   void loadChartHistories()
+  void autoSyncAfterRender()
 })
 
 const chartPerformance = ref<{ diff: number; percent: number | null } | null>(null)
@@ -170,6 +193,23 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
   <div>
     <PageHeader title="Comptes Bancaires" description="Gérez vos comptes courants et d'épargne">
       <template #actions>
+        <BaseButton
+          v-if="bank.linkedAccounts.length"
+          variant="outline"
+          :loading="bank.isSyncing"
+          @click="syncNow"
+        >
+          <RefreshCw class="w-4 h-4 mr-1.5" />
+          Synchroniser
+        </BaseButton>
+        <BaseButton
+          v-else
+          variant="outline"
+          @click="router.push({ name: 'settings', query: { tab: 'banque' } })"
+        >
+          <Landmark class="w-4 h-4 mr-1.5" />
+          Connecter une banque
+        </BaseButton>
         <ImportMenu
           :items="IMPORT_MENU_ITEMS"
           :disabled="!bank.summary?.accounts?.length"
@@ -246,8 +286,12 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         <div class="flex items-start justify-between">
           <div>
             <h3 class="font-semibold text-text-main dark:text-text-dark-main">{{ account.name }}</h3>
-            <div class="flex items-center gap-2 mt-1">
+            <div class="flex flex-wrap items-center gap-2 mt-1">
               <BaseBadge variant="secondary">{{ formatAccountType(account.account_type) }}</BaseBadge>
+              <BaseBadge v-if="account.is_linked" variant="success">Banque liée</BaseBadge>
+              <BaseBadge v-if="account.is_linked && account.link_status" :variant="linkStatusVariant(account.link_status)">
+                {{ account.link_status }}
+              </BaseBadge>
               <span v-if="account.institution_name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ account.institution_name }}</span>
             </div>
           </div>
@@ -255,13 +299,34 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             {{ maskValue(formatCurrency(account.balance)) }}
           </p>
         </div>
+        <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
+        <div
+          v-if="account.reconciliation_gap != null"
+          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
+        >
+          <TriangleAlert class="w-4 h-4 shrink-0" />
+          <span>
+            Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap)) }} :
+            un mouvement manque ou est compté deux fois sur la dernière période.
+          </span>
+        </div>
+
         <div class="mt-4 flex items-center justify-between">
           <div class="flex flex-col gap-0.5">
-            <p v-if="!account.balance_updated_at" class="text-xs text-text-muted dark:text-text-dark-muted">Mis à jour {{ formatDate(account.updated_at) }}</p>
-            <p v-if="account.balance_updated_at" class="flex items-center gap-1 text-xs text-success">
-              <RefreshCw class="w-3 h-3" />
-              Sync le {{ formatDate(account.balance_updated_at) }}
-            </p>
+            <template v-if="account.is_linked">
+              <p v-if="account.last_synced_at" class="flex items-center gap-1 text-xs text-success">
+                <RefreshCw class="w-3 h-3" />
+                Synchronisé le {{ formatDate(account.last_synced_at) }}
+              </p>
+              <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">Jamais synchronisé</p>
+            </template>
+            <template v-else>
+              <p v-if="!account.balance_updated_at" class="text-xs text-text-muted dark:text-text-dark-muted">Mis à jour {{ formatDate(account.updated_at) }}</p>
+              <p v-else class="flex items-center gap-1 text-xs text-success">
+                <RefreshCw class="w-3 h-3" />
+                Sync le {{ formatDate(account.balance_updated_at) }}
+              </p>
+            </template>
           </div>
           <div class="flex gap-2">
             <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click="openEdit(account)">
