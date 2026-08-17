@@ -171,6 +171,8 @@ export interface BankAccountResponse {
   last_synced_at: string | null
   /** null = the period reconciles; a value means a movement is missing or counted twice. */
   reconciliation_gap: number | null
+  /** Ruling R18: 'reconciled' | 'gap' | 'not_reconcilable' | null */
+  reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | null
   /** Consent state to surface, "à reconnecter" included. */
   link_status: string | null
 }

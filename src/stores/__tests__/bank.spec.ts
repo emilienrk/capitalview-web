@@ -24,6 +24,7 @@ function anAccount(overrides: Partial<BankAccountResponse> = {}): BankAccountRes
     is_linked: true,
     last_synced_at: null,
     reconciliation_gap: null,
+    reconciliation_status: null,
     link_status: null,
     ...overrides,
   }

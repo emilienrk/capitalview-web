@@ -300,8 +300,9 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           </p>
         </div>
         <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
+        <!-- Ruling R18: display alert ONLY when reconciliation_status === 'gap' and reconciliation_gap != null -->
         <div
-          v-if="account.reconciliation_gap != null"
+          v-if="account.reconciliation_status === 'gap' && account.reconciliation_gap != null"
           class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
         >
           <TriangleAlert class="w-4 h-4 shrink-0" />
