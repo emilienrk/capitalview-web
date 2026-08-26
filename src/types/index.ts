@@ -265,6 +265,8 @@ export interface BankFlowsResponse {
   monthly_outflow: number
   covered_months: number
   account_count: number
+  /** Which linked accounts the total is made of. */
+  account_names: string[]
   internal_transfers_excluded: number
   internal_transfers_amount: number
   pending_count: number

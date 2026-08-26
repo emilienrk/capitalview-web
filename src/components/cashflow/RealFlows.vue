@@ -147,6 +147,18 @@ function monthLabel(period: string): string {
         />
       </div>
 
+      <!-- What the total is made of: too big a figure usually means a missing account. -->
+      <div class="mb-6 flex flex-wrap items-center gap-2 text-xs text-text-muted dark:text-text-dark-muted">
+        <span>Total sur&nbsp;:</span>
+        <span
+          v-for="name in flows.account_names"
+          :key="name"
+          class="px-2 py-0.5 rounded-secondary bg-surface-alt dark:bg-surface-dark-alt text-text-body dark:text-text-dark-body"
+        >
+          {{ name }}
+        </span>
+      </div>
+
       <!-- Month by month -->
       <div class="rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft mb-6 overflow-x-auto">
         <h3 class="text-sm font-semibold text-text-main dark:text-text-dark-main mb-4">
@@ -195,8 +207,9 @@ function monthLabel(period: string): string {
         <BaseAlert v-if="excludeInternalTransfers" variant="warning">
           <p class="font-medium">Un virement vers un compte non connecté compte comme une sortie.</p>
           <p class="mt-0.5 opacity-90">
-            Les deux côtés d'un virement ne sont reconnus que si les deux comptes sont connectés ici.
-            Connecter votre livret ou votre second compte rend ces totaux plus justes.
+            Les deux jambes d'un virement ne s'annulent que si les deux comptes sont connectés ici.
+            Si vos totaux vous paraissent trop gros, c'est en général qu'un compte manque à la liste
+            ci-dessus — connectez votre livret ou votre second compte courant.
           </p>
         </BaseAlert>
 
