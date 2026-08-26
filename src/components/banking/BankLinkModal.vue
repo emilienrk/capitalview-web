@@ -125,6 +125,13 @@ async function startAuthorization(): Promise<void> {
   error.value = null
   try {
     const authUrl = await bank.authorizeBank(selectedBank.value.name, selectedBank.value.country)
+    // Escape, the backdrop and the X all close the modal unconditionally, and
+    // the parent renders it without v-if: without this guard, a user who gave up
+    // mid-request still gets thrown onto the bank's authentication page.
+    if (!props.open) {
+      isBusy.value = false
+      return
+    }
     window.location.href = authUrl
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Impossible d\'ouvrir le parcours d\'autorisation.'
@@ -138,7 +145,13 @@ async function loadSessionAccounts(uuid: string): Promise<void> {
   isBusy.value = true
   error.value = null
   try {
-    if (!bank.summary) await bank.fetchAccounts()
+    if (!bank.summary) {
+      // The store swallows its own error and returns void, so a failed accounts
+      // fetch would otherwise land here as "loaded with no accounts" — and tell
+      // the user to create one they already have, with no way to retry.
+      await bank.fetchAccounts()
+      if (!bank.summary) throw new Error(bank.error ?? 'Vos comptes CapitalView n\'ont pas pu être chargés.')
+    }
     sessionAccounts.value = await bank.fetchSessionAccounts(uuid)
     accountsState.value = 'loaded'
   } catch (e) {
@@ -231,6 +244,7 @@ watch(
   async (open) => {
     if (!open) return
     error.value = null
+    isBusy.value = false
     selectedBank.value = null
     targetAccountByHash.value = {}
     sessionAccounts.value = []
