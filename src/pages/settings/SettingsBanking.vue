@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Check, Copy, FileKey, KeyRound, Landmark, Link2, ListOrdered, Stethoscope, Trash2 } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { Check, Copy, FileKey, KeyRound, Landmark, Link2, ListOrdered, Plug, Stethoscope, Trash2 } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
-import { BaseAlert, BaseButton, BaseInput, BaseSkeleton } from '@/components'
+import { BaseAlert, BaseBadge, BaseButton, BaseInput, BaseSkeleton, BaseToggle } from '@/components'
+import { useFormatters } from '@/composables/useFormatters'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
 import BankLinkModal from '@/components/banking/BankLinkModal.vue'
 import SettingsSection from './SettingsSection.vue'
@@ -15,6 +16,7 @@ const bank = useBankStore()
 const route = useRoute()
 const router = useRouter()
 const { confirmDialog } = useConfirm()
+const { formatDate } = useFormatters()
 
 const isLoading = ref(true)
 const isSaving = ref(false)
@@ -28,6 +30,14 @@ const applicationId = ref('')
 const privateKey = ref<string | null>(null)
 const privateKeyFileName = ref<string | null>(null)
 const isDraggingKey = ref(false)
+
+/**
+ * The whole screen hangs off this opt-in. `/banking/check` reaches Enable
+ * Banking on every call, so nothing below may load before it is on.
+ */
+const isEnabled = computed(() => settingsStore.settings?.open_banking_enabled ?? false)
+const isTogglingFeature = ref(false)
+const sessions = computed(() => settingsStore.bankingSessions ?? [])
 
 const status = computed(() => settingsStore.bankingStatus)
 const check = computed(() => settingsStore.bankingCheck)
@@ -222,6 +232,12 @@ function dismissLinkModal(): void {
   showLinkModal.value = false
 }
 
+/** A fresh attachment changes both the accounts page and this screen's list. */
+async function onLinked(): Promise<void> {
+  await bank.fetchAccounts()
+  await settingsStore.fetchBankingSessions()
+}
+
 /** The session is spent: everything is attached, or the user chose to drop it. */
 function discardLinkSession(): void {
   showLinkModal.value = false
@@ -232,7 +248,9 @@ function discardLinkSession(): void {
   }
 }
 
-onMounted(async () => {
+/** Everything the screen needs once the feature is on. */
+async function loadConnection(): Promise<void> {
+  isLoading.value = true
   try {
     await settingsStore.fetchBankingStatus()
     applicationId.value = status.value?.application_id ?? ''
@@ -244,6 +262,36 @@ onMounted(async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+/** Turning it off dismantles nothing; the watcher below reacts to either side. */
+async function toggleFeature(next: boolean): Promise<void> {
+  isTogglingFeature.value = true
+  error.value = null
+  try {
+    if (!await settingsStore.updateSettings({ open_banking_enabled: next })) {
+      error.value = settingsStore.error ?? 'Impossible d\'enregistrer ce réglage.'
+    }
+  } finally {
+    isTogglingFeature.value = false
+  }
+}
+
+const hasLoadedConnection = ref(false)
+
+/**
+ * Driven by the store rather than by `onMounted`: a child tab mounts before the
+ * parent's settings fetch resolves, so the opt-in is unknown at mount time.
+ */
+watch(() => settingsStore.settings, async (loaded) => {
+  if (!loaded) return
+  if (!isEnabled.value) {
+    isLoading.value = false
+    return
+  }
+  if (hasLoadedConnection.value) return
+  hasLoadedConnection.value = true
+  await loadConnection()
 
   // The bank's return lands here with the session opened by the callback.
   const returned = route.query.bank_session
@@ -251,11 +299,99 @@ onMounted(async () => {
     bankSessionUuid.value = returned
     showLinkModal.value = true
   }
+}, { immediate: true })
+
+onMounted(async () => {
+  // Listed either way: opting back out must not hide what is still attached.
+  try {
+    await settingsStore.fetchBankingSessions()
+  } catch {
+    // A connection list that fails to load is not worth blocking the screen on.
+  }
 })
 </script>
 
 <template>
   <div class="space-y-6">
+
+    <!-- The opt-in this whole screen hangs off -->
+    <SettingsSection
+      :icon="Landmark"
+      title="Connexion bancaire"
+      subtitle="Reliez un vrai compte bancaire pour que ses soldes et ses opérations remontent seuls. Facultatif : tout le reste de CapitalView fonctionne sans."
+    >
+      <template #header-action>
+        <BaseToggle
+          :model-value="isEnabled"
+          :disabled="isTogglingFeature"
+          aria-label="Activer la connexion bancaire"
+          @update:model-value="toggleFeature"
+        />
+      </template>
+
+      <p v-if="!isEnabled" class="text-sm text-text-muted dark:text-text-dark-muted">
+        L'activation demande votre propre application Enable Banking : son offre gratuite n'expose
+        que les comptes de son propre titulaire. Comptez une dizaine de minutes la première fois.
+      </p>
+      <p v-if="error && !isEnabled" class="mt-2 text-xs text-danger">{{ error }}</p>
+    </SettingsSection>
+
+    <!-- Connections. Listed with the feature off too: opting out attaches nothing
+         and detaches nothing, so hiding them would hide live consents. -->
+    <SettingsSection
+      v-if="sessions.length"
+      :icon="Plug"
+      title="Connexions bancaires"
+      subtitle="Une autorisation par banque. Les comptes rattachés lui survivent : un consentement expiré se reconnecte, il ne se reconstruit pas."
+    >
+      <BaseAlert v-if="!isEnabled" variant="warning" class="mb-4">
+        <p class="font-medium">La fonctionnalité est désactivée, ces connexions restent en place.</p>
+        <p class="mt-0.5 opacity-90">
+          Elles ne se synchronisent plus tant qu'elle est éteinte. Vos comptes et leur historique
+          déjà importé, eux, ne bougent pas.
+        </p>
+      </BaseAlert>
+
+      <ul class="space-y-3">
+        <li
+          v-for="s in sessions"
+          :key="s.uuid"
+          class="p-3 rounded-card border border-surface-border dark:border-surface-dark-border"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="font-medium text-text-main dark:text-text-dark-main">
+              {{ s.aspsp_name ?? 'Banque non renseignée' }}
+            </p>
+            <BaseBadge :variant="s.active ? 'success' : 'warning'">
+              {{ s.active ? 'Active' : 'À reconnecter' }}
+            </BaseBadge>
+          </div>
+
+          <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">{{ s.status_message }}</p>
+          <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+            Autorisée le {{ formatDate(s.authorized_at) }}<template v-if="s.active"> — valide jusqu'au {{ formatDate(s.consent_valid_until) }}</template>
+          </p>
+
+          <ul v-if="s.accounts.length" class="mt-2 space-y-1">
+            <li
+              v-for="a in s.accounts"
+              :key="a.bank_account_uuid"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs"
+            >
+              <span class="text-text-body dark:text-text-dark-body">{{ a.name }}</span>
+              <span class="text-text-muted dark:text-text-dark-muted">
+                {{ a.last_synced_at ? `Synchronisé le ${formatDate(a.last_synced_at)}` : 'Jamais synchronisé' }}
+              </span>
+            </li>
+          </ul>
+          <p v-else class="mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+            Aucun compte rattaché à cette autorisation.
+          </p>
+        </li>
+      </ul>
+    </SettingsSection>
+
+    <template v-if="isEnabled">
 
     <!-- Credentials -->
     <SettingsSection
@@ -421,8 +557,10 @@ onMounted(async () => {
       :bank-session-uuid="bankSessionUuid"
       @close="dismissLinkModal"
       @discard="discardLinkSession"
-      @linked="bank.fetchAccounts()"
+      @linked="onLinked"
     />
+
+    </template>
 
   </div>
 </template>

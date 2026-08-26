@@ -236,6 +236,30 @@ export interface BankSessionAccount {
   bank_account_uuid: string | null
 }
 
+export interface BankSessionLinkedAccount {
+  bank_account_uuid: string
+  name: string
+  /** YYYY-MM-DD, or null when the account has never been synced. */
+  last_synced_at: string | null
+}
+
+/**
+ * One authorization granted to a bank. Retired consents stay in the list: their
+ * account attachments survive expiry, so the status is what tells the user that
+ * a reconnection is the only thing missing.
+ */
+export interface BankSessionSummary {
+  uuid: string
+  aspsp_name: string | null
+  aspsp_country: string | null
+  status: string
+  status_message: string
+  active: boolean
+  consent_valid_until: string
+  authorized_at: string
+  accounts: BankSessionLinkedAccount[]
+}
+
 export interface BankAccountLinkRequest {
   identification_hash: string
   bank_account_uuid: string
@@ -924,6 +948,7 @@ export interface UserSettingsUpdate {
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
+  open_banking_enabled?: boolean
   ai_vision_provider?: string | null
   ai_chat_provider?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
@@ -953,6 +978,7 @@ export interface UserSettingsResponse {
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean
+  open_banking_enabled: boolean
   ai_vision_provider: string | null
   ai_chat_provider: string | null
   ai_providers: AIProviderConfig[]

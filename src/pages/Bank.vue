@@ -163,6 +163,10 @@ function linkStatusVariant(status: string): 'warning' | 'secondary' {
   return /reconnect/i.test(status) ? 'warning' : 'secondary'
 }
 
+const openBankingEnabled = computed(
+  () => settingsStore.settings?.open_banking_enabled ?? false,
+)
+
 async function syncNow(): Promise<void> {
   if (await bank.syncBanking()) await loadChartHistories(true)
 }
@@ -174,7 +178,10 @@ async function syncNow(): Promise<void> {
  */
 async function autoSyncAfterRender(): Promise<void> {
   await nextTick()
-  if (!bank.hasStaleSync) return
+  // The layout's own settings fetch may still be in flight when this page
+  // mounts, and an unknown opt-in must not be read as "off".
+  if (!settingsStore.settings) await settingsStore.fetchSettings()
+  if (!openBankingEnabled.value || !bank.hasStaleSync) return
   await syncNow()
 }
 
@@ -194,7 +201,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
     <PageHeader title="Comptes Bancaires" description="Gérez vos comptes courants et d'épargne">
       <template #actions>
         <BaseButton
-          v-if="bank.linkedAccounts.length"
+          v-if="openBankingEnabled && bank.linkedAccounts.length"
           variant="outline"
           :loading="bank.isSyncing"
           @click="syncNow"
@@ -202,8 +209,10 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           <RefreshCw class="w-4 h-4 mr-1.5" />
           Synchroniser
         </BaseButton>
+        <!-- Only for someone who already opted in: this page is not where the
+             feature gets discovered, the banking settings are. -->
         <BaseButton
-          v-else
+          v-else-if="openBankingEnabled"
           variant="outline"
           @click="router.push({ name: 'settings', query: { tab: 'banque' } })"
         >

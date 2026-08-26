@@ -8,6 +8,7 @@ import type {
   BankConfigCheck,
   BankConnectionStatus,
   BankConnectionUpdate,
+  BankSessionSummary,
   UserSettingsResponse,
   UserSettingsUpdate,
 } from '@/types'
@@ -18,6 +19,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const error = ref<string | null>(null)
   const bankingStatus = ref<BankConnectionStatus | null>(null)
   const bankingCheck = ref<BankConfigCheck | null>(null)
+  const bankingSessions = ref<BankSessionSummary[] | null>(null)
   const { applyServerTimezone } = useDisplayTimezone()
   const { applyServerLocale } = useDisplayLocale()
 
@@ -70,10 +72,19 @@ export const useSettingsStore = defineStore('settings', () => {
     bankingCheck.value = await apiClient.get<BankConfigCheck>('/banking/check')
   }
 
+  /**
+   * The bank connections opened so far. Readable even with the feature turned
+   * off, so someone who opts back out can still see what stayed attached.
+   */
+  async function fetchBankingSessions(): Promise<void> {
+    bankingSessions.value = await apiClient.get<BankSessionSummary[]>('/banking/sessions')
+  }
+
   function reset(): void {
     settings.value = null
     bankingStatus.value = null
     bankingCheck.value = null
+    bankingSessions.value = null
     error.value = null
   }
 
@@ -83,11 +94,13 @@ export const useSettingsStore = defineStore('settings', () => {
     error,
     bankingStatus,
     bankingCheck,
+    bankingSessions,
     fetchSettings,
     updateSettings,
     fetchBankingStatus,
     updateBankingCredentials,
     fetchBankingCheck,
+    fetchBankingSessions,
     reset,
   }
 })
