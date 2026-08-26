@@ -97,7 +97,11 @@ async function mountSelector(): Promise<void> {
   element.setAttribute('service', 'AIS')
   // Documented for the vendor's other widgets; harmless here if ignored.
   element.setAttribute('locale', 'FR')
-  element.setAttribute('no-beta', '')
+  // No `no-beta`: it hid 94 of the 129 French entries, BNP Paribas, La Banque
+  // Postale, Société Générale (particuliers), the 39 Crédit Agricole and the 15
+  // Caisse d'Épargne among them — the feature was unusable for most people.
+  // Flagging them instead was not worth it either: a marker on three entries out
+  // of four carries no signal (same reasoning as ruling R18).
   element.addEventListener('selected', onAspspSelected as EventListener)
   host.appendChild(element)
 }
