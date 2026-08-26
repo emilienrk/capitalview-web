@@ -236,6 +236,44 @@ export interface BankSessionAccount {
   bank_account_uuid: string | null
 }
 
+export interface MatchCandidate {
+  pattern: string
+  observed_amount: number
+  occurrences: number
+  /** YYYY-MM-DD */
+  last_seen: string
+}
+
+export interface RecentOccurrence {
+  /** YYYY-MM-DD */
+  day: string
+  amount: number
+}
+
+/**
+ * One declared cashflow against what actually moved for it. `status` is the
+ * verdict: `unmatched` (never confirmed, a suggestion may ride along), `missing`
+ * (confirmed but quiet for a couple of cadences), `duplicated` (seen twice where
+ * once was declared), `drifted` (it moves, for another amount) or `on_track`.
+ */
+export interface CashflowComparison {
+  cashflow_id: string
+  name: string
+  flow_type: FlowType
+  frequency: Frequency
+  category: string
+  declared_amount: number
+  status: 'unmatched' | 'missing' | 'duplicated' | 'drifted' | 'on_track'
+  match_pattern: string | null
+  observed_amount: number | null
+  last_seen: string | null
+  occurrences: number
+  recent: RecentOccurrence[]
+  /** What this declaration could be, best first. Several, because amount and
+   *  spacing cannot always tell two recurrences apart. */
+  candidates: MatchCandidate[]
+}
+
 export interface BankFlowMonth {
   /** YYYY-MM */
   period: string
