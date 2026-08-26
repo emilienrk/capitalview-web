@@ -80,6 +80,15 @@ export const useSettingsStore = defineStore('settings', () => {
     bankingSessions.value = await apiClient.get<BankSessionSummary[]>('/banking/sessions')
   }
 
+  /**
+   * Disconnects a bank connection. Destructive beyond the consent: the API also
+   * drops the account attachments, so reconnecting later means re-attaching.
+   */
+  async function deleteBankingSession(bankSessionUuid: string): Promise<void> {
+    await apiClient.delete(`/banking/sessions/${bankSessionUuid}`)
+    await fetchBankingSessions()
+  }
+
   function reset(): void {
     settings.value = null
     bankingStatus.value = null
@@ -101,6 +110,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateBankingCredentials,
     fetchBankingCheck,
     fetchBankingSessions,
+    deleteBankingSession,
     reset,
   }
 })
