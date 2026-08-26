@@ -5,6 +5,7 @@ import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { BaseAlert, BaseSkeleton, BaseStatCard, BaseToggle } from '@/components'
+import CashflowComparisonCards from './CashflowComparisonCards.vue'
 import type { BankFlowsResponse } from '@/types'
 
 const bank = useBankStore()
@@ -228,6 +229,8 @@ function monthLabel(period: string): string {
           </span>
         </BaseAlert>
       </div>
+
+      <CashflowComparisonCards />
     </template>
   </div>
 </template>

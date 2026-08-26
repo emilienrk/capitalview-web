@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiClient } from '@/api/client'
 import type {
+  CashflowComparison,
   CashflowResponse,
   CashflowBalanceResponse,
   CashflowSummaryResponse,
@@ -55,6 +56,16 @@ export const useCashflowStore = defineStore('cashflow', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des dépenses'
     }
+  }
+
+  /** Each declaration against what actually moved for it. */
+  async function fetchComparison(months = 6): Promise<CashflowComparison[]> {
+    return apiClient.get<CashflowComparison[]>(`/cashflow/me/comparison?months=${months}`)
+  }
+
+  /** Confirm the label a declaration is matched against; null unlinks it. */
+  async function updateMatch(id: string, pattern: string | null): Promise<CashflowComparison> {
+    return apiClient.put<CashflowComparison>(`/cashflow/${id}/match`, { match_pattern: pattern })
   }
 
   async function createCashflow(data: CashflowCreate): Promise<CashflowResponse | null> {
@@ -121,6 +132,8 @@ export const useCashflowStore = defineStore('cashflow', () => {
     fetchBalance,
     fetchInflows,
     fetchOutflows,
+    fetchComparison,
+    updateMatch,
     createCashflow,
     updateCashflow,
     deleteCashflow,
