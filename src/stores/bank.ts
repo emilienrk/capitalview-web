@@ -15,6 +15,7 @@ import type {
   BankAccountLinkResult,
   BankAuthorizeResponse,
   BankExportImportResponse,
+  BankFlowsResponse,
   BankSessionAccount,
   BankSummaryResponse,
   BankAccountCreate,
@@ -212,6 +213,18 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
+  /** Observed inflow/outflow. Read-only, and available even with the opt-in off. */
+  async function fetchRealFlows(
+    months: number,
+    excludeInternalTransfers: boolean,
+  ): Promise<BankFlowsResponse> {
+    const query = new URLSearchParams({
+      months: String(months),
+      exclude_internal_transfers: String(excludeInternalTransfers),
+    })
+    return apiClient.get<BankFlowsResponse>(`/banking/flows?${query}`)
+  }
+
   /**
    * Enable Banking JSON export, for the history the API window cannot reach.
    * Same after-effects as a sync: balances and curves move.
@@ -285,6 +298,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,
+    fetchRealFlows,
     importBankingExport,
     fetchAspsps,
     authorizeBank,
