@@ -106,19 +106,34 @@ async function copyCallbackUrl(): Promise<void> {
   }
 }
 
+/** Any PEM armor used to pass, so the public half of the pair sailed through and
+ *  only surfaced later as a misleading "clé refusée" diagnostic. */
+const PRIVATE_KEY_ARMOR = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/
+
+/** A rejected drop must not leave the previous file looking accepted. */
+function rejectKeyFile(message: string): void {
+  error.value = message
+  privateKey.value = null
+  privateKeyFileName.value = null
+}
+
 function readKeyFile(file: File): void {
   error.value = null
   const reader = new FileReader()
   reader.onload = (e) => {
     const text = e.target?.result as string
-    if (!text?.includes('-----BEGIN')) {
-      error.value = 'Ce fichier ne ressemble pas à une clé privée au format PEM.'
+    if (!text || !PRIVATE_KEY_ARMOR.test(text)) {
+      rejectKeyFile(
+        text?.includes('-----BEGIN')
+          ? 'Ce fichier est bien au format PEM, mais ce n\'est pas une clé privée. Déposez le fichier téléchargé à la création de l\'application.'
+          : 'Ce fichier ne ressemble pas à une clé privée au format PEM.',
+      )
       return
     }
     privateKey.value = text
     privateKeyFileName.value = file.name
   }
-  reader.onerror = () => { error.value = 'Erreur de lecture du fichier.' }
+  reader.onerror = () => rejectKeyFile('Erreur de lecture du fichier.')
   reader.readAsText(file)
 }
 
@@ -379,6 +394,9 @@ watch(() => settingsStore.settings, async (loaded) => {
   if (!loaded) return
   if (!isEnabled.value) {
     isLoading.value = false
+    // Reopened, not latched: this tab lives under <KeepAlive>, so turning the
+    // feature off and on again would otherwise keep showing pre-toggle values.
+    hasLoadedConnection.value = false
     return
   }
   if (hasLoadedConnection.value) return
