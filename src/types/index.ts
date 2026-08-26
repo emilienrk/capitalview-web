@@ -236,6 +236,24 @@ export interface BankSessionAccount {
   bank_account_uuid: string | null
 }
 
+/** One account's outcome in an Enable Banking export import. */
+export interface BankExportImportResult {
+  bank_account_uuid: string
+  status: string
+  inserted: number
+  updated: number
+  skipped: number
+  /** Rows the bank sent without an amount, a direction or a status: dropped, never fatal. */
+  malformed: number
+  snapshots_written: number
+  detail: string | null
+}
+
+export interface BankExportImportResponse {
+  imported_accounts: number
+  results: BankExportImportResult[]
+}
+
 export interface BankSessionLinkedAccount {
   bank_account_uuid: string
   name: string

@@ -14,6 +14,7 @@ import type {
   BankAccountLinkRequest,
   BankAccountLinkResult,
   BankAuthorizeResponse,
+  BankExportImportResponse,
   BankSessionAccount,
   BankSummaryResponse,
   BankAccountCreate,
@@ -211,6 +212,19 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
+  /**
+   * Enable Banking JSON export, for the history the API window cannot reach.
+   * Same after-effects as a sync: balances and curves move.
+   */
+  async function importBankingExport(
+    payload: unknown,
+  ): Promise<BankExportImportResponse> {
+    const result = await apiClient.post<BankExportImportResponse>('/banking/import-export', payload)
+    await fetchAccounts()
+    invalidateHistoryCache()
+    return result
+  }
+
   async function fetchAspsps(country: string): Promise<AspspSummary[]> {
     return apiClient.get<AspspSummary[]>(`/banking/aspsps?country=${encodeURIComponent(country)}`)
   }
@@ -271,6 +285,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,
+    importBankingExport,
     fetchAspsps,
     authorizeBank,
     fetchSessionAccounts,
