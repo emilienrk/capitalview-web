@@ -236,6 +236,43 @@ export interface BankSessionAccount {
   bank_account_uuid: string | null
 }
 
+export interface BankFlowMonth {
+  /** YYYY-MM */
+  period: string
+  inflow: number
+  outflow: number
+  net: number
+  inflow_count: number
+  outflow_count: number
+}
+
+/** Movements in a currency other than the headline one — never folded in. */
+export interface BankFlowCurrencyTotal {
+  currency: string
+  inflow: number
+  outflow: number
+}
+
+/** What actually moved on the linked accounts, as opposed to what was declared. */
+export interface BankFlowsResponse {
+  currency: string
+  months: BankFlowMonth[]
+  inflow: number
+  outflow: number
+  net: number
+  /** Averaged over the months carrying data, not over the requested window. */
+  monthly_inflow: number
+  monthly_outflow: number
+  covered_months: number
+  account_count: number
+  internal_transfers_excluded: number
+  internal_transfers_amount: number
+  pending_count: number
+  pending_inflow: number
+  pending_outflow: number
+  other_currencies: BankFlowCurrencyTotal[]
+}
+
 /** One account's outcome in an Enable Banking export import. */
 export interface BankExportImportResult {
   bank_account_uuid: string
