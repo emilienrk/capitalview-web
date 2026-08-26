@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Landmark, Search } from 'lucide-vue-next'
+import { Check, Landmark } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -8,7 +8,7 @@ import BaseSpinner from '@/components/base/BaseSpinner.vue'
 import BaseBadge from '@/components/base/BaseBadge.vue'
 import BaseSelect from '@/components/base/BaseSelect.vue'
 import { useBankStore } from '@/stores/bank'
-import type { AspspSummary, BankSessionAccount } from '@/types'
+import type { BankSessionAccount } from '@/types'
 
 interface Props {
   open: boolean
@@ -29,19 +29,10 @@ const COUNTRY = 'FR'
 const WIDGET_SCRIPT_URL = 'https://auth.enablebanking.com/lib/widgets.umd.min.js'
 const WIDGET_CSS_URL = 'https://auth.enablebanking.com/lib/widgets.css'
 
-/**
- * Networks whose customers must pick their caisse régionale before authenticating.
- * Their entries in the catalogue carry the network name as a prefix.
- */
-const REGIONAL_NETWORKS = ['Crédit Agricole', 'Banque Populaire', 'Caisse d\'Épargne']
-
-type Step = 'bank' | 'region' | 'confirm' | 'accounts'
+type Step = 'bank' | 'confirm' | 'accounts'
 const step = ref<Step>('bank')
 
 const selectedBank = ref<{ name: string; country: string } | null>(null)
-const regionalNetwork = ref<string | null>(null)
-const regionalOptions = ref<AspspSummary[]>([])
-const regionalFilter = ref('')
 const sessionAccounts = ref<BankSessionAccount[]>([])
 /** Whether `sessionAccounts` can be trusted — an empty list is not an answer. */
 const accountsState = ref<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
@@ -111,59 +102,16 @@ async function mountSelector(): Promise<void> {
   host.appendChild(element)
 }
 
-/** Accent- and case-insensitive, the catalogue's spelling varies. */
-function normalize(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-}
-
-async function onAspspSelected(event: Event): Promise<void> {
+/**
+ * The widget emits a catalogue entry, never a network heading: the FR catalogue
+ * carries no bare "Crédit Agricole" / "Caisse d'Épargne" / "Banque Populaire",
+ * only their regional entries. Verified against a real GET /aspsps?country=FR
+ * and against the event itself ({name: "Crédit Mutuel", country: "FR", …}).
+ */
+function onAspspSelected(event: Event): void {
   const detail = (event as CustomEvent<{ name: string; country?: string }>).detail
   if (!detail?.name) return
   selectedBank.value = { name: detail.name, country: detail.country ?? COUNTRY }
-
-  const network = REGIONAL_NETWORKS.find((n) => normalize(n) === normalize(detail.name))
-  if (!network) {
-    regionalNetwork.value = null
-    regionalOptions.value = []
-    step.value = 'confirm'
-    return
-  }
-  regionalNetwork.value = network
-  step.value = 'region'
-  await loadRegionalOptions(network, selectedBank.value.country)
-}
-
-async function loadRegionalOptions(network: string, country: string): Promise<void> {
-  isBusy.value = true
-  error.value = null
-  regionalFilter.value = ''
-  try {
-    const aspsps = await bank.fetchAspsps(country)
-    const prefix = normalize(network)
-    regionalOptions.value = aspsps.filter(
-      (a) => normalize(a.name).startsWith(prefix) && normalize(a.name) !== prefix,
-    )
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Impossible de charger les caisses régionales.'
-  } finally {
-    isBusy.value = false
-  }
-}
-
-function retryRegionalOptions(): void {
-  if (regionalNetwork.value && selectedBank.value) {
-    void loadRegionalOptions(regionalNetwork.value, selectedBank.value.country)
-  }
-}
-
-const filteredRegionalOptions = computed(() => {
-  const needle = normalize(regionalFilter.value)
-  if (!needle) return regionalOptions.value
-  return regionalOptions.value.filter((a) => normalize(a.name).includes(needle))
-})
-
-function selectRegional(aspsp: AspspSummary): void {
-  selectedBank.value = { name: aspsp.name, country: aspsp.country }
   step.value = 'confirm'
 }
 
@@ -280,8 +228,6 @@ watch(
     if (!open) return
     error.value = null
     selectedBank.value = null
-    regionalNetwork.value = null
-    regionalOptions.value = []
     targetAccountByHash.value = {}
     sessionAccounts.value = []
     accountsState.value = 'idle'
@@ -305,7 +251,6 @@ watch(step, (value) => {
 })
 
 const title = computed(() => {
-  if (step.value === 'region') return `Choisissez votre caisse ${regionalNetwork.value}`
   if (step.value === 'confirm') return 'Avant de continuer'
   if (step.value === 'accounts') return 'Rattacher vos comptes'
   return 'Connecter une banque'
@@ -328,53 +273,7 @@ const title = computed(() => {
       <div ref="selectorHost" />
     </template>
 
-    <!-- ── STEP 2: caisse régionale ────────────────────── -->
-    <template v-else-if="step === 'region'">
-      <p class="text-sm text-text-body dark:text-text-dark-body mb-4">
-        Ce réseau est un groupe de caisses régionales : choisissez celle qui tient votre compte,
-        sinon l'authentification échouera.
-      </p>
-
-      <div v-if="isBusy" class="flex items-center justify-center py-10">
-        <BaseSpinner />
-      </div>
-
-      <template v-else-if="regionalOptions.length">
-        <div class="relative mb-3">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-          <input
-            v-model="regionalFilter"
-            type="search"
-            placeholder="Rechercher une caisse…"
-            class="w-full pl-9 pr-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-        <div class="max-h-72 overflow-y-auto space-y-1.5">
-          <button
-            v-for="aspsp in filteredRegionalOptions"
-            :key="aspsp.name"
-            type="button"
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-card border border-surface-border dark:border-surface-dark-border text-left text-sm text-text-main dark:text-text-dark-main hover:border-primary hover:bg-primary/5 transition-colors"
-            @click="selectRegional(aspsp)"
-          >
-            <Landmark class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-            {{ aspsp.name }}
-          </button>
-        </div>
-      </template>
-
-      <BaseAlert v-else-if="!error" variant="info">
-        Ce réseau n'expose qu'une seule entrée : votre caisse régionale vous sera demandée sur la
-        page d'authentification de la banque.
-      </BaseAlert>
-
-      <BaseAlert v-if="error" variant="danger" class="mt-4">
-        {{ error }} Le catalogue des caisses n'a pas pu être lu, impossible de savoir laquelle
-        choisir.
-      </BaseAlert>
-    </template>
-
-    <!-- ── STEP 3: double authentication warning ───────── -->
+    <!-- ── STEP 2: double authentication warning ───────── -->
     <template v-else-if="step === 'confirm'">
       <div class="space-y-4">
         <div class="flex items-center gap-2 text-sm text-text-main dark:text-text-dark-main">
@@ -401,7 +300,7 @@ const title = computed(() => {
       </div>
     </template>
 
-    <!-- ── STEP 4: attach the discovered accounts ──────── -->
+    <!-- ── STEP 3: attach the discovered accounts ──────── -->
     <template v-else>
       <!-- Outside the load branches below: abandoning is offered whatever the list's state. -->
       <BaseAlert v-if="isConfirmingAbandon" variant="warning" class="mb-4">
@@ -491,26 +390,9 @@ const title = computed(() => {
 
     <template #footer>
       <BaseButton v-if="step === 'bank'" variant="ghost" @click="emit('discard')">Annuler</BaseButton>
-      <BaseButton v-if="step === 'region'" variant="ghost" @click="step = 'bank'">Retour</BaseButton>
-      <BaseButton
-        v-if="step === 'region' && error"
-        variant="outline"
-        :loading="isBusy"
-        @click="retryRegionalOptions"
-      >
-        Réessayer
-      </BaseButton>
-      <!-- Only a genuinely single-entry network lets the user move on: after a failed
-           catalogue read we do not know which caisse the bank expects. -->
-      <BaseButton
-        v-if="step === 'region' && !regionalOptions.length && !error"
-        @click="step = 'confirm'"
-      >
-        Continuer
-      </BaseButton>
 
       <template v-if="step === 'confirm'">
-        <BaseButton variant="ghost" @click="step = regionalNetwork ? 'region' : 'bank'">Retour</BaseButton>
+        <BaseButton variant="ghost" @click="step = 'bank'">Retour</BaseButton>
         <BaseButton :loading="isBusy" @click="startAuthorization">
           Continuer vers ma banque
         </BaseButton>
