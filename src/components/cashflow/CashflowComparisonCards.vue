@@ -50,7 +50,10 @@ async function adoptObserved(row: CashflowComparison): Promise<void> {
   busyId.value = row.cashflow_id
   error.value = null
   try {
-    await cashflow.updateCashflow(row.cashflow_id, { amount: row.observed_amount })
+    // The store swallows its own error and answers null, so an unchecked call
+    // would let the card redraw as if the declared amount had been updated.
+    const saved = await cashflow.updateCashflow(row.cashflow_id, { amount: row.observed_amount })
+    if (!saved) throw new Error(cashflow.error ?? 'Le montant prévu n\'a pas pu être mis à jour.')
     const updated = await cashflow.updateMatch(row.cashflow_id, row.match_pattern)
     const index = rows.value.findIndex((r) => r.cashflow_id === row.cashflow_id)
     if (index !== -1) rows.value[index] = updated
@@ -64,7 +67,10 @@ async function adoptObserved(row: CashflowComparison): Promise<void> {
 async function deactivate(row: CashflowComparison): Promise<void> {
   busyId.value = row.cashflow_id
   try {
-    await cashflow.updateCashflow(row.cashflow_id, { is_active: false })
+    // Same trap: dropping the card on a null answer would tell the user the flow
+    // was deactivated while it stays active and keeps feeding the forecast.
+    const saved = await cashflow.updateCashflow(row.cashflow_id, { is_active: false })
+    if (!saved) throw new Error(cashflow.error ?? 'Le flux n\'a pas pu être désactivé.')
     rows.value = rows.value.filter((r) => r.cashflow_id !== row.cashflow_id)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Désactivation impossible.'
