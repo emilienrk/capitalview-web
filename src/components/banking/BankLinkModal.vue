@@ -14,8 +14,14 @@ interface Props {
   open: boolean
   /** Set on the return from the bank: the modal reopens straight on the attachment step. */
   bankSessionUuid?: string | null
+  /**
+   * The application is registered in Enable Banking's sandbox environment. The
+   * picker then lists simulated banks instead of real ones; getting this wrong
+   * either way makes the selection unusable at authorization time.
+   */
+  sandbox?: boolean
 }
-const props = withDefaults(defineProps<Props>(), { bankSessionUuid: null })
+const props = withDefaults(defineProps<Props>(), { bankSessionUuid: null, sandbox: false })
 /**
  * `close` merely hides the modal and leaves the bank session recoverable;
  * `discard` says the session is spent. They are not interchangeable: getting a
@@ -95,6 +101,10 @@ async function mountSelector(): Promise<void> {
   element.setAttribute('country', COUNTRY)
   element.setAttribute('psu-type', 'personal')
   element.setAttribute('service', 'AIS')
+  // Presence is what the widget reads, so the attribute is set or absent, never
+  // set to "false" — which would read as present and list simulated banks to a
+  // production application.
+  if (props.sandbox) element.setAttribute('sandbox', '')
   // Documented for the vendor's other widgets; harmless here if ignored.
   element.setAttribute('locale', 'FR')
   // No `no-beta`: it hid 94 of the 129 French entries, BNP Paribas, La Banque

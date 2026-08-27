@@ -202,6 +202,8 @@ export interface BankConfigCheck {
   callback_url_declared: boolean
   /** The URL to declare as a redirect URL in the Enable Banking portal. */
   callback_url: string
+  /** Which Enable Banking environment the application is registered in. */
+  environment: 'SANDBOX' | 'PRODUCTION' | null
   error: string | null
 }
 
