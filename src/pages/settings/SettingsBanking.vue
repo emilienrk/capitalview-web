@@ -75,8 +75,13 @@ const diagnosis = computed<Diagnosis | null>(() => {
   if (!c.application_active) {
     return {
       variant: 'warning',
+      // Linking your own accounts is how a *production* application gets
+      // activated; a sandbox one is active from registration, so pointing the
+      // user at that screen would send them looking for a button they'd not find.
       title: 'Application inactive.',
-      detail: 'Dans le portail Enable Banking, ouvrez votre application et utilisez « Activate by linking accounts » pour y lier un de vos comptes. Tant qu\'elle est inactive, aucune donnée bancaire n\'est accessible.',
+      detail: c.environment === 'SANDBOX'
+        ? 'Cette application bac à sable est enregistrée mais inactive. Vérifiez son état dans le portail Enable Banking.'
+        : 'Dans le portail Enable Banking, ouvrez votre application et utilisez « Activate by linking accounts » pour y lier un de vos comptes. Tant qu\'elle est inactive, aucune donnée bancaire n\'est accessible.',
     }
   }
   if (!c.callback_url_declared) {
@@ -92,6 +97,13 @@ const diagnosis = computed<Diagnosis | null>(() => {
     detail: 'Clé acceptée, application active, URL de redirection déclarée. Vous pouvez connecter une banque.',
   }
 })
+
+/**
+ * A sandbox application reaches Enable Banking's simulated banks and nothing
+ * else. It drives the bank picker, and it is surfaced to the user: figures
+ * imported from a simulation must never be mistaken for their own money.
+ */
+const isSandbox = computed(() => check.value?.environment === 'SANDBOX')
 
 const callbackUrl = computed(() => check.value?.callback_url ?? '')
 const callbackCopied = ref(false)
@@ -631,6 +643,15 @@ onMounted(async () => {
         <p class="mt-0.5 opacity-90">{{ diagnosis.detail }}</p>
       </BaseAlert>
 
+      <BaseAlert v-if="isSandbox" variant="warning" class="mt-4">
+        <p class="font-medium">Application bac à sable.</p>
+        <p class="mt-0.5 opacity-90">
+          Seules les banques simulées d'Enable Banking sont accessibles, et les montants
+          synchronisés sont fictifs. Pour connecter une vraie banque, enregistrez une
+          application en environnement « Production ».
+        </p>
+      </BaseAlert>
+
       <BaseAlert v-if="bankSessionUuid && !showLinkModal" variant="info" class="mt-4">
         <p class="font-medium">Une autorisation bancaire attend son rattachement.</p>
         <p class="mt-0.5 opacity-90">
@@ -748,6 +769,7 @@ onMounted(async () => {
     <BankLinkModal
       :open="showLinkModal"
       :bank-session-uuid="bankSessionUuid"
+      :sandbox="isSandbox"
       @close="dismissLinkModal"
       @discard="discardLinkSession"
       @linked="onLinked"
