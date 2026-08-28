@@ -143,6 +143,8 @@ export interface BankAccountCreate {
   institution_name?: string
   identifier?: string
   balance?: number
+  /** ISO 4217 code. Defaults to EUR; refused if no exchange rate is published. */
+  currency?: string
   opened_at?: string | null
 }
 
@@ -151,6 +153,7 @@ export interface BankAccountUpdate {
   institution_name?: string
   identifier?: string
   balance?: number
+  currency?: string
   opened_at?: string | null
 }
 
@@ -159,6 +162,8 @@ export interface BankAccountResponse {
   name: string
   institution_name: string | null
   balance: number
+  /** The account's own currency. Balances are in it; totals and curves are in EUR. */
+  currency: string
   account_type: BankAccountType
   identifier: string | null
   opened_at: string | null
