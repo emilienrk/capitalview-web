@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FileSpreadsheet, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
 
-import { nextTick, onMounted, ref, reactive, computed } from 'vue'
+import { nextTick, onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
@@ -48,7 +48,29 @@ const form = reactive<BankAccountCreate>({
   institution_name: '',
   identifier: '',
   balance: 0,
+  currency: 'EUR',
   opened_at: null,
+})
+
+/**
+ * The currencies the market data reliably covers. Free text instead would let
+ * someone save a code the API then refuses, at the end of the form rather than
+ * at the field — and a regulated French account is in euros by construction.
+ */
+const CURRENCY_OPTIONS = [
+  { label: 'Euro (EUR)', value: 'EUR' },
+  { label: 'Dollar américain (USD)', value: 'USD' },
+  { label: 'Livre sterling (GBP)', value: 'GBP' },
+  { label: 'Franc suisse (CHF)', value: 'CHF' },
+  { label: 'Dollar canadien (CAD)', value: 'CAD' },
+  { label: 'Yen japonais (JPY)', value: 'JPY' },
+]
+
+// A Livret A or a PEL cannot be held in anything but euros.
+const REGULATED_TYPES = new Set(['LIVRET_A', 'LIVRET_DEVE', 'LEP', 'LDD', 'PEL', 'CEL'])
+const isRegulated = computed(() => REGULATED_TYPES.has(form.account_type))
+watch(isRegulated, (regulated) => {
+  if (regulated) form.currency = 'EUR'
 })
 
 const accountTypeOptions = computed(() => {
@@ -111,17 +133,19 @@ function openCreate(): void {
   form.institution_name = ''
   form.identifier = ''
   form.balance = 0
+  form.currency = 'EUR'
   form.opened_at = null
   showCreateModal.value = true
 }
 
-function openEdit(account: { id: string; name: string; account_type: BankAccountType; institution_name: string | null; identifier: string | null; balance: number; opened_at: string | null }): void {
+function openEdit(account: { id: string; name: string; account_type: BankAccountType; institution_name: string | null; identifier: string | null; balance: number; currency: string; opened_at: string | null }): void {
   editingId.value = account.id
   form.name = account.name
   form.account_type = account.account_type
   form.institution_name = account.institution_name ?? ''
   form.identifier = account.identifier ?? ''
   form.balance = account.balance
+  form.currency = account.currency
   form.opened_at = account.opened_at ?? null
   showCreateModal.value = true
 }
@@ -305,7 +329,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             </div>
           </div>
           <p class="text-xl font-bold text-text-main dark:text-text-dark-main">
-            {{ maskValue(formatCurrency(account.balance)) }}
+            {{ maskValue(formatCurrency(account.balance, account.currency)) }}
           </p>
         </div>
         <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
@@ -316,7 +340,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         >
           <TriangleAlert class="w-4 h-4 shrink-0" />
           <span>
-            Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap)) }} :
+            Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap, account.currency)) }} :
             un mouvement manque ou est compté deux fois sur la dernière période.
           </span>
         </div>
@@ -375,6 +399,19 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         <BaseInput v-model="form.institution_name!" label="Banque" placeholder="Nom de la banque" />
         <BaseInput v-model="form.identifier!" label="Identifiant" placeholder="IBAN" />
         <BaseInput v-model="form.balance!" label="Solde" type="number" placeholder="0.00" />
+        <div>
+          <BaseSelect
+            v-model="form.currency!"
+            label="Devise"
+            :options="CURRENCY_OPTIONS"
+            :disabled="isRegulated"
+          />
+          <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+            {{ isRegulated
+              ? 'Les livrets réglementés sont en euros.'
+              : 'Le solde est affiché dans cette devise ; les totaux et les courbes restent en euros.' }}
+          </p>
+        </div>
         <BaseInput v-model="form.opened_at!" label="Date d'ouverture" type="date" />
       </form>
       <template #footer>
