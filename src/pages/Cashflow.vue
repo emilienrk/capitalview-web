@@ -10,7 +10,6 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
-import RealFlows from '@/components/cashflow/RealFlows.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle,
@@ -27,20 +26,6 @@ const showFormModal = ref(false)
 const editingId = ref<string | null>(null)
 const activeTab = ref<'all' | 'inflows' | 'outflows'>('all')
 
-const settingsStore = useSettingsStore()
-/**
- * The observed view only exists for someone who connected a bank and attached
- * an account: with neither, "Réel" would be a tab onto an empty page.
- */
-const canShowRealFlows = computed(
-  () => (settingsStore.settings?.open_banking_enabled ?? false) && bank.linkedAccounts.length > 0,
-)
-const viewMode = ref<'planned' | 'real'>('planned')
-
-// Losing the opt-in while the observed view is open must not strand the user on it.
-watch(canShowRealFlows, (allowed) => {
-  if (!allowed) viewMode.value = 'planned'
-})
 const searchQuery = ref('')
 const deleteConfirmId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
@@ -405,41 +390,15 @@ onMounted(async () => {
   <div>
     <PageHeader title="Flux de trésorerie" description="Gérez vos revenus et dépenses récurrents et ponctuels">
       <template #actions>
-        <BaseAddButton v-if="viewMode === 'planned'" @click="openCreate()">Nouveau flux</BaseAddButton>
+        <BaseAddButton @click="openCreate()">Nouveau flux</BaseAddButton>
       </template>
     </PageHeader>
-
-    <!-- Declared vs observed. Absent entirely until a bank account is attached. -->
-    <div
-      v-if="canShowRealFlows"
-      class="inline-flex rounded-card border border-surface-border dark:border-surface-dark-border p-1 bg-surface dark:bg-surface-dark mb-6"
-    >
-      <button
-        v-for="mode in [
-          { key: 'planned', label: 'Prévu' },
-          { key: 'real', label: 'Réel' },
-        ]"
-        :key="mode.key"
-        type="button"
-        :class="[
-          'px-4 py-1.5 text-sm rounded-secondary transition-colors',
-          viewMode === mode.key
-            ? 'bg-primary text-white font-medium'
-            : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-        ]"
-        @click="viewMode = mode.key as 'planned' | 'real'"
-      >
-        {{ mode.label }}
-      </button>
-    </div>
 
     <!-- Error -->
     <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
       {{ cashflow.error }}
     </BaseAlert>
 
-    <RealFlows v-if="viewMode === 'real'" />
-    <template v-else>
 
     <!-- ── Stats Cards ──────────────────────────────────── -->
     <div v-if="cashflow.cashflows.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -708,7 +667,6 @@ onMounted(async () => {
         <BaseButton variant="outline" @click="searchQuery = ''; activeTab = 'all'">Réinitialiser les filtres</BaseButton>
       </template>
     </BaseEmptyState>
-    </template>
 
     <!-- ── Create/Edit Modal ────────────────────────────── -->
     <BaseModal
