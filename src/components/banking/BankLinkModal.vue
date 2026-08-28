@@ -180,6 +180,26 @@ const capitalViewAccountOptions = computed(() =>
   (bank.summary?.accounts ?? []).map((a) => ({ value: a.id, label: a.name })),
 )
 
+/** CapitalView accounts already carrying one of the discovered accounts. */
+const takenAccountIds = computed(
+  () =>
+    new Set(
+      sessionAccounts.value
+        .filter((a) => a.linked && a.bank_account_uuid)
+        .map((a) => a.bank_account_uuid as string),
+    ),
+)
+
+/**
+ * The attachment is one-to-one, and the API answers 409 on a second one. Offering
+ * a taken account would send the user into that refusal at the very end of a
+ * journey that cost them a strong authentication. A card and a current account
+ * also have to stay apart for the cross-account deduplication to work at all.
+ */
+const availableAccountOptions = computed(() =>
+  capitalViewAccountOptions.value.filter((o) => !takenAccountIds.value.has(o.value)),
+)
+
 /** Never `currency`: real accounts return the ISO code meaning "no currency". */
 function accountLabel(account: BankSessionAccount): string {
   return account.name?.trim() || account.product?.trim() || 'Compte bancaire'
@@ -198,6 +218,13 @@ async function linkAccount(account: BankSessionAccount): Promise<void> {
     account.linked = true
     account.bank_account_uuid = target
     linkedSomething.value = true
+    // Another row may still be pointing at the account we just took; leaving it
+    // there arms a button whose only outcome is a 409.
+    for (const [hash, chosen] of Object.entries(targetAccountByHash.value)) {
+      if (hash !== account.identification_hash && chosen === target) {
+        delete targetAccountByHash.value[hash]
+      }
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Rattachement impossible.'
   } finally {
@@ -370,6 +397,15 @@ const title = computed(() => {
         <BaseAlert v-if="!capitalViewAccountOptions.length" variant="warning" class="mb-4">
           Créez d'abord un compte bancaire dans CapitalView pour pouvoir y rattacher un compte réel.
         </BaseAlert>
+        <BaseAlert
+          v-else-if="!availableAccountOptions.length && unattachedCount"
+          variant="warning"
+          class="mb-4"
+        >
+          Chacun de vos comptes CapitalView porte déjà un compte bancaire. Créez-en un autre pour
+          rattacher {{ unattachedCount }} compte(s) restant(s) — un compte carte et un compte
+          courant doivent rester séparés.
+        </BaseAlert>
 
         <div class="space-y-3">
           <div
@@ -393,7 +429,7 @@ const title = computed(() => {
               <BaseSelect
                 class="flex-1 min-w-0"
                 :model-value="targetAccountByHash[account.identification_hash] ?? ''"
-                :options="capitalViewAccountOptions"
+                :options="availableAccountOptions"
                 placeholder="Compte CapitalView…"
                 @update:model-value="targetAccountByHash[account.identification_hash] = String($event)"
               />
