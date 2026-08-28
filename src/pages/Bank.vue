@@ -267,6 +267,10 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
       <p class="text-3xl font-bold text-text-main dark:text-text-dark-main">
         {{ maskValue(formatCurrency(bank.summary.total_balance)) }}
       </p>
+      <!-- No total rather than a wrong one: a currency held has no published rate. -->
+      <p v-if="bank.summary.total_balance === null" class="mt-1 text-xs text-warning">
+        Total indisponible : le cours d'une de vos devises n'est pas publié.
+      </p>
     </div>
 
     <!-- Bank History Chart -->

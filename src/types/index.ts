@@ -183,7 +183,8 @@ export interface BankAccountResponse {
 }
 
 export interface BankSummaryResponse {
-  total_balance: number
+  /** null when a currency held has no published rate: no total rather than a wrong one. */
+  total_balance: number | null
   accounts: BankAccountResponse[]
 }
 
