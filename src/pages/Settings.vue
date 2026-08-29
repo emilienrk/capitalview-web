@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutGrid, Lock, Microscope, User, Users, Sparkles } from 'lucide-vue-next'
+import { Landmark, LayoutGrid, Lock, Microscope, User, Users, Sparkles } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseAlert } from '@/components'
@@ -11,6 +11,7 @@ import SettingsModules from './settings/SettingsModules.vue'
 import SettingsCommunity from './settings/SettingsCommunity.vue'
 import SettingsSecurity from './settings/SettingsSecurity.vue'
 import SettingsAI from './settings/SettingsAI.vue'
+import SettingsBanking from './settings/SettingsBanking.vue'
 import SettingsAnalytics from './settings/SettingsAnalytics.vue'
 
 const route = useRoute()
@@ -29,6 +30,7 @@ const tabs: Tab[] = [
   { id: 'modules', label: 'Modules', icon: LayoutGrid },
   { id: 'ia', label: 'IA', icon: Sparkles },
   { id: 'analyse', label: 'Analyse', icon: Microscope },
+  { id: 'banque', label: 'Banque', icon: Landmark },
   { id: 'communaute', label: 'Communauté', icon: Users },
   { id: 'securite', label: 'Sécurité', icon: Lock },
 ]
@@ -95,7 +97,7 @@ onMounted(async () => {
         </nav>
 
         <!-- Mobile: grouped card grid, no horizontal scroll -->
-        <nav class="lg:hidden grid grid-cols-3 sm:grid-cols-6 gap-1 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-card shadow-card p-1.5">
+        <nav class="lg:hidden grid grid-cols-3 sm:grid-cols-7 gap-1 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-card shadow-card p-1.5">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -120,6 +122,7 @@ onMounted(async () => {
           <SettingsModules v-else-if="activeTab === 'modules'" />
           <SettingsAI v-else-if="activeTab === 'ia'" />
           <SettingsAnalytics v-else-if="activeTab === 'analyse'" />
+          <SettingsBanking v-else-if="activeTab === 'banque'" />
           <SettingsCommunity v-else-if="activeTab === 'communaute'" />
           <SettingsSecurity v-else-if="activeTab === 'securite'" />
         </KeepAlive>

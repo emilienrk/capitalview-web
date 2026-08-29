@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Circle, DollarSign, Pencil, Scale, Search, Trash2 }
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { useCashflowStore } from '@/stores/cashflow'
 import { useBankStore } from '@/stores/bank'
+import { useSettingsStore } from '@/stores/settings'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -24,6 +25,7 @@ const { isDark } = useDarkMode()
 const showFormModal = ref(false)
 const editingId = ref<string | null>(null)
 const activeTab = ref<'all' | 'inflows' | 'outflows'>('all')
+
 const searchQuery = ref('')
 const deleteConfirmId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
@@ -396,6 +398,7 @@ onMounted(async () => {
     <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
       {{ cashflow.error }}
     </BaseAlert>
+
 
     <!-- ── Stats Cards ──────────────────────────────────── -->
     <div v-if="cashflow.cashflows.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

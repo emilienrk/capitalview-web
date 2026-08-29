@@ -143,6 +143,8 @@ export interface BankAccountCreate {
   institution_name?: string
   identifier?: string
   balance?: number
+  /** ISO 4217 code. Defaults to EUR; refused if no exchange rate is published. */
+  currency?: string
   opened_at?: string | null
 }
 
@@ -151,6 +153,7 @@ export interface BankAccountUpdate {
   institution_name?: string
   identifier?: string
   balance?: number
+  currency?: string
   opened_at?: string | null
 }
 
@@ -159,17 +162,139 @@ export interface BankAccountResponse {
   name: string
   institution_name: string | null
   balance: number
+  /** The account's own currency. Balances are in it; totals and curves are in EUR. */
+  currency: string
   account_type: BankAccountType
   identifier: string | null
   opened_at: string | null
   created_at: string
   updated_at: string
   balance_updated_at: string | null
+  /** Attached to a real bank through Enable Banking. */
+  is_linked: boolean
+  /** Last successful synchronisation (YYYY-MM-DD), null = never. */
+  last_synced_at: string | null
+  /** null = the period reconciles; a value means a movement is missing or counted twice. */
+  reconciliation_gap: number | null
+  /** Ruling R18: 'reconciled' | 'gap' | 'not_reconcilable' | null */
+  reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | null
+  /** Consent state to surface, "à reconnecter" included. */
+  link_status: string | null
 }
 
 export interface BankSummaryResponse {
-  total_balance: number
+  /** null when a currency held has no published rate: no total rather than a wrong one. */
+  total_balance: number | null
   accounts: BankAccountResponse[]
+}
+
+// ─── Connexion bancaire (Enable Banking) ─────────────────────
+
+export interface BankConnectionStatus {
+  has_credentials: boolean
+  application_id: string | null
+}
+
+/** Field absent = unchanged, empty string = deletion. The key is never read back. */
+export interface BankConnectionUpdate {
+  application_id?: string
+  private_key?: string
+}
+
+export interface BankConfigCheck {
+  configured: boolean
+  key_valid: boolean
+  application_active: boolean
+  callback_url_declared: boolean
+  /** The URL to declare as a redirect URL in the Enable Banking portal. */
+  callback_url: string
+  /** Which Enable Banking environment the application is registered in. */
+  environment: 'SANDBOX' | 'PRODUCTION' | null
+  error: string | null
+}
+
+export interface AspspSummary {
+  name: string
+  country: string
+  logo: string | null
+  beta: boolean
+  maximum_consent_validity: number
+}
+
+export interface BankAuthorizeRequest {
+  aspsp_name: string
+  aspsp_country: string
+}
+
+export interface BankAuthorizeResponse {
+  auth_url: string
+}
+
+export interface BankSessionAccount {
+  /** Durable attachment key: the bank's own account uid dies with the session. */
+  identification_hash: string
+  name: string | null
+  product: string | null
+  /** Unusable as a currency (real accounts return the "no currency" ISO code). */
+  currency: string | null
+  cash_account_type: string | null
+  usage: string | null
+  account_id: string | null
+  linked: boolean
+  bank_account_uuid: string | null
+}
+
+/** One account's outcome in an Enable Banking export import. */
+export interface BankExportImportResult {
+  bank_account_uuid: string
+  status: string
+  inserted: number
+  updated: number
+  skipped: number
+  /** Rows the bank sent without an amount, a direction or a status: dropped, never fatal. */
+  malformed: number
+  snapshots_written: number
+  detail: string | null
+}
+
+export interface BankExportImportResponse {
+  imported_accounts: number
+  results: BankExportImportResult[]
+}
+
+export interface BankSessionLinkedAccount {
+  bank_account_uuid: string
+  name: string
+  /** YYYY-MM-DD, or null when the account has never been synced. */
+  last_synced_at: string | null
+}
+
+/**
+ * One authorization granted to a bank. Retired consents stay in the list: their
+ * account attachments survive expiry, so the status is what tells the user that
+ * a reconnection is the only thing missing.
+ */
+export interface BankSessionSummary {
+  uuid: string
+  aspsp_name: string | null
+  aspsp_country: string | null
+  status: string
+  status_message: string
+  active: boolean
+  consent_valid_until: string
+  authorized_at: string
+  accounts: BankSessionLinkedAccount[]
+}
+
+export interface BankAccountLinkRequest {
+  identification_hash: string
+  bank_account_uuid: string
+}
+
+export interface BankAccountLinkResult {
+  bank_account_uuid: string
+  identification_hash: string
+  reconnected: boolean
 }
 
 // ─── Cashflow ────────────────────────────────────────────────
@@ -849,6 +974,7 @@ export interface UserSettingsUpdate {
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
+  open_banking_enabled?: boolean
   ai_vision_provider?: string | null
   ai_chat_provider?: string | null
   /** USD→EUR rate override. null/undefined = use auto-fetched live rate. */
@@ -878,6 +1004,7 @@ export interface UserSettingsResponse {
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean
+  open_banking_enabled: boolean
   ai_vision_provider: string | null
   ai_chat_provider: string | null
   ai_providers: AIProviderConfig[]
