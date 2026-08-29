@@ -4,6 +4,7 @@ import { FileSpreadsheet, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } f
 import { nextTick, onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBankStore } from '@/stores/bank'
+import { BASE_CURRENCY, currencyOptions, loadSupportedCurrencies } from '@/utils/currencies'
 import { useSettingsStore } from '@/stores/settings'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
 import { useConfirm } from '@/composables/useConfirm'
@@ -48,29 +49,19 @@ const form = reactive<BankAccountCreate>({
   institution_name: '',
   identifier: '',
   balance: 0,
-  currency: 'EUR',
+  currency: BASE_CURRENCY,
   opened_at: null,
 })
 
-/**
- * The currencies the market data reliably covers. Free text instead would let
- * someone save a code the API then refuses, at the end of the form rather than
- * at the field — and a regulated French account is in euros by construction.
- */
-const CURRENCY_OPTIONS = [
-  { label: 'Euro (EUR)', value: 'EUR' },
-  { label: 'Dollar américain (USD)', value: 'USD' },
-  { label: 'Livre sterling (GBP)', value: 'GBP' },
-  { label: 'Franc suisse (CHF)', value: 'CHF' },
-  { label: 'Dollar canadien (CAD)', value: 'CAD' },
-  { label: 'Yen japonais (JPY)', value: 'JPY' },
-]
+// Served by the API so the list lives in one place; the static fallback in
+// @/utils/currencies keeps the picker populated if the call fails.
+const currencyChoices = computed(() => currencyOptions())
 
 // A Livret A or a PEL cannot be held in anything but euros.
 const REGULATED_TYPES = new Set(['LIVRET_A', 'LIVRET_DEVE', 'LEP', 'LDD', 'PEL', 'CEL'])
 const isRegulated = computed(() => REGULATED_TYPES.has(form.account_type))
 watch(isRegulated, (regulated) => {
-  if (regulated) form.currency = 'EUR'
+  if (regulated) form.currency = BASE_CURRENCY
 })
 
 const accountTypeOptions = computed(() => {
@@ -133,7 +124,7 @@ function openCreate(): void {
   form.institution_name = ''
   form.identifier = ''
   form.balance = 0
-  form.currency = 'EUR'
+  form.currency = BASE_CURRENCY
   form.opened_at = null
   showCreateModal.value = true
 }
@@ -210,6 +201,7 @@ async function autoSyncAfterRender(): Promise<void> {
 }
 
 onMounted(async () => {
+  void loadSupportedCurrencies()
   await bank.fetchAccounts()
   hasFetchedOnce.value = true
   // Chart histories load in the background (the chart has a skeleton state)
@@ -325,10 +317,23 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             <h3 class="font-semibold text-text-main dark:text-text-dark-main">{{ account.name }}</h3>
             <div class="flex flex-wrap items-center gap-2 mt-1">
               <BaseBadge variant="secondary">{{ formatAccountType(account.account_type) }}</BaseBadge>
-              <BaseBadge v-if="account.is_linked" variant="success">Banque liée</BaseBadge>
-              <BaseBadge v-if="account.is_linked && account.link_status" :variant="linkStatusVariant(account.link_status)">
-                {{ account.link_status }}
-              </BaseBadge>
+              <!--
+                Turning the feature off stops every sync but destroys nothing, so
+                the attachment survives. Saying "Banque liée" then reads as live
+                when it no longer is — the account is dormant, not connected.
+              -->
+              <template v-if="account.is_linked">
+                <BaseBadge v-if="openBankingEnabled" variant="success">Banque liée</BaseBadge>
+                <BaseBadge v-else variant="secondary" title="La connexion bancaire est désactivée dans les paramètres.">
+                  Liaison en sommeil
+                </BaseBadge>
+                <BaseBadge
+                  v-if="openBankingEnabled && account.link_status"
+                  :variant="linkStatusVariant(account.link_status)"
+                >
+                  {{ account.link_status }}
+                </BaseBadge>
+              </template>
               <span v-if="account.institution_name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ account.institution_name }}</span>
             </div>
           </div>
@@ -352,9 +357,17 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         <div class="mt-4 flex items-center justify-between">
           <div class="flex flex-col gap-0.5">
             <template v-if="account.is_linked">
-              <p v-if="account.last_synced_at" class="flex items-center gap-1 text-xs text-success">
+              <!-- Green with a refresh icon reads as "kept up to date"; with the
+                   feature off nothing is, so the same date goes neutral. -->
+              <p
+                v-if="account.last_synced_at && openBankingEnabled"
+                class="flex items-center gap-1 text-xs text-success"
+              >
                 <RefreshCw class="w-3 h-3" />
                 Synchronisé le {{ formatDate(account.last_synced_at) }}
+              </p>
+              <p v-else-if="account.last_synced_at" class="text-xs text-text-muted dark:text-text-dark-muted">
+                Dernière synchro le {{ formatDate(account.last_synced_at) }} — connexion désactivée
               </p>
               <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">Jamais synchronisé</p>
             </template>
@@ -407,7 +420,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           <BaseSelect
             v-model="form.currency!"
             label="Devise"
-            :options="CURRENCY_OPTIONS"
+            :options="currencyChoices"
             :disabled="isRegulated"
           />
           <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
