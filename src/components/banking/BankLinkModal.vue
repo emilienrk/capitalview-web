@@ -263,6 +263,16 @@ function requestClose(): void {
  */
 const isConfirmingAbandon = ref(false)
 
+/**
+ * The warning is about what would be left behind, so it has to go once nothing
+ * is. Attaching the last account while it is open otherwise leaves it asking
+ * whether to abandon "0 compte(s)" — and it hides the plain "Terminer" button,
+ * so the only way out reads as destructive on a session that is fully spent.
+ */
+watch(isSessionSpent, (spent) => {
+  if (spent) isConfirmingAbandon.value = false
+})
+
 function finish(): void {
   if (!isSessionSpent.value) {
     isConfirmingAbandon.value = true
