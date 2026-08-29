@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { apiClient } from '@/api/client'
+import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import {
   getOrFetchCached,
   invalidateCacheKey,
@@ -8,7 +9,13 @@ import {
   isCacheEntryValid,
 } from '@/services/cache'
 import type {
+  AspspSummary,
   BankAccountResponse,
+  BankAccountLinkRequest,
+  BankAccountLinkResult,
+  BankAuthorizeResponse,
+  BankExportImportResponse,
+  BankSessionAccount,
   BankSummaryResponse,
   BankAccountCreate,
   BankAccountUpdate,
@@ -19,14 +26,48 @@ import type {
 const CACHE_TTL_MS = 60 * 60 * 1000
 
 export const useBankStore = defineStore('bank', () => {
+  const { effectiveTimezone } = useDisplayTimezone()
   const summary = ref<BankSummaryResponse | null>(null)
   const currentAccount = ref<BankAccountResponse | null>(null)
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const accountHistoryById = ref<Record<string, AccountHistorySnapshotResponse[]>>({})
   const isLoading = ref(false)
   const historyLoading = ref(false)
+  const isSyncing = ref(false)
   const error = ref<string | null>(null)
   const historyCacheKey = 'bank:history:global'
+
+  const linkedAccounts = computed(() =>
+    (summary.value?.accounts ?? []).filter((account) => account.is_linked),
+  )
+
+  /**
+   * Today in the display timezone, as YYYY-MM-DD. The UTC date would disagree
+   * with the user's own day between local midnight and the UTC offset.
+   */
+  function todayLocal(): string {
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }
+    let formatter: Intl.DateTimeFormat
+    try {
+      formatter = new Intl.DateTimeFormat('en-CA', { ...options, timeZone: effectiveTimezone.value })
+    } catch {
+      // An unknown IANA name throws: fall back to the browser's own zone.
+      formatter = new Intl.DateTimeFormat('en-CA', options)
+    }
+    const parts = formatter.formatToParts(new Date())
+    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+    return `${part('year')}-${part('month')}-${part('day')}`
+  }
+
+  /** At least one linked account has not been synced today. */
+  const hasStaleSync = computed(() => {
+    const today = todayLocal()
+    return linkedAccounts.value.some((a) => !a.last_synced_at || a.last_synced_at < today)
+  })
 
   const isHistoryCacheValid = computed(() => {
     if (history.value.length === 0) return false
@@ -151,6 +192,65 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
+  /**
+   * Enable Banking synchronisation. The daily cap is re-checked server-side, so
+   * a second call the same day is a no-op rather than an error.
+   */
+  async function syncBanking(): Promise<boolean> {
+    isSyncing.value = true
+    error.value = null
+    try {
+      await apiClient.post<void>('/banking/sync')
+      await fetchAccounts()
+      invalidateHistoryCache()
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Erreur lors de la synchronisation bancaire'
+      return false
+    } finally {
+      isSyncing.value = false
+    }
+  }
+
+  /**
+   * Enable Banking JSON export, for the history the API window cannot reach.
+   * Same after-effects as a sync: balances and curves move.
+   */
+  async function importBankingExport(
+    payload: unknown,
+  ): Promise<BankExportImportResponse> {
+    const result = await apiClient.post<BankExportImportResponse>('/banking/import-export', payload)
+    await fetchAccounts()
+    invalidateHistoryCache()
+    return result
+  }
+
+  async function fetchAspsps(country: string): Promise<AspspSummary[]> {
+    return apiClient.get<AspspSummary[]>(`/banking/aspsps?country=${encodeURIComponent(country)}`)
+  }
+
+  /** Opens the journey: the browser has to navigate to the returned URL. */
+  async function authorizeBank(aspspName: string, aspspCountry: string): Promise<string> {
+    const result = await apiClient.post<BankAuthorizeResponse>('/banking/authorize', {
+      aspsp_name: aspspName,
+      aspsp_country: aspspCountry,
+    })
+    return result.auth_url
+  }
+
+  async function fetchSessionAccounts(bankSessionUuid: string): Promise<BankSessionAccount[]> {
+    return apiClient.get<BankSessionAccount[]>(`/banking/sessions/${bankSessionUuid}/accounts`)
+  }
+
+  async function linkSessionAccount(
+    bankSessionUuid: string,
+    data: BankAccountLinkRequest,
+  ): Promise<BankAccountLinkResult> {
+    return apiClient.post<BankAccountLinkResult>(
+      `/banking/sessions/${bankSessionUuid}/link`, data,
+    )
+  }
+
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('bank:history:account:')
@@ -172,8 +272,11 @@ export const useBankStore = defineStore('bank', () => {
     accountHistoryById,
     isLoading,
     historyLoading,
+    isSyncing,
     error,
     isHistoryCacheValid,
+    linkedAccounts,
+    hasStaleSync,
     fetchAccounts,
     fetchAccount,
     createAccount,
@@ -181,6 +284,12 @@ export const useBankStore = defineStore('bank', () => {
     deleteAccount,
     fetchHistory,
     fetchHistoryForAccount,
+    syncBanking,
+    importBankingExport,
+    fetchAspsps,
+    authorizeBank,
+    fetchSessionAccounts,
+    linkSessionAccount,
     invalidateHistoryCache,
     reset,
   }

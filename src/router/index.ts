@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 import Landing from '@/pages/Landing.vue'
@@ -100,6 +100,13 @@ const routes = [
     name: 'settings',
     component: Settings,
     meta: { requiresAuth: true },
+  },
+  {
+    // Where the bank sends the user back: the redirect URL declared in the
+    // Enable Banking portal cannot carry a query string, so the path is fixed
+    // and only the API's own `?bank_session=` rides along here.
+    path: '/settings/banking',
+    redirect: (to: RouteLocationGeneric) => ({ name: 'settings', query: { ...to.query, tab: 'banque' } }),
   },
   {
     path: '/community',
