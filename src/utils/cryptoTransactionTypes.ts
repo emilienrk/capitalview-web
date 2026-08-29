@@ -1,3 +1,4 @@
+import { currencyCodes } from '@/utils/currencies'
 import type { CryptoCompositeTransactionType } from '@/types'
 
 export type CryptoUiTransactionType =
@@ -54,9 +55,10 @@ export function toCompositeApiType(
   throw new Error(`Type composite invalide pour l'API: ${type}`)
 }
 
-/** Fiat currencies tracked as cash positions — no PRU/price display. */
-export const FIAT_ASSET_KEYS = new Set(['EUR','USD','GBP','CHF','JPY','CAD','AUD','CNY','NZD','SEK','NOK','DKK'])
-
+/**
+ * Fiat currencies tracked as cash positions — no PRU/price display.
+ * The list itself lives in `@/utils/currencies`, which the API feeds.
+ */
 export function isFiatSymbol(symbol: string): boolean {
-  return FIAT_ASSET_KEYS.has(symbol.toUpperCase())
+  return currencyCodes.value.has(symbol.toUpperCase())
 }
