@@ -170,19 +170,37 @@ const filteredCashflows = computed<CashflowResponse[]>(() => {
   }))
 })
 
+/**
+ * Add up monthly amounts in euros, or give up on the total.
+ *
+ * A flow is denominated by the account it hits, so a list of them can mix
+ * currencies and only `monthly_amount_eur` is addable. That figure is null when
+ * a currency has no published rate, and one of those takes the whole total
+ * with it: a sum over the rest would read as the total it is not. Same
+ * contract as the bank's — see docs/currencies.md in the API.
+ */
+function totalInEuros(flows: CashflowResponse[]): number | null {
+  let total = 0
+  for (const flow of flows) {
+    if (flow.monthly_amount_eur === null) return null
+    total += Number(flow.monthly_amount_eur)
+  }
+  return total
+}
+
 const inflowsTotal = computed(() =>
-  cashflow.cashflows
-    .filter((c) => c.flow_type === 'INFLOW')
-    .reduce((sum, c) => sum + Number(c.monthly_amount), 0),
+  totalInEuros(cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW')),
 )
 
 const outflowsTotal = computed(() =>
-  cashflow.cashflows
-    .filter((c) => c.flow_type === 'OUTFLOW')
-    .reduce((sum, c) => sum + Number(c.monthly_amount), 0),
+  totalInEuros(cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW')),
 )
 
-const netBalance = computed(() => inflowsTotal.value - outflowsTotal.value)
+const netBalance = computed(() =>
+  inflowsTotal.value === null || outflowsTotal.value === null
+    ? null
+    : inflowsTotal.value - outflowsTotal.value,
+)
 
 const cashflowSankeyData = computed(() => {
   const links: Array<{ source: string; target: string; value: number }> = []
@@ -206,15 +224,18 @@ const cashflowSankeyData = computed(() => {
     return count > 1 ? `${base} (${count})` : base
   }
 
-  const inflows = cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW' && Number(c.monthly_amount) > 0)
-  const outflows = cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW' && Number(c.monthly_amount) > 0)
+  // Widths are compared against each other, so every node has to be in the same
+  // currency: euros. A flow with no rate is left out — drawn at its face value
+  // it would claim a share of the diagram it has not earned.
+  const inflows = cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW' && Number(c.monthly_amount_eur) > 0)
+  const outflows = cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW' && Number(c.monthly_amount_eur) > 0)
 
   for (const item of inflows) {
     const nodeId = `inflow:${item.id}`
     const categoryKey = `inflow:${capitalize(item.category)}`
     nodeLabels[nodeId] = toUnitLabel(item.name)
     nodeGroups[nodeId] = categoryKey
-    links.push({ source: nodeId, target: 'hub:revenus', value: Number(item.monthly_amount) })
+    links.push({ source: nodeId, target: 'hub:revenus', value: Number(item.monthly_amount_eur) })
   }
 
   for (const item of outflows) {
@@ -222,13 +243,14 @@ const cashflowSankeyData = computed(() => {
     const categoryKey = `outflow:${capitalize(item.category)}`
     nodeLabels[nodeId] = toUnitLabel(item.name)
     nodeGroups[nodeId] = categoryKey
-    links.push({ source: 'hub:revenus', target: nodeId, value: Number(item.monthly_amount) })
+    links.push({ source: 'hub:revenus', target: nodeId, value: Number(item.monthly_amount_eur) })
   }
 
-  if (netBalance.value > 0) {
-    links.push({ source: 'hub:revenus', target: 'hub:epargne', value: netBalance.value })
-  } else if (netBalance.value < 0) {
-    links.push({ source: 'hub:external', target: 'hub:revenus', value: Math.abs(netBalance.value) })
+  const net = netBalance.value ?? 0
+  if (net > 0) {
+    links.push({ source: 'hub:revenus', target: 'hub:epargne', value: net })
+  } else if (net < 0) {
+    links.push({ source: 'hub:external', target: 'hub:revenus', value: Math.abs(net) })
   }
 
   return {
@@ -239,24 +261,31 @@ const cashflowSankeyData = computed(() => {
 })
 
 const savingsRate = computed(() => {
-  if (inflowsTotal.value === 0) return null
+  if (!inflowsTotal.value || netBalance.value === null) return null
   return ((netBalance.value / inflowsTotal.value) * 100)
 })
 
 const categorySummary = computed(() => {
-  const map = new Map<string, { category: string; flow_type: FlowType; total: number; count: number }>()
+  const grouped = new Map<string, { category: string; flow_type: FlowType; items: CashflowResponse[] }>()
   for (const c of cashflow.cashflows) {
     const capitalizedCategory = capitalize(c.category)
     const key = `${c.flow_type}-${capitalizedCategory}`
-    const existing = map.get(key)
+    const existing = grouped.get(key)
     if (existing) {
-      existing.total += Number(c.monthly_amount)
-      existing.count++
+      existing.items.push(c)
     } else {
-      map.set(key, { category: capitalizedCategory, flow_type: c.flow_type, total: Number(c.monthly_amount), count: 1 })
+      grouped.set(key, { category: capitalizedCategory, flow_type: c.flow_type, items: [c] })
     }
   }
-  return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  return Array.from(grouped.values())
+    .map(({ category, flow_type, items }) => ({
+      category,
+      flow_type,
+      total: totalInEuros(items),
+      count: items.length,
+    }))
+    // An unavailable total sorts last rather than as a zero.
+    .sort((a, b) => (b.total ?? -Infinity) - (a.total ?? -Infinity))
 })
 
 function resetForm(): void {
@@ -401,53 +430,60 @@ onMounted(async () => {
 
 
     <!-- ── Stats Cards ──────────────────────────────────── -->
-    <div v-if="cashflow.cashflows.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <BaseStatCard
-        label="Revenus mensuels"
-        :value="maskValue(formatCurrency(inflowsTotal))"
-        sub-value-class="text-success"
-      >
-        <template #icon>
-          <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-            <ArrowUp class="w-5 h-5 text-success" />
-          </div>
-        </template>
-      </BaseStatCard>
+    <div v-if="cashflow.cashflows.length" class="mb-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <BaseStatCard
+          label="Revenus mensuels"
+          :value="maskValue(formatCurrency(inflowsTotal))"
+          sub-value-class="text-success"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+              <ArrowUp class="w-5 h-5 text-success" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-      <BaseStatCard
-        label="Dépenses mensuelles"
-        :value="maskValue(formatCurrency(outflowsTotal))"
-        sub-value-class="text-danger"
-      >
-        <template #icon>
-          <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
-            <ArrowDown class="w-5 h-5 text-danger" />
-          </div>
-        </template>
-      </BaseStatCard>
+        <BaseStatCard
+          label="Dépenses mensuelles"
+          :value="maskValue(formatCurrency(outflowsTotal))"
+          sub-value-class="text-danger"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
+              <ArrowDown class="w-5 h-5 text-danger" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-      <BaseStatCard
-        label="Balance nette"
-        :value="maskValue(formatCurrency(netBalance))"
-      >
-        <template #icon>
-          <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
-            <Scale class="w-5 h-5 text-primary" />
-          </div>
-        </template>
-      </BaseStatCard>
+        <BaseStatCard
+          label="Balance nette"
+          :value="maskValue(formatCurrency(netBalance))"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
+              <Scale class="w-5 h-5 text-primary" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-      <BaseStatCard
-        label="Taux d'épargne"
-        :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
-        :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
-      >
-        <template #icon>
-          <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Circle class="w-5 h-5 text-primary" />
-          </div>
-        </template>
-      </BaseStatCard>
+        <BaseStatCard
+          label="Taux d'épargne"
+          :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
+          :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Circle class="w-5 h-5 text-primary" />
+            </div>
+          </template>
+        </BaseStatCard>
+      </div>
+
+      <!-- No totals rather than wrong ones: a flow's currency has no published rate. -->
+      <p v-if="inflowsTotal === null || outflowsTotal === null" class="mt-3 text-xs text-warning">
+        Totaux indisponibles : le cours d'une de vos devises n'est pas publié.
+      </p>
     </div>
 
     <!-- ── Inflows vs Outflows Breakdown ──────────────── -->
@@ -607,10 +643,10 @@ onMounted(async () => {
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <span :class="['block text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
-                  {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
+                  {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount, item.currency) }}
                 </span>
                 <span v-if="item.frequency !== 'MONTHLY'" class="block text-xs text-text-muted dark:text-text-dark-muted">
-                  ≈ {{ formatCurrency(item.monthly_amount) }}/mois
+                  ≈ {{ formatCurrency(item.monthly_amount, item.currency) }}/mois
                 </span>
               </td>
               <td class="px-4 py-3 text-right">

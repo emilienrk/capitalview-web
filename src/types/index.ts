@@ -332,36 +332,50 @@ export interface CashflowResponse {
   amount: number
   frequency: Frequency
   transaction_date: string
+  /** Normalized to monthly, in `currency`. */
   monthly_amount: number
+  /**
+   * The same figure in euros — what to aggregate on, since the app holds no
+   * exchange rates. null when this flow's currency has no published rate.
+   */
+  monthly_amount_eur: number | null
   created_at: string
   updated_at: string
   bank_account_id: string | null
+  /**
+   * Read-only: the currency of the linked account, EUR when there is none.
+   * A flow is denominated by the account it hits, so it is never submitted —
+   * there is no field for it in CashflowCreate/Update.
+   */
+  currency: string
   /** false = excluded from the automatic bank balance sync */
   is_active: boolean
 }
 
+// Every total below is in euros, and null when a currency in play has no
+// published rate — same contract as BankSummaryResponse.total_balance.
 export interface CashflowCategoryResponse {
   category: string
-  total_amount: number
-  monthly_total: number
+  total_amount: number | null
+  monthly_total: number | null
   count: number
   items: CashflowResponse[]
 }
 
 export interface CashflowSummaryResponse {
   flow_type: FlowType
-  total_amount: number
-  monthly_total: number
+  total_amount: number | null
+  monthly_total: number | null
   categories: CashflowCategoryResponse[]
 }
 
 export interface CashflowBalanceResponse {
-  total_inflows: number
-  monthly_inflows: number
-  total_outflows: number
-  monthly_outflows: number
-  net_balance: number
-  monthly_balance: number
+  total_inflows: number | null
+  monthly_inflows: number | null
+  total_outflows: number | null
+  monthly_outflows: number | null
+  net_balance: number | null
+  monthly_balance: number | null
   savings_rate: number | null
   inflows: CashflowSummaryResponse
   outflows: CashflowSummaryResponse
