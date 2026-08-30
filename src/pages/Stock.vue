@@ -117,14 +117,28 @@ const depositForm = reactive<EurDepositCreate>({
 })
 
 /** Sorted bank accounts: CHECKING first, then others */
+/**
+ * The bank accounts a euro deposit can be deducted from — euro ones only.
+ *
+ * The deduction writes `balance - amount` back to the account, and the deposit
+ * is in euros while the balance is in the account's own currency. Converting
+ * here would put a rate the app cannot vouch for into a stored balance, so the
+ * account is left out instead and adjusted by hand. See docs/currencies.md in
+ * the API.
+ */
 const sortedBankAccounts = computed(() => {
-  const accounts = bank.summary?.accounts ?? []
+  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR')
   return [...accounts].sort((a, b) => {
     if (a.account_type === 'CHECKING') return -1
     if (b.account_type === 'CHECKING') return 1
     return 0
   })
 })
+
+/** Accounts exist, but none in euros — a different thing from having none. */
+const hasOnlyForeignBankAccounts = computed(
+  () => !sortedBankAccounts.value.length && (bank.summary?.accounts?.length ?? 0) > 0,
+)
 
 // ── Unified asset search ─────────────────────────────────────
 interface AssetOption {
@@ -889,7 +903,7 @@ async function handleSubmitDeposit(): Promise<void> {
     if (bankAcc && Number(bankAcc.balance) < grossAmount) {
       const ok = await confirmDialog({
         title: 'Solde insuffisant',
-        message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance)}) est insuffisant. Continuer quand même ?`,
+        message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance, bankAcc.currency)}) est insuffisant. Continuer quand même ?`,
         confirmLabel: 'Continuer',
         variant: 'primary',
       })
@@ -2115,13 +2129,15 @@ onMounted(async () => {
                 :key="acc.id"
                 :value="acc.id"
               >
-                {{ acc.name }} — {{ formatCurrency(acc.balance) }}
+                {{ acc.name }} — {{ formatCurrency(acc.balance, acc.currency) }}
               </option>
             </select>
           </div>
 
           <p v-if="deductFromBank && !sortedBankAccounts.length" class="text-xs text-text-muted dark:text-text-dark-muted">
-            Aucun compte bancaire configuré.
+            {{ hasOnlyForeignBankAccounts
+              ? 'Aucun compte en euros : la déduction automatique n’est pas possible depuis un compte en devise étrangère.'
+              : 'Aucun compte bancaire configuré.' }}
           </p>
         </div>
       </form>
