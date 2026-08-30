@@ -396,7 +396,6 @@ async function handleSubmit(): Promise<void> {
     showFormModal.value = true
     return
   }
-  await cashflow.fetchBalance()
 }
 
 async function handleDelete(id: string): Promise<void> {
@@ -406,11 +405,10 @@ async function handleDelete(id: string): Promise<void> {
     deleteConfirmId.value = id
     return
   }
-  await cashflow.fetchBalance()
 }
 
 onMounted(async () => {
-  await Promise.all([cashflow.fetchAll(), cashflow.fetchBalance(), bank.fetchAccounts()])
+  await Promise.all([cashflow.fetchAll(), bank.fetchAccounts()])
   hasFetchedOnce.value = true
 })
 </script>
