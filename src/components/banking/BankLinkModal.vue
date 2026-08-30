@@ -256,10 +256,8 @@ function requestClose(): void {
 }
 
 /**
- * Confirmed inline rather than through `confirmDialog`: that dialog is mounted in
- * App.vue, so its teleported node sits earlier in <body> than this modal's and
- * would paint underneath it at the shared z-50 — and its promise would still be
- * pending if the user dismissed this modal meanwhile.
+ * Confirmed inline rather than through `confirmDialog`: that dialog's promise
+ * would still be pending if the user dismissed this modal meanwhile.
  */
 const isConfirmingAbandon = ref(false)
 
