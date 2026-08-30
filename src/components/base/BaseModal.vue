@@ -3,6 +3,11 @@ import { X } from 'lucide-vue-next'
 
 import { nextTick, onUnmounted, ref, useId, watch } from 'vue'
 import { lockScroll, unlockScroll } from '@/services/scrollLock'
+import {
+  BASE_MODAL_Z_INDEX,
+  acquireModalZIndex,
+  releaseModalZIndex,
+} from '@/services/modalStack'
 
 interface Props {
   open: boolean
@@ -29,7 +34,9 @@ const panelRef = ref<HTMLElement | null>(null)
 
 /** Element focused before the modal opened — restored on close. */
 let previouslyFocused: HTMLElement | null = null
-let isLocked = false
+/** Whether this instance currently holds the shared scroll lock and a z-index. */
+let hasAcquired = false
+const zIndex = ref(BASE_MODAL_Z_INDEX)
 
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -69,20 +76,23 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-// Lock body scroll while the modal is open (ref-counted, shared with sidebar)
+// While open, hold the body scroll lock (ref-counted, shared with the sidebar)
+// and a stacking slot, so a modal opened from another paints above it.
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen && !isLocked) {
+    if (isOpen && !hasAcquired) {
       lockScroll()
-      isLocked = true
+      zIndex.value = acquireModalZIndex()
+      hasAcquired = true
       previouslyFocused = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null
       nextTick(() => focusInitialElement())
-    } else if (!isOpen && isLocked) {
+    } else if (!isOpen && hasAcquired) {
       unlockScroll()
-      isLocked = false
+      releaseModalZIndex()
+      hasAcquired = false
       previouslyFocused?.focus()
       previouslyFocused = null
     }
@@ -90,11 +100,12 @@ watch(
   { immediate: true },
 )
 
-// If the component unmounts while open, release the lock.
+// If the component unmounts while open, release what it holds.
 onUnmounted(() => {
-  if (isLocked) {
+  if (hasAcquired) {
     unlockScroll()
-    isLocked = false
+    releaseModalZIndex()
+    hasAcquired = false
   }
 })
 
@@ -115,7 +126,8 @@ function onBackdropClick(): void {
     >
       <div
         v-if="props.open"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 flex items-center justify-center p-4"
+        :style="{ zIndex }"
         @keydown="onKeydown"
       >
         <!-- Backdrop -->
