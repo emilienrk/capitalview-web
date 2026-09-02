@@ -14,6 +14,7 @@ import type {
   BankAccountLinkRequest,
   BankAccountLinkResult,
   BankAccountSyncResult,
+  BankAccountUnlinkResult,
   BankAuthorizeResponse,
   BankExportImportResponse,
   BankSessionAccount,
@@ -267,6 +268,26 @@ export const useBankStore = defineStore('bank', () => {
     )
   }
 
+  /**
+   * Detach one account, leaving the authorization live for the others.
+   *
+   * Whatever the detached account had shadowed through cross-account
+   * deduplication is unreachable until its counterpart is re-seeded, which the
+   * API schedules on its own — hence the accounts refresh here.
+   */
+  async function unlinkAccount(
+    bankAccountUuid: string,
+    deleteTransactions: boolean,
+  ): Promise<BankAccountUnlinkResult> {
+    const result = await apiClient.delete<BankAccountUnlinkResult>(
+      `/banking/accounts/${bankAccountUuid}/link?delete_transactions=${deleteTransactions}`,
+    )
+    delete syncResultByAccount.value[bankAccountUuid]
+    await fetchAccounts()
+    invalidateHistoryCache()
+    return result
+  }
+
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('bank:history:account:')
@@ -307,6 +328,7 @@ export const useBankStore = defineStore('bank', () => {
     authorizeBank,
     fetchSessionAccounts,
     linkSessionAccount,
+    unlinkAccount,
     invalidateHistoryCache,
     reset,
   }
