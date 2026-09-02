@@ -85,3 +85,46 @@ describe('useBankStore — hasStaleSync', () => {
     expect(store.hasStaleSync).toBe(true)
   })
 })
+
+describe('useBankStore — syncBanking', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('keeps each account outcome: the API answers 200 even when every one failed', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.post).mockResolvedValue({
+      synced: 0,
+      results: [
+        { bank_account_uuid: 'acc-1', status: 'error', detail: 'pas de solde comptable' },
+        { bank_account_uuid: 'acc-2', status: 'skipped_daily_cap', detail: null },
+      ],
+    })
+    vi.mocked(apiClient.get).mockResolvedValue({ total_balance: 0, accounts: [] })
+
+    const store = useBankStore()
+    // A failing sync is still a successful call: the failure is in the payload,
+    // and reporting it as a network error would hide which account it concerns.
+    expect(await store.syncBanking()).toBe(true)
+    expect(store.syncResultByAccount['acc-1'].detail).toBe('pas de solde comptable')
+    expect(store.syncResultByAccount['acc-2'].status).toBe('skipped_daily_cap')
+  })
+
+  it('drops the previous run rather than leaving a stale failure on screen', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue({ total_balance: 0, accounts: [] })
+
+    const store = useBankStore()
+    vi.mocked(apiClient.post).mockResolvedValue({
+      synced: 0,
+      results: [{ bank_account_uuid: 'acc-1', status: 'error', detail: 'boom' }],
+    })
+    await store.syncBanking()
+
+    vi.mocked(apiClient.post).mockResolvedValue({ synced: 1, results: [] })
+    await store.syncBanking()
+
+    expect(store.syncResultByAccount).toEqual({})
+  })
+})
