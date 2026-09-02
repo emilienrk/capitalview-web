@@ -13,9 +13,11 @@ import type {
   BankAccountResponse,
   BankAccountLinkRequest,
   BankAccountLinkResult,
+  BankAccountSyncResult,
   BankAuthorizeResponse,
   BankExportImportResponse,
   BankSessionAccount,
+  BankSyncResponse,
   BankSummaryResponse,
   BankAccountCreate,
   BankAccountUpdate,
@@ -36,6 +38,17 @@ export const useBankStore = defineStore('bank', () => {
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
   const historyCacheKey = 'bank:history:global'
+
+  /**
+   * The last synchronisation's outcome per CapitalView account uuid.
+   *
+   * `POST /banking/sync` is a 200 whatever happened to each account, so a lost
+   * consent or a bank that publishes no usable balance used to be a silent
+   * no-op: the page redrew unchanged and said nothing. Kept until the next
+   * sync, and only ever populated by one — an account absent from this map has
+   * not been attempted in this sitting, which is not the same as "it worked".
+   */
+  const syncResultByAccount = ref<Record<string, BankAccountSyncResult>>({})
 
   const linkedAccounts = computed(() =>
     (summary.value?.accounts ?? []).filter((account) => account.is_linked),
@@ -200,7 +213,10 @@ export const useBankStore = defineStore('bank', () => {
     isSyncing.value = true
     error.value = null
     try {
-      await apiClient.post<void>('/banking/sync')
+      const response = await apiClient.post<BankSyncResponse>('/banking/sync')
+      syncResultByAccount.value = Object.fromEntries(
+        (response?.results ?? []).map((result) => [result.bank_account_uuid, result]),
+      )
       await fetchAccounts()
       invalidateHistoryCache()
       return true
@@ -276,6 +292,7 @@ export const useBankStore = defineStore('bank', () => {
     error,
     isHistoryCacheValid,
     linkedAccounts,
+    syncResultByAccount,
     hasStaleSync,
     fetchAccounts,
     fetchAccount,

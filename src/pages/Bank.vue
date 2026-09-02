@@ -182,6 +182,20 @@ const openBankingEnabled = computed(
   () => settingsStore.settings?.open_banking_enabled ?? false,
 )
 
+/**
+ * Why this account got nothing out of the last sync, or null when it did.
+ *
+ * `POST /banking/sync` answers 200 whatever happened to each account, so a
+ * failure has no other symptom than a balance that does not move — the very
+ * thing an unread failure is indistinguishable from. `skipped_daily_cap` is
+ * deliberately not one: it means the account is already up to date today.
+ */
+function syncFailure(accountId: string): string | null {
+  const result = bank.syncResultByAccount[accountId]
+  if (!result || (result.status !== 'error' && result.status !== 'reconnect_required')) return null
+  return result.detail ?? 'La synchronisation a échoué.'
+}
+
 async function syncNow(): Promise<void> {
   if (await bank.syncBanking()) await loadChartHistories(true)
 }
@@ -341,6 +355,29 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             {{ maskValue(formatCurrency(account.balance, account.currency)) }}
           </p>
         </div>
+        <!-- The sync's own refusal, in the same place as the reconciliation gap:
+             both explain the balance shown right above them. -->
+        <div
+          v-if="syncFailure(account.id)"
+          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-danger/10 border border-danger/20 text-danger text-xs"
+        >
+          <TriangleAlert class="w-4 h-4 shrink-0" />
+          <span>Synchronisation impossible : {{ syncFailure(account.id) }}</span>
+        </div>
+
+        <!--
+          Ruling R19: a card account's movements are deduplicated onto the current
+          account it debits, so no curve is ever drawn for it — by design, not by
+          failure. Said permanently rather than only after a sync: a balance with
+          no history is exactly what a broken connection looks like.
+        -->
+        <p
+          v-else-if="account.reconciliation_status === 'not_reconcilable'"
+          class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
+        >
+          Courbe non tracée : les mouvements de ce compte carte sont rattachés au compte courant.
+        </p>
+
         <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
         <!-- Ruling R18: display alert ONLY when reconciliation_status === 'gap' and reconciliation_gap != null -->
         <div

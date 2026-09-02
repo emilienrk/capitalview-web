@@ -244,6 +244,33 @@ export interface BankSessionAccount {
   bank_account_uuid: string | null
 }
 
+/**
+ * One account's outcome in an Enable Banking synchronisation.
+ *
+ * `POST /banking/sync` answers 200 even when every account failed — the branch
+ * each one took is here and nowhere else, so this payload has to be read.
+ * `skipped_daily_cap` is a no-op, never a failure.
+ */
+export interface BankAccountSyncResult {
+  bank_account_uuid: string
+  status: 'synced' | 'skipped_daily_cap' | 'reconnect_required' | 'error'
+  inserted: number
+  updated: number
+  skipped: number
+  malformed: number
+  removed: number
+  snapshots_written: number
+  reconciliation_gap: string | null
+  reconciliation_status: 'reconciled' | 'gap' | 'not_reconcilable' | null
+  card_marker_missing: boolean
+  detail: string | null
+}
+
+export interface BankSyncResponse {
+  synced: number
+  results: BankAccountSyncResult[]
+}
+
 /** One account's outcome in an Enable Banking export import. */
 export interface BankExportImportResult {
   bank_account_uuid: string
