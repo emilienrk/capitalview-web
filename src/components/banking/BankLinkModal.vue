@@ -453,8 +453,20 @@ const title = computed(() => {
           </div>
         </div>
 
-        <BaseAlert v-if="accountsState === 'loaded' && !sessionAccounts.length" variant="info" class="mt-2">
-          Aucun compte n'a été renvoyé par cette autorisation.
+        <!--
+          An authorization that succeeds and returns nothing has exactly one
+          documented cause on a restricted production application, and no other
+          symptom: Enable Banking strips every account that was not linked to
+          the application in the portal. Naming it here is the difference
+          between a dead end and a five-minute fix.
+        -->
+        <BaseAlert v-if="accountsState === 'loaded' && !sessionAccounts.length" variant="warning" class="mt-2">
+          <p class="font-medium">Aucun compte n'a été renvoyé par cette autorisation.</p>
+          <p class="mt-0.5 opacity-90">
+            En mode restreint, Enable Banking ne renvoie que les comptes liés à votre application
+            avec <em>« Activate by linking accounts »</em>. Liez-y le compte concerné dans le portail,
+            puis relancez la connexion depuis CapitalView.
+          </p>
         </BaseAlert>
         <BaseAlert v-if="error" variant="danger" class="mt-4">{{ error }}</BaseAlert>
       </template>

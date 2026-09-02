@@ -253,6 +253,20 @@ function resumeLinkModal(): void {
 }
 
 /**
+ * Reopens the attachment step of an authorization already granted.
+ *
+ * Until this existed the step was reachable only through the `?bank_session=`
+ * the callback puts in the URL: closing the modal or reloading the page
+ * stranded the discovered accounts, and the only way back was to disconnect and
+ * pay for a fresh strong authentication at the bank. The accounts payload is
+ * served from our own database, so reopening costs no Enable Banking call.
+ */
+function openSessionAccounts(uuid: string): void {
+  bankSessionUuid.value = uuid
+  showLinkModal.value = true
+}
+
+/**
  * Plain dismissal — the session stays in the URL so a reload, or the "Reprendre"
  * button, still finds it. Losing it would cost a new strong authentication.
  */
@@ -355,6 +369,10 @@ async function disconnect(session: BankSessionSummary): Promise<void> {
 async function onLinked(): Promise<void> {
   await bank.fetchAccounts()
   await settingsStore.fetchBankingSessions()
+  // Attaching an account triggers no synchronisation of its own: the sync fires
+  // from the accounts page, on mount. Staying here would leave a freshly
+  // attached account with no data and no explanation for it.
+  await router.push({ name: 'bank' })
 }
 
 /** The session is spent: everything is attached, or the user chose to drop it. */
@@ -513,7 +531,19 @@ onMounted(async () => {
             Aucun compte rattaché à cette autorisation.
           </p>
 
-          <div class="mt-3 flex justify-end">
+          <div class="mt-3 flex flex-wrap justify-end gap-2">
+            <!-- The consent is spent on the bank's side, not on ours: its
+                 accounts stay attachable for as long as it is valid. -->
+            <BaseButton
+              v-if="isEnabled && s.active"
+              size="sm"
+              variant="ghost"
+              :disabled="disconnectingUuid !== null"
+              @click="openSessionAccounts(s.uuid)"
+            >
+              <Link2 class="w-4 h-4 mr-1.5" />
+              Rattacher des comptes
+            </BaseButton>
             <BaseButton
               size="sm"
               variant="ghost"
@@ -750,7 +780,11 @@ onMounted(async () => {
         <li>Enregistrez une application de <strong>production</strong>, en service <strong>AIS</strong> et en type d'utilisateur <strong>personal</strong>.</li>
         <li>Déclarez l'URL de redirection ci-dessus dans les <em>redirect URLs</em> de l'application.</li>
         <li>Téléchargez la <strong>clé privée</strong> proposée à la création : elle n'est affichée qu'une seule fois.</li>
-        <li>Activez l'application avec <em>« Activate by linking accounts »</em> en y liant un de vos comptes bancaires — sans cela elle reste inactive et ne renvoie aucune donnée.</li>
+        <li>
+          Activez l'application avec <em>« Activate by linking accounts »</em> en y liant
+          <strong>chacun</strong> des comptes que vous voulez suivre — sans cela elle reste inactive,
+          et un compte non lié est retiré de la réponse même après une autorisation réussie.
+        </li>
         <li>Déposez ci-dessus l'identifiant d'application et le fichier de clé privée, puis lancez le diagnostic.</li>
         <li>Connectez votre banque depuis CapitalView et autorisez l'accès aux comptes que vous voulez suivre.</li>
       </ol>
@@ -762,6 +796,18 @@ onMounted(async () => {
           une <strong>seconde authentification auprès de votre banque</strong>, y compris lorsqu'il
           s'agit du même compte. Certaines banques françaises basculent alors vers leur application
           mobile : la liaison se termine dans l'onglet où vous êtes connecté à CapitalView.
+        </p>
+      </BaseAlert>
+
+      <!-- The vendor FAQ names this as the common misunderstanding, and its only
+           symptom is an authorization that succeeds and returns nothing. -->
+      <BaseAlert variant="warning" class="mt-3">
+        <p class="font-medium">Lier un seul compte n'ouvre pas les autres.</p>
+        <p class="mt-0.5 opacity-90">
+          Tant que votre application n'a pas signé de contrat avec Enable Banking, elle est en mode
+          restreint : les comptes que vous autorisez à l'étape 7 sont comparés à ceux liés à
+          l'étape 5, et <strong>tout compte non lié est retiré de la réponse</strong>. Si aucun ne
+          correspond, l'autorisation réussit et ne renvoie <strong>aucun compte</strong>.
         </p>
       </BaseAlert>
     </SettingsSection>
