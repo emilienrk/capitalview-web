@@ -5,8 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
-import { BaseAlert, BaseBadge, BaseButton, BaseInput, BaseSkeleton, BaseToggle } from '@/components'
-import type { BankExportImportResponse, BankSessionSummary } from '@/types'
+import { BaseAlert, BaseBadge, BaseButton, BaseInput, BaseModal, BaseSkeleton, BaseToggle } from '@/components'
+import type { BankExportImportResponse, BankSessionLinkedAccount, BankSessionSummary } from '@/types'
 import { useFormatters } from '@/composables/useFormatters'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
 import BankLinkModal from '@/components/banking/BankLinkModal.vue'
@@ -365,6 +365,50 @@ async function disconnect(session: BankSessionSummary): Promise<void> {
   }
 }
 
+// --- Detaching a single account ---
+/**
+ * Distinct from "Déconnecter", which drops the whole authorization and closes
+ * the consent at the bank. Detaching one account leaves the others connected,
+ * and the account itself keeps its balance and its history — only the link goes.
+ */
+const unlinkTarget = ref<BankSessionLinkedAccount | null>(null)
+const unlinkDeleteTransactions = ref(false)
+const isUnlinking = ref(false)
+const unlinkResult = ref<string | null>(null)
+
+function askUnlink(account: BankSessionLinkedAccount): void {
+  unlinkTarget.value = account
+  // Opt-in, not opt-out: deleting the imported movements is the destructive
+  // half of this dialog, and it is not what most detachments are for.
+  unlinkDeleteTransactions.value = false
+  disconnectError.value = null
+  unlinkResult.value = null
+}
+
+async function confirmUnlink(): Promise<void> {
+  const target = unlinkTarget.value
+  if (!target) return
+  isUnlinking.value = true
+  disconnectError.value = null
+  try {
+    const result = await bank.unlinkAccount(
+      target.bank_account_uuid,
+      unlinkDeleteTransactions.value,
+    )
+    await settingsStore.fetchBankingSessions()
+    unlinkTarget.value = null
+    // The re-seed is the part the user cannot see coming, so it is the part
+    // worth saying: their other account is about to refetch its whole window.
+    unlinkResult.value = result.reseeded_accounts.length
+      ? `${target.name} détaché. ${result.reseeded_accounts.length} compte(s) vont resynchroniser tout leur historique à la prochaine visite de Comptes Bancaires.`
+      : `${target.name} détaché.`
+  } catch (e) {
+    disconnectError.value = e instanceof Error ? e.message : 'Détachement impossible.'
+  } finally {
+    isUnlinking.value = false
+  }
+}
+
 /** A fresh attachment changes both the accounts page and this screen's list. */
 async function onLinked(): Promise<void> {
   await bank.fetchAccounts()
@@ -493,6 +537,7 @@ onMounted(async () => {
       </BaseAlert>
 
       <p v-if="disconnectSuccess" class="mb-3 text-xs text-success">{{ disconnectSuccess }}</p>
+      <p v-if="unlinkResult" class="mb-3 text-xs text-success">{{ unlinkResult }}</p>
       <p v-if="disconnectError" class="mb-3 text-xs text-danger">{{ disconnectError }}</p>
 
       <ul class="space-y-3">
@@ -522,8 +567,20 @@ onMounted(async () => {
               class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs"
             >
               <span class="text-text-body dark:text-text-dark-body">{{ a.name }}</span>
-              <span class="text-text-muted dark:text-text-dark-muted">
-                {{ a.last_synced_at ? `Synchronisé le ${formatDate(a.last_synced_at)}` : 'Jamais synchronisé' }}
+              <span class="flex items-baseline gap-2">
+                <span class="text-text-muted dark:text-text-dark-muted">
+                  {{ a.last_synced_at ? `Synchronisé le ${formatDate(a.last_synced_at)}` : 'Jamais synchronisé' }}
+                </span>
+                <!-- Detaching one account, as opposed to "Déconnecter" below,
+                     which drops the whole authorization and its consent. -->
+                <button
+                  type="button"
+                  class="text-text-muted dark:text-text-dark-muted hover:text-danger underline"
+                  :disabled="disconnectingUuid !== null"
+                  @click="askUnlink(a)"
+                >
+                  Détacher
+                </button>
               </span>
             </li>
           </ul>
@@ -822,6 +879,47 @@ onMounted(async () => {
     />
 
     </template>
+
+    <!-- Outside the `isEnabled` branch on purpose: the connections list renders
+         with the feature off too, and an attachment must stay undoable there. -->
+    <BaseModal
+      :open="unlinkTarget !== null"
+      title="Détacher ce compte"
+      size="sm"
+      @close="unlinkTarget = null"
+    >
+      <div class="space-y-3 text-sm text-text-body dark:text-text-dark-body">
+        <p>
+          <strong>{{ unlinkTarget?.name }}</strong> ne sera plus synchronisé et redeviendra un
+          compte que vous tenez à la main. Son solde et son historique ne bougent pas.
+        </p>
+        <p class="text-xs text-text-muted dark:text-text-dark-muted">
+          L'autorisation bancaire reste en place pour vos autres comptes.
+        </p>
+
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input
+            v-model="unlinkDeleteTransactions"
+            type="checkbox"
+            class="mt-0.5 shrink-0 accent-primary"
+          >
+          <span class="text-xs">
+            Supprimer aussi les opérations importées pour ce compte
+            <span class="block text-text-muted dark:text-text-dark-muted">
+              À cocher si ce compte doublonnait un autre : tant que ses opérations sont là, elles
+              masqueront à nouveau celles de son jumeau le jour où vous le rattachez.
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="unlinkTarget = null">Annuler</BaseButton>
+        <BaseButton variant="danger" :loading="isUnlinking" @click="confirmUnlink">
+          Détacher
+        </BaseButton>
+      </template>
+    </BaseModal>
 
   </div>
 </template>

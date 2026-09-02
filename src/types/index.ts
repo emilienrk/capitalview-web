@@ -266,6 +266,17 @@ export interface BankAccountSyncResult {
   detail: string | null
 }
 
+/** Response of DELETE /banking/accounts/{uuid}/link. */
+export interface BankAccountUnlinkResult {
+  bank_account_uuid: string
+  transactions_deleted: number
+  /**
+   * Accounts that were being deduplicated against the detached one and are now
+   * scheduled for a full re-seed — whatever it shadowed can finally be stored.
+   */
+  reseeded_accounts: string[]
+}
+
 export interface BankSyncResponse {
   synced: number
   results: BankAccountSyncResult[]
