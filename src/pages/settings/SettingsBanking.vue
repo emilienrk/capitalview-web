@@ -906,8 +906,8 @@ onMounted(async () => {
           <span class="text-xs">
             Supprimer aussi les opérations importées pour ce compte
             <span class="block text-text-muted dark:text-text-dark-muted">
-              À cocher si ce compte doublonnait un autre : tant que ses opérations sont là, elles
-              masqueront à nouveau celles de son jumeau le jour où vous le rattachez.
+              À cocher si ce compte doublonnait un autre : sinon ses opérations restent dans vos
+              données et dans votre export.
             </span>
           </span>
         </label>

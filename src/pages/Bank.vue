@@ -366,16 +366,17 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         </div>
 
         <!--
-          Ruling R19: a card account's movements are deduplicated onto the current
-          account it debits, so no curve is ever drawn for it — by design, not by
-          failure. Said permanently rather than only after a sync: a balance with
-          no history is exactly what a broken connection looks like.
+          Ruling R19: the bank publishes a single OTHR balance on a card account
+          and no accounting one. A curve is walked back *from* a balance, so
+          there is nothing to draw it from — by design, not by failure. Said
+          permanently rather than only after a sync: a balance with no history is
+          exactly what a broken connection looks like.
         -->
         <p
           v-else-if="account.reconciliation_status === 'not_reconcilable'"
           class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
         >
-          Courbe non tracée : les mouvements de ce compte carte sont rattachés au compte courant.
+          Courbe non tracée : votre banque ne publie pas de solde comptable pour ce compte carte.
         </p>
 
         <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->

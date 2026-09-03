@@ -262,7 +262,6 @@ export interface BankAccountSyncResult {
   snapshots_written: number
   reconciliation_gap: string | null
   reconciliation_status: 'reconciled' | 'gap' | 'not_reconcilable' | null
-  card_marker_missing: boolean
   detail: string | null
 }
 
