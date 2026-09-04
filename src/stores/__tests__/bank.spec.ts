@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useBankStore } from '@/stores/bank'
+import { clearCache } from '@/services/cache'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import type { BankAccountResponse } from '@/types'
 
@@ -126,5 +127,75 @@ describe('useBankStore — syncBanking', () => {
     await store.syncBanking()
 
     expect(store.syncResultByAccount).toEqual({})
+  })
+})
+
+describe('useBankStore — fetchObservedFlows', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    // The cache is a module singleton: without this, one test's entry answers
+    // the next one's first call and the request counts below mean nothing.
+    clearCache()
+    vi.clearAllMocks()
+  })
+
+  function someFlows(overrides = {}) {
+    return {
+      currency: 'EUR',
+      months: [],
+      inflow: 0, outflow: 0, net: 0,
+      monthly_inflow: 0, monthly_outflow: 0,
+      covered_months: 1, account_count: 1, account_names: ['Courant'],
+      internal_transfers_excluded: 0, internal_transfers_amount: 0,
+      pending_count: 0, pending_inflow: 0, pending_outflow: 0,
+      other_currencies: [],
+      ...overrides,
+    }
+  }
+
+  it('asks for the requested window', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(someFlows())
+
+    await useBankStore().fetchObservedFlows(24)
+
+    expect(apiClient.get).toHaveBeenCalledWith('/banking/flows?months=24')
+  })
+
+  it('serves the same window from cache rather than asking twice', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(someFlows())
+
+    const store = useBankStore()
+    await store.fetchObservedFlows(12)
+    await store.fetchObservedFlows(12)
+
+    expect(vi.mocked(apiClient.get)).toHaveBeenCalledTimes(1)
+  })
+
+  it('goes stale when the movements behind it change', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(someFlows())
+
+    const store = useBankStore()
+    await store.fetchObservedFlows(12)
+    // A sync or an import rewrites the very rows these figures are summed from.
+    store.invalidateHistoryCache()
+    await store.fetchObservedFlows(12)
+
+    expect(vi.mocked(apiClient.get)).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the transfers reported apart from the totals', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(
+      someFlows({ outflow: 30, internal_transfers_excluded: 1, internal_transfers_amount: 400 }),
+    )
+
+    const store = useBankStore()
+    await store.fetchObservedFlows(6)
+
+    expect(store.observedFlows?.outflow).toBe(30)
+    expect(store.observedFlows?.internal_transfers_amount).toBe(400)
   })
 })
