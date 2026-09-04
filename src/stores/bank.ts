@@ -16,6 +16,7 @@ import type {
   BankAccountSyncResult,
   BankAccountUnlinkResult,
   BankAuthorizeResponse,
+  BankFlowsResponse,
   BankExportImportResponse,
   BankSessionAccount,
   BankSyncResponse,
@@ -38,6 +39,10 @@ export const useBankStore = defineStore('bank', () => {
   const historyLoading = ref(false)
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
+
+  /** What actually moved, from GET /banking/flows. Null until first asked. */
+  const observedFlows = ref<BankFlowsResponse | null>(null)
+  const observedFlowsLoading = ref(false)
   const historyCacheKey = 'bank:history:global'
 
   /**
@@ -242,6 +247,29 @@ export const useBankStore = defineStore('bank', () => {
     return result
   }
 
+  /**
+   * Observed inflow and outflow, month by month, from the stored movements.
+   *
+   * Read-only and independent of the opt-in: it reaches no bank and touches no
+   * credential, so it answers even for someone who switched the feature back
+   * off — the history is still theirs.
+   */
+  async function fetchObservedFlows(months = 12, force = false): Promise<void> {
+    observedFlowsLoading.value = true
+    try {
+      observedFlows.value = await getOrFetchCached<BankFlowsResponse>(
+        `bank:flows:${months}`,
+        () => apiClient.get<BankFlowsResponse>(`/banking/flows?months=${months}`),
+        CACHE_TTL_MS,
+        force,
+      )
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des mouvements'
+    } finally {
+      observedFlowsLoading.value = false
+    }
+  }
+
   async function fetchAspsps(country: string): Promise<AspspSummary[]> {
     return apiClient.get<AspspSummary[]>(`/banking/aspsps?country=${encodeURIComponent(country)}`)
   }
@@ -291,6 +319,9 @@ export const useBankStore = defineStore('bank', () => {
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('bank:history:account:')
+    // The observed flows are built from the same movements a sync or an import
+    // just changed, so they go stale at exactly the same moments.
+    invalidateCachePrefix('bank:flows:')
   }
 
   function reset(): void {
@@ -298,6 +329,7 @@ export const useBankStore = defineStore('bank', () => {
     currentAccount.value = null
     history.value = []
     accountHistoryById.value = {}
+    observedFlows.value = null
     invalidateHistoryCache()
     error.value = null
   }
@@ -312,6 +344,8 @@ export const useBankStore = defineStore('bank', () => {
     isSyncing,
     error,
     isHistoryCacheValid,
+    observedFlows,
+    observedFlowsLoading,
     linkedAccounts,
     syncResultByAccount,
     hasStaleSync,
@@ -323,6 +357,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,
+    fetchObservedFlows,
     importBankingExport,
     fetchAspsps,
     authorizeBank,

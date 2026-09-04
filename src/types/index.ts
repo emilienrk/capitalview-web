@@ -276,6 +276,52 @@ export interface BankAccountUnlinkResult {
   reseeded_accounts: string[]
 }
 
+/** One calendar month of observed movement, in `BankFlowsResponse.currency`. */
+export interface BankFlowMonth {
+  period: string // YYYY-MM
+  inflow: number
+  outflow: number
+  net: number
+  inflow_count: number
+  outflow_count: number
+}
+
+/** Movements in a currency other than the headline one, reported apart. */
+export interface BankFlowCurrencyTotal {
+  currency: string
+  inflow: number
+  outflow: number
+}
+
+/**
+ * Response of GET /banking/flows — what actually moved on the accounts, as
+ * opposed to what the user declared in Flux de trésorerie.
+ *
+ * Transfers between two of the user's own accounts are out of the totals and
+ * reported on their own: money moved is neither income nor spending, but it is
+ * not hidden either.
+ */
+export interface BankFlowsResponse {
+  currency: string
+  months: BankFlowMonth[]
+  inflow: number
+  outflow: number
+  net: number
+  /** Averaged over the months carrying data, not over the requested window. */
+  monthly_inflow: number
+  monthly_outflow: number
+  covered_months: number
+  account_count: number
+  account_names: string[]
+  internal_transfers_excluded: number
+  internal_transfers_amount: number
+  /** Not yet booked, so deliberately outside the monthly figures. */
+  pending_count: number
+  pending_inflow: number
+  pending_outflow: number
+  other_currencies: BankFlowCurrencyTotal[]
+}
+
 export interface BankSyncResponse {
   synced: number
   results: BankAccountSyncResult[]
@@ -391,6 +437,53 @@ export interface CashflowResponse {
 
 // Every total below is in euros, and null when a currency in play has no
 // published rate — same contract as BankSummaryResponse.total_balance.
+/** One real movement behind a declaration, for the "3 derniers" line. */
+export interface RecentOccurrence {
+  day: string
+  amount: number
+}
+
+/** One group of real movements that could be a declaration's counterpart. */
+export interface MatchCandidate {
+  pattern: string
+  observed_amount: number
+  occurrences: number
+  last_seen: string
+}
+
+/** The verdicts of GET /cashflow/me/comparison, in the order they are decided. */
+export type ComparisonStatus =
+  | 'unmatched'
+  | 'missing'
+  | 'duplicated'
+  | 'drifted'
+  | 'on_track'
+
+/**
+ * What one declaration says, against what actually moved for it.
+ *
+ * Nothing is linked behind the user's back: until `match_pattern` is confirmed
+ * through PUT /cashflow/{id}/match, the status is `unmatched` and `candidates`
+ * holds what the app merely proposes.
+ */
+export interface CashflowComparison {
+  cashflow_id: string
+  name: string
+  flow_type: FlowType
+  frequency: Frequency
+  category: string
+  declared_amount: number
+  /** The declaration's own currency; observed amounts in another are ignored. */
+  currency: string
+  status: ComparisonStatus
+  match_pattern: string | null
+  observed_amount: number | null
+  last_seen: string | null
+  occurrences: number
+  recent: RecentOccurrence[]
+  candidates: MatchCandidate[]
+}
+
 export interface CashflowCategoryResponse {
   category: string
   total_amount: number | null

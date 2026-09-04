@@ -20,6 +20,7 @@ import {
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
+import ObservedFlowsCard from '@/components/bank/ObservedFlowsCard.vue'
 import type { BankAccountCreate, BankAccountType } from '@/types'
 
 const bank = useBankStore()
@@ -318,6 +319,12 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         description="L'historique s'affichera après avoir importé ou créé des entrées de solde"
       />
     </BaseCard>
+
+    <!--
+      What the balance curve above cannot say: where the money went. Placed
+      after it because the curve is the headline and this is the explanation.
+    -->
+    <ObservedFlowsCard v-if="bank.summary?.accounts?.length" />
 
     <!-- Account list -->
     <div v-if="bank.summary?.accounts?.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">

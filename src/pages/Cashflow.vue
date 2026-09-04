@@ -10,6 +10,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
+import CashflowComparisonCard from '@/components/cashflow/CashflowComparisonCard.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle,
@@ -554,6 +555,12 @@ onMounted(async () => {
         </div>
       </BaseCard>
     </div>
+
+    <!--
+      What the declarations above are worth against the accounts. Placed just
+      before the list itself: it is a reading of those rows, not a new subject.
+    -->
+    <CashflowComparisonCard />
 
     <!-- ── Tabs + Search ────────────────────────────────── -->
     <div v-if="cashflow.cashflows.length" class="mb-6">
