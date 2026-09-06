@@ -9,9 +9,11 @@
  * traded lines, which are cheap and available even when the analysis is not.
  */
 import { computed, onMounted } from 'vue'
-import { ArrowRight, Target, Map } from 'lucide-vue-next'
+import { ArrowRight, Target, Map, Eye } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import SettingsSection from './SettingsSection.vue'
+import { BaseToggle } from '@/components'
+import { ANALYSIS_SECTIONS, isSectionVisible } from '@/utils/analysisSections'
 import BenchmarkPicker from '@/components/analytics/BenchmarkPicker.vue'
 import InvestmentPlanForm from '@/components/analytics/InvestmentPlanForm.vue'
 import { useAnalysisStore } from '@/stores/analysis'
@@ -30,6 +32,20 @@ const held = computed(() => analysis.data?.concentration?.weights ?? [])
 const declaredPlan = computed(
   () => (settingsStore.settings?.investment_plan as Record<string, unknown> | null) ?? null,
 )
+
+const hiddenSections = computed(() => settingsStore.settings?.analysis_hidden_sections ?? [])
+
+function isVisible(key: string): boolean {
+  return isSectionVisible(hiddenSections.value, key)
+}
+
+/** Saved on each toggle, like the modules screen — no explicit submit. */
+async function setSectionVisible(key: string, visible: boolean): Promise<void> {
+  const hidden = new Set(hiddenSections.value)
+  if (visible) hidden.delete(key)
+  else hidden.add(key)
+  await settingsStore.updateSettings({ analysis_hidden_sections: [...hidden] })
+}
 
 /**
  * Drop the cached analysis so the page recomputes on its next visit. /analyse
@@ -65,6 +81,30 @@ onMounted(() => {
         :error="analysis.data?.plan?.error ?? null"
         @changed="onChanged"
       />
+    </SettingsSection>
+
+    <SettingsSection
+      :icon="Eye"
+      title="Blocs affichés"
+      description="Ce que la page Analyse montre. Tout est affiché par défaut ; ce que vous décochez disparaît de la page sans cesser d'être calculé."
+    >
+      <div class="space-y-5">
+        <div
+          v-for="section in ANALYSIS_SECTIONS"
+          :key="section.key"
+          class="flex items-center justify-between gap-4"
+        >
+          <div class="min-w-0">
+            <p class="font-medium text-text-main dark:text-text-dark-main">{{ section.label }}</p>
+            <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ section.description }}</p>
+          </div>
+          <BaseToggle
+            :model-value="isVisible(section.key)"
+            :aria-label="`Afficher « ${section.label} » sur la page Analyse`"
+            @update:model-value="setSectionVisible(section.key, $event)"
+          />
+        </div>
+      </div>
     </SettingsSection>
 
     <RouterLink
