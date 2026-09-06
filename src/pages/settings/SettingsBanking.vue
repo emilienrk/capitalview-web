@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
-import { BaseAlert, BaseBadge, BaseButton, BaseInput, BaseModal, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseAlert, BaseBadge, BaseButton, BaseCollapsible, BaseInput, BaseModal, BaseSkeleton, BaseToggle } from '@/components'
 import type { BankExportImportResponse, BankSessionLinkedAccount, BankSessionSummary } from '@/types'
 import { useFormatters } from '@/composables/useFormatters'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
@@ -88,7 +88,7 @@ const diagnosis = computed<Diagnosis | null>(() => {
     return {
       variant: 'warning',
       title: 'URL de redirection non déclarée.',
-      detail: 'Ajoutez l\'URL ci-dessous aux « redirect URLs » de votre application, à l\'identique et sans paramètre de requête.',
+      detail: 'Ajoutez l\'URL ci-dessus aux « redirect URLs » de votre application, à l\'identique et sans paramètre de requête.',
     }
   }
   return {
@@ -621,8 +621,8 @@ onMounted(async () => {
     <!-- Credentials -->
     <SettingsSection
       :icon="KeyRound"
-      title="Identifiants Enable Banking"
-      subtitle="Votre clé privée est chiffrée de bout en bout avec votre Master Key avant d'être stockée, et n'est jamais réaffichée."
+      title="Application Enable Banking"
+      subtitle="Les trois valeurs à faire correspondre avec votre application dans le portail. Votre clé privée est chiffrée avec votre Master Key avant stockage, et n'est jamais réaffichée."
     >
       <template #header-action>
         <span
@@ -676,6 +676,26 @@ onMounted(async () => {
           </label>
         </div>
 
+        <div class="space-y-1.5">
+          <p class="text-sm font-medium text-text-main dark:text-text-dark-main">
+            URL de redirection à déclarer
+          </p>
+          <div class="flex items-center gap-2">
+            <code
+              class="flex-1 min-w-0 px-3 py-2 rounded-input bg-surface-alt dark:bg-surface-dark-alt border border-surface-border dark:border-surface-dark-border text-sm font-mono text-text-main dark:text-text-dark-main overflow-x-auto whitespace-nowrap select-all"
+            >{{ callbackUrl || '—' }}</code>
+            <BaseButton variant="outline" size="sm" :disabled="!callbackUrl" @click="copyCallbackUrl">
+              <Check v-if="callbackCopied" class="w-4 h-4 mr-1.5" />
+              <Copy v-else class="w-4 h-4 mr-1.5" />
+              {{ callbackCopied ? 'Copié' : 'Copier' }}
+            </BaseButton>
+          </div>
+          <p class="text-xs text-text-muted dark:text-text-dark-muted">
+            À copier telle quelle dans les « redirect URLs » de l'application. Le portail refuse
+            toute URL comportant un paramètre de requête.
+          </p>
+        </div>
+
         <p v-if="success" class="text-xs text-success">{{ success }}</p>
         <p v-if="error" class="text-xs text-danger">{{ error }}</p>
 
@@ -694,29 +714,11 @@ onMounted(async () => {
       </div>
     </SettingsSection>
 
-    <!-- Callback URL to declare in the portal -->
-    <SettingsSection
-      :icon="Link2"
-      title="URL de redirection à déclarer"
-      subtitle="À copier telle quelle dans les « redirect URLs » de votre application. Le portail refuse toute URL comportant un paramètre de requête."
-    >
-      <div class="flex items-center gap-2">
-        <code
-          class="flex-1 min-w-0 px-3 py-2 rounded-input bg-surface-alt dark:bg-surface-dark-alt border border-surface-border dark:border-surface-dark-border text-sm font-mono text-text-main dark:text-text-dark-main overflow-x-auto whitespace-nowrap select-all"
-        >{{ callbackUrl || '—' }}</code>
-        <BaseButton variant="outline" size="sm" :disabled="!callbackUrl" @click="copyCallbackUrl">
-          <Check v-if="callbackCopied" class="w-4 h-4 mr-1.5" />
-          <Copy v-else class="w-4 h-4 mr-1.5" />
-          {{ callbackCopied ? 'Copié' : 'Copier' }}
-        </BaseButton>
-      </div>
-    </SettingsSection>
-
-    <!-- Diagnostic -->
+    <!-- The action, its diagnosis, and the guide that unblocks it -->
     <SettingsSection
       :icon="Stethoscope"
-      title="Diagnostic"
-      subtitle="Vérifie en un appel que la clé est valide, que l'application est active et que l'URL de redirection est déclarée."
+      title="Connecter une banque"
+      subtitle="Le diagnostic vérifie en un appel que la clé est valide, que l'application est active et que l'URL de redirection est déclarée."
     >
       <template #header-action>
         <BaseButton size="sm" variant="outline" :loading="isChecking" @click="runCheck">
@@ -724,35 +726,82 @@ onMounted(async () => {
         </BaseButton>
       </template>
 
-      <BaseSkeleton v-if="isLoading" variant="rect" height="4rem" />
-      <BaseAlert v-else-if="diagnosis" :variant="diagnosis.variant">
-        <p class="font-medium">{{ diagnosis.title }}</p>
-        <p class="mt-0.5 opacity-90">{{ diagnosis.detail }}</p>
-      </BaseAlert>
-
-      <BaseAlert v-if="isSandbox" variant="warning" class="mt-4">
-        <p class="font-medium">Application bac à sable.</p>
-        <p class="mt-0.5 opacity-90">
-          Seules les banques simulées d'Enable Banking sont accessibles, et les montants
-          synchronisés sont fictifs. Pour connecter une vraie banque, enregistrez une
-          application en environnement « Production ».
-        </p>
-      </BaseAlert>
-
-      <BaseAlert v-if="bankSessionUuid && !showLinkModal" variant="info" class="mt-4">
-        <p class="font-medium">Une autorisation bancaire attend son rattachement.</p>
-        <p class="mt-0.5 opacity-90">
-          Reprenez-la maintenant : une fois abandonnée, revenir sur ces comptes demandera une
-          nouvelle authentification auprès de votre banque.
-        </p>
-        <BaseButton size="sm" class="mt-2" @click="resumeLinkModal">Reprendre</BaseButton>
-      </BaseAlert>
-
-      <div v-if="isReady" class="mt-4">
-        <BaseButton @click="openLinkModal">
+      <div class="space-y-4">
+        <BaseButton v-if="isReady" @click="openLinkModal">
           <Landmark class="w-4 h-4 mr-1.5" />
           Connecter une banque
         </BaseButton>
+
+        <BaseAlert v-if="bankSessionUuid && !showLinkModal" variant="info">
+          <p class="font-medium">Une autorisation bancaire attend son rattachement.</p>
+          <p class="mt-0.5 opacity-90">
+            Reprenez-la maintenant : une fois abandonnée, revenir sur ces comptes demandera une
+            nouvelle authentification auprès de votre banque.
+          </p>
+          <BaseButton size="sm" class="mt-2" @click="resumeLinkModal">Reprendre</BaseButton>
+        </BaseAlert>
+
+        <BaseSkeleton v-if="isLoading" variant="rect" height="4rem" />
+        <BaseAlert v-else-if="diagnosis" :variant="diagnosis.variant">
+          <p class="font-medium">{{ diagnosis.title }}</p>
+          <p class="mt-0.5 opacity-90">{{ diagnosis.detail }}</p>
+        </BaseAlert>
+
+        <BaseAlert v-if="isSandbox" variant="warning">
+          <p class="font-medium">Application bac à sable.</p>
+          <p class="mt-0.5 opacity-90">
+            Seules les banques simulées d'Enable Banking sont accessibles, et les montants
+            synchronisés sont fictifs. Pour connecter une vraie banque, enregistrez une
+            application en environnement « Production ».
+          </p>
+        </BaseAlert>
+
+        <!-- Folded once the setup is done, open while it is what's blocking. -->
+        <BaseCollapsible
+          :icon="ListOrdered"
+          title="Comment connecter votre banque"
+          subtitle="Enable Banking n'expose gratuitement que les comptes de son propre titulaire : l'application doit être la vôtre."
+          :default-open="!isReady"
+        >
+          <ol class="space-y-3 text-sm text-text-body dark:text-text-dark-body list-decimal list-outside pl-5 marker:text-text-muted marker:font-semibold">
+            <li>
+              Créez un compte sur le
+              <a href="https://enablebanking.com/cp/" target="_blank" rel="noopener" class="text-primary hover:underline">portail Enable Banking</a>.
+            </li>
+            <li>Enregistrez une application de <strong>production</strong>, en service <strong>AIS</strong> et en type d'utilisateur <strong>personal</strong>.</li>
+            <li>Déclarez l'URL de redirection ci-dessus dans les <em>redirect URLs</em> de l'application.</li>
+            <li>Téléchargez la <strong>clé privée</strong> proposée à la création : elle n'est affichée qu'une seule fois.</li>
+            <li>
+              Activez l'application avec <em>« Activate by linking accounts »</em> en y liant
+              <strong>chacun</strong> des comptes que vous voulez suivre — sans cela elle reste inactive,
+              et un compte non lié est retiré de la réponse même après une autorisation réussie.
+            </li>
+            <li>Déposez ci-dessus l'identifiant d'application et le fichier de clé privée, puis lancez le diagnostic.</li>
+            <li>Connectez votre banque depuis CapitalView et autorisez l'accès aux comptes que vous voulez suivre.</li>
+          </ol>
+
+          <BaseAlert variant="warning" class="mt-4">
+            <p class="font-medium">L'étape 5 n'autorise pas l'accès à vos données.</p>
+            <p class="mt-0.5 opacity-90">
+              Lier un compte au portail ne fait qu'activer votre application. L'étape 7 vous demandera
+              une <strong>seconde authentification auprès de votre banque</strong>, y compris lorsqu'il
+              s'agit du même compte. Certaines banques françaises basculent alors vers leur application
+              mobile : la liaison se termine dans l'onglet où vous êtes connecté à CapitalView.
+            </p>
+          </BaseAlert>
+
+          <!-- The vendor FAQ names this as the common misunderstanding, and its only
+               symptom is an authorization that succeeds and returns nothing. -->
+          <BaseAlert variant="warning" class="mt-3">
+            <p class="font-medium">Lier un seul compte n'ouvre pas les autres.</p>
+            <p class="mt-0.5 opacity-90">
+              Tant que votre application n'a pas signé de contrat avec Enable Banking, elle est en mode
+              restreint : les comptes que vous autorisez à l'étape 7 sont comparés à ceux liés à
+              l'étape 5, et <strong>tout compte non lié est retiré de la réponse</strong>. Si aucun ne
+              correspond, l'autorisation réussit et ne renvoie <strong>aucun compte</strong>.
+            </p>
+          </BaseAlert>
+        </BaseCollapsible>
       </div>
     </SettingsSection>
 
@@ -821,52 +870,6 @@ onMounted(async () => {
           </p>
         </BaseAlert>
       </div>
-    </SettingsSection>
-
-    <!-- The seven steps -->
-    <SettingsSection
-      :icon="ListOrdered"
-      title="Comment connecter votre banque"
-      subtitle="Enable Banking n'expose gratuitement que les comptes de son propre titulaire : l'application doit être la vôtre."
-    >
-      <ol class="space-y-3 text-sm text-text-body dark:text-text-dark-body list-decimal list-outside pl-5 marker:text-text-muted marker:font-semibold">
-        <li>
-          Créez un compte sur le
-          <a href="https://enablebanking.com/cp/" target="_blank" rel="noopener" class="text-primary hover:underline">portail Enable Banking</a>.
-        </li>
-        <li>Enregistrez une application de <strong>production</strong>, en service <strong>AIS</strong> et en type d'utilisateur <strong>personal</strong>.</li>
-        <li>Déclarez l'URL de redirection ci-dessus dans les <em>redirect URLs</em> de l'application.</li>
-        <li>Téléchargez la <strong>clé privée</strong> proposée à la création : elle n'est affichée qu'une seule fois.</li>
-        <li>
-          Activez l'application avec <em>« Activate by linking accounts »</em> en y liant
-          <strong>chacun</strong> des comptes que vous voulez suivre — sans cela elle reste inactive,
-          et un compte non lié est retiré de la réponse même après une autorisation réussie.
-        </li>
-        <li>Déposez ci-dessus l'identifiant d'application et le fichier de clé privée, puis lancez le diagnostic.</li>
-        <li>Connectez votre banque depuis CapitalView et autorisez l'accès aux comptes que vous voulez suivre.</li>
-      </ol>
-
-      <BaseAlert variant="warning" class="mt-4">
-        <p class="font-medium">L'étape 5 n'autorise pas l'accès à vos données.</p>
-        <p class="mt-0.5 opacity-90">
-          Lier un compte au portail ne fait qu'activer votre application. L'étape 7 vous demandera
-          une <strong>seconde authentification auprès de votre banque</strong>, y compris lorsqu'il
-          s'agit du même compte. Certaines banques françaises basculent alors vers leur application
-          mobile : la liaison se termine dans l'onglet où vous êtes connecté à CapitalView.
-        </p>
-      </BaseAlert>
-
-      <!-- The vendor FAQ names this as the common misunderstanding, and its only
-           symptom is an authorization that succeeds and returns nothing. -->
-      <BaseAlert variant="warning" class="mt-3">
-        <p class="font-medium">Lier un seul compte n'ouvre pas les autres.</p>
-        <p class="mt-0.5 opacity-90">
-          Tant que votre application n'a pas signé de contrat avec Enable Banking, elle est en mode
-          restreint : les comptes que vous autorisez à l'étape 7 sont comparés à ceux liés à
-          l'étape 5, et <strong>tout compte non lié est retiré de la réponse</strong>. Si aucun ne
-          correspond, l'autorisation réussit et ne renvoie <strong>aucun compte</strong>.
-        </p>
-      </BaseAlert>
     </SettingsSection>
 
     <BankLinkModal

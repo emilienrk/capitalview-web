@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { hasSlotContent } from '@/utils/slots'
+
 interface Props {
   title?: string
   subtitle?: string
@@ -35,8 +37,10 @@ withDefaults(defineProps<Props>(), {
       </slot>
     </div>
 
-    <!-- Card Body -->
-    <div :class="[padding ? 'p-4 sm:p-6' : '', bodyClass]">
+    <!-- Card Body. Skipped when the slot renders nothing, otherwise a card
+         whose body is all-false `v-if`s shows a bare padded strip under the
+         header divider. -->
+    <div v-if="hasSlotContent($slots.default)" :class="[padding ? 'p-4 sm:p-6' : '', bodyClass]">
       <slot />
     </div>
 
