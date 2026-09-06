@@ -22,3 +22,12 @@ p, span, h1, h2, h3, h4, h5, h6, li, td, th, .selectable,
 input, textarea {
   user-select: text;
 }
+/* Horizontal pill rows (chart ranges, mobile settings nav) scroll but must not
+   show a bar — the row itself is the affordance. */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
