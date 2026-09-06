@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Lock, User as UserIcon, Mail, KeyRound, ShieldCheck, LifeBuoy } from 'lucide-vue-next'
 import { ref, reactive, onMounted, computed } from 'vue'
-import { BaseButton, BaseInput, BaseAlert, BaseBadge } from '@/components'
+import { BaseButton, BaseInput, BaseAlert, BaseBadge, BaseHelpPopover } from '@/components'
 import SettingsSection from './SettingsSection.vue'
 import AgentAccessCard from '@/components/security/AgentAccessCard.vue'
 import DataExportCard from '@/components/security/DataExportCard.vue'
@@ -257,9 +257,11 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
             </p>
           </div>
           <div v-else>
-            <BaseAlert variant="warning" class="mb-4">
-              Attention : Le changement de nom d'utilisateur est définitif. Vous ne pourrez le modifier qu'une seule fois.
-            </BaseAlert>
+            <!-- Irreversible, so it stays on the page rather than behind a
+                 hint — but one line is enough to say so. -->
+            <p class="mb-3 text-sm text-warning">
+              Modifiable une seule fois : ce changement est définitif.
+            </p>
 
             <!-- Submit on the field's own row: the page is long, and a button
                  stacked under a single input costs a whole line for nothing. -->
@@ -291,10 +293,11 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
             <div class="flex items-center gap-2 mb-1">
               <Mail class="w-4 h-4 text-text-muted dark:text-text-dark-muted" />
               <p class="font-medium text-text-main dark:text-text-dark-main">Adresse email</p>
+              <BaseHelpPopover align="left">
+                Votre email sert à la connexion. Il ne fait pas partie des données chiffrées par
+                votre mot de passe — seules vos données financières le sont.
+              </BaseHelpPopover>
             </div>
-            <p class="text-sm text-text-muted dark:text-text-dark-muted mt-1 italic">
-              Note : Votre email sert à la connexion. Ces informations ne font pas partie des données chiffrées par votre mot de passe (seules vos données financières le sont).
-            </p>
           </div>
 
           <BaseAlert v-if="emailError" variant="danger">{{ emailError }}</BaseAlert>
@@ -327,12 +330,14 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
 
     <!-- ── Password change ─────────────────────────────── -->
     <SettingsSection :icon="KeyRound" title="Mot de passe">
+      <template #header-action>
+        <BaseHelpPopover>
+          Vos données restent lisibles après un changement de mot de passe. Toutes vos autres
+          sessions seront déconnectées.
+        </BaseHelpPopover>
+      </template>
 
       <div class="space-y-4">
-        <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Vos données restent lisibles après un changement de mot de passe. Toutes vos autres sessions seront déconnectées.
-        </p>
-
         <BaseAlert v-if="passwordError" variant="danger">{{ passwordError }}</BaseAlert>
         <BaseAlert v-if="passwordSuccess" variant="success">{{ passwordSuccess }}</BaseAlert>
 
@@ -387,19 +392,17 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
     </SettingsSection>
 
     <!-- ── Two-factor authentication ───────────────────── -->
-    <SettingsSection :icon="ShieldCheck" title="Double authentification (2FA)">
+    <SettingsSection
+      :icon="ShieldCheck"
+      title="Double authentification (2FA)"
+      subtitle="Un code d'application d'authentification demandé à chaque connexion."
+    >
+      <template #header-action>
+        <BaseBadge v-if="totpEnabled" variant="success">Activée</BaseBadge>
+        <BaseBadge v-else variant="secondary">Désactivée</BaseBadge>
+      </template>
 
       <div class="space-y-4">
-        <div class="flex items-center gap-2">
-          <BaseBadge v-if="totpEnabled" variant="success">Activée</BaseBadge>
-          <BaseBadge v-else variant="secondary">Désactivée</BaseBadge>
-        </div>
-
-        <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Ajoutez une couche de sécurité supplémentaire avec une application d'authentification
-          (Google Authenticator, Authy…). Un code sera demandé à chaque connexion.
-        </p>
-
         <div v-if="!totpEnabled" class="flex justify-end">
           <BaseButton size="sm" @click="showSetupModal = true">Activer la 2FA</BaseButton>
         </div>
@@ -416,16 +419,22 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
     </SettingsSection>
 
     <!-- ── Recovery key ────────────────────────────────── -->
-    <SettingsSection :icon="LifeBuoy" title="Clé de récupération">
+    <SettingsSection
+      :icon="LifeBuoy"
+      title="Clé de récupération"
+      subtitle="Votre seule porte de secours si vous oubliez votre mot de passe. Conservez-la hors ligne."
+    >
+      <template #header-action>
+        <BaseHelpPopover>
+          Sans email de réinitialisation, cette clé est ce qui préserve l'accès à vos données
+          chiffrées. Elle est à usage unique.
+        </BaseHelpPopover>
+      </template>
 
       <div class="space-y-4">
-        <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Sans email de réinitialisation, la clé de récupération est votre seule porte de secours si vous
-          oubliez votre mot de passe — elle préserve l'accès à vos données chiffrées. Générez-la et conservez-la hors ligne.
+        <p class="text-sm text-warning">
+          Générer une nouvelle clé invalide la précédente. Elle n'est affichée qu'une seule fois.
         </p>
-        <BaseAlert variant="info">
-          Générer une nouvelle clé invalide la précédente. La clé est affichée une seule fois.
-        </BaseAlert>
         <div class="flex justify-end">
           <BaseButton variant="outline" size="sm" @click="recoveryModal.open = true">
             Générer une clé de récupération

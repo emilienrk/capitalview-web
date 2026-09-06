@@ -12,10 +12,22 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useCanHover } from '@/composables/useMediaQuery'
 
-withDefaults(defineProps<{ label?: string; align?: 'left' | 'right' }>(), {
-  label: 'Détail',
-  align: 'left',
-})
+withDefaults(
+  defineProps<{
+    label?: string
+    align?: 'left' | 'right'
+    /** 'sm' fits a sentence; 'md' fits a list of definitions. */
+    width?: 'sm' | 'md'
+    /** Opens upward by default — below a heading there is nothing above it. */
+    placement?: 'top' | 'bottom'
+  }>(),
+  {
+    label: 'Détail',
+    align: 'left',
+    width: 'sm',
+    placement: 'top',
+  },
+)
 
 const canHover = useCanHover()
 const isOpen = ref(false)
@@ -85,8 +97,12 @@ onBeforeUnmount(() => {
       v-if="isOpen"
       role="tooltip"
       :class="[
-        'absolute bottom-full z-20 mb-1 w-56 rounded-lg border border-border bg-surface p-2 text-left text-xs font-normal leading-relaxed text-text-muted shadow-card dark:border-border-dark dark:bg-surface-dark dark:text-text-dark-muted',
+        'absolute z-20 rounded-lg border border-border bg-surface p-2 text-left text-xs font-normal leading-relaxed text-text-muted shadow-card dark:border-border-dark dark:bg-surface-dark dark:text-text-dark-muted',
+        placement === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1',
         align === 'right' ? 'right-0' : 'left-0',
+        // Never wider than the viewport: these open next to a title that can
+        // sit at either edge on a phone.
+        width === 'md' ? 'w-[min(22rem,calc(100vw-3rem))] p-3' : 'w-56',
       ]"
     >
       <slot />
