@@ -411,8 +411,7 @@ const title = computed(() => {
           class="mb-4"
         >
           Chacun de vos comptes CapitalView porte déjà un compte bancaire. Créez-en un autre pour
-          rattacher {{ unattachedCount }} compte(s) restant(s) — un compte carte et un compte
-          courant doivent rester séparés.
+          rattacher {{ unattachedCount }} compte(s) restant(s).
         </BaseAlert>
 
         <div class="space-y-3">
@@ -460,19 +459,6 @@ const title = computed(() => {
           the application in the portal. Naming it here is the difference
           between a dead end and a five-minute fix.
         -->
-        <!--
-          Emilien chose "hidden" over "greyed out" for card accounts, so this
-          says it once under the list rather than per row: a compte visible at
-          the bank and missing here would otherwise be a mystery.
-        -->
-        <p
-          v-if="accountsState === 'loaded'"
-          class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          Les comptes carte ne sont pas proposés : leurs opérations sont déjà celles du compte
-          qu'ils débitent, et leur solde n'est pas un solde de compte.
-        </p>
-
         <BaseAlert v-if="accountsState === 'loaded' && !sessionAccounts.length" variant="warning" class="mt-2">
           <p class="font-medium">Aucun compte n'a été renvoyé par cette autorisation.</p>
           <p class="mt-0.5 opacity-90">
