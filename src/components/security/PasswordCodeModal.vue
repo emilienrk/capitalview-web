@@ -67,6 +67,10 @@ function submit() {
       <p v-if="props.description" class="text-sm text-text-body dark:text-text-dark-body">
         {{ props.description }}
       </p>
+
+      <!-- What the action actually destroys belongs where it is confirmed,
+           not on the settings page the user only scrolls past. -->
+      <slot name="details" />
       <BaseInput
         v-model="password"
         type="password"
