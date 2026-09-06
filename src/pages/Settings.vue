@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Landmark, LayoutGrid, Lock, Microscope, User, Users, Sparkles } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
@@ -44,8 +44,21 @@ function resolveTab(value: unknown): string {
 // An unknown ?tab= must fall back, otherwise no branch below renders and the page is blank.
 const activeTab = ref<string>(resolveTab(route.query.tab))
 
+const mobileNav = ref<HTMLElement | null>(null)
+
+// The selected pill can sit off-screen in the scroller — on load with a ?tab=,
+// or after picking one at the far end of the row.
+function revealActivePill(behavior: ScrollBehavior = 'smooth'): void {
+  nextTick(() => {
+    mobileNav.value
+      ?.querySelector(`[data-tab="${activeTab.value}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior })
+  })
+}
+
 watch(activeTab, (tab) => {
   router.replace({ query: { ...route.query, tab } })
+  revealActivePill()
 })
 
 watch(() => route.query.tab, (tab) => {
@@ -59,6 +72,7 @@ function setTab(tabId: string): void {
 }
 
 onMounted(async () => {
+  revealActivePill('auto')
   await settingsStore.fetchSettings()
 })
 </script>
@@ -96,21 +110,26 @@ onMounted(async () => {
           </button>
         </nav>
 
-        <!-- Mobile: grouped card grid, no horizontal scroll -->
-        <nav class="lg:hidden grid grid-cols-3 sm:grid-cols-7 gap-1 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-card shadow-card p-1.5">
+        <!-- Mobile: one scrolling pill row — a stacked icon grid ate a third
+             of the viewport before any setting showed. -->
+        <nav
+          ref="mobileNav"
+          class="lg:hidden -mx-4 px-4 flex gap-1.5 overflow-x-auto hide-scrollbar snap-x"
+        >
           <button
             v-for="tab in tabs"
             :key="tab.id"
+            :data-tab="tab.id"
             @click="setTab(tab.id)"
             :class="[
-              'flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 rounded-primary text-[10px] font-medium leading-tight transition-colors',
+              'snap-start shrink-0 flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
               activeTab === tab.id
                 ? 'bg-primary text-primary-content'
-                : 'text-text-muted dark:text-text-dark-muted hover:bg-surface-active dark:hover:bg-surface-dark-hover hover:text-text-main dark:hover:text-text-dark-main',
+                : 'bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border text-text-muted dark:text-text-dark-muted',
             ]"
           >
-            <component :is="tab.icon" class="w-5 h-5 shrink-0" :stroke-width="1.75" />
-            <span class="w-full text-center truncate">{{ tab.label }}</span>
+            <component :is="tab.icon" class="w-4 h-4 shrink-0" :stroke-width="1.75" />
+            {{ tab.label }}
           </button>
         </nav>
       </aside>
