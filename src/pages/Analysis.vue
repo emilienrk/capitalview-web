@@ -18,6 +18,7 @@ import HoldingsSection from '@/components/analytics/sections/HoldingsSection.vue
 import PlanSection from '@/components/analytics/sections/PlanSection.vue'
 import MethodNotes from '@/components/analytics/sections/MethodNotes.vue'
 import { useSettingsStore } from '@/stores/settings'
+import { isSectionVisible } from '@/utils/analysisSections'
 
 const analysis = useAnalysisStore()
 const settingsStore = useSettingsStore()
@@ -34,6 +35,11 @@ const turnover = computed(() => analysis.data?.turnover ?? null)
 const fees = computed(() => analysis.data?.fees ?? null)
 const exits = computed(() => analysis.data?.exits ?? null)
 const plan = computed(() => analysis.data?.plan ?? null)
+
+/** Hiding a block is a display choice: the analysis is computed either way. */
+function shows(key: string): boolean {
+  return isSectionVisible(settingsStore.settings?.analysis_hidden_sections, key)
+}
 
 /**
  * Each block stands on its own data — the replay blocks need only transactions
@@ -119,9 +125,9 @@ onMounted(async () => {
       />
 
       <template v-else>
-        <VerdictBanner v-if="analysis.data?.verdict" :verdict="analysis.data.verdict" />
+        <VerdictBanner v-if="shows('verdict') && analysis.data?.verdict" :verdict="analysis.data.verdict" />
 
-        <BaseAlert v-if="planError" variant="warning" class="mb-6">
+        <BaseAlert v-if="planError && shows('plan')" variant="warning" class="mb-6">
           Ton plan cible n'est pas évalué : {{ planError }}
           <RouterLink
             :to="{ path: '/settings', query: { tab: 'analyse' } }"
@@ -132,6 +138,7 @@ onMounted(async () => {
         </BaseAlert>
 
         <BehaviourSection
+          v-if="shows('behaviour')"
           :regularity="regularity"
           :deposit-lag="depositLag"
           :conditioning="conditioning"
@@ -139,6 +146,7 @@ onMounted(async () => {
         />
 
         <CostSection
+          v-if="shows('cost')"
           :gap="gap"
           :bridge="bridge"
           :execution="execution"
@@ -146,16 +154,17 @@ onMounted(async () => {
         />
 
         <HoldingsSection
+          v-if="shows('holdings')"
           :concentration="concentration"
           :turnover="turnover"
           :is-dark="isDark"
         />
 
-        <FeesSection :fees="fees" :exits="exits" />
+        <FeesSection v-if="shows('fees')" :fees="fees" :exits="exits" />
 
-        <PlanSection :plan="plan" />
+        <PlanSection v-if="shows('plan')" :plan="plan" />
 
-        <MethodNotes :bridge="bridge" />
+        <MethodNotes v-if="shows('method')" :bridge="bridge" />
       </template>
     </template>
   </div>

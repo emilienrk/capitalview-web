@@ -1127,6 +1127,8 @@ export interface UserSettingsUpdate {
   benchmark_asset_key?: string | null
   /** Target plan for the analytics. An empty object clears the stored one. */
   investment_plan?: Record<string, unknown> | null
+  /** /analyse blocks to hide. An empty array shows everything again. */
+  analysis_hidden_sections?: string[]
 }
 
 export interface UserSettingsResponse {
@@ -1158,6 +1160,8 @@ export interface UserSettingsResponse {
   benchmark_asset_key: string | null
   /** null = no target plan declared */
   investment_plan: Record<string, unknown> | null
+  /** Blocks hidden on /analyse. Empty = everything is shown. */
+  analysis_hidden_sections: string[]
   created_at: string
   updated_at: string
 }
