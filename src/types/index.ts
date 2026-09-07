@@ -957,6 +957,18 @@ export interface BankImportTransactionPreview {
   is_duplicate: boolean
 }
 
+/** The balance curve a movements file describes, once anchored. */
+export interface BankImportCurvePreview {
+  start_date: string
+  end_date: string
+  /** Balance held before the first movement — what the whole curve hangs on. */
+  opening_balance: number
+  closing_balance: number
+  days: number
+  /** Set when the curve dips below zero: usually an anchor left too low. */
+  first_negative_date: string | null
+}
+
 /** Common preview envelope: exactly one category payload is set. */
 export interface ImportPreviewResponse {
   source_id: string
@@ -969,6 +981,7 @@ export interface ImportPreviewResponse {
   stock_rows: StockImportRowPreview[] | null
   bank_points: BankImportPointPreview[] | null
   bank_transactions: BankImportTransactionPreview[] | null
+  bank_curve: BankImportCurvePreview | null
 }
 
 export interface ImportConfirmRequest {
