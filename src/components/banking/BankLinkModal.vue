@@ -180,15 +180,20 @@ const capitalViewAccountOptions = computed(() =>
   (bank.summary?.accounts ?? []).map((a) => ({ value: a.id, label: a.name })),
 )
 
-/** CapitalView accounts already carrying one of the discovered accounts. */
-const takenAccountIds = computed(
-  () =>
-    new Set(
-      sessionAccounts.value
-        .filter((a) => a.linked && a.bank_account_uuid)
-        .map((a) => a.bank_account_uuid as string),
-    ),
-)
+/**
+ * CapitalView accounts already carrying a real bank account: the ones attached
+ * in this sitting, and the ones attached through any earlier authorization —
+ * `sessionAccounts` only knows about the former.
+ */
+const takenAccountIds = computed(() => {
+  const taken = new Set(
+    (bank.summary?.accounts ?? []).filter((a) => a.is_linked).map((a) => a.id),
+  )
+  for (const account of sessionAccounts.value) {
+    if (account.linked && account.bank_account_uuid) taken.add(account.bank_account_uuid)
+  }
+  return taken
+})
 
 /**
  * The attachment is one-to-one, and the API answers 409 on a second one. Offering
