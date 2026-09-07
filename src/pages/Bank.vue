@@ -276,10 +276,6 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
       {{ bank.error }}
     </BaseAlert>
 
-    <BaseAlert v-if="settingsStore.settings && !settingsStore.settings.bank_auto_sync_enabled" variant="info" class="mb-6">
-      Synchronisation automatique désactivée : les flux liés n'ajustent plus les soldes.
-    </BaseAlert>
-
     <!-- Total balance -->
     <div v-if="bank.summary" class="mb-6 p-4 rounded-card bg-primary/5 border border-primary/10">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">Solde total</p>

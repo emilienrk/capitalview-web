@@ -26,7 +26,7 @@ function syncFromStore(): void {
   const settings = settingsStore.settings
   if (!settings) return
   bankModuleEnabled.value = settings.bank_module_enabled ?? true
-  bankAutoSyncEnabled.value = settings.bank_auto_sync_enabled ?? true
+  bankAutoSyncEnabled.value = settings.bank_auto_sync_enabled ?? false
   cashflowModuleEnabled.value = settings.cashflow_module_enabled ?? true
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
   cryptoModuleEnabled.value = settings.crypto_module_enabled
