@@ -235,6 +235,24 @@ async function syncNow(): Promise<void> {
   if (await bank.syncBanking()) await loadChartHistories(true)
 }
 
+/** The account whose history is being re-fetched, if any. */
+const reseedingAccountId = ref<string | null>(null)
+
+/**
+ * Ask the bank for everything again on this account. The daily cap is lifted
+ * server-side for that one call, so the sync the store fires right after is the
+ * seeding pass itself rather than a no-op the user would have to wait a day for.
+ */
+async function reseedHistory(account: { id: string }): Promise<void> {
+  reseedingAccountId.value = account.id
+  try {
+    await bank.reseedHistory(account.id)
+    await loadChartHistories(true)
+  } finally {
+    reseedingAccountId.value = null
+  }
+}
+
 /**
  * Spec §D1: the synchronisation is fired after the page has rendered, never
  * before. The daily cap is re-checked server-side, so a redundant call is
@@ -440,6 +458,31 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap, account.currency)) }} :
             un mouvement manque ou est compté deux fois sur la dernière période.
           </span>
+        </div>
+
+        <!-- Syncing daily over a history the bank never sent reads as healthy on
+             every other signal — the curve is simply flat where nothing arrived.
+             Naming it is the difference between three weeks of confusion and one
+             click. -->
+        <div
+          v-if="account.is_linked && account.history_pending && openBankingEnabled"
+          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
+        >
+          <TriangleAlert class="w-4 h-4 shrink-0" />
+          <div class="min-w-0">
+            <p>
+              Historique incomplet : votre banque n'a pas encore renvoyé les opérations
+              antérieures au rattachement. La courbe est plate sur cette période.
+            </p>
+            <button
+              type="button"
+              class="mt-1 font-medium underline underline-offset-2 disabled:opacity-50"
+              :disabled="reseedingAccountId === account.id"
+              @click="reseedHistory(account)"
+            >
+              {{ reseedingAccountId === account.id ? 'Récupération…' : 'Récupérer l\'historique' }}
+            </button>
+          </div>
         </div>
 
         <div class="mt-4 flex items-center justify-between">

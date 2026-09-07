@@ -316,6 +316,20 @@ export const useBankStore = defineStore('bank', () => {
     return result
   }
 
+  /**
+   * Ask the bank for an account's whole history again on the next sync.
+   *
+   * Nothing is deleted; the seeding pass rewrites the window it can reach. For
+   * the account whose first sync came back empty and has been synchronising
+   * over a history it never received ever since.
+   */
+  async function reseedHistory(bankAccountUuid: string): Promise<void> {
+    await apiClient.post(`/banking/accounts/${bankAccountUuid}/reseed-history`, {})
+    await syncBanking()
+    await fetchAccounts()
+    invalidateHistoryCache()
+  }
+
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('bank:history:account:')
@@ -364,6 +378,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchSessionAccounts,
     linkSessionAccount,
     unlinkAccount,
+    reseedHistory,
     invalidateHistoryCache,
     reset,
   }

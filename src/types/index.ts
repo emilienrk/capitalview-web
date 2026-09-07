@@ -180,6 +180,9 @@ export interface BankAccountResponse {
   reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | null
   /** Consent state to surface, "à reconnecter" included. */
   link_status: string | null
+  /** True while the bank has never answered the long history fetch: the account
+   *  syncs, but over a history it does not have. */
+  history_pending: boolean
 }
 
 export interface BankSummaryResponse {
