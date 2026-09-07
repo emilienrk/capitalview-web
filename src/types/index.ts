@@ -913,7 +913,6 @@ export interface ImportOptions {
   date_format?: string
   type_mapping?: Record<string, string>
   /** Bank: "balance" (each row is a balance) or "delta" (each row is a movement). */
-  bank_mode?: 'balance' | 'delta'
   /** Bank delta mode: starting balance before the first movement. */
   initial_balance?: number | string
 }

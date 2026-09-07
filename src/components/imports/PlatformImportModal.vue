@@ -221,6 +221,9 @@ async function runPreview() {
     bankPoints.value = res.bank_points ? res.bank_points.map((p) => ({ ...p })) : []
     bankTransactions.value = res.bank_transactions ? res.bank_transactions.map((t) => ({ ...t })) : []
     bankCurve.value = res.bank_curve
+    // Show the anchor actually used — typed, or picked up from the account's
+    // own history so a monthly import continues the curve instead of restarting it.
+    if (res.bank_curve) openingBalance.value = String(res.bank_curve.opening_balance)
     step.value = 'review'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Erreur lors de l\'analyse du fichier'
