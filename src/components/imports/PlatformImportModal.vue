@@ -16,6 +16,7 @@ import type {
   StockImportRowPreview,
   BankImportPointPreview,
   BankImportTransactionPreview,
+  BankImportCurvePreview,
 } from '@/types'
 
 interface Props {
@@ -57,6 +58,10 @@ const bankPoints = ref<BankImportPointPreview[]>([])
 // A bank source writes one shape or the other, never both: a balance curve
 // (generic_bank) or real movements (generic_bank_transactions).
 const bankTransactions = ref<BankImportTransactionPreview[]>([])
+// The curve those movements describe. A statement carries no balance of its
+// own, so it hangs on an anchor the user can correct without leaving the review.
+const bankCurve = ref<BankImportCurvePreview | null>(null)
+const openingBalance = ref('')
 
 // The menu already asked which import this is; re-presenting the picker makes
 // the choice look unmade. Kept one click away for a wrong pick or a detection.
@@ -126,6 +131,8 @@ function reset() {
   stockRows.value = []
   bankPoints.value = []
   bankTransactions.value = []
+  bankCurve.value = null
+  openingBalance.value = ''
   detectedSourceId.value = ''
   sourcePicked.value = false
   skipDuplicates.value = true
@@ -213,12 +220,23 @@ async function runPreview() {
     stockRows.value = res.stock_rows ? res.stock_rows.map((r) => ({ ...r })) : []
     bankPoints.value = res.bank_points ? res.bank_points.map((p) => ({ ...p })) : []
     bankTransactions.value = res.bank_transactions ? res.bank_transactions.map((t) => ({ ...t })) : []
+    bankCurve.value = res.bank_curve
     step.value = 'review'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Erreur lors de l\'analyse du fichier'
   } finally {
     isLoading.value = false
   }
+}
+
+/** Re-read the file with the anchor the user just typed. */
+async function applyOpeningBalance(): Promise<void> {
+  const raw = openingBalance.value.trim().replace(',', '.')
+  const parsed = raw === '' ? 0 : Number(raw)
+  if (Number.isNaN(parsed)) return
+  if (parsed === (bankCurve.value?.opening_balance ?? 0)) return
+  options.value = { ...options.value, initial_balance: parsed }
+  await runPreview()
 }
 
 // ── Review helpers ───────────────────────────────────────────
@@ -509,8 +527,44 @@ function typeBadgeClass(t: string): string {
         </table>
       </div>
 
-      <!-- BANK — movements -->
-      <div v-else-if="bankTransactions.length" class="overflow-x-auto -mx-6 px-6">
+      <!-- BANK -->
+      <template v-else>
+      <!-- The curve the movements rebuild, and the anchor it hangs on -->
+      <div
+        v-if="bankTransactions.length && bankCurve"
+        class="mb-4 p-3 rounded-card border border-surface-border dark:border-surface-dark-border"
+      >
+        <div class="flex flex-wrap items-end gap-4">
+          <div class="min-w-0">
+            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main mb-1">
+              Solde avant la première opération
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="openingBalance"
+                type="text"
+                inputmode="decimal"
+                placeholder="0"
+                class="w-32 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                @keyup.enter="applyOpeningBalance"
+                @blur="applyOpeningBalance"
+              />
+              <span class="text-sm text-text-muted dark:text-text-dark-muted">€</span>
+            </div>
+          </div>
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Courbe reconstruite du {{ fmtDate(bankCurve.start_date) }} au
+            {{ fmtDate(bankCurve.end_date) }} ({{ bankCurve.days }} jours) —
+            solde final
+            <strong class="text-text-main dark:text-text-dark-main">
+              {{ Number(bankCurve.closing_balance).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} €
+            </strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Movements -->
+      <div v-if="bankTransactions.length" class="overflow-x-auto -mx-6 px-6">
         <table class="w-full text-sm border-collapse">
           <thead>
             <tr class="border-b border-surface-border dark:border-surface-dark-border text-left">
@@ -538,7 +592,7 @@ function typeBadgeClass(t: string): string {
         </table>
       </div>
 
-      <!-- BANK — balance curve -->
+      <!-- Balance curve -->
       <div v-else class="overflow-x-auto -mx-6 px-6">
         <table class="w-full text-sm border-collapse">
           <thead>
@@ -557,6 +611,7 @@ function typeBadgeClass(t: string): string {
           </tbody>
         </table>
       </div>
+      </template>
 
       <!-- Options -->
       <div class="mt-4 space-y-2">
@@ -571,8 +626,9 @@ function typeBadgeClass(t: string): string {
           <span class="text-text-body dark:text-text-dark-body">Écraser l'historique existant du compte</span>
         </label>
         <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">
-          Les opérations déjà connues sont reconnues et ignorées : réimporter le même relevé ne
-          crée pas de doublon.
+          La courbe du compte est reconstruite sur la période couverte par le fichier ; en dehors,
+          rien n'est touché. Les opérations déjà connues sont ignorées : réimporter le même relevé
+          ne crée pas de doublon.
         </p>
       </div>
     </template>

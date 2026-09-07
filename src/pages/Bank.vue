@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
 
 import { nextTick, onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCarousel } from '@/composables/useCarousel'
 import { useBankStore } from '@/stores/bank'
 import { BASE_CURRENCY, currencyOptions, loadSupportedCurrencies } from '@/utils/currencies'
 import { useSettingsStore } from '@/stores/settings'
@@ -83,18 +84,39 @@ const accountTypeOptions = computed(() => {
   ]
 })
 
-const chartSeries = computed(() => {
-  const totalHistory = applyGranularity(bank.history)
-  const accountSeries = (bank.summary?.accounts ?? [])
+// The total on its own, then the accounts that make it up. Together on one
+// chart the total dwarfs each account and nothing is readable; and the total is
+// the figure that answers "combien j'ai", so it gets a slide to itself.
+type BankChartSlide = 'total' | 'accounts'
+const chartSlides: Array<{ key: BankChartSlide; label: string }> = [
+  { key: 'total', label: 'Total du cash' },
+  { key: 'accounts', label: 'Par compte' },
+]
+const {
+  current: chartSlide,
+  currentLabel: chartSlideLabel,
+  next: nextChartSlide,
+  prev: prevChartSlide,
+  swipeHandlers: chartSwipe,
+} = useCarousel(chartSlides)
+
+const totalSeries = computed(() => {
+  const history = applyGranularity(bank.history)
+  return history.length ? [{ name: 'Solde total', history }] : []
+})
+
+const accountSeries = computed(() =>
+  (bank.summary?.accounts ?? [])
     .map((account) => ({
       name: account.name,
       history: applyGranularity(bank.accountHistoryById[account.id] ?? []),
     }))
-    .filter((series) => series.history.length > 0)
+    .filter((series) => series.history.length > 0),
+)
 
-  const series = [{ name: 'Solde total', history: totalHistory }, ...accountSeries]
-  return series.filter((line) => line.history.length > 0)
-})
+const chartSeries = computed(() =>
+  chartSlide.value === 'total' ? totalSeries.value : accountSeries.value,
+)
 
 async function loadChartHistories(force = false): Promise<void> {
   await bank.fetchHistory(force)
@@ -298,6 +320,17 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           </div>
           <ChartPerformanceBadge :performance="chartPerformance" />
         </div>
+        <div class="mt-3 flex items-center gap-1 min-w-0">
+          <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="prevChartSlide">
+            <ChevronLeft class="w-4 h-4" />
+          </BaseButton>
+          <p class="text-xs font-medium text-text-main dark:text-text-dark-main truncate">
+            {{ chartSlideLabel }}
+          </p>
+          <BaseButton icon size="sm" variant="ghost" class="shrink-0" @click="nextChartSlide">
+            <ChevronRight class="w-4 h-4" />
+          </BaseButton>
+        </div>
       </template>
       <div v-if="bank.historyLoading" class="h-72 flex items-center justify-center">
         <BaseSkeleton variant="rect" width="100%" height="18rem" />
@@ -306,6 +339,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         {{ bank.error }}
       </BaseAlert>
       <template v-else-if="chartSeries.length > 0">
+        <div v-on="chartSwipe">
         <HistoryLineChart
           :series="chartSeries"
           :is-dark="isDark"
@@ -320,6 +354,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
           </template>
         </HistoryLineChart>
+        </div>
       </template>
       <BaseEmptyState
         v-else
