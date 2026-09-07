@@ -15,6 +15,7 @@ import type {
   ImportSourceInfo,
   StockImportRowPreview,
   BankImportPointPreview,
+  BankImportTransactionPreview,
 } from '@/types'
 
 interface Props {
@@ -53,6 +54,13 @@ const preview = ref<ImportPreviewResponse | null>(null)
 const cryptoGroups = ref<BinanceImportGroupPreview[]>([])
 const stockRows = ref<StockImportRowPreview[]>([])
 const bankPoints = ref<BankImportPointPreview[]>([])
+// A bank source writes one shape or the other, never both: a balance curve
+// (generic_bank) or real movements (generic_bank_transactions).
+const bankTransactions = ref<BankImportTransactionPreview[]>([])
+
+// The menu already asked which import this is; re-presenting the picker makes
+// the choice look unmade. Kept one click away for a wrong pick or a detection.
+const sourcePicked = ref(false)
 
 const skipDuplicates = ref(true)
 const overwrite = ref(false)
@@ -62,7 +70,20 @@ const error = ref<string | null>(null)
 const result = reactive({ imported: 0, skipped: 0, groups: null as number | null })
 
 const selectedSource = computed(() => sources.value.find((s) => s.source_id === selectedSourceId.value) ?? null)
-const needsMapping = computed(() => !!selectedSource.value?.supports_mapping)
+
+/** The source's assumed columns, all already named by the file. */
+const fileMatchesDefaultMapping = computed(() => {
+  const expected = selectedSource.value?.default_mapping
+  if (!expected || !csvHeaders.value.length) return false
+  const headers = new Set(csvHeaders.value.map((h) => h.toLowerCase()))
+  return Object.values(expected).every((column) => headers.has(column.toLowerCase()))
+})
+
+// Mapping is the fallback, not the toll: a file whose columns are already the
+// expected ones goes straight to the preview.
+const needsMapping = computed(
+  () => !!selectedSource.value?.supports_mapping && !fileMatchesDefaultMapping.value,
+)
 
 /** Whether the current mapping has enough required fields to preview. */
 const mappingReady = computed(() => {
@@ -104,7 +125,9 @@ function reset() {
   cryptoGroups.value = []
   stockRows.value = []
   bankPoints.value = []
+  bankTransactions.value = []
   detectedSourceId.value = ''
+  sourcePicked.value = false
   skipDuplicates.value = true
   overwrite.value = false
   error.value = null
@@ -189,6 +212,7 @@ async function runPreview() {
     cryptoGroups.value = res.crypto ? res.crypto.groups.map((g) => ({ ...g, rows: [...g.rows] })) : []
     stockRows.value = res.stock_rows ? res.stock_rows.map((r) => ({ ...r })) : []
     bankPoints.value = res.bank_points ? res.bank_points.map((p) => ({ ...p })) : []
+    bankTransactions.value = res.bank_transactions ? res.bank_transactions.map((t) => ({ ...t })) : []
     step.value = 'review'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Erreur lors de l\'analyse du fichier'
@@ -212,7 +236,7 @@ const canConfirm = computed(() => {
   if (props.category === 'stock') {
     return validStockRows.value.length > 0 && stockMissingAsset.value.length === 0
   }
-  return bankPoints.value.length > 0
+  return bankPoints.value.length > 0 || bankTransactions.value.length > 0
 })
 
 function setAssetKey(row: StockImportRowPreview, value: string) {
@@ -238,6 +262,7 @@ async function runConfirm() {
       crypto_groups: props.category === 'crypto' ? cryptoGroups.value : null,
       stock_rows: props.category === 'stock' ? validStockRows.value : null,
       bank_points: props.category === 'bank' ? bankPoints.value : null,
+      bank_transactions: props.category === 'bank' ? bankTransactions.value : null,
       overwrite: props.category === 'bank' ? overwrite.value : false,
     })
     result.imported = res.imported_count
@@ -304,8 +329,33 @@ function typeBadgeClass(t: string): string {
           </select>
         </div>
 
-        <!-- Source -->
-        <div>
+        <!-- Source, folded when the caller already chose it -->
+        <div v-if="props.initialSourceId && !sourcePicked && selectedSource" class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-text-main dark:text-text-dark-main">{{ selectedSource.label }}</p>
+            <p class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">{{ selectedSource.file_hint }}</p>
+          </div>
+          <div class="shrink-0 flex items-center gap-3">
+            <button
+              v-if="selectedSource.template_csv"
+              type="button"
+              class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+              @click="downloadTemplate"
+            >
+              <Download class="w-3.5 h-3.5" />
+              Modèle
+            </button>
+            <button
+              type="button"
+              class="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+              @click="sourcePicked = true"
+            >
+              Changer
+            </button>
+          </div>
+        </div>
+
+        <div v-else>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Plateforme / format</label>
             <button
@@ -334,7 +384,21 @@ function typeBadgeClass(t: string): string {
           <input type="file" accept=".csv" class="hidden" @change="onFileSelect" />
         </label>
 
-        <BaseAlert v-if="detectedSourceId && detectedSourceId === selectedSourceId" variant="info">
+        <!-- Nothing left to configure: say so, and keep the mapping reachable
+             for the file that happens to want other options anyway. -->
+        <BaseAlert v-if="csvContent && selectedSource?.supports_mapping && !needsMapping" variant="info">
+          <span class="inline-flex items-center gap-1.5">
+            <Wand2 class="w-4 h-4" /> Colonnes reconnues, rien à configurer.
+          </span>
+          <button
+            type="button"
+            class="ml-2 text-xs font-medium underline underline-offset-2"
+            @click="step = 'mapping'"
+          >
+            Ajuster les colonnes
+          </button>
+        </BaseAlert>
+        <BaseAlert v-else-if="detectedSourceId && detectedSourceId === selectedSourceId" variant="info">
           <span class="inline-flex items-center gap-1.5"><Wand2 class="w-4 h-4" /> Format détecté automatiquement.</span>
         </BaseAlert>
         <BaseAlert v-if="error" variant="danger">{{ error }}</BaseAlert>
@@ -445,7 +509,36 @@ function typeBadgeClass(t: string): string {
         </table>
       </div>
 
-      <!-- BANK -->
+      <!-- BANK — movements -->
+      <div v-else-if="bankTransactions.length" class="overflow-x-auto -mx-6 px-6">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-surface-border dark:border-surface-dark-border text-left">
+              <th class="py-2 pr-2 font-medium text-text-muted dark:text-text-dark-muted">Date</th>
+              <th class="py-2 pr-2 font-medium text-text-muted dark:text-text-dark-muted">Libellé</th>
+              <th class="py-2 font-medium text-text-muted dark:text-text-dark-muted text-right">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(t, i) in bankTransactions" :key="i"
+                class="border-b border-surface-border/50 dark:border-surface-dark-border/50"
+                :class="{ 'opacity-50': t.is_duplicate }">
+              <td class="py-2 pr-2 whitespace-nowrap text-text-body dark:text-text-dark-body">{{ fmtDate(t.day) }}</td>
+              <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">{{ t.label || '—' }}</td>
+              <!-- The sign was consumed into `direction` server-side; put it back
+                   so the row reads like the statement it came from. -->
+              <td
+                class="py-2 text-right whitespace-nowrap tabular-nums"
+                :class="t.direction === 'CRDT' ? 'text-success' : 'text-text-body dark:text-text-dark-body'"
+              >
+                {{ t.direction === 'CRDT' ? '+' : '−' }}{{ Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} €
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- BANK — balance curve -->
       <div v-else class="overflow-x-auto -mx-6 px-6">
         <table class="w-full text-sm border-collapse">
           <thead>
@@ -471,10 +564,16 @@ function typeBadgeClass(t: string): string {
           <input v-model="skipDuplicates" type="checkbox" class="w-4 h-4 rounded accent-primary" />
           <span class="text-text-body dark:text-text-dark-body">Ignorer les doublons déjà importés</span>
         </label>
-        <label v-else class="flex items-center gap-2 text-sm cursor-pointer">
+        <!-- Balance imports only: there is no curve to overwrite on a movement
+             import, and ticking it would wipe a history this file cannot rebuild. -->
+        <label v-else-if="!bankTransactions.length" class="flex items-center gap-2 text-sm cursor-pointer">
           <input v-model="overwrite" type="checkbox" class="w-4 h-4 rounded accent-primary" />
           <span class="text-text-body dark:text-text-dark-body">Écraser l'historique existant du compte</span>
         </label>
+        <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">
+          Les opérations déjà connues sont reconnues et ignorées : réimporter le même relevé ne
+          crée pas de doublon.
+        </p>
       </div>
     </template>
 

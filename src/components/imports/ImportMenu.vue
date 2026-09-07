@@ -7,6 +7,9 @@ export interface ImportMenuItem {
   key: string
   label: string
   icon: Component
+  /** What this import writes. The label alone names a file shape, which is not
+      what the user is choosing between. */
+  description?: string
 }
 
 interface Props {
@@ -51,11 +54,16 @@ function choose(key: string): void {
       <button
         v-for="item in props.items"
         :key="item.key"
-        class="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
+        class="w-full flex items-start gap-2.5 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
         @click.stop="choose(item.key)"
       >
-        <component :is="item.icon" class="w-4 h-4 text-text-muted dark:text-text-dark-muted shrink-0" />
-        {{ item.label }}
+        <component :is="item.icon" class="w-4 h-4 mt-0.5 text-text-muted dark:text-text-dark-muted shrink-0" />
+        <span class="min-w-0">
+          <span class="block">{{ item.label }}</span>
+          <span v-if="item.description" class="block text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
+            {{ item.description }}
+          </span>
+        </span>
       </button>
     </div>
   </div>
