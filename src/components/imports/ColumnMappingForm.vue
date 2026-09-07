@@ -40,9 +40,7 @@ const typeRows = ref<{ from: string; to: string }[]>(
 const showAdvanced = ref(false)
 
 // ── Bank-specific state ──────────────────────────────────────
-const bankMode = ref<'balance' | 'delta'>(props.modelValue.bank_mode ?? 'balance')
 const bankValueColumn = ref<string | undefined>(mapping.balance ?? mapping.amount)
-const initialBalance = ref<string>(String(props.modelValue.initial_balance ?? ''))
 
 const typeOptions =
   props.category === 'crypto'
@@ -75,11 +73,7 @@ function emitOptions() {
   if (isBank.value) {
     if (mapping.date) cleanedMapping.date = mapping.date
     if (bankValueColumn.value) {
-      cleanedMapping[bankMode.value === 'balance' ? 'balance' : 'amount'] = bankValueColumn.value
-    }
-    options.bank_mode = bankMode.value
-    if (bankMode.value === 'delta' && initialBalance.value.trim()) {
-      options.initial_balance = initialBalance.value.trim()
+      cleanedMapping.balance = bankValueColumn.value
     }
   } else {
     for (const [k, v] of Object.entries(mapping)) {
@@ -99,7 +93,7 @@ function emitOptions() {
   emit('update:modelValue', options)
 }
 watch(
-  [mapping, delimiter, decimalSeparator, dateFormat, typeRows, bankMode, bankValueColumn, initialBalance],
+  [mapping, delimiter, decimalSeparator, dateFormat, typeRows, bankValueColumn],
   emitOptions,
   { deep: true, immediate: true },
 )
@@ -117,13 +111,6 @@ function removeTypeRow(i: number) { typeRows.value.splice(i, 1) }
 
     <!-- ── Bank mapping ──────────────────────────────── -->
     <template v-if="isBank">
-      <div class="space-y-1.5">
-        <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Type de relevé</label>
-        <select v-model="bankMode" :class="selectClass">
-          <option value="balance">Solde (chaque ligne = un solde à une date)</option>
-          <option value="delta">Mouvements (chaque ligne = une entrée/sortie)</option>
-        </select>
-      </div>
       <div class="grid sm:grid-cols-2 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Date <span class="text-danger">*</span></label>
@@ -134,7 +121,7 @@ function removeTypeRow(i: number) { typeRows.value.splice(i, 1) }
         </div>
         <div class="space-y-1.5">
           <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">
-            {{ bankMode === 'balance' ? 'Colonne du solde' : 'Colonne des mouvements' }} <span class="text-danger">*</span>
+            Colonne du solde <span class="text-danger">*</span>
           </label>
           <select v-model="bankValueColumn" :class="selectClass">
             <option :value="undefined">— non mappé —</option>
@@ -142,11 +129,13 @@ function removeTypeRow(i: number) { typeRows.value.splice(i, 1) }
           </select>
         </div>
       </div>
-      <div v-if="bankMode === 'delta'" class="space-y-1.5 max-w-xs">
-        <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Solde initial</label>
-        <input v-model="initialBalance" type="text" inputmode="decimal" placeholder="0" :class="selectClass" />
-        <p class="text-xs text-text-muted dark:text-text-dark-muted">Solde avant le premier mouvement du fichier.</p>
-      </div>
+      <!-- A file of movements belongs to the Opérations import: it writes the
+           operations themselves as well as the curve they describe, which this
+           one cannot do. -->
+      <p class="text-xs text-text-muted dark:text-text-dark-muted">
+        Votre fichier liste des mouvements plutôt que des soldes ? Fermez et choisissez
+        « Opérations » : la courbe en sera déduite, et les opérations seront gardées.
+      </p>
     </template>
 
     <!-- ── Crypto / stock mapping ────────────────────── -->
