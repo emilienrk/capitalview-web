@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileSpreadsheet, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
+import { ArrowLeftRight, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
 
 import { nextTick, onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -102,9 +102,21 @@ async function loadChartHistories(force = false): Promise<void> {
   await Promise.all(accounts.map((account) => bank.fetchHistoryForAccount(account.id, force)))
 }
 
+// The two kinds are complementary, not alternatives: a Livret A wants both, and
+// the choice is about what gets written, not about the file's shape.
 const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
-  { key: 'native_bank', label: 'Format CapitalView', icon: FileSpreadsheet },
-  { key: 'generic_bank', label: 'Relevé bancaire', icon: Upload },
+  {
+    key: 'generic_bank_transactions',
+    label: 'Opérations',
+    description: 'Historique des mouvements et flux observés',
+    icon: ArrowLeftRight,
+  },
+  {
+    key: 'generic_bank',
+    label: 'Soldes',
+    description: 'Courbe du compte, depuis un relevé ou le modèle CapitalView',
+    icon: Upload,
+  },
 ]
 
 function onImportMenuSelect(key: string): void {

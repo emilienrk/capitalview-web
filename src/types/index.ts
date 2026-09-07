@@ -872,6 +872,9 @@ export interface ImportSourceInfo {
   category: ImportCategory
   file_hint: string
   supports_mapping: boolean
+  /** Columns the parser assumes when nothing is mapped: a file already
+   *  carrying them skips the mapping step entirely. */
+  default_mapping: Record<string, string> | null
   /** Downloadable CSV skeleton, when the source documents one. */
   template_csv: string | null
 }
@@ -943,6 +946,17 @@ export interface BankImportPointPreview {
   is_duplicate: boolean
 }
 
+/** One movement read from a statement CSV. `amount` is the magnitude: the
+ *  sign in the file has already been read into `direction`. */
+export interface BankImportTransactionPreview {
+  day: string
+  amount: number
+  direction: 'CRDT' | 'DBIT'
+  label: string
+  currency: string
+  is_duplicate: boolean
+}
+
 /** Common preview envelope: exactly one category payload is set. */
 export interface ImportPreviewResponse {
   source_id: string
@@ -954,6 +968,7 @@ export interface ImportPreviewResponse {
   crypto: BinanceImportPreviewResponse | null
   stock_rows: StockImportRowPreview[] | null
   bank_points: BankImportPointPreview[] | null
+  bank_transactions: BankImportTransactionPreview[] | null
 }
 
 export interface ImportConfirmRequest {
@@ -963,6 +978,7 @@ export interface ImportConfirmRequest {
   crypto_groups?: BinanceImportGroupPreview[] | null
   stock_rows?: StockImportRowPreview[] | null
   bank_points?: BankImportPointPreview[] | null
+  bank_transactions?: BankImportTransactionPreview[] | null
   overwrite?: boolean
 }
 
