@@ -22,10 +22,15 @@ withDefaults(defineProps<Props>(), {
       hoverable ? 'hover:shadow-lg hover:border-primary/30 cursor-pointer' : '',
     ]"
   >
-    <!-- Card Header -->
+    <!-- Card Header. Its rule separates it from something — with no body and no
+         footer there is nothing to separate, and the rule reads as a stray bar
+         floating above the card's own bottom edge. -->
     <div
       v-if="title || $slots.header"
-      class="px-4 py-3 sm:px-6 sm:py-4 border-b border-surface-border dark:border-surface-dark-border"
+      class="px-4 py-3 sm:px-6 sm:py-4"
+      :class="hasSlotContent($slots.default) || $slots.footer
+        ? 'border-b border-surface-border dark:border-surface-dark-border'
+        : ''"
     >
       <slot name="header">
         <div>
@@ -37,9 +42,8 @@ withDefaults(defineProps<Props>(), {
       </slot>
     </div>
 
-    <!-- Card Body. Skipped when the slot renders nothing, otherwise a card
-         whose body is all-false `v-if`s shows a bare padded strip under the
-         header divider. -->
+    <!-- Card Body. Skipped when the slot renders nothing, otherwise a card whose
+         body is all-false `v-if`s shows a bare padded strip. -->
     <div v-if="hasSlotContent($slots.default)" :class="[padding ? 'p-4 sm:p-6' : '', bodyClass]">
       <slot />
     </div>

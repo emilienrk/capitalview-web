@@ -41,7 +41,10 @@ const variantIcons: Record<AlertVariant, typeof AlertCircle> = {
     role="alert"
   >
     <component :is="variantIcons[props.variant]" class="w-5 h-5 shrink-0 mt-0.5" />
-    <div class="flex-1">
+    <!-- min-w-0: a flex child defaults to min-width:auto and refuses to shrink
+         below its content, so an unbreakable token (a hash, a URL) pushes past
+         the alert's edge instead of wrapping inside it. -->
+    <div class="flex-1 min-w-0 break-words">
       <slot />
     </div>
     <button
