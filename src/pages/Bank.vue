@@ -447,6 +447,20 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           Courbe non tracée : votre banque ne publie pas de solde comptable pour ce compte carte.
         </p>
 
+        <!--
+          The curve rests on an available balance (ITAV): the bank publishes no
+          accounting one at all. Said permanently, like the card case above, and
+          in the neutral tone — the account is healthy, its curve is simply
+          approximate while an operation is blocked but not yet booked.
+        -->
+        <p
+          v-else-if="account.reconciliation_status === 'estimated'"
+          class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
+        >
+          Courbe estimée : votre banque ne publie que le solde disponible, opérations en attente
+          déduites. La courbe peut être décalée du montant des paiements non encore comptabilisés.
+        </p>
+
         <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
         <!-- Ruling R18: display alert ONLY when reconciliation_status === 'gap' and reconciliation_gap != null -->
         <div
@@ -473,6 +487,8 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
             <p>
               Historique incomplet : votre banque n'a pas encore renvoyé les opérations
               antérieures au rattachement. La courbe est plate sur cette période.
+              Certaines banques ne l'envoient qu'au moment de la connexion : si rien ne
+              revient, reconnectez-la.
             </p>
             <button
               type="button"
@@ -501,6 +517,15 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
                 Dernière synchro le {{ formatDate(account.last_synced_at) }} — connexion désactivée
               </p>
               <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">Jamais synchronisé</p>
+              <!-- A measured limit, not an apology: how far back the bank served
+                   this account. Stated rather than offered as a retry, because a
+                   bank that caps its history answers a retry the same way. -->
+              <p
+                v-if="!account.history_pending && account.history_served_from"
+                class="text-xs text-text-muted dark:text-text-dark-muted"
+              >
+                Historique bancaire depuis le {{ formatDate(account.history_served_from) }}
+              </p>
             </template>
             <template v-else>
               <p v-if="!account.balance_updated_at" class="text-xs text-text-muted dark:text-text-dark-muted">Mis à jour {{ formatDate(account.updated_at) }}</p>
