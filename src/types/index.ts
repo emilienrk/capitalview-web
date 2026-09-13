@@ -176,13 +176,18 @@ export interface BankAccountResponse {
   last_synced_at: string | null
   /** null = the period reconciles; a value means a movement is missing or counted twice. */
   reconciliation_gap: number | null
-  /** Ruling R18: 'reconciled' | 'gap' | 'not_reconcilable' | null */
-  reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | null
+  /** Ruling R18: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null.
+   *  'estimated' = the curve rests on an available balance (ITAV), the bank
+   *  publishing no accounting one; a gap there is expected, not a signal. */
+  reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null
   /** Consent state to surface, "à reconnecter" included. */
   link_status: string | null
   /** True while the bank has never answered the long history fetch: the account
    *  syncs, but over a history it does not have. */
   history_pending: boolean
+  /** Oldest operation date the bank served on its long history fetch (YYYY-MM-DD):
+   *  the measured limit of how far back the curve can go. null = never measured. */
+  history_served_from: string | null
 }
 
 export interface BankSummaryResponse {
@@ -264,7 +269,12 @@ export interface BankAccountSyncResult {
   removed: number
   snapshots_written: number
   reconciliation_gap: string | null
-  reconciliation_status: 'reconciled' | 'gap' | 'not_reconcilable' | null
+  reconciliation_status: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null
+  /** Balance type this sync could read: 'CLBD', 'OTHR' (card) or 'ITAV'. */
+  balance_type: string | null
+  /** Rows of the feed carrying `balance_after_transaction`. Measurement only:
+   *  a bank that fills it gives each day's balance directly. */
+  balance_after_rows: number
   detail: string | null
 }
 
