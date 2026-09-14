@@ -108,6 +108,16 @@ watch(months, () => load())
           <p class="text-xl font-bold" :class="flows.net >= 0 ? 'text-success' : 'text-danger'">
             {{ amount(flows.net) }}
           </p>
+          <!-- Pending operations stay out of every figure: not booked yet, so still
+               movable. Said next to the number someone compares with their bank app,
+               the one place the gap would otherwise look like an error. -->
+          <p
+            v-if="flows.pending_count > 0"
+            class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5"
+            :title="`${amount(flows.pending_outflow)} en sortie, ${amount(flows.pending_inflow)} en entrée`"
+          >
+            hors {{ flows.pending_count }} opération{{ flows.pending_count > 1 ? 's' : '' }} en attente
+          </p>
         </div>
         <div>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">Mois couverts</p>
@@ -155,13 +165,6 @@ watch(months, () => load())
           {{ name }}
         </BaseBadge>
       </div>
-
-      <!-- Outside the monthly figures on purpose: not booked yet, so still movable. -->
-      <p v-if="flows.pending_count > 0" class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
-        {{ flows.pending_count }} opération{{ flows.pending_count > 1 ? 's' : '' }} en attente,
-        hors totaux : {{ amount(flows.pending_outflow) }} en sortie,
-        {{ amount(flows.pending_inflow) }} en entrée.
-      </p>
 
       <!-- No exchange rate ever arrives with a movement, so these never join a total. -->
       <p
