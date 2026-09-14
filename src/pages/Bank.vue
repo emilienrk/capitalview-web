@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Landmark, Pencil, RefreshCw, TriangleAlert, Upload } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Landmark, RefreshCw, Upload } from 'lucide-vue-next'
 
 import { nextTick, onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -15,19 +15,22 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseSkeleton, BaseSegmentedControl,
+  BaseAlert, BaseEmptyState, BaseSkeleton, BaseSegmentedControl,
   ChartPerformanceBadge,
 } from '@/components'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
+import BankAccountCard from '@/components/bank/BankAccountCard.vue'
 import ObservedFlowsCard from '@/components/bank/ObservedFlowsCard.vue'
-import type { BankAccountCreate, BankAccountType } from '@/types'
+import type {
+  BankAccountCreate, BankAccountResponse, BankAccountType, BankAccountUpdate,
+} from '@/types'
 
 const bank = useBankStore()
 const router = useRouter()
 const settingsStore = useSettingsStore()
-const { formatCurrency, formatDate, formatAccountType } = useFormatters()
+const { formatCurrency } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
@@ -37,6 +40,9 @@ const showPlatformImportModal = ref(false)
 const platformImportAccountId = ref('')
 const importSourceId = ref('')
 const editingId = ref<string | null>(null)
+// A linked account's balance is the bank's last reading and its currency is what
+// that reading is matched on: the API refuses either being changed by hand.
+const editingLinked = ref(false)
 const hasFetchedOnce = ref(false)
 
 const {
@@ -45,43 +51,57 @@ const {
   applyGranularity,
 } = useHistoryGranularity(() => bank.history ?? [])
 
-const form = reactive<BankAccountCreate>({
+// Every field bound, none optional: the inputs always hold a value, and the two
+// API payloads are built from it explicitly rather than by spreading it.
+interface AccountForm {
+  name: string
+  account_type: BankAccountType
+  institution_name: string
+  identifier: string
+  balance: number
+  currency: string
+  /** '' when unset — what a cleared date input holds. */
+  opened_at: string
+}
+
+const form = reactive<AccountForm>({
   name: '',
-  account_type: 'CHECKING' as BankAccountType,
+  account_type: 'CHECKING',
   institution_name: '',
   identifier: '',
   balance: 0,
   currency: BASE_CURRENCY,
-  opened_at: null,
+  opened_at: '',
 })
 
 // Served by the API so the list lives in one place; the static fallback in
 // @/utils/currencies keeps the picker populated if the call fails.
 const currencyChoices = computed(() => currencyOptions())
 
-// A Livret A or a PEL cannot be held in anything but euros.
-const REGULATED_TYPES = new Set(['LIVRET_A', 'LIVRET_DEVE', 'LEP', 'LDD', 'PEL', 'CEL'])
+// Regulated savings: held in euros only, and at most one of each per person.
+const REGULATED_TYPES = new Set<BankAccountType>(['LIVRET_A', 'LIVRET_DEVE', 'LEP', 'LDD', 'PEL', 'CEL'])
 const isRegulated = computed(() => REGULATED_TYPES.has(form.account_type))
 watch(isRegulated, (regulated) => {
   if (regulated) form.currency = BASE_CURRENCY
 })
 
-const accountTypeOptions = computed(() => {
-  const existingTypes = new Set(bank.summary?.accounts?.map(a => a.account_type) || [])
-  
-  // Regulated accounts that should be unique per person
-  const uniqueTypes = new Set(['LIVRET_A', 'LIVRET_DEVE', 'LEP', 'LDD', 'PEL', 'CEL'])
+const ACCOUNT_TYPE_LABELS: Array<{ label: string; value: BankAccountType }> = [
+  { label: 'Compte courant', value: 'CHECKING' },
+  { label: 'Épargne', value: 'SAVINGS' },
+  { label: 'Livret A', value: 'LIVRET_A' },
+  { label: 'LDDS', value: 'LIVRET_DEVE' },
+  { label: 'LEP', value: 'LEP' },
+  { label: 'LDD', value: 'LDD' },
+  { label: 'PEL', value: 'PEL' },
+  { label: 'CEL', value: 'CEL' },
+]
 
-  return [
-    { label: 'Compte courant', value: 'CHECKING' },
-    { label: 'Épargne', value: 'SAVINGS' },
-    { label: 'Livret A', value: 'LIVRET_A', disabled: existingTypes.has('LIVRET_A') },
-    { label: 'LDDS', value: 'LIVRET_DEVE', disabled: existingTypes.has('LIVRET_DEVE') },
-    { label: 'LEP', value: 'LEP', disabled: existingTypes.has('LEP') },
-    { label: 'LDD', value: 'LDD', disabled: existingTypes.has('LDD') },
-    { label: 'PEL', value: 'PEL', disabled: existingTypes.has('PEL') },
-    { label: 'CEL', value: 'CEL', disabled: existingTypes.has('CEL') },
-  ]
+const accountTypeOptions = computed(() => {
+  const existingTypes = new Set(bank.summary?.accounts?.map((a) => a.account_type) ?? [])
+  return ACCOUNT_TYPE_LABELS.map((option) => ({
+    ...option,
+    disabled: REGULATED_TYPES.has(option.value) && existingTypes.has(option.value),
+  }))
 })
 
 // The total on its own, then the accounts that make it up. Together on one
@@ -153,6 +173,7 @@ async function handlePlatformImported(): Promise<void> {
 }
 
 function openCreate(): void {
+  editingLinked.value = false
   editingId.value = null
   form.name = ''
   form.account_type = 'CHECKING'
@@ -160,29 +181,47 @@ function openCreate(): void {
   form.identifier = ''
   form.balance = 0
   form.currency = BASE_CURRENCY
-  form.opened_at = null
+  form.opened_at = ''
   showCreateModal.value = true
 }
 
-function openEdit(account: { id: string; name: string; account_type: BankAccountType; institution_name: string | null; identifier: string | null; balance: number; currency: string; opened_at: string | null }): void {
+function openEdit(account: BankAccountResponse): void {
   editingId.value = account.id
+  editingLinked.value = account.is_linked
   form.name = account.name
   form.account_type = account.account_type
   form.institution_name = account.institution_name ?? ''
   form.identifier = account.identifier ?? ''
   form.balance = account.balance
   form.currency = account.currency
-  form.opened_at = account.opened_at ?? null
+  form.opened_at = account.opened_at ?? ''
   showCreateModal.value = true
 }
 
 async function handleSubmit(): Promise<void> {
   showCreateModal.value = false
   let result
+  const common = {
+    name: form.name,
+    institution_name: form.institution_name,
+    identifier: form.identifier,
+    opened_at: form.opened_at || null,
+  }
   if (editingId.value) {
-    result = await bank.updateAccount(editingId.value, { ...form })
+    // No account_type: the API has no field for it, and the picker is locked
+    // while editing. A linked account's balance and currency belong to its bank.
+    const update: BankAccountUpdate = editingLinked.value
+      ? common
+      : { ...common, balance: form.balance, currency: form.currency }
+    result = await bank.updateAccount(editingId.value, update)
   } else {
-    result = await bank.createAccount({ ...form })
+    const create: BankAccountCreate = {
+      ...common,
+      account_type: form.account_type,
+      balance: form.balance,
+      currency: form.currency,
+    }
+    result = await bank.createAccount(create)
   }
   if (!result) {
     showCreateModal.value = true
@@ -208,49 +247,12 @@ async function handleDelete(id: string): Promise<void> {
   }
 }
 
-/** Only "à reconnecter" is a documented state; anything else stays neutral. */
-function linkStatusVariant(status: string): 'warning' | 'secondary' {
-  return /reconnect/i.test(status) ? 'warning' : 'secondary'
-}
-
 const openBankingEnabled = computed(
   () => settingsStore.settings?.open_banking_enabled ?? false,
 )
 
-/**
- * Why this account got nothing out of the last sync, or null when it did.
- *
- * `POST /banking/sync` answers 200 whatever happened to each account, so a
- * failure has no other symptom than a balance that does not move — the very
- * thing an unread failure is indistinguishable from. `skipped_daily_cap` is
- * deliberately not one: it means the account is already up to date today.
- */
-function syncFailure(accountId: string): string | null {
-  const result = bank.syncResultByAccount[accountId]
-  if (!result || (result.status !== 'error' && result.status !== 'reconnect_required')) return null
-  return result.detail ?? 'La synchronisation a échoué.'
-}
-
 async function syncNow(): Promise<void> {
   if (await bank.syncBanking()) await loadChartHistories(true)
-}
-
-/** The account whose history is being re-fetched, if any. */
-const reseedingAccountId = ref<string | null>(null)
-
-/**
- * Ask the bank for everything again on this account. The daily cap is lifted
- * server-side for that one call, so the sync the store fires right after is the
- * seeding pass itself rather than a no-op the user would have to wait a day for.
- */
-async function reseedHistory(account: { id: string }): Promise<void> {
-  reseedingAccountId.value = account.id
-  try {
-    await bank.reseedHistory(account.id)
-    await loadChartHistories(true)
-  } finally {
-    reseedingAccountId.value = null
-  }
 }
 
 /**
@@ -389,159 +391,13 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
 
     <!-- Account list -->
     <div v-if="bank.summary?.accounts?.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <BaseCard
+      <BankAccountCard
         v-for="account in bank.summary.accounts"
         :key="account.id"
-        hoverable
-      >
-        <div class="flex items-start justify-between">
-          <div>
-            <h3 class="font-semibold text-text-main dark:text-text-dark-main">{{ account.name }}</h3>
-            <div class="flex flex-wrap items-center gap-2 mt-1">
-              <BaseBadge variant="secondary">{{ formatAccountType(account.account_type) }}</BaseBadge>
-              <!--
-                Turning the feature off stops every sync but destroys nothing, so
-                the attachment survives. Saying "Banque liée" then reads as live
-                when it no longer is — the account is dormant, not connected.
-              -->
-              <template v-if="account.is_linked">
-                <BaseBadge v-if="openBankingEnabled" variant="success">Banque liée</BaseBadge>
-                <BaseBadge v-else variant="secondary" title="La connexion bancaire est désactivée dans les paramètres.">
-                  Liaison en sommeil
-                </BaseBadge>
-                <BaseBadge
-                  v-if="openBankingEnabled && account.link_status"
-                  :variant="linkStatusVariant(account.link_status)"
-                >
-                  {{ account.link_status }}
-                </BaseBadge>
-              </template>
-              <span v-if="account.institution_name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ account.institution_name }}</span>
-            </div>
-          </div>
-          <p class="text-xl font-bold text-text-main dark:text-text-dark-main">
-            {{ maskValue(formatCurrency(account.balance, account.currency)) }}
-          </p>
-        </div>
-        <!-- The sync's own refusal, in the same place as the reconciliation gap:
-             both explain the balance shown right above them. -->
-        <div
-          v-if="syncFailure(account.id)"
-          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-danger/10 border border-danger/20 text-danger text-xs"
-        >
-          <TriangleAlert class="w-4 h-4 shrink-0" />
-          <span>Synchronisation impossible : {{ syncFailure(account.id) }}</span>
-        </div>
-
-        <!--
-          Ruling R19: the bank publishes a single OTHR balance on a card account
-          and no accounting one. A curve is walked back *from* a balance, so
-          there is nothing to draw it from — by design, not by failure. Said
-          permanently rather than only after a sync: a balance with no history is
-          exactly what a broken connection looks like.
-        -->
-        <p
-          v-else-if="account.reconciliation_status === 'not_reconcilable'"
-          class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          Courbe non tracée : votre banque ne publie pas de solde comptable pour ce compte carte.
-        </p>
-
-        <!--
-          The curve rests on an available balance (ITAV): the bank publishes no
-          accounting one at all. Said permanently, like the card case above, and
-          in the neutral tone — the account is healthy, its curve is simply
-          approximate while an operation is blocked but not yet booked.
-        -->
-        <p
-          v-else-if="account.reconciliation_status === 'estimated'"
-          class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          Courbe estimée : votre banque ne publie que le solde disponible, opérations en attente
-          déduites. La courbe peut être décalée du montant des paiements non encore comptabilisés.
-        </p>
-
-        <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
-        <!-- Ruling R18: display alert ONLY when reconciliation_status === 'gap' and reconciliation_gap != null -->
-        <div
-          v-if="account.reconciliation_status === 'gap' && account.reconciliation_gap != null"
-          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
-        >
-          <TriangleAlert class="w-4 h-4 shrink-0" />
-          <span>
-            Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap, account.currency)) }} :
-            un mouvement manque ou est compté deux fois sur la dernière période.
-          </span>
-        </div>
-
-        <!-- Syncing daily over a history the bank never sent reads as healthy on
-             every other signal — the curve is simply flat where nothing arrived.
-             Naming it is the difference between three weeks of confusion and one
-             click. -->
-        <div
-          v-if="account.is_linked && account.history_pending && openBankingEnabled"
-          class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
-        >
-          <TriangleAlert class="w-4 h-4 shrink-0" />
-          <div class="min-w-0">
-            <p>
-              Historique incomplet : votre banque n'a pas encore renvoyé les opérations
-              antérieures au rattachement. La courbe est plate sur cette période.
-              Certaines banques ne l'envoient qu'au moment de la connexion : si rien ne
-              revient, reconnectez-la.
-            </p>
-            <button
-              type="button"
-              class="mt-1 font-medium underline underline-offset-2 disabled:opacity-50"
-              :disabled="reseedingAccountId === account.id"
-              @click="reseedHistory(account)"
-            >
-              {{ reseedingAccountId === account.id ? 'Récupération…' : 'Récupérer l\'historique' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 flex items-center justify-between">
-          <div class="flex flex-col gap-0.5">
-            <template v-if="account.is_linked">
-              <!-- Green with a refresh icon reads as "kept up to date"; with the
-                   feature off nothing is, so the same date goes neutral. -->
-              <p
-                v-if="account.last_synced_at && openBankingEnabled"
-                class="flex items-center gap-1 text-xs text-success"
-              >
-                <RefreshCw class="w-3 h-3" />
-                Synchronisé le {{ formatDate(account.last_synced_at) }}
-              </p>
-              <p v-else-if="account.last_synced_at" class="text-xs text-text-muted dark:text-text-dark-muted">
-                Dernière synchro le {{ formatDate(account.last_synced_at) }} — connexion désactivée
-              </p>
-              <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">Jamais synchronisé</p>
-              <!-- A measured limit, not an apology: how far back the bank served
-                   this account. Stated rather than offered as a retry, because a
-                   bank that caps its history answers a retry the same way. -->
-              <p
-                v-if="!account.history_pending && account.history_served_from"
-                class="text-xs text-text-muted dark:text-text-dark-muted"
-              >
-                Historique bancaire depuis le {{ formatDate(account.history_served_from) }}
-              </p>
-            </template>
-            <template v-else>
-              <p v-if="!account.balance_updated_at" class="text-xs text-text-muted dark:text-text-dark-muted">Mis à jour {{ formatDate(account.updated_at) }}</p>
-              <p v-else class="flex items-center gap-1 text-xs text-success">
-                <RefreshCw class="w-3 h-3" />
-                Sync le {{ formatDate(account.balance_updated_at) }}
-              </p>
-            </template>
-          </div>
-          <div class="flex gap-2">
-            <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click="openEdit(account)">
-              <Pencil class="w-4 h-4" />
-            </BaseButton>
-          </div>
-        </div>
-      </BaseCard>
+        :account="account"
+        @edit="openEdit"
+        @refreshed="loadChartHistories(true)"
+      />
     </div>
 
     <BaseEmptyState
@@ -568,24 +424,43 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
     <BaseModal :open="showCreateModal" :title="editingId ? 'Modifier le compte' : 'Nouveau compte'" @close="showCreateModal = false">
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <BaseInput v-model="form.name" label="Nom du compte" placeholder="Nom du compte" required />
-        <BaseSelect v-model="form.account_type" label="Type de compte" :options="accountTypeOptions" required />
-        <BaseInput v-model="form.institution_name!" label="Banque" placeholder="Nom de la banque" />
-        <BaseInput v-model="form.identifier!" label="Identifiant" placeholder="IBAN" />
-        <BaseInput v-model="form.balance!" label="Solde" type="number" placeholder="0.00" />
         <div>
           <BaseSelect
-            v-model="form.currency!"
-            label="Devise"
-            :options="currencyChoices"
-            :disabled="isRegulated"
+            v-model="form.account_type"
+            label="Type de compte"
+            :options="accountTypeOptions"
+            :disabled="!!editingId"
+            required
           />
-          <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
-            {{ isRegulated
-              ? 'Les livrets réglementés sont en euros.'
-              : 'Le solde est affiché dans cette devise ; les totaux et les courbes restent en euros.' }}
+          <p v-if="editingId" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+            Le type d'un compte est fixé à sa création.
           </p>
         </div>
-        <BaseInput v-model="form.opened_at!" label="Date d'ouverture" type="date" />
+        <BaseInput v-model="form.institution_name" label="Banque" placeholder="Nom de la banque" />
+        <BaseInput v-model="form.identifier" label="Identifiant" placeholder="IBAN" />
+        <BaseInput
+          v-if="!(editingId && editingLinked)"
+          v-model="form.balance"
+          label="Solde"
+          type="number"
+          placeholder="0.00"
+        />
+        <div>
+          <BaseSelect
+            v-model="form.currency"
+            label="Devise"
+            :options="currencyChoices"
+            :disabled="isRegulated || (!!editingId && editingLinked)"
+          />
+          <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+            {{ editingId && editingLinked
+              ? 'Compte lié : le solde et la devise viennent de votre banque, à chaque synchronisation.'
+              : isRegulated
+                ? 'Les livrets réglementés sont en euros.'
+                : 'Le solde est affiché dans cette devise ; les totaux et les courbes restent en euros.' }}
+          </p>
+        </div>
+        <BaseInput v-model="form.opened_at" label="Date d'ouverture" type="date" />
       </form>
       <template #footer>
         <div class="flex justify-between w-full">

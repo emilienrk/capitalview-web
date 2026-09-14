@@ -83,9 +83,18 @@ export const useBankStore = defineStore('bank', () => {
   }
 
   /** At least one linked account has not been synced today. */
+  // A failed attempt spends the day as much as a success does: reading the
+  // success date alone kept a failing account due, and the page called the bank
+  // again on every render for an answer that had not changed.
   const hasStaleSync = computed(() => {
     const today = todayLocal()
-    return linkedAccounts.value.some((a) => !a.last_synced_at || a.last_synced_at < today)
+    return linkedAccounts.value.some((a) => {
+      const synced = a.last_synced_at ?? ''
+      const attempted = a.last_sync_attempt_at ?? ''
+      // ISO dates compare as strings; '' stands for "never".
+      const lastCall = synced > attempted ? synced : attempted
+      return !lastCall || lastCall < today
+    })
   })
 
   const isHistoryCacheValid = computed(() => {
@@ -323,6 +332,12 @@ export const useBankStore = defineStore('bank', () => {
    * the account whose first sync came back empty and has been synchronising
    * over a history it never received ever since.
    */
+  /** Give a failed account its daily attempt back, then sync. */
+  async function retrySync(bankAccountUuid: string): Promise<void> {
+    await apiClient.post(`/banking/accounts/${bankAccountUuid}/retry-sync`, {})
+    await syncBanking()
+  }
+
   async function reseedHistory(bankAccountUuid: string): Promise<void> {
     await apiClient.post(`/banking/accounts/${bankAccountUuid}/reseed-history`, {})
     await syncBanking()
@@ -371,6 +386,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,
+    retrySync,
     fetchObservedFlows,
     importBankingExport,
     fetchAspsps,

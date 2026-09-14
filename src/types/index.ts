@@ -157,6 +157,25 @@ export interface BankAccountUpdate {
   opened_at?: string | null
 }
 
+/** Mirrors the API enums of the same names (dtos/bank.py, dtos/banking.py). */
+
+/** Consent state of a linked account. Machine values: the page picks the label. */
+export type LinkStatus = 'connected' | 'reconnect_required'
+
+/** Ruling R18. 'estimated' = the curve rests on an available balance (ITAV), the
+ *  bank publishing no accounting one; a gap there is expected, not a signal. */
+export type ReconciliationStatus = 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated'
+
+/** The branch one account's sync took; 'skipped_daily_cap' is never a failure. */
+export type SyncStatus = 'synced' | 'skipped_daily_cap' | 'reconnect_required' | 'error'
+
+export type ExportImportStatus =
+  | 'imported'
+  | 'unlinked'
+  | 'error'
+  | 'balance_unavailable'
+  | 'curve_error'
+
 export interface BankAccountResponse {
   id: string
   name: string
@@ -176,18 +195,18 @@ export interface BankAccountResponse {
   last_synced_at: string | null
   /** null = the period reconciles; a value means a movement is missing or counted twice. */
   reconciliation_gap: number | null
-  /** Ruling R18: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null.
-   *  'estimated' = the curve rests on an available balance (ITAV), the bank
-   *  publishing no accounting one; a gap there is expected, not a signal. */
-  reconciliation_status?: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null
-  /** Consent state to surface, "à reconnecter" included. */
-  link_status: string | null
+  reconciliation_status?: ReconciliationStatus | null
+  link_status: LinkStatus | null
   /** True while the bank has never answered the long history fetch: the account
    *  syncs, but over a history it does not have. */
   history_pending: boolean
   /** Oldest operation date the bank served on its long history fetch (YYYY-MM-DD):
    *  the measured limit of how far back the curve can go. null = never measured. */
   history_served_from: string | null
+  /** Why the last sync failed; null once one succeeds. Persisted server-side. */
+  sync_error: string | null
+  /** Day the bank was last called for this account (YYYY-MM-DD), whatever the outcome. */
+  last_sync_attempt_at: string | null
 }
 
 export interface BankSummaryResponse {
@@ -261,7 +280,7 @@ export interface BankSessionAccount {
  */
 export interface BankAccountSyncResult {
   bank_account_uuid: string
-  status: 'synced' | 'skipped_daily_cap' | 'reconnect_required' | 'error'
+  status: SyncStatus
   inserted: number
   updated: number
   skipped: number
@@ -269,7 +288,7 @@ export interface BankAccountSyncResult {
   removed: number
   snapshots_written: number
   reconciliation_gap: string | null
-  reconciliation_status: 'reconciled' | 'gap' | 'not_reconcilable' | 'estimated' | null
+  reconciliation_status: ReconciliationStatus | null
   /** Balance type this sync could read: 'CLBD', 'OTHR' (card) or 'ITAV'. */
   balance_type: string | null
   /** Rows of the feed carrying `balance_after_transaction`. Measurement only:
@@ -343,7 +362,7 @@ export interface BankSyncResponse {
 /** One account's outcome in an Enable Banking export import. */
 export interface BankExportImportResult {
   bank_account_uuid: string
-  status: string
+  status: ExportImportStatus
   inserted: number
   updated: number
   skipped: number

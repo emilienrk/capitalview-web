@@ -77,6 +77,26 @@ describe('useBankStore — hasStaleSync', () => {
     expect(store.hasStaleSync).toBe(true)
   })
 
+  it('is not stale when today\'s attempt failed: a failure spends the day too', () => {
+    const store = useBankStore()
+    store.summary = {
+      total_balance: 0,
+      accounts: [anAccount({ last_synced_at: '2020-01-01', last_sync_attempt_at: todayIn('Europe/Paris') })],
+    }
+
+    expect(store.hasStaleSync).toBe(false)
+  })
+
+  it('is stale again the day after a failed attempt', () => {
+    const store = useBankStore()
+    store.summary = {
+      total_balance: 0,
+      accounts: [anAccount({ last_synced_at: '2020-01-01', last_sync_attempt_at: '2020-01-02' })],
+    }
+
+    expect(store.hasStaleSync).toBe(true)
+  })
+
   it('falls back to the browser timezone instead of throwing on an invalid one', () => {
     useDisplayTimezone().setDisplayTimezone('Not/AZone')
     const store = useBankStore()
