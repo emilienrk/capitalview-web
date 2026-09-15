@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@floating-ui/vue": "^2.0.1",
     "echarts": "^6.0.0",
     "lucide-vue-next": "^0.577.0",
     "papaparse": "^5.5.4",

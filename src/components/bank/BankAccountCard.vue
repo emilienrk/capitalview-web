@@ -185,12 +185,10 @@ async function reseedHistory(): Promise<void> {
       class="mt-3 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted"
     >
       Courbe estimée
-      <span @click.stop>
-        <BaseHelpPopover label="Pourquoi estimée ?">
-          Votre banque ne publie que le solde disponible, opérations en attente déduites.
-          La courbe peut être décalée du montant des paiements pas encore comptabilisés.
-        </BaseHelpPopover>
-      </span>
+      <BaseHelpPopover label="Pourquoi estimée ?">
+        Votre banque ne publie que le solde disponible, opérations en attente déduites.
+        La courbe peut être décalée du montant des paiements pas encore comptabilisés.
+      </BaseHelpPopover>
     </div>
 
     <!--
@@ -220,7 +218,7 @@ async function reseedHistory(): Promise<void> {
           {{ reseeding ? 'Récupération…' : 'Récupérer les opérations' }}
         </button>
       </div>
-      <span class="shrink-0 -my-1" @click.stop>
+      <span class="shrink-0 -my-1">
         <BaseHelpPopover label="Qu'est-ce que cet écart ?" width="md">
           Le solde affiché vient de votre banque : il est juste. À chaque synchronisation,
           CapitalView vérifie que le solde précédent plus les opérations reçues depuis

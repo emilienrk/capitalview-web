@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertCircle, Pencil } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { BaseBadge, BaseButton, BaseEmptyState, BaseSegmentedControl } from '@/components'
+import { BaseBadge, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseTooltip } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import { isFiatSymbol } from '@/utils/cryptoTransactionTypes'
@@ -241,15 +241,12 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
                     <BaseBadge :variant="txBadgeVariant(tx.type)">
                       {{ tx.type }}
                     </BaseBadge>
-                    <span
-                      v-if="rowTooltip(tx)"
-                      class="relative group/tip cursor-help"
-                    >
-                      <AlertCircle class="w-3.5 h-3.5 text-text-muted/50 dark:text-text-dark-muted/50" />
-                      <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 text-[11px] leading-snug text-primary-content bg-text-main dark:bg-text-dark-main rounded-secondary shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity duration-150 z-50">
-                        {{ rowTooltip(tx) }}
-                      </span>
-                    </span>
+                    <BaseTooltip v-if="rowTooltip(tx)" label="Détail de la transaction">
+                      <template #trigger>
+                        <AlertCircle class="w-3.5 h-3.5 text-text-muted/50 dark:text-text-dark-muted/50" />
+                      </template>
+                      {{ rowTooltip(tx) }}
+                    </BaseTooltip>
                   </span>
                 </td>
                 <td class="px-4 py-3 font-medium text-text-main dark:text-text-dark-main">{{ tx.asset_key }}</td>
