@@ -114,7 +114,8 @@ const navItems = computed<NavItem[]>(() => {
 })
 
 function isActive(path: string): boolean {
-  return route.path === path
+  // A section's sub-pages (the bank's Opérations tab) keep its entry lit.
+  return route.path === path || route.path.startsWith(`${path}/`)
 }
 
 async function handleLogout(): Promise<void> {
