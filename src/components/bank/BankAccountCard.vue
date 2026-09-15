@@ -4,33 +4,64 @@
  * and every reason the balance or the curve may not be what the user expects.
  */
 import { computed, ref } from 'vue'
-import { Pencil, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ChevronRight, Pencil, TriangleAlert } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { BaseBadge, BaseButton, BaseCard } from '@/components'
-import type { BankAccountResponse, LinkStatus } from '@/types'
+import { BaseBadge, BaseButton, BaseCard, BaseHelpPopover } from '@/components'
+import type { BadgeVariant } from '@/components/base/BaseBadge.vue'
+import type { BankAccountResponse } from '@/types'
 
 const props = defineProps<{ account: BankAccountResponse }>()
 const emit = defineEmits<{
   edit: [account: BankAccountResponse]
-  /** A retry or a history re-fetch went through: the curves are stale. */
-  refreshed: []
 }>()
 
 const bank = useBankStore()
+const router = useRouter()
 const settingsStore = useSettingsStore()
 const { formatCurrency, formatDate, formatAccountType } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
-const LINK_STATUS_BADGE: Record<LinkStatus, { label: string; variant: 'warning' | 'secondary' }> = {
-  connected: { label: 'connecté', variant: 'secondary' },
-  reconnect_required: { label: 'à reconnecter', variant: 'warning' },
+const openBankingEnabled = computed(() => settingsStore.settings?.open_banking_enabled ?? false)
+
+function todayIso(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
-const openBankingEnabled = computed(() => settingsStore.settings?.open_banking_enabled ?? false)
+/**
+ * One badge for the bank link, where there used to be two ("Banque liée" and
+ * "connecté") saying the same thing. Only a linked account gets one: an
+ * imported account is not synchronised with anything.
+ */
+const syncBadge = computed<{ label: string; variant: BadgeVariant; title?: string } | null>(() => {
+  const account = props.account
+  if (!account.is_linked) return null
+  // Turning the feature off stops every sync but destroys nothing, so the
+  // attachment survives: the account is dormant, not synchronised.
+  if (!openBankingEnabled.value) {
+    return { label: 'Liaison en sommeil', variant: 'secondary', title: 'La connexion bancaire est désactivée dans les paramètres.' }
+  }
+  if (account.link_status === 'reconnect_required') return { label: 'À reconnecter', variant: 'warning' }
+  if (!account.last_synced_at) return { label: 'Jamais synchronisé', variant: 'secondary' }
+  // How far back the bank served this account: worth knowing, not worth a line.
+  const title = account.history_served_from && !account.history_pending
+    ? `Historique bancaire depuis le ${formatDate(account.history_served_from)}`
+    : undefined
+  // The date only once it is not today's: a badge saying "synchronised" over a
+  // week-old reading would be the one thing on the card that is wrong.
+  const label = account.last_synced_at >= todayIso()
+    ? 'Synchronisé'
+    : `Synchronisé le ${formatDate(account.last_synced_at)}`
+  return { label, variant: 'success', title }
+})
+
+/** Positive: the bank counts more coming in than the stored operations explain. */
+const gapDirection = computed(() => ((props.account.reconciliation_gap ?? 0) > 0 ? 'entrées' : 'sorties'))
 
 /**
  * Why this account got nothing out of the last sync, or null when it did.
@@ -52,11 +83,14 @@ const syncFailure = computed(() => {
 const retrying = ref(false)
 const reseeding = ref(false)
 
+function openOperations(): void {
+  void router.push({ name: 'bank-transactions', query: { account: props.account.id } })
+}
+
 async function retrySync(): Promise<void> {
   retrying.value = true
   try {
     await bank.retrySync(props.account.id)
-    emit('refreshed')
   } finally {
     retrying.value = false
   }
@@ -71,7 +105,6 @@ async function reseedHistory(): Promise<void> {
   reseeding.value = true
   try {
     await bank.reseedHistory(props.account.id)
-    emit('refreshed')
   } finally {
     reseeding.value = false
   }
@@ -79,29 +112,24 @@ async function reseedHistory(): Promise<void> {
 </script>
 
 <template>
-  <BaseCard hoverable>
+  <!-- The whole card opens the account's operations; its own buttons stop the click. -->
+  <BaseCard
+    hoverable
+    role="link"
+    tabindex="0"
+    :aria-label="`Opérations de ${account.name}`"
+    @click="openOperations"
+    @keydown.enter.self="openOperations"
+    body-class="flex-1 flex flex-col"
+  >
     <div class="flex items-start justify-between">
       <div>
         <h3 class="font-semibold text-text-main dark:text-text-dark-main">{{ account.name }}</h3>
         <div class="flex flex-wrap items-center gap-2 mt-1">
           <BaseBadge variant="secondary">{{ formatAccountType(account.account_type) }}</BaseBadge>
-          <!--
-            Turning the feature off stops every sync but destroys nothing, so
-            the attachment survives. Saying "Banque liée" then reads as live
-            when it no longer is — the account is dormant, not connected.
-          -->
-          <template v-if="account.is_linked">
-            <BaseBadge v-if="openBankingEnabled" variant="success">Banque liée</BaseBadge>
-            <BaseBadge v-else variant="secondary" title="La connexion bancaire est désactivée dans les paramètres.">
-              Liaison en sommeil
-            </BaseBadge>
-            <BaseBadge
-              v-if="openBankingEnabled && account.link_status"
-              :variant="LINK_STATUS_BADGE[account.link_status].variant"
-            >
-              {{ LINK_STATUS_BADGE[account.link_status].label }}
-            </BaseBadge>
-          </template>
+          <BaseBadge v-if="syncBadge" :variant="syncBadge.variant" :title="syncBadge.title">
+            {{ syncBadge.label }}
+          </BaseBadge>
           <span v-if="account.institution_name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ account.institution_name }}</span>
         </div>
       </div>
@@ -125,7 +153,7 @@ async function reseedHistory(): Promise<void> {
           type="button"
           class="mt-1 font-medium underline underline-offset-2 disabled:opacity-50"
           :disabled="retrying"
-          @click="retrySync"
+          @click.stop="retrySync"
         >
           {{ retrying ? 'Nouvelle tentative…' : 'Réessayer' }}
         </button>
@@ -152,24 +180,55 @@ async function reseedHistory(): Promise<void> {
       in the neutral tone — the account is healthy, its curve is simply
       approximate while an operation is blocked but not yet booked.
     -->
-    <p
+    <div
       v-else-if="account.reconciliation_status === 'estimated'"
-      class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
+      class="mt-3 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted"
     >
-      Courbe estimée : votre banque ne publie que le solde disponible, opérations en attente
-      déduites. La courbe peut être décalée du montant des paiements non encore comptabilisés.
-    </p>
+      Courbe estimée
+      <span @click.stop>
+        <BaseHelpPopover label="Pourquoi estimée ?">
+          Votre banque ne publie que le solde disponible, opérations en attente déduites.
+          La courbe peut être décalée du montant des paiements pas encore comptabilisés.
+        </BaseHelpPopover>
+      </span>
+    </div>
 
-    <!-- A gap means a movement is missing or counted twice: a real signal about the user's money. -->
-    <!-- Ruling R18: display alert ONLY when reconciliation_status === 'gap' and reconciliation_gap != null -->
+    <!--
+      Ruling R18: shown only when reconciliation_status === 'gap'. The balance
+      itself is the bank's and is right; what the check doubts is the list of
+      operations since the previous sync, so that is what the message talks
+      about — in the user's terms, not the ledger's.
+    -->
     <div
       v-if="account.reconciliation_status === 'gap' && account.reconciliation_gap != null"
       class="mt-3 flex items-start gap-2 p-2 rounded-input bg-warning/10 border border-warning/20 text-warning text-xs"
     >
       <TriangleAlert class="w-4 h-4 shrink-0" />
-      <span>
-        Écart de réconciliation de {{ maskValue(formatCurrency(account.reconciliation_gap, account.currency)) }} :
-        un mouvement manque ou est compté deux fois sur la dernière période.
+      <div class="min-w-0 flex-1">
+        <p>
+          Opérations incomplètes : votre banque compte
+          {{ maskValue(formatCurrency(Math.abs(account.reconciliation_gap), account.currency)) }}
+          de {{ gapDirection }} de plus que les opérations reçues depuis la synchronisation précédente.
+        </p>
+        <button
+          v-if="openBankingEnabled"
+          type="button"
+          class="mt-1 font-medium underline underline-offset-2 disabled:opacity-50"
+          :disabled="reseeding"
+          @click.stop="reseedHistory"
+        >
+          {{ reseeding ? 'Récupération…' : 'Récupérer les opérations' }}
+        </button>
+      </div>
+      <span class="shrink-0 -my-1" @click.stop>
+        <BaseHelpPopover label="Qu'est-ce que cet écart ?" width="md">
+          Le solde affiché vient de votre banque : il est juste. À chaque synchronisation,
+          CapitalView vérifie que le solde précédent plus les opérations reçues depuis
+          redonnent bien ce solde. Quand ce n'est pas le cas, une opération manque ou est
+          comptée deux fois : les totaux de l'onglet Opérations et la courbe avant cette date
+          sont décalés d'autant. « Récupérer les opérations » redemande tout l'historique à
+          votre banque.
+        </BaseHelpPopover>
       </span>
     </div>
 
@@ -193,51 +252,29 @@ async function reseedHistory(): Promise<void> {
           type="button"
           class="mt-1 font-medium underline underline-offset-2 disabled:opacity-50"
           :disabled="reseeding"
-          @click="reseedHistory"
+          @click.stop="reseedHistory"
         >
           {{ reseeding ? 'Récupération…' : 'Récupérer l\'historique' }}
         </button>
       </div>
     </div>
 
-    <div class="mt-4 flex items-center justify-between">
-      <div class="flex flex-col gap-0.5">
-        <template v-if="account.is_linked">
-          <!-- Green with a refresh icon reads as "kept up to date"; with the
-               feature off nothing is, so the same date goes neutral. -->
-          <p
-            v-if="account.last_synced_at && openBankingEnabled"
-            class="flex items-center gap-1 text-xs text-success"
-          >
-            <RefreshCw class="w-3 h-3" />
-            Synchronisé le {{ formatDate(account.last_synced_at) }}
-          </p>
-          <p v-else-if="account.last_synced_at" class="text-xs text-text-muted dark:text-text-dark-muted">
-            Dernière synchro le {{ formatDate(account.last_synced_at) }} — connexion désactivée
-          </p>
-          <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">Jamais synchronisé</p>
-          <!-- A measured limit, not an apology: how far back the bank served
-               this account. Stated rather than offered as a retry, because a
-               bank that caps its history answers a retry the same way. -->
-          <p
-            v-if="!account.history_pending && account.history_served_from"
-            class="text-xs text-text-muted dark:text-text-dark-muted"
-          >
-            Historique bancaire depuis le {{ formatDate(account.history_served_from) }}
-          </p>
-        </template>
-        <template v-else>
-          <p v-if="!account.balance_updated_at" class="text-xs text-text-muted dark:text-text-dark-muted">Mis à jour {{ formatDate(account.updated_at) }}</p>
-          <p v-else class="flex items-center gap-1 text-xs text-success">
-            <RefreshCw class="w-3 h-3" />
-            Sync le {{ formatDate(account.balance_updated_at) }}
-          </p>
-        </template>
-      </div>
-      <div class="flex gap-2">
-        <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click="emit('edit', account)">
+    <!-- mt-auto: the footer sits at the bottom whatever the card above says,
+         so the cards of one row line up. -->
+    <div class="mt-auto pt-4 flex items-center justify-between gap-2">
+      <!-- An imported account has no sync to report: when its balance last changed is what it has. -->
+      <p v-if="!account.is_linked" class="text-xs text-text-muted dark:text-text-dark-muted">
+        Mis à jour le {{ formatDate(account.balance_updated_at ?? account.updated_at) }}
+      </p>
+      <span v-else />
+      <div class="flex items-center gap-1">
+        <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click.stop="emit('edit', account)">
           <Pencil class="w-4 h-4" />
         </BaseButton>
+        <span class="flex items-center gap-0.5 text-sm font-medium text-primary">
+          Opérations
+          <ChevronRight class="w-4 h-4" />
+        </span>
       </div>
     </div>
   </BaseCard>
