@@ -12,9 +12,11 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import CashflowComparisonCard from '@/components/cashflow/CashflowComparisonCard.vue'
+import RealCashflowView from '@/components/cashflow/RealCashflowView.vue'
+import { readCashflowView, writeCashflowView, type CashflowView } from '@/utils/realCashflow'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle,
+  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle, BaseSegmentedControl,
 } from '@/components'
 import type { CashflowCreate, CashflowResponse, FlowType, Frequency } from '@/types'
 
@@ -31,6 +33,14 @@ const activeTab = ref<'all' | 'inflows' | 'outflows'>('all')
 const searchQuery = ref('')
 const deleteConfirmId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
+
+/** Declared (visé) or observed (réel), remembered on this browser. */
+const view = ref<CashflowView>(readCashflowView())
+watch(view, writeCashflowView)
+const viewOptions = [
+  { label: 'Visé', value: 'planned' },
+  { label: 'Réel', value: 'real' },
+]
 
 const form = reactive<CashflowCreate>({
   name: '',
@@ -432,298 +442,308 @@ onMounted(async () => {
 
 <template>
   <div>
-    <PageHeader title="Flux de trésorerie" description="Gérez vos revenus et dépenses récurrents et ponctuels">
+    <PageHeader title="Flux de trésorerie" description="Ce que vous prévoyez, et ce que vos comptes ont réellement vu passer">
       <template #actions>
-        <BaseAddButton @click="openCreate()">Nouveau flux</BaseAddButton>
+        <BaseSegmentedControl
+          :model-value="view"
+          :options="viewOptions"
+          aria-label="Cashflow visé ou réel"
+          @update:model-value="view = $event as CashflowView"
+        />
+        <BaseAddButton v-if="view === 'planned'" @click="openCreate()">Nouveau flux</BaseAddButton>
       </template>
     </PageHeader>
 
-    <!-- Error -->
-    <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
-      {{ cashflow.error }}
-    </BaseAlert>
+    <RealCashflowView v-if="view === 'real'" />
+
+    <template v-else>
+      <!-- Error -->
+      <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
+        {{ cashflow.error }}
+      </BaseAlert>
 
 
-    <!-- ── Stats Cards ──────────────────────────────────── -->
-    <div v-if="cashflow.cashflows.length" class="mb-8">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <BaseStatCard
-          label="Revenus mensuels"
-          :value="maskValue(formatCurrency(inflowsTotal))"
-          sub-value-class="text-success"
-        >
-          <template #icon>
-            <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-              <ArrowUp class="w-5 h-5 text-success" />
-            </div>
-          </template>
-        </BaseStatCard>
+      <!-- ── Stats Cards ──────────────────────────────────── -->
+      <div v-if="cashflow.cashflows.length" class="mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <BaseStatCard
+            label="Revenus mensuels"
+            :value="maskValue(formatCurrency(inflowsTotal))"
+            sub-value-class="text-success"
+          >
+            <template #icon>
+              <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                <ArrowUp class="w-5 h-5 text-success" />
+              </div>
+            </template>
+          </BaseStatCard>
 
-        <BaseStatCard
-          label="Dépenses mensuelles"
-          :value="maskValue(formatCurrency(outflowsTotal))"
-          sub-value-class="text-danger"
-        >
-          <template #icon>
-            <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
-              <ArrowDown class="w-5 h-5 text-danger" />
-            </div>
-          </template>
-        </BaseStatCard>
+          <BaseStatCard
+            label="Dépenses mensuelles"
+            :value="maskValue(formatCurrency(outflowsTotal))"
+            sub-value-class="text-danger"
+          >
+            <template #icon>
+              <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
+                <ArrowDown class="w-5 h-5 text-danger" />
+              </div>
+            </template>
+          </BaseStatCard>
 
-        <BaseStatCard
-          label="Balance nette"
-          :value="maskValue(formatCurrency(netBalance))"
-        >
-          <template #icon>
-            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
-              <Scale class="w-5 h-5 text-primary" />
-            </div>
-          </template>
-        </BaseStatCard>
+          <BaseStatCard
+            label="Balance nette"
+            :value="maskValue(formatCurrency(netBalance))"
+          >
+            <template #icon>
+              <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
+                <Scale class="w-5 h-5 text-primary" />
+              </div>
+            </template>
+          </BaseStatCard>
 
-        <BaseStatCard
-          label="Taux d'épargne"
-          :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
-          :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
-        >
-          <template #icon>
-            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Circle class="w-5 h-5 text-primary" />
-            </div>
-          </template>
-        </BaseStatCard>
+          <BaseStatCard
+            label="Taux d'épargne"
+            :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
+            :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
+          >
+            <template #icon>
+              <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Circle class="w-5 h-5 text-primary" />
+              </div>
+            </template>
+          </BaseStatCard>
+        </div>
+
+        <!-- No totals rather than wrong ones: a flow's currency has no published rate. -->
+        <p v-if="inflowsTotal === null || outflowsTotal === null" class="mt-3 text-xs text-warning">
+          Totaux indisponibles : le cours d'une de vos devises n'est pas publié.
+        </p>
       </div>
 
-      <!-- No totals rather than wrong ones: a flow's currency has no published rate. -->
-      <p v-if="inflowsTotal === null || outflowsTotal === null" class="mt-3 text-xs text-warning">
-        Totaux indisponibles : le cours d'une de vos devises n'est pas publié.
-      </p>
-    </div>
-
-    <!-- ── Inflows vs Outflows Breakdown ──────────────── -->
-    <BaseCard
-      v-if="cashflowSankeyData.links.length"
-      title="Flux revenus vers dépenses"
-      subtitle="Répartition mensualisée par catégorie"
-      class="mb-8"
-    >
-      <CashflowSankeyChart
-        :links="cashflowSankeyData.links"
-        :node-labels="cashflowSankeyData.nodeLabels"
-        :node-groups="cashflowSankeyData.nodeGroups"
-        :hide-node-labels="['hub:revenus']"
-        :is-dark="isDark"
-      />
-    </BaseCard>
-
-    <!-- ── Category Breakdown ───────────────────────────── -->
-    <div v-if="categorySummary.length" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <!-- Inflows by category -->
-      <BaseCard title="Revenus par catégorie" subtitle="Montants mensualisés">
-        <div class="space-y-3">
-          <div
-            v-for="cat in categorySummary.filter(c => c.flow_type === 'INFLOW')"
-            :key="cat.category"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-2 h-2 rounded-full bg-success shrink-0"></div>
-              <span class="text-sm text-text-main dark:text-text-dark-main truncate">{{ cat.category }}</span>
-              <BaseBadge variant="secondary">{{ cat.count }}</BaseBadge>
-            </div>
-            <span class="text-sm font-semibold text-success whitespace-nowrap ml-4">
-              {{ maskValue(formatCurrency(cat.total)) }}
-            </span>
-          </div>
-          <p
-            v-if="!categorySummary.filter(c => c.flow_type === 'INFLOW').length"
-            class="text-sm text-text-muted dark:text-text-dark-muted text-center py-4"
-          >
-            Aucun revenu enregistré
-          </p>
-        </div>
+      <!-- ── Inflows vs Outflows Breakdown ──────────────── -->
+      <BaseCard
+        v-if="cashflowSankeyData.links.length"
+        title="Flux revenus vers dépenses"
+        subtitle="Répartition mensualisée par catégorie"
+        class="mb-8"
+      >
+        <CashflowSankeyChart
+          :links="cashflowSankeyData.links"
+          :node-labels="cashflowSankeyData.nodeLabels"
+          :node-groups="cashflowSankeyData.nodeGroups"
+          :hide-node-labels="['hub:revenus']"
+          :is-dark="isDark"
+        />
       </BaseCard>
 
-      <!-- Outflows by category -->
-      <BaseCard title="Dépenses par catégorie" subtitle="Montants mensualisés">
-        <div class="space-y-3">
-          <div
-            v-for="cat in categorySummary.filter(c => c.flow_type === 'OUTFLOW')"
-            :key="cat.category"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-2 h-2 rounded-full bg-danger shrink-0"></div>
-              <span class="text-sm text-text-main dark:text-text-dark-main truncate">{{ cat.category }}</span>
-              <BaseBadge variant="secondary">{{ cat.count }}</BaseBadge>
+      <!-- ── Category Breakdown ───────────────────────────── -->
+      <div v-if="categorySummary.length" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Inflows by category -->
+        <BaseCard title="Revenus par catégorie" subtitle="Montants mensualisés">
+          <div class="space-y-3">
+            <div
+              v-for="cat in categorySummary.filter(c => c.flow_type === 'INFLOW')"
+              :key="cat.category"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-2 h-2 rounded-full bg-success shrink-0"></div>
+                <span class="text-sm text-text-main dark:text-text-dark-main truncate">{{ cat.category }}</span>
+                <BaseBadge variant="secondary">{{ cat.count }}</BaseBadge>
+              </div>
+              <span class="text-sm font-semibold text-success whitespace-nowrap ml-4">
+                {{ maskValue(formatCurrency(cat.total)) }}
+              </span>
             </div>
-            <span class="text-sm font-semibold text-danger whitespace-nowrap ml-4">
-              {{ maskValue(formatCurrency(cat.total)) }}
-            </span>
+            <p
+              v-if="!categorySummary.filter(c => c.flow_type === 'INFLOW').length"
+              class="text-sm text-text-muted dark:text-text-dark-muted text-center py-4"
+            >
+              Aucun revenu enregistré
+            </p>
           </div>
-          <p
-            v-if="!categorySummary.filter(c => c.flow_type === 'OUTFLOW').length"
-            class="text-sm text-text-muted dark:text-text-dark-muted text-center py-4"
-          >
-            Aucune dépense enregistrée
-          </p>
-        </div>
-      </BaseCard>
-    </div>
+        </BaseCard>
 
-    <!--
-      What the declarations above are worth against the accounts. Placed just
-      before the list itself: it is a reading of those rows, not a new subject.
-    -->
-    <CashflowComparisonCard />
-
-    <!-- ── Tabs + Search ────────────────────────────────── -->
-    <div v-if="cashflow.cashflows.length" class="mb-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <!-- Tabs -->
-        <div class="flex gap-1 p-1 rounded-button bg-background-subtle dark:bg-background-dark-subtle">
-          <button
-            v-for="tab in [
-              { key: 'all', label: 'Tous' },
-              { key: 'inflows', label: 'Revenus' },
-              { key: 'outflows', label: 'Dépenses' },
-            ] as const"
-            :key="tab.key"
-            @click="activeTab = tab.key"
-            :class="[
-              'px-4 py-2 text-sm font-medium rounded-button transition-all duration-150',
-              activeTab === tab.key
-                ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm'
-                : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-            ]"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-
-        <!-- Search -->
-        <div class="relative w-full sm:w-72">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Rechercher..."
-            class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-          />
-        </div>
+        <!-- Outflows by category -->
+        <BaseCard title="Dépenses par catégorie" subtitle="Montants mensualisés">
+          <div class="space-y-3">
+            <div
+              v-for="cat in categorySummary.filter(c => c.flow_type === 'OUTFLOW')"
+              :key="cat.category"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-2 h-2 rounded-full bg-danger shrink-0"></div>
+                <span class="text-sm text-text-main dark:text-text-dark-main truncate">{{ cat.category }}</span>
+                <BaseBadge variant="secondary">{{ cat.count }}</BaseBadge>
+              </div>
+              <span class="text-sm font-semibold text-danger whitespace-nowrap ml-4">
+                {{ maskValue(formatCurrency(cat.total)) }}
+              </span>
+            </div>
+            <p
+              v-if="!categorySummary.filter(c => c.flow_type === 'OUTFLOW').length"
+              class="text-sm text-text-muted dark:text-text-dark-muted text-center py-4"
+            >
+              Aucune dépense enregistrée
+            </p>
+          </div>
+        </BaseCard>
       </div>
-    </div>
 
-    <!-- ── Cashflow Table ───────────────────────────────── -->
-    <BaseCard v-if="filteredCashflows.length" :padding="false">
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead>
-            <tr class="border-b border-surface-border dark:border-surface-dark-border">
-              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Flux</th>
-              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Récurrence</th>
-              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte</th>
-              <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
-              <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-            <tr
-              v-for="item in filteredCashflows"
-              :key="item.id"
+      <!--
+        What the declarations above are worth against the accounts. Placed just
+        before the list itself: it is a reading of those rows, not a new subject.
+      -->
+      <CashflowComparisonCard />
+
+      <!-- ── Tabs + Search ────────────────────────────────── -->
+      <div v-if="cashflow.cashflows.length" class="mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <!-- Tabs -->
+          <div class="flex gap-1 p-1 rounded-button bg-background-subtle dark:bg-background-dark-subtle">
+            <button
+              v-for="tab in [
+                { key: 'all', label: 'Tous' },
+                { key: 'inflows', label: 'Revenus' },
+                { key: 'outflows', label: 'Dépenses' },
+              ] as const"
+              :key="tab.key"
+              @click="activeTab = tab.key"
               :class="[
-                'hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors',
-                item.is_active ? '' : 'opacity-60',
+                'px-4 py-2 text-sm font-medium rounded-button transition-all duration-150',
+                activeTab === tab.key
+                  ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm'
+                  : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
               ]"
             >
-              <td class="px-4 py-3">
-                <div class="flex items-start gap-2.5">
-                  <span
-                    :class="[
-                      'mt-1.5 w-2 h-2 shrink-0 rounded-full',
-                      item.flow_type === 'INFLOW' ? 'bg-success' : 'bg-danger',
-                    ]"
-                    :title="item.flow_type === 'INFLOW' ? 'Revenu' : 'Dépense'"
-                  />
-                  <div class="min-w-0">
-                    <span class="block text-sm font-medium text-text-main dark:text-text-dark-main">{{ item.name }}</span>
-                    <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ capitalize(item.category) }}</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap">
-                <span class="block text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
-                <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ formatDayMonth(item.transaction_date) }}</span>
-              </td>
-              <td class="px-4 py-3 whitespace-nowrap">
-                <span v-if="item.bank_account_id" class="text-sm text-text-body dark:text-text-dark-body">
-                  {{ bankAccountNameById[item.bank_account_id] ?? 'Compte supprimé' }}
-                </span>
-                <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">—</span>
-              </td>
-              <td class="px-4 py-3 text-right whitespace-nowrap">
-                <span :class="['block text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
-                  {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount, item.currency) }}
-                </span>
-                <span v-if="item.frequency !== 'MONTHLY'" class="block text-xs text-text-muted dark:text-text-dark-muted">
-                  ≈ {{ formatCurrency(item.monthly_amount, item.currency) }}/mois
-                </span>
-              </td>
-              <td class="px-4 py-3 text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <BaseToggle
-                    v-if="item.bank_account_id"
-                    :model-value="item.is_active"
-                    :aria-label="`Synchroniser ${item.name} avec le compte bancaire`"
-                    @update:model-value="toggleActive(item, $event)"
-                  />
-                  <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${item.name}`" @click="openEdit(item)">
-                    <Pencil class="w-4 h-4" />
-                  </BaseButton>
-                  <BaseButton size="sm" variant="ghost" :aria-label="`Supprimer ${item.name}`" @click="deleteConfirmId = item.id">
-                    <Trash2 class="w-4 h-4 text-danger" />
-                  </BaseButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <!-- Search -->
+          <div class="relative w-full sm:w-72">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Rechercher..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+            />
+          </div>
+        </div>
       </div>
 
-      <!-- Table footer with count -->
-      <template #footer>
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-text-muted dark:text-text-dark-muted">
-            {{ filteredCashflows.length }} flux affichés sur {{ cashflow.cashflows.length }}
-          </p>
+      <!-- ── Cashflow Table ───────────────────────────────── -->
+      <BaseCard v-if="filteredCashflows.length" :padding="false">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-surface-border dark:border-surface-dark-border">
+                <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Flux</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Récurrence</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte</th>
+                <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
+                <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
+              <tr
+                v-for="item in filteredCashflows"
+                :key="item.id"
+                :class="[
+                  'hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors',
+                  item.is_active ? '' : 'opacity-60',
+                ]"
+              >
+                <td class="px-4 py-3">
+                  <div class="flex items-start gap-2.5">
+                    <span
+                      :class="[
+                        'mt-1.5 w-2 h-2 shrink-0 rounded-full',
+                        item.flow_type === 'INFLOW' ? 'bg-success' : 'bg-danger',
+                      ]"
+                      :title="item.flow_type === 'INFLOW' ? 'Revenu' : 'Dépense'"
+                    />
+                    <div class="min-w-0">
+                      <span class="block text-sm font-medium text-text-main dark:text-text-dark-main">{{ item.name }}</span>
+                      <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ capitalize(item.category) }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="block text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
+                  <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ formatDayMonth(item.transaction_date) }}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span v-if="item.bank_account_id" class="text-sm text-text-body dark:text-text-dark-body">
+                    {{ bankAccountNameById[item.bank_account_id] ?? 'Compte supprimé' }}
+                  </span>
+                  <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">—</span>
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                  <span :class="['block text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
+                    {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount, item.currency) }}
+                  </span>
+                  <span v-if="item.frequency !== 'MONTHLY'" class="block text-xs text-text-muted dark:text-text-dark-muted">
+                    ≈ {{ formatCurrency(item.monthly_amount, item.currency) }}/mois
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end gap-1">
+                    <BaseToggle
+                      v-if="item.bank_account_id"
+                      :model-value="item.is_active"
+                      :aria-label="`Synchroniser ${item.name} avec le compte bancaire`"
+                      @update:model-value="toggleActive(item, $event)"
+                    />
+                    <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${item.name}`" @click="openEdit(item)">
+                      <Pencil class="w-4 h-4" />
+                    </BaseButton>
+                    <BaseButton size="sm" variant="ghost" :aria-label="`Supprimer ${item.name}`" @click="deleteConfirmId = item.id">
+                      <Trash2 class="w-4 h-4 text-danger" />
+                    </BaseButton>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </template>
-    </BaseCard>
 
-    <!-- Empty state -->
-    <BaseEmptyState
-      v-else-if="hasFetchedOnce && !cashflow.isLoading && !cashflow.cashflows.length"
-      title="Aucun flux de trésorerie"
-      description="Commencez par ajouter vos revenus et dépenses pour suivre votre cash flow"
-      action-label="Ajouter un flux"
-      @action="openCreate()"
-    >
-      <template #icon>
-        <DollarSign class="w-8 h-8 text-text-muted dark:text-text-dark-muted" />
-      </template>
-    </BaseEmptyState>
+        <!-- Table footer with count -->
+        <template #footer>
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-text-muted dark:text-text-dark-muted">
+              {{ filteredCashflows.length }} flux affichés sur {{ cashflow.cashflows.length }}
+            </p>
+          </div>
+        </template>
+      </BaseCard>
 
-    <!-- Empty filtered results -->
-    <BaseEmptyState
-      v-else-if="hasFetchedOnce && !cashflow.isLoading && cashflow.cashflows.length && !filteredCashflows.length"
-      title="Aucun résultat"
-      description="Aucun flux ne correspond à votre recherche"
-    >
-      <template #action>
-        <BaseButton variant="outline" @click="searchQuery = ''; activeTab = 'all'">Réinitialiser les filtres</BaseButton>
-      </template>
-    </BaseEmptyState>
+      <!-- Empty state -->
+      <BaseEmptyState
+        v-else-if="hasFetchedOnce && !cashflow.isLoading && !cashflow.cashflows.length"
+        title="Aucun flux de trésorerie"
+        description="Commencez par ajouter vos revenus et dépenses pour suivre votre cash flow"
+        action-label="Ajouter un flux"
+        @action="openCreate()"
+      >
+        <template #icon>
+          <DollarSign class="w-8 h-8 text-text-muted dark:text-text-dark-muted" />
+        </template>
+      </BaseEmptyState>
+
+      <!-- Empty filtered results -->
+      <BaseEmptyState
+        v-else-if="hasFetchedOnce && !cashflow.isLoading && cashflow.cashflows.length && !filteredCashflows.length"
+        title="Aucun résultat"
+        description="Aucun flux ne correspond à votre recherche"
+      >
+        <template #action>
+          <BaseButton variant="outline" @click="searchQuery = ''; activeTab = 'all'">Réinitialiser les filtres</BaseButton>
+        </template>
+      </BaseEmptyState>
+    </template>
 
     <!-- ── Create/Edit Modal ────────────────────────────── -->
     <BaseModal
