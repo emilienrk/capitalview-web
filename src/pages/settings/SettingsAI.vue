@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check, KeyRound, SlidersHorizontal } from 'lucide-vue-next'
+import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check, KeyRound, SlidersHorizontal, Tags } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
@@ -23,6 +23,7 @@ const apiKeyInputs = ref<Record<string, string>>({})
 // --- Computed helpers ---
 const settings = computed(() => settingsStore.settings)
 const isAiEnabled = computed(() => settings.value?.ai_feature_enabled ?? false)
+const isCategorizationEnabled = computed(() => settings.value?.ai_categorization_enabled ?? false)
 
 const configuredProviders = computed<Record<string, AIProviderConfig>>(() => {
   const map: Record<string, AIProviderConfig> = {}
@@ -69,6 +70,10 @@ async function toggleAiFeature() {
   if (!settings.value) return
   const newValue = !settings.value.ai_feature_enabled
   await settingsStore.updateSettings({ ai_feature_enabled: newValue })
+}
+
+async function toggleCategorization(value: boolean) {
+  await settingsStore.updateSettings({ ai_categorization_enabled: value })
 }
 
 async function saveProviderKey(providerId: string) {
@@ -212,6 +217,25 @@ const allProviders = computed(() => {
           @update:model-value="toggleAiFeature"
         />
       </template>
+    </SettingsSection>
+
+    <SettingsSection
+      v-if="isAiEnabled"
+      :icon="Tags"
+      title="Catégoriser mes opérations bancaires"
+      subtitle="L'IA propose une catégorie pour les opérations qu'aucune règle ne range encore"
+    >
+      <template #header-action>
+        <BaseToggle
+          :model-value="isCategorizationEnabled"
+          aria-label="Catégoriser mes opérations bancaires avec l'IA"
+          @update:model-value="toggleCategorization"
+        />
+      </template>
+      <BaseAlert variant="info">
+        Les libellés et montants de vos opérations sont envoyés à votre fournisseur d'IA via votre propre clé API.
+        Désactivez pour rester entièrement local : les règles et le rangement manuel continuent de fonctionner.
+      </BaseAlert>
     </SettingsSection>
 
     <template v-if="isAiEnabled">
