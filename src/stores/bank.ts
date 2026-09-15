@@ -17,6 +17,7 @@ import type {
   BankAccountUnlinkResult,
   BankAuthorizeResponse,
   BankFlowsResponse,
+  BankTransactionsResponse,
   BankExportImportResponse,
   BankSessionAccount,
   BankSyncResponse,
@@ -43,6 +44,22 @@ export const useBankStore = defineStore('bank', () => {
   /** What actually moved, from GET /banking/flows. Null until first asked. */
   const observedFlows = ref<BankFlowsResponse | null>(null)
   const observedFlowsLoading = ref(false)
+  /** What `observedFlows` answers, as `months:account` ('all' for every account). */
+  const observedFlowsKey = ref<string | null>(null)
+  /** The month shown on the Opérations tab, from GET /banking/transactions. */
+  const transactions = ref<BankTransactionsResponse | null>(null)
+  /** What `transactions` answers, as `period:account` ('all' for every account). */
+  const transactionsKey = ref<string | null>(null)
+  const transactionsLoading = ref(false)
+  // The last filter asked for. Not reactive: only ever compared on arrival.
+  let latestFlowsRequest = ''
+  let latestTransactionsRequest = ''
+  /**
+   * Bumped whenever the stored movements or balances may have changed — a sync,
+   * an import, an account created or deleted. Each tab of the Banque section
+   * watches it to reload what it shows, whichever one fired the change.
+   */
+  const dataRevision = ref(0)
   const historyCacheKey = 'bank:history:global'
 
   /**
@@ -263,19 +280,58 @@ export const useBankStore = defineStore('bank', () => {
    * credential, so it answers even for someone who switched the feature back
    * off — the history is still theirs.
    */
-  async function fetchObservedFlows(months = 12, force = false): Promise<void> {
+  async function fetchObservedFlows(months = 12, force = false, accountId: string | null = null): Promise<void> {
+    const key = `${months}:${accountId ?? 'all'}`
+    latestFlowsRequest = key
     observedFlowsLoading.value = true
+    const accountQuery = accountId ? `&account_id=${encodeURIComponent(accountId)}` : ''
     try {
-      observedFlows.value = await getOrFetchCached<BankFlowsResponse>(
-        `bank:flows:${months}`,
-        () => apiClient.get<BankFlowsResponse>(`/banking/flows?months=${months}`),
+      const flows = await getOrFetchCached<BankFlowsResponse>(
+        `bank:flows:${key}`,
+        () => apiClient.get<BankFlowsResponse>(`/banking/flows?months=${months}${accountQuery}`),
         CACHE_TTL_MS,
         force,
       )
+      // A slower answer to a filter already replaced must not overwrite the newer one.
+      if (latestFlowsRequest !== key) return
+      observedFlows.value = flows
+      observedFlowsKey.value = key
     } catch (e) {
+      if (latestFlowsRequest !== key) return
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des mouvements'
     } finally {
-      observedFlowsLoading.value = false
+      if (latestFlowsRequest === key) observedFlowsLoading.value = false
+    }
+  }
+
+  /**
+   * One month of operations, all accounts or one. Same lifetime as the flows.
+   * False when the request failed, so the page can stop waiting for it.
+   */
+  async function fetchTransactions(period: string, accountId: string | null = null, force = false): Promise<boolean> {
+    const key = `${period}:${accountId ?? 'all'}`
+    latestTransactionsRequest = key
+    transactionsLoading.value = true
+    const accountQuery = accountId ? `&account_id=${encodeURIComponent(accountId)}` : ''
+    try {
+      const month = await getOrFetchCached<BankTransactionsResponse>(
+        `bank:flows:transactions:${key}`,
+        () => apiClient.get<BankTransactionsResponse>(`/banking/transactions?period=${period}${accountQuery}`),
+        CACHE_TTL_MS,
+        force,
+      )
+      if (latestTransactionsRequest === key) {
+        transactions.value = month
+        transactionsKey.value = key
+      }
+      return true
+    } catch (e) {
+      if (latestTransactionsRequest === key) {
+        error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des opérations'
+      }
+      return false
+    } finally {
+      if (latestTransactionsRequest === key) transactionsLoading.value = false
     }
   }
 
@@ -346,6 +402,7 @@ export const useBankStore = defineStore('bank', () => {
   }
 
   function invalidateHistoryCache(): void {
+    dataRevision.value += 1
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('bank:history:account:')
     // The observed flows are built from the same movements a sync or an import
@@ -359,6 +416,9 @@ export const useBankStore = defineStore('bank', () => {
     history.value = []
     accountHistoryById.value = {}
     observedFlows.value = null
+    observedFlowsKey.value = null
+    transactions.value = null
+    transactionsKey.value = null
     invalidateHistoryCache()
     error.value = null
   }
@@ -375,6 +435,11 @@ export const useBankStore = defineStore('bank', () => {
     isHistoryCacheValid,
     observedFlows,
     observedFlowsLoading,
+    observedFlowsKey,
+    transactions,
+    transactionsKey,
+    transactionsLoading,
+    dataRevision,
     linkedAccounts,
     syncResultByAccount,
     hasStaleSync,
@@ -388,6 +453,7 @@ export const useBankStore = defineStore('bank', () => {
     syncBanking,
     retrySync,
     fetchObservedFlows,
+    fetchTransactions,
     importBankingExport,
     fetchAspsps,
     authorizeBank,

@@ -7,7 +7,9 @@ import Login from '@/pages/Login.vue'
 const Dashboard = () => import('@/pages/Dashboard.vue')
 const Stock = () => import('@/pages/Stock.vue')
 const Cashflow = () => import('@/pages/Cashflow.vue')
+const BankSection = () => import('@/pages/BankSection.vue')
 const Bank = () => import('@/pages/Bank.vue')
+const BankTransactions = () => import('@/pages/BankTransactions.vue')
 const Wealth = () => import('@/pages/Asset.vue')
 const Crypto = () => import('@/pages/Crypto.vue')
 const Notes = () => import('@/pages/Notes.vue')
@@ -53,10 +55,15 @@ const routes = [
     meta: { requiresAuth: false, layout: 'blank' },
   },
   {
+    // One shell for the Banque section's tabs: its header and actions stay put
+    // while the tab content under them changes.
     path: '/bank',
-    name: 'bank',
-    component: Bank,
+    component: BankSection,
     meta: { requiresAuth: true },
+    children: [
+      { path: '', name: 'bank', component: Bank },
+      { path: 'transactions', name: 'bank-transactions', component: BankTransactions },
+    ],
   },
   {
     path: '/cashflow',

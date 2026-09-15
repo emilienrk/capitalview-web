@@ -248,6 +248,9 @@ const option = computed(() => {
   return {
     backgroundColor: bgColor,
     legend: {
+      // A single series is already named by the card it sits in; the legend
+      // would only repeat it, and it costs a row of the plot.
+      show: props.series.length > 1,
       bottom: 28,
       type: 'scroll',
       selectedMode: true,

@@ -354,6 +354,44 @@ export interface BankFlowsResponse {
   other_currencies: BankFlowCurrencyTotal[]
 }
 
+/** One stored movement, as the bank reported it. */
+export interface BankTransactionItem {
+  id: string
+  account_id: string
+  account_name: string
+  /** YYYY-MM-DD */
+  operation_date: string | null
+  /** Unsigned: the direction is `is_credit`. */
+  amount: number
+  currency: string
+  is_credit: boolean
+  /** Not booked yet: listed, but out of the month's totals. */
+  is_pending: boolean
+  label: string | null
+  /** The account on the other side when the movement pairs as an internal transfer. */
+  transfer_account_id: string | null
+  transfer_account_name: string | null
+}
+
+/**
+ * Response of GET /banking/transactions — one month of operations, with that
+ * month's totals computed exactly as GET /banking/flows computes them.
+ */
+export interface BankTransactionsResponse {
+  period: string // YYYY-MM
+  currency: string
+  inflow: number
+  outflow: number
+  net: number
+  internal_transfers_excluded: number
+  internal_transfers_amount: number
+  pending_count: number
+  pending_inflow: number
+  pending_outflow: number
+  other_currencies: BankFlowCurrencyTotal[]
+  transactions: BankTransactionItem[]
+}
+
 export interface BankSyncResponse {
   synced: number
   results: BankAccountSyncResult[]
