@@ -27,6 +27,7 @@ export async function resetAllSessionState(): Promise<void> {
     { useAnalysisStore },
     { useApiTokensStore },
     { useNotificationsStore },
+    { useBankCategoriesStore },
   ] = await Promise.all([
     import('@/stores/dashboard'),
     import('@/stores/wealthHistory'),
@@ -42,6 +43,7 @@ export async function resetAllSessionState(): Promise<void> {
     import('@/stores/analysis'),
     import('@/stores/apiTokens'),
     import('@/stores/notifications'),
+    import('@/stores/bankCategories'),
   ])
 
   useDashboardStore().reset()
@@ -58,4 +60,5 @@ export async function resetAllSessionState(): Promise<void> {
   useAnalysisStore().reset()
   useApiTokensStore().reset()
   useNotificationsStore().reset()
+  useBankCategoriesStore().reset()
 }
