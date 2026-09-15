@@ -19,10 +19,18 @@ import type {
   BankImportCurvePreview,
 } from '@/types'
 
+interface ImportTargetAccount {
+  id: string
+  name: string
+  /** Bank accounts only: attached to a bank, which then owns their history. */
+  is_linked?: boolean
+  history_served_from?: string | null
+}
+
 interface Props {
   open: boolean
   category: ImportCategory
-  accounts: { id: string; name: string }[]
+  accounts: ImportTargetAccount[]
   accountId?: string
   initialSourceId?: string
 }
@@ -72,9 +80,29 @@ const overwrite = ref(false)
 
 const isLoading = ref(false)
 const error = ref<string | null>(null)
-const result = reactive({ imported: 0, skipped: 0, groups: null as number | null })
+const result = reactive({ imported: 0, skipped: 0, groups: null as number | null, coveredByBank: 0 })
 
 const selectedSource = computed(() => sources.value.find((s) => s.source_id === selectedSourceId.value) ?? null)
+
+/**
+ * A bank-linked account only takes a movements file, cut where the bank's
+ * history starts; a balance file would fight the bank's curve, so those
+ * accounts are not offered for it.
+ */
+const selectableAccounts = computed(() =>
+  props.category === 'bank' && selectedSource.value && !selectedSource.value.fills_before_bank_history
+    ? props.accounts.filter((a) => !a.is_linked)
+    : props.accounts,
+)
+watch(selectableAccounts, (list) => {
+  if (list[0] && !list.some((a) => a.id === localAccountId.value)) localAccountId.value = list[0].id
+})
+
+const linkedTarget = computed(() => {
+  if (props.category !== 'bank') return null
+  const account = props.accounts.find((a) => a.id === localAccountId.value)
+  return account?.is_linked ? account : null
+})
 
 /** The source's assumed columns, all already named by the file. */
 const fileMatchesDefaultMapping = computed(() => {
@@ -212,7 +240,9 @@ async function runPreview() {
       options.value,
     )
     if (res.total_rows === 0) {
-      error.value = 'Aucune donnée exploitable trouvée dans le fichier.'
+      error.value = res.bank_history_from && res.covered_by_bank_count
+        ? `Toutes les opérations de ce fichier sont déjà fournies par la banque, dont l'historique commence le ${fmtDate(res.bank_history_from)}.`
+        : 'Aucune donnée exploitable trouvée dans le fichier.'
       return
     }
     preview.value = res
@@ -289,6 +319,7 @@ async function runConfirm() {
     result.imported = res.imported_count
     result.skipped = res.skipped_duplicates
     result.groups = res.groups_count
+    result.coveredByBank = res.covered_by_bank_count
     step.value = 'result'
     emit('imported', localAccountId.value)
   } catch (e) {
@@ -319,6 +350,12 @@ function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   } catch { return iso }
 }
+/** The eve of a YYYY-MM-DD day, as YYYY-MM-DD. */
+function dayBefore(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
 function typeLabel(t: string): string {
   const map: Record<string, string> = {
     BUY: 'Achat', SELL: 'Vente', SPEND: 'Dépense', FEE: 'Frais', REWARD: 'Récompense',
@@ -343,12 +380,23 @@ function typeBadgeClass(t: string): string {
     <template v-if="step === 'source'">
       <div class="space-y-4">
         <!-- Account -->
-        <div v-if="props.accounts.length >= 1">
+        <div v-if="selectableAccounts.length >= 1">
           <label class="block text-sm font-medium text-text-main dark:text-text-dark-main mb-1">Compte de destination</label>
           <select v-model="localAccountId" class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-            <option v-for="acc in props.accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            <option v-for="acc in selectableAccounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
           </select>
         </div>
+        <BaseAlert v-else-if="props.accounts.length" variant="warning">
+          Tous vos comptes sont synchronisés avec leur banque, qui fournit leur courbe de soldes.
+          Importez plutôt des opérations : elles complètent l'historique d'avant la banque.
+        </BaseAlert>
+
+        <BaseAlert v-if="linkedTarget" variant="info">
+          Compte synchronisé : seules les opérations antérieures à l'historique bancaire seront
+          importées<template v-if="linkedTarget.history_served_from">, soit jusqu'au
+          {{ fmtDate(dayBefore(linkedTarget.history_served_from)) }}</template>. La suite vient déjà
+          de la banque.
+        </BaseAlert>
 
         <!-- Source, folded when the caller already chose it -->
         <div v-if="props.initialSourceId && !sourcePicked && selectedSource" class="flex items-start justify-between gap-3">
@@ -450,6 +498,13 @@ function typeBadgeClass(t: string): string {
         <span v-if="stockErrorCount > 0" class="text-danger">{{ stockErrorCount }} ligne(s) en erreur (ignorées)</span>
       </div>
 
+      <BaseAlert v-if="preview?.bank_history_from" variant="info" class="mb-2">
+        Import jusqu'au <strong>{{ fmtDate(dayBefore(preview.bank_history_from)) }}</strong> : la banque
+        fournit l'historique à partir du {{ fmtDate(preview.bank_history_from) }}.
+        <template v-if="preview.covered_by_bank_count">
+          {{ preview.covered_by_bank_count }} opération(s) déjà fournie(s) par la banque ignorée(s).
+        </template>
+      </BaseAlert>
       <BaseAlert v-for="(w, i) in preview?.warnings || []" :key="i" variant="warning" class="mb-2">{{ w }}</BaseAlert>
       <BaseAlert v-if="error" variant="danger" class="mb-4">{{ error }}</BaseAlert>
 
@@ -556,6 +611,9 @@ function typeBadgeClass(t: string): string {
             </div>
           </div>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            <template v-if="preview?.bank_history_from && options.initial_balance === undefined">
+              Solde de départ calculé pour rejoindre la courbe de la banque.
+            </template>
             Courbe reconstruite du {{ fmtDate(bankCurve.start_date) }} au
             {{ fmtDate(bankCurve.end_date) }} ({{ bankCurve.days }} jours) —
             solde final
@@ -643,6 +701,7 @@ function typeBadgeClass(t: string): string {
         <p><strong>{{ result.imported }}</strong> élément(s) importé(s)</p>
         <p v-if="result.groups !== null"><strong>{{ result.groups }}</strong> opération(s) traitée(s)</p>
         <p v-if="result.skipped > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.skipped }} doublon(s) ignoré(s)</p>
+        <p v-if="result.coveredByBank > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.coveredByBank }} opération(s) déjà fournie(s) par la banque ignorée(s)</p>
       </div>
     </template>
 
@@ -650,7 +709,7 @@ function typeBadgeClass(t: string): string {
     <template #footer>
       <template v-if="step === 'source'">
         <BaseButton variant="outline" @click="handleClose">Annuler</BaseButton>
-        <BaseButton :disabled="!csvContent || !selectedSourceId || isLoading" :loading="isLoading" @click="goFromSource">
+        <BaseButton :disabled="!csvContent || !selectedSourceId || !selectableAccounts.length || isLoading" :loading="isLoading" @click="goFromSource">
           {{ needsMapping ? 'Configurer les colonnes' : 'Aperçu' }}
         </BaseButton>
       </template>

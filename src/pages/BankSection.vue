@@ -5,7 +5,7 @@
  * between Comptes and Opérations swaps the content without redrawing the header
  * or losing its actions.
  */
-import { ArrowLeftRight, Landmark, RefreshCw, Upload } from 'lucide-vue-next'
+import { ArrowLeftRight, FileJson, Landmark, RefreshCw, Upload } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, provide, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -18,6 +18,7 @@ import BankTabs from '@/components/bank/BankTabs.vue'
 import BankAccountFormModal from '@/components/bank/BankAccountFormModal.vue'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
+import BankingExportImportModal from '@/components/banking/BankingExportImportModal.vue'
 import { BaseAddButton, BaseAlert, BaseButton } from '@/components'
 
 const bank = useBankStore()
@@ -32,12 +33,15 @@ provide(BANK_SECTION_KEY, {
 })
 
 const showPlatformImportModal = ref(false)
+const showExportImportModal = ref(false)
 const platformImportAccountId = ref('')
 const importSourceId = ref('')
 
-// The two kinds are complementary, not alternatives: a Livret A wants both, and
-// the choice is about what gets written, not about the file's shape.
-const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
+const BANKING_EXPORT_KEY = 'enablebanking_export'
+
+// The two CSV kinds are complementary, not alternatives: a Livret A wants both,
+// and the choice is about what gets written, not about the file's shape.
+const CSV_IMPORT_ITEMS: ImportMenuItem[] = [
   {
     key: 'generic_bank_transactions',
     label: 'Opérations',
@@ -52,7 +56,30 @@ const IMPORT_MENU_ITEMS: ImportMenuItem[] = [
   },
 ]
 
+const openBankingEnabled = computed(
+  () => settingsStore.settings?.open_banking_enabled ?? false,
+)
+
+// The export only feeds attached accounts: offered once there is one.
+const importMenuItems = computed<ImportMenuItem[]>(() =>
+  openBankingEnabled.value && bank.linkedAccounts.length
+    ? [
+        ...CSV_IMPORT_ITEMS,
+        {
+          key: BANKING_EXPORT_KEY,
+          label: 'Export Enable Banking',
+          description: 'Opérations et soldes des comptes synchronisés, en JSON',
+          icon: FileJson,
+        },
+      ]
+    : CSV_IMPORT_ITEMS,
+)
+
 function onImportMenuSelect(key: string): void {
+  if (key === BANKING_EXPORT_KEY) {
+    showExportImportModal.value = true
+    return
+  }
   importSourceId.value = key
   showPlatformImportModal.value = true
 }
@@ -63,10 +90,6 @@ async function handlePlatformImported(): Promise<void> {
   // The import wrote movements or balances behind the store's back.
   bank.invalidateHistoryCache()
 }
-
-const openBankingEnabled = computed(
-  () => settingsStore.settings?.open_banking_enabled ?? false,
-)
 
 async function syncNow(): Promise<void> {
   await bank.syncBanking()
@@ -117,7 +140,7 @@ onMounted(async () => {
           Connecter une banque
         </BaseButton>
         <ImportMenu
-          :items="IMPORT_MENU_ITEMS"
+          :items="importMenuItems"
           :disabled="!bank.summary?.accounts?.length"
           @select="onImportMenuSelect"
         />
@@ -143,6 +166,8 @@ onMounted(async () => {
       @close="showPlatformImportModal = false"
       @imported="handlePlatformImported"
     />
+
+    <BankingExportImportModal :open="showExportImportModal" @close="showExportImportModal = false" />
 
     <BankAccountFormModal ref="accountForm" />
   </div>

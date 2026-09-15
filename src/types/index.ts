@@ -947,6 +947,9 @@ export interface ImportSourceInfo {
   default_mapping: Record<string, string> | null
   /** Downloadable CSV skeleton, when the source documents one. */
   template_csv: string | null
+  /** Bank sources: whether the file may land on a bank-linked account, on the
+   *  days before the bank's own history. */
+  fills_before_bank_history: boolean
 }
 
 export interface ImportSourcesResponse {
@@ -1051,6 +1054,11 @@ export interface ImportPreviewResponse {
   bank_points: BankImportPointPreview[] | null
   bank_transactions: BankImportTransactionPreview[] | null
   bank_curve: BankImportCurvePreview | null
+  /** Bank-linked account only (YYYY-MM-DD): the first day the bank's own history
+   *  covers. The file is imported up to the day before. */
+  bank_history_from: string | null
+  /** Rows the bank already holds, left out of `bank_transactions`. */
+  covered_by_bank_count: number
 }
 
 export interface ImportConfirmRequest {
@@ -1068,6 +1076,7 @@ export interface ImportConfirmResponse {
   imported_count: number
   skipped_duplicates: number
   groups_count: number | null
+  covered_by_bank_count: number
 }
 
 // ─── Notes ───────────────────────────────────────────────────
