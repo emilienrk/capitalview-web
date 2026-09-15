@@ -108,7 +108,7 @@ function restore(): void {
 <template>
   <!-- Icon only, and it lives in the card header: the form is a detour from
        reading the chart, not part of it. -->
-  <BaseTooltip align="left">
+  <BaseTooltip as="span" label="Paramétrage de la projection">
     <template #trigger>
       <button
         type="button"
@@ -165,7 +165,7 @@ function restore(): void {
              icon to keep the row short, and where there is none the provenance
              takes the space instead. Never both, never nothing. -->
         <div class="pl-[5.5rem] text-xs text-text-muted dark:text-text-dark-muted">
-          <BaseTooltip v-if="row.warnings.length" align="left">
+          <BaseTooltip v-if="row.warnings.length">
             <template #trigger>
               <span class="inline-flex items-center gap-1 text-warning">
                 <AlertTriangle class="w-3.5 h-3.5" />

@@ -2,6 +2,7 @@
 import { ArrowLeftRight, ArrowUpDown, Bitcoin, Boxes, Building2, Code2, Eye, Info, KeyRound, Layers3, Lock, Moon, Pencil, Search, Server, ShieldCheck, Sun, TrendingUp, X } from 'lucide-vue-next'
 
 import { ref, onMounted } from 'vue'
+import { BaseTerm } from '@/components'
 
 const isDark = ref(false)
 const showNavLogo = ref(false)
@@ -260,7 +261,7 @@ const highlights = [
         <div class="text-center mb-20">
           <div class="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-success/10 text-success border border-success/20 text-sm font-semibold tracking-wide uppercase">
             <ShieldCheck class="w-4 h-4" stroke-width="2" />
-            Architecture <span class="tooltip">Zero-Knowledge<span class="tooltip-text">Modèle où le serveur ne possède jamais la clé de déchiffrement. Il manipule des données qu'il ne peut pas lire.</span></span>
+            Architecture <BaseTerm term="Zero-Knowledge">Modèle où le serveur ne possède jamais la clé de déchiffrement. Il manipule des données qu'il ne peut pas lire.</BaseTerm>
           </div>
           <h2 class="text-3xl md:text-4xl font-bold mb-4">Comment vos données sont protégées</h2>
           <p class="text-text-muted dark:text-text-dark-muted max-w-2xl mx-auto text-lg">
@@ -332,7 +333,7 @@ const highlights = [
               <div>
                 <p class="font-bold text-sm mb-1.5">Aucun lien possible entre les données</p>
                 <p class="text-sm text-text-muted dark:text-text-dark-muted leading-relaxed">
-                  Grâce aux <strong class="text-text-main dark:text-text-dark-main"><span class="tooltip">Blind Index<span class="tooltip-text">Index aveugle : hash déterministe qui permet la recherche sans exposer la donnée en clair. Chaque index est isolé et ne peut pas être corrélé avec d'autres champs.</span></span></strong>, même une personne ayant accès à la base de données ne peut pas déterminer combien de comptes bancaires vous possédez, quel est votre solde total, combien de notes vous avez écrites, ni relier un compte à un montant. Chaque enregistrement chiffré est un bloc opaque, impossible à corréler avec les autres — <strong class="text-text-main dark:text-text-dark-main">y compris pour un administrateur du serveur</strong>.
+                  Grâce aux <strong class="text-text-main dark:text-text-dark-main"><BaseTerm term="Blind Index">Index aveugle : hash déterministe qui permet la recherche sans exposer la donnée en clair. Chaque index est isolé et ne peut pas être corrélé avec d'autres champs.</BaseTerm></strong>, même une personne ayant accès à la base de données ne peut pas déterminer combien de comptes bancaires vous possédez, quel est votre solde total, combien de notes vous avez écrites, ni relier un compte à un montant. Chaque enregistrement chiffré est un bloc opaque, impossible à corréler avec les autres — <strong class="text-text-main dark:text-text-dark-main">y compris pour un administrateur du serveur</strong>.
                 </p>
               </div>
             </div>
@@ -354,8 +355,8 @@ const highlights = [
                 <KeyRound class="w-5 h-5 md:w-6 md:h-6 text-primary" stroke-width="2" />
               </div>
               <div class="pt-1 md:pt-3">
-                <p class="font-bold mb-0.5">Mot de passe + <span class="tooltip">Sel unique<span class="tooltip-text">Valeur aléatoire de 16 octets, générée à l'inscription et propre à chaque utilisateur. Garantit que deux mots de passe identiques produisent des clés différentes.</span></span></p>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted">Un sel cryptographique aléatoire est généré à l'inscription et propre à chaque utilisateur. Il empêche les attaques par <span class="tooltip">rainbow tables<span class="tooltip-text">Tables précalculées de hachages permettant de retrouver un mot de passe à partir de son empreinte. Le sel rend ces tables inutiles.</span></span>.</p>
+                <p class="font-bold mb-0.5">Mot de passe + <BaseTerm term="Sel unique">Valeur aléatoire de 16 octets, générée à l'inscription et propre à chaque utilisateur. Garantit que deux mots de passe identiques produisent des clés différentes.</BaseTerm></p>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted">Un sel cryptographique aléatoire est généré à l'inscription et propre à chaque utilisateur. Il empêche les attaques par <BaseTerm term="rainbow tables">Tables précalculées de hachages permettant de retrouver un mot de passe à partir de son empreinte. Le sel rend ces tables inutiles.</BaseTerm>.</p>
               </div>
             </div>
 
@@ -366,10 +367,10 @@ const highlights = [
               </div>
               <div class="pt-1 md:pt-3">
                 <div class="flex items-center gap-2 mb-0.5">
-                  <p class="font-bold"><span class="tooltip">Argon2id<span class="tooltip-text">Fonction de hachage de mots de passe (RFC 9106). Combine résistance aux attaques par GPU (coût mémoire élevé) et par canaux auxiliaires (mode hybride id).</span></span></p>
+                  <p class="font-bold"><BaseTerm term="Argon2id">Fonction de hachage de mots de passe (RFC 9106). Combine résistance aux attaques par GPU (coût mémoire élevé) et par canaux auxiliaires (mode hybride id).</BaseTerm></p>
                   <span class="px-2 py-0.5 rounded-badge bg-danger/10 text-danger text-[10px] font-medium">Hachage</span>
                 </div>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted">Algorithme résistant aux <span class="tooltip">GPU<span class="tooltip-text">Les cartes graphiques peuvent tester des milliards de combinaisons par seconde. Argon2id les ralentit en exigeant beaucoup de mémoire vive (64 MiB par essai).</span></span> et <span class="tooltip">ASIC<span class="tooltip-text">Circuits intégrés spécialisés conçus pour le craquage de mots de passe. Le coût mémoire d'Argon2id rend leur fabrication non rentable.</span></span> (64 MiB de mémoire, 4 itérations). Dérive une <strong class="text-text-main dark:text-text-dark-main"><span class="tooltip">Master Key<span class="tooltip-text">Clé principale de 256 bits (32 octets) dérivée de votre mot de passe. Elle n'est jamais stockée et sert à générer les sous-clés de chiffrement et d'indexation.</span></span> de 256 bits</strong> à partir du mot de passe.</p>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted">Algorithme résistant aux <BaseTerm term="GPU">Les cartes graphiques peuvent tester des milliards de combinaisons par seconde. Argon2id les ralentit en exigeant beaucoup de mémoire vive (64 MiB par essai).</BaseTerm> et <BaseTerm term="ASIC">Circuits intégrés spécialisés conçus pour le craquage de mots de passe. Le coût mémoire d'Argon2id rend leur fabrication non rentable.</BaseTerm> (64 MiB de mémoire, 4 itérations). Dérive une <strong class="text-text-main dark:text-text-dark-main"><BaseTerm term="Master Key">Clé principale de 256 bits (32 octets) dérivée de votre mot de passe. Elle n'est jamais stockée et sert à générer les sous-clés de chiffrement et d'indexation.</BaseTerm> de 256 bits</strong> à partir du mot de passe.</p>
               </div>
             </div>
 
@@ -380,7 +381,7 @@ const highlights = [
               </div>
               <div class="pt-1 md:pt-3">
                 <div class="flex items-center gap-2 mb-0.5">
-                  <p class="font-bold"><span class="tooltip">HKDF-SHA256<span class="tooltip-text">HMAC-based Key Derivation Function (RFC 5869). Dérive plusieurs sous-clés à partir d'une clé maître en utilisant des contextes distincts, conformément au standard NIST.</span></span></p>
+                  <p class="font-bold"><BaseTerm term="HKDF-SHA256">HMAC-based Key Derivation Function (RFC 5869). Dérive plusieurs sous-clés à partir d'une clé maître en utilisant des contextes distincts, conformément au standard NIST.</BaseTerm></p>
                   <span class="px-2 py-0.5 rounded-badge bg-primary/10 text-primary text-[10px] font-medium">Dérivation</span>
                 </div>
                 <p class="text-sm text-text-muted dark:text-text-dark-muted">La Master Key est scindée en <strong class="text-text-main dark:text-text-dark-main">deux sous-clés isolées</strong> par contexte : une pour le chiffrement, une pour l'indexation. Compromettre l'une ne révèle pas l'autre.</p>
@@ -397,11 +398,11 @@ const highlights = [
                     <Lock class="w-4 h-4" stroke-width="2" />
                   </div>
                   <div>
-                    <p class="font-bold text-sm"><span class="tooltip">AES-256-GCM<span class="tooltip-text">Advanced Encryption Standard avec clé de 256 bits en mode Galois/Counter. Chiffrement authentifié (AEAD) qui garantit à la fois la confidentialité et l'intégrité des données.</span></span></p>
-                    <p class="text-[10px] text-info font-medium">Chiffrement <span class="tooltip">AEAD<span class="tooltip-text">Authenticated Encryption with Associated Data. Le chiffrement et la vérification d'intégrité sont effectués en une seule opération — toute altération est détectée.</span></span></p>
+                    <p class="font-bold text-sm"><BaseTerm term="AES-256-GCM">Advanced Encryption Standard avec clé de 256 bits en mode Galois/Counter. Chiffrement authentifié (AEAD) qui garantit à la fois la confidentialité et l'intégrité des données.</BaseTerm></p>
+                    <p class="text-[10px] text-info font-medium">Chiffrement <BaseTerm term="AEAD">Authenticated Encryption with Associated Data. Le chiffrement et la vérification d'intégrité sont effectués en une seule opération — toute altération est détectée.</BaseTerm></p>
                   </div>
                 </div>
-                <p class="text-xs text-text-muted dark:text-text-dark-muted mb-3">Chaque donnée est chiffrée avec un <span class="tooltip">nonce<span class="tooltip-text">Number used once — valeur aléatoire de 12 octets générée pour chaque opération de chiffrement. Garantit qu'un même texte produit un chiffré différent à chaque fois.</span></span> unique de 12 octets. Le tag GCM garantit qu'aucune altération n'est possible.</p>
+                <p class="text-xs text-text-muted dark:text-text-dark-muted mb-3">Chaque donnée est chiffrée avec un <BaseTerm term="nonce">Number used once — valeur aléatoire de 12 octets générée pour chaque opération de chiffrement. Garantit qu'un même texte produit un chiffré différent à chaque fois.</BaseTerm> unique de 12 octets. Le tag GCM garantit qu'aucune altération n'est possible.</p>
                 <div class="flex items-center gap-1.5 flex-wrap">
                   <span class="px-2 py-0.5 rounded-badge bg-info/10 text-info text-[10px] font-medium">Nonce 12 oct.</span>
                   <span class="px-2 py-0.5 rounded-badge bg-info/10 text-info text-[10px] font-medium">Anti-replay</span>
@@ -416,11 +417,11 @@ const highlights = [
                     <Search class="w-4 h-4" stroke-width="2" />
                   </div>
                   <div>
-                    <p class="font-bold text-sm"><span class="tooltip">HMAC-SHA256<span class="tooltip-text">Hash-based Message Authentication Code avec SHA-256 (RFC 2104). Produit une empreinte déterministe mais irréversible — on ne peut pas retrouver la donnée d'origine à partir du hash.</span></span></p>
-                    <p class="text-[10px] text-warning font-medium"><span class="tooltip">Blind Index<span class="tooltip-text">Index aveugle : hash déterministe d'un identifiant, stocké à côté de la donnée chiffrée. Permet au serveur de retrouver un enregistrement sans jamais voir la donnée en clair.</span></span></p>
+                    <p class="font-bold text-sm"><BaseTerm term="HMAC-SHA256">Hash-based Message Authentication Code avec SHA-256 (RFC 2104). Produit une empreinte déterministe mais irréversible — on ne peut pas retrouver la donnée d'origine à partir du hash.</BaseTerm></p>
+                    <p class="text-[10px] text-warning font-medium"><BaseTerm term="Blind Index">Index aveugle : hash déterministe d'un identifiant, stocké à côté de la donnée chiffrée. Permet au serveur de retrouver un enregistrement sans jamais voir la donnée en clair.</BaseTerm></p>
                   </div>
                 </div>
-                <p class="text-xs text-text-muted dark:text-text-dark-muted mb-3">Génère un hash irréversible pour chaque identifiant. Permet la recherche en <span class="tooltip">O(1)<span class="tooltip-text">Complexité algorithmique constante : le temps de recherche ne dépend pas du nombre d'enregistrements. Instantané quelle que soit la taille de la base.</span></span> sans déchiffrer les données, tout en rendant impossible de relier un compte à un solde ou de deviner le nombre d'enregistrements d'un utilisateur.</p>
+                <p class="text-xs text-text-muted dark:text-text-dark-muted mb-3">Génère un hash irréversible pour chaque identifiant. Permet la recherche en <BaseTerm term="O(1)">Complexité algorithmique constante : le temps de recherche ne dépend pas du nombre d'enregistrements. Instantané quelle que soit la taille de la base.</BaseTerm> sans déchiffrer les données, tout en rendant impossible de relier un compte à un solde ou de deviner le nombre d'enregistrements d'un utilisateur.</p>
                 <div class="flex items-center gap-1.5 flex-wrap">
                   <span class="px-2 py-0.5 rounded-badge bg-warning/10 text-warning text-[10px] font-medium">Irréversible</span>
                   <span class="px-2 py-0.5 rounded-badge bg-warning/10 text-warning text-[10px] font-medium">O(1)</span>
@@ -448,7 +449,7 @@ const highlights = [
             <div class="relative p-5 rounded-card bg-surface dark:bg-surface-dark border border-success/30 text-center">
               <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-success text-white text-xs font-bold flex items-center justify-center shadow-sm">2</div>
               <p class="font-bold text-sm mb-1 mt-2">En mémoire</p>
-              <p class="text-xs text-text-muted dark:text-text-dark-muted">Cookie <span class="tooltip">HttpOnly<span class="tooltip-text">Flag de cookie qui interdit l'accès depuis JavaScript (document.cookie). Protège contre les attaques XSS — seul le navigateur peut envoyer le cookie au serveur.</span></span> sécurisé. Jamais en localStorage</p>
+              <p class="text-xs text-text-muted dark:text-text-dark-muted">Cookie <BaseTerm term="HttpOnly">Flag de cookie qui interdit l'accès depuis JavaScript (document.cookie). Protège contre les attaques XSS — seul le navigateur peut envoyer le cookie au serveur.</BaseTerm> sécurisé. Jamais en localStorage</p>
             </div>
 
             <!-- Usage -->
@@ -478,7 +479,7 @@ const highlights = [
                 <div class="w-6 h-6 rounded-full bg-danger/10 text-danger flex items-center justify-center shrink-0">
                   <X class="w-3 h-3" stroke-width="2.5" />
                 </div>
-                <p class="font-bold text-sm"><span class="tooltip">Rainbow tables<span class="tooltip-text">Tables précalculées contenant des millions de correspondances mot de passe → hash. Permettent de retrouver un mot de passe en quelques secondes si aucun sel n'est utilisé.</span></span></p>
+                <p class="font-bold text-sm"><BaseTerm term="Rainbow tables">Tables précalculées contenant des millions de correspondances mot de passe → hash. Permettent de retrouver un mot de passe en quelques secondes si aucun sel n'est utilisé.</BaseTerm></p>
               </div>
               <p class="text-xs text-text-muted dark:text-text-dark-muted">Sel unique par utilisateur + hachage Argon2id rendent les tables précalculées inutiles.</p>
             </div>
@@ -488,7 +489,7 @@ const highlights = [
                 <div class="w-6 h-6 rounded-full bg-danger/10 text-danger flex items-center justify-center shrink-0">
                   <X class="w-3 h-3" stroke-width="2.5" />
                 </div>
-                <p class="font-bold text-sm"><span class="tooltip">Brute-force GPU<span class="tooltip-text">Attaque par force brute utilisant des cartes graphiques capables de tester des milliards de combinaisons par seconde en parallèle.</span></span></p>
+                <p class="font-bold text-sm"><BaseTerm term="Brute-force GPU">Attaque par force brute utilisant des cartes graphiques capables de tester des milliards de combinaisons par seconde en parallèle.</BaseTerm></p>
               </div>
               <p class="text-xs text-text-muted dark:text-text-dark-muted">Argon2id exige 64 MiB de mémoire par tentative, rendant les attaques massives impraticables.</p>
             </div>
@@ -498,7 +499,7 @@ const highlights = [
                 <div class="w-6 h-6 rounded-full bg-danger/10 text-danger flex items-center justify-center shrink-0">
                   <X class="w-3 h-3" stroke-width="2.5" />
                 </div>
-                <p class="font-bold text-sm"><span class="tooltip">Rejeu (Replay)<span class="tooltip-text">Attaque où un intermédiaire intercepte un message chiffré valide et le renvoie au serveur pour reproduire une action. Le nonce unique empêche la réutilisation.</span></span></p>
+                <p class="font-bold text-sm"><BaseTerm term="Rejeu (Replay)">Attaque où un intermédiaire intercepte un message chiffré valide et le renvoie au serveur pour reproduire une action. Le nonce unique empêche la réutilisation.</BaseTerm></p>
               </div>
               <p class="text-xs text-text-muted dark:text-text-dark-muted">Un nonce aléatoire de 12 octets unique par opération empêche la réutilisation de données interceptées.</p>
             </div>
@@ -510,7 +511,7 @@ const highlights = [
                 </div>
                 <p class="font-bold text-sm">Falsification</p>
               </div>
-              <p class="text-xs text-text-muted dark:text-text-dark-muted">Le <span class="tooltip">tag d'authentification GCM<span class="tooltip-text">Empreinte de 16 octets calculée lors du chiffrement. À la lecture, si un seul bit a été modifié, le tag ne correspond plus et le déchiffrement est refusé.</span></span> (<span class="tooltip">AEAD<span class="tooltip-text">Authenticated Encryption with Associated Data — chiffrement et vérification d'intégrité en une seule opération.</span></span>) détecte toute modification des données chiffrées.</p>
+              <p class="text-xs text-text-muted dark:text-text-dark-muted">Le <BaseTerm term="tag d'authentification GCM">Empreinte de 16 octets calculée lors du chiffrement. À la lecture, si un seul bit a été modifié, le tag ne correspond plus et le déchiffrement est refusé.</BaseTerm> (<BaseTerm term="AEAD">Authenticated Encryption with Associated Data — chiffrement et vérification d'intégrité en une seule opération.</BaseTerm>) détecte toute modification des données chiffrées.</p>
             </div>
 
             <div class="p-4 rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border">
@@ -520,7 +521,7 @@ const highlights = [
                 </div>
                 <p class="font-bold text-sm">Fuite serveur</p>
               </div>
-              <p class="text-xs text-text-muted dark:text-text-dark-muted">Modèle <span class="tooltip">Zero-Knowledge<span class="tooltip-text">Architecture où le serveur ne possède jamais la clé de déchiffrement. Il stocke et renvoie des données qu'il ne peut pas lire.</span></span> : la clé de chiffrement n'est jamais stockée en base de données.</p>
+              <p class="text-xs text-text-muted dark:text-text-dark-muted">Modèle <BaseTerm term="Zero-Knowledge">Architecture où le serveur ne possède jamais la clé de déchiffrement. Il stocke et renvoie des données qu'il ne peut pas lire.</BaseTerm> : la clé de chiffrement n'est jamais stockée en base de données.</p>
             </div>
 
             <div class="p-4 rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border">
@@ -528,9 +529,9 @@ const highlights = [
                 <div class="w-6 h-6 rounded-full bg-danger/10 text-danger flex items-center justify-center shrink-0">
                   <X class="w-3 h-3" stroke-width="2.5" />
                 </div>
-                <p class="font-bold text-sm"><span class="tooltip">Timing attacks<span class="tooltip-text">Attaque qui mesure le temps de réponse du serveur pour déduire des informations. Par exemple, une comparaison de hash plus longue peut indiquer que les premiers caractères correspondent.</span></span></p>
+                <p class="font-bold text-sm"><BaseTerm term="Timing attacks">Attaque qui mesure le temps de réponse du serveur pour déduire des informations. Par exemple, une comparaison de hash plus longue peut indiquer que les premiers caractères correspondent.</BaseTerm></p>
               </div>
-              <p class="text-xs text-text-muted dark:text-text-dark-muted">Comparaisons en <span class="tooltip">temps constant<span class="tooltip-text">La vérification prend toujours la même durée, que le premier ou le dernier caractère soit faux. Empêche de deviner progressivement une valeur.</span></span> intégrées aux bibliothèques PyNaCl et Cryptography.</p>
+              <p class="text-xs text-text-muted dark:text-text-dark-muted">Comparaisons en <BaseTerm term="temps constant">La vérification prend toujours la même durée, que le premier ou le dernier caractère soit faux. Empêche de deviner progressivement une valeur.</BaseTerm> intégrées aux bibliothèques PyNaCl et Cryptography.</p>
             </div>
           </div>
         </div>
@@ -590,55 +591,5 @@ const highlights = [
 }
 @keyframes fadeIn {
   to { opacity: 1; }
-}
-
-/* Tooltips */
-.tooltip {
-  position: relative;
-  cursor: help;
-  border-bottom: 1px dotted currentColor;
-  text-decoration: none;
-}
-.tooltip .tooltip-text {
-  visibility: hidden;
-  opacity: 0;
-  position: absolute;
-  z-index: 50;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: 280px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.5;
-  font-weight: 400;
-  font-family: 'Inter', sans-serif;
-  color: var(--color-text-dark-main, #f8fafc);
-  background: var(--color-surface-dark, #0f172a);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  pointer-events: none;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-  text-align: left;
-}
-:deep(.dark) .tooltip .tooltip-text {
-  color: var(--color-text-main, #111827);
-  background: var(--color-surface, #ffffff);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-.tooltip .tooltip-text::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 5px;
-  border-style: solid;
-  border-color: var(--color-surface-dark, #0f172a) transparent transparent transparent;
-}
-.tooltip:hover .tooltip-text {
-  visibility: visible;
-  opacity: 1;
 }
 </style>

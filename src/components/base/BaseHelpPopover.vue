@@ -17,13 +17,11 @@ import BaseTooltip from './BaseTooltip.vue'
 withDefaults(
   defineProps<{
     label?: string
-    align?: 'left' | 'right'
     width?: 'sm' | 'md'
     placement?: 'top' | 'bottom'
   }>(),
   {
     label: 'En savoir plus',
-    align: 'right',
     width: 'sm',
     placement: 'bottom',
   },
@@ -31,7 +29,7 @@ withDefaults(
 </script>
 
 <template>
-  <BaseTooltip :label="label" :align="align" :width="width" :placement="placement">
+  <BaseTooltip :label="label" :width="width" :placement="placement">
     <template #trigger>
       <!-- A span, not a button: BaseTooltip's own button is the control, and
            nesting one inside it would be invalid. -->

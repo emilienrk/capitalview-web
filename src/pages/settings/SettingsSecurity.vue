@@ -293,7 +293,7 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
             <div class="flex items-center gap-2 mb-1">
               <Mail class="w-4 h-4 text-text-muted dark:text-text-dark-muted" />
               <p class="font-medium text-text-main dark:text-text-dark-main">Adresse email</p>
-              <BaseHelpPopover align="left">
+              <BaseHelpPopover>
                 Votre email sert à la connexion. Il ne fait pas partie des données chiffrées par
                 votre mot de passe — seules vos données financières le sont.
               </BaseHelpPopover>
