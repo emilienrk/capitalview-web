@@ -347,11 +347,30 @@ export interface BankFlowsResponse {
   account_names: string[]
   internal_transfers_excluded: number
   internal_transfers_amount: number
+  /** A movement and its cancellation on one account, bound by the user. */
+  reversals_excluded: number
+  reversals_amount: number
   /** Not yet booked, so deliberately outside the monthly figures. */
   pending_count: number
   pending_inflow: number
   pending_outflow: number
   other_currencies: BankFlowCurrencyTotal[]
+}
+
+/**
+ * How two operations came to be paired, and whether they count. `suggested` is
+ * only offered: both operations keep counting until the user settles it. Every
+ * other status keeps the pair out of the totals.
+ */
+export type BankTransferStatus =
+  | 'suggested' | 'savings' | 'recurring' | 'learned' | 'confirmed' | 'reversal' | 'refund'
+
+export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
+
+/** Response of GET /banking/transfer-questions — pairs waiting for the user, by month. */
+export interface BankTransferQuestionsResponse {
+  total: number
+  months: Array<{ period: string; count: number }>
 }
 
 /** One stored movement, as the bank reported it. */
@@ -371,6 +390,9 @@ export interface BankTransactionItem {
   /** The account on the other side when the movement pairs as an internal transfer. */
   transfer_account_id: string | null
   transfer_account_name: string | null
+  /** The movement on the other side, and how the pair was made. */
+  transfer_id: string | null
+  transfer_status: BankTransferStatus | null
 }
 
 /**
@@ -385,6 +407,10 @@ export interface BankTransactionsResponse {
   net: number
   internal_transfers_excluded: number
   internal_transfers_amount: number
+  /** Pairs offered to the user this month, still counted. */
+  transfer_questions: number
+  reversals_excluded: number
+  reversals_amount: number
   pending_count: number
   pending_inflow: number
   pending_outflow: number
