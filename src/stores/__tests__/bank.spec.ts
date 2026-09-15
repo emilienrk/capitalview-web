@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useBankStore } from '@/stores/bank'
 import { clearCache } from '@/services/cache'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
-import type { BankAccountResponse } from '@/types'
+import type { BankAccountResponse, BankTransactionsResponse } from '@/types'
 
 vi.mock('@/api/client', () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -217,5 +217,85 @@ describe('useBankStore — fetchObservedFlows', () => {
 
     expect(store.observedFlows?.outflow).toBe(30)
     expect(store.observedFlows?.internal_transfers_amount).toBe(400)
+  })
+})
+
+describe('useBankStore — fetchTransactions', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    clearCache()
+    vi.clearAllMocks()
+  })
+
+  function aMonth(): BankTransactionsResponse {
+    return {
+      period: '2026-09', currency: 'EUR', inflow: 0, outflow: 0, net: 0,
+      internal_transfers_excluded: 0, internal_transfers_amount: 0,
+      pending_count: 0, pending_inflow: 0, pending_outflow: 0,
+      other_currencies: [], transactions: [],
+    }
+  }
+
+  it('asks for one month, narrowed to the account when one is given', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(aMonth())
+
+    const store = useBankStore()
+    await store.fetchTransactions('2026-09')
+    await store.fetchTransactions('2026-09', 'acc-1')
+
+    expect(vi.mocked(apiClient.get).mock.calls.map(([url]) => url)).toEqual([
+      '/banking/transactions?period=2026-09',
+      '/banking/transactions?period=2026-09&account_id=acc-1',
+    ])
+  })
+
+  it('keeps the newer filter when an older answer lands last', async () => {
+    const { apiClient } = await import('@/api/client')
+    let answerAll: (value: BankTransactionsResponse) => void = () => {}
+    vi.mocked(apiClient.get)
+      .mockImplementationOnce(() => new Promise((resolve) => { answerAll = resolve }))
+      .mockResolvedValueOnce({ ...aMonth(), net: 42 })
+
+    const store = useBankStore()
+    const slow = store.fetchTransactions('2026-09')
+    await store.fetchTransactions('2026-09', 'acc-1')
+    answerAll({ ...aMonth(), net: -1 })
+    await slow
+
+    expect(store.transactionsKey).toBe('2026-09:acc-1')
+    expect(store.transactions?.net).toBe(42)
+  })
+
+  it('says when the month could not be loaded', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Compte bancaire introuvable.'))
+
+    const store = useBankStore()
+
+    expect(await store.fetchTransactions('2026-09', 'gone')).toBe(false)
+    expect(store.transactionsKey).toBeNull()
+    expect(store.transactionsLoading).toBe(false)
+  })
+
+  it('signals the tabs to reload whenever the movements change', () => {
+    const store = useBankStore()
+    const before = store.dataRevision
+
+    store.invalidateHistoryCache()
+
+    expect(store.dataRevision).toBe(before + 1)
+  })
+
+  it('goes stale with the flows when the movements change', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(aMonth())
+
+    const store = useBankStore()
+    await store.fetchTransactions('2026-09')
+    store.invalidateHistoryCache()
+    await store.fetchTransactions('2026-09')
+
+    expect(vi.mocked(apiClient.get)).toHaveBeenCalledTimes(2)
   })
 })
