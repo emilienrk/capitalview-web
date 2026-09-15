@@ -481,6 +481,80 @@ export interface BankUncategorizedResponse {
   groups: BankUncategorizedGroup[]
 }
 
+// ─── Cashflow réel ───────────────────────────────────────────
+
+/**
+ * What moved, by nature. `income` and `expenses` are net of their own reversals,
+ * `saving` and `investment` of what was taken back; `internal` and `neutralized`
+ * are only informative.
+ */
+export interface RealCashflowTotals {
+  income: number
+  expenses: number
+  saving: number
+  investment: number
+  internal: number
+  neutralized: number
+}
+
+export interface RealCashflowMonth extends RealCashflowTotals {
+  period: string // YYYY-MM
+  operation_count: number
+}
+
+export interface RealCashflowCategoryShare {
+  /** Null for the operations nothing files. */
+  category_id: string | null
+  name: string
+  amount: number
+  count: number
+}
+
+export interface RealCashflowBreakdown {
+  income: RealCashflowCategoryShare[]
+  expenses: RealCashflowCategoryShare[]
+  saving: RealCashflowCategoryShare[]
+  investment: RealCashflowCategoryShare[]
+}
+
+export interface RealCashflowExpense {
+  id: string
+  operation_date: string | null
+  label: string | null
+  amount: number
+  account_name: string
+  category_name: string | null
+}
+
+/** Response of GET /banking/real-cashflow — completed months only. */
+export interface RealCashflowYear {
+  year: number
+  currency: string
+  years_available: number[]
+  months: RealCashflowMonth[]
+  totals: RealCashflowTotals
+  /** The months carrying data, which the mean and median are taken over. */
+  covered_months: number
+  monthly_mean: RealCashflowTotals
+  monthly_median: RealCashflowTotals
+  by_category: RealCashflowBreakdown
+  top_expenses: RealCashflowExpense[]
+  other_currencies: BankFlowCurrencyTotal[]
+}
+
+/** Response of GET /banking/real-cashflow/months/{period}. */
+export interface RealCashflowMonthDetail {
+  period: string
+  currency: string
+  totals: RealCashflowTotals
+  operation_count: number
+  by_category: RealCashflowBreakdown
+  /** The nearest completed months carrying data, if any. */
+  previous_period: string | null
+  next_period: string | null
+  other_currencies: BankFlowCurrencyTotal[]
+}
+
 export interface BankAICategorizeResult {
   processed: number
   rules_created: number
