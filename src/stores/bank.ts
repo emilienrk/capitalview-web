@@ -17,7 +17,10 @@ import type {
   BankAccountUnlinkResult,
   BankAuthorizeResponse,
   BankFlowsResponse,
+  BankTransactionItem,
   BankTransactionsResponse,
+  BankTransferDecisionKind,
+  BankTransferQuestionsResponse,
   BankExportImportResponse,
   BankSessionAccount,
   BankSyncResponse,
@@ -335,6 +338,45 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
+  /** The pairs waiting for the user across the whole history, for the tab's badge. */
+  const transferQuestions = ref<BankTransferQuestionsResponse | null>(null)
+
+  async function fetchTransferQuestions(): Promise<void> {
+    try {
+      transferQuestions.value = await apiClient.get<BankTransferQuestionsResponse>('/banking/transfer-questions')
+    } catch {
+      // A badge that cannot load stays hidden: nothing else depends on it.
+      transferQuestions.value = null
+    }
+  }
+
+  /** The operations that could be bound to this one, nearest first. */
+  async function fetchTransferCounterparts(transactionId: string): Promise<BankTransactionItem[]> {
+    return apiClient.get<BankTransactionItem[]>(
+      `/banking/transactions/${encodeURIComponent(transactionId)}/counterparts`,
+    )
+  }
+
+  /**
+   * Settles two operations, replacing what was decided about them before. The
+   * pairing of every month may move — a decision also teaches the labels — so
+   * all observed flows go stale, and the pages listening to `dataRevision` reload.
+   */
+  async function decideTransfer(
+    transactionId: string,
+    otherTransactionId: string,
+    kind: BankTransferDecisionKind,
+  ): Promise<void> {
+    await apiClient.post('/banking/transfer-decisions', {
+      transaction_id: transactionId,
+      other_transaction_id: otherTransactionId,
+      kind,
+    })
+    invalidateCachePrefix('bank:flows:')
+    dataRevision.value += 1
+    void fetchTransferQuestions()
+  }
+
   async function fetchAspsps(country: string): Promise<AspspSummary[]> {
     return apiClient.get<AspspSummary[]>(`/banking/aspsps?country=${encodeURIComponent(country)}`)
   }
@@ -419,6 +461,7 @@ export const useBankStore = defineStore('bank', () => {
     observedFlowsKey.value = null
     transactions.value = null
     transactionsKey.value = null
+    transferQuestions.value = null
     invalidateHistoryCache()
     error.value = null
   }
@@ -455,6 +498,10 @@ export const useBankStore = defineStore('bank', () => {
     fetchObservedFlows,
     fetchTransactions,
     importBankingExport,
+    transferQuestions,
+    fetchTransferQuestions,
+    fetchTransferCounterparts,
+    decideTransfer,
     fetchAspsps,
     authorizeBank,
     fetchSessionAccounts,

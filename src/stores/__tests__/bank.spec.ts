@@ -166,7 +166,8 @@ describe('useBankStore — fetchObservedFlows', () => {
       inflow: 0, outflow: 0, net: 0,
       monthly_inflow: 0, monthly_outflow: 0,
       covered_months: 1, account_count: 1, account_names: ['Courant'],
-      internal_transfers_excluded: 0, internal_transfers_amount: 0,
+      internal_transfers_excluded: 0, internal_transfers_amount: 0, transfer_questions: 0,
+      reversals_excluded: 0, reversals_amount: 0,
       pending_count: 0, pending_inflow: 0, pending_outflow: 0,
       other_currencies: [],
       ...overrides,
@@ -230,7 +231,8 @@ describe('useBankStore — fetchTransactions', () => {
   function aMonth(): BankTransactionsResponse {
     return {
       period: '2026-09', currency: 'EUR', inflow: 0, outflow: 0, net: 0,
-      internal_transfers_excluded: 0, internal_transfers_amount: 0,
+      internal_transfers_excluded: 0, internal_transfers_amount: 0, transfer_questions: 0,
+      reversals_excluded: 0, reversals_amount: 0,
       pending_count: 0, pending_inflow: 0, pending_outflow: 0,
       other_currencies: [], transactions: [],
     }
@@ -285,6 +287,29 @@ describe('useBankStore — fetchTransactions', () => {
     store.invalidateHistoryCache()
 
     expect(store.dataRevision).toBe(before + 1)
+  })
+
+  it('reloads every month once a transfer is settled: the labels it teaches reach them all', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue(aMonth())
+    vi.mocked(apiClient.post).mockResolvedValue(undefined)
+    vi.mocked(apiClient.get).mockResolvedValueOnce(aMonth()).mockResolvedValueOnce({ total: 0, months: [] })
+
+    const store = useBankStore()
+    await store.fetchTransactions('2026-09')
+    const before = store.dataRevision
+    await store.decideTransfer('tx-1', 'tx-2', 'not_transfer')
+    await store.fetchTransactions('2026-09')
+
+    expect(apiClient.post).toHaveBeenCalledWith('/banking/transfer-decisions', {
+      transaction_id: 'tx-1', other_transaction_id: 'tx-2', kind: 'not_transfer',
+    })
+    expect(store.dataRevision).toBe(before + 1)
+    expect(vi.mocked(apiClient.get).mock.calls.map(([url]) => url)).toEqual([
+      '/banking/transactions?period=2026-09',
+      '/banking/transfer-questions',
+      '/banking/transactions?period=2026-09',
+    ])
   })
 
   it('goes stale with the flows when the movements change', async () => {

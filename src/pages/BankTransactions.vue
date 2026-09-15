@@ -9,16 +9,17 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Search, Undo2 } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
-  BaseButton, BaseCard, BaseEmptyState, BaseSelect, BaseSkeleton, BaseToggle,
+  BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSelect, BaseSkeleton, BaseToggle,
 } from '@/components'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
-import type { BankTransactionItem } from '@/types'
+import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
+import type { BankTransactionItem, BankTransferDecisionKind } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 const ALL_ACCOUNTS = 'all'
@@ -140,15 +141,23 @@ const search = ref('')
 // Shown by default: they are on the bank statement, and hiding them would make
 // the list disagree with it. They are only kept out of the totals.
 const showTransfers = ref(true)
+/** Only the pairs offered to the user, for them to settle. */
+const toReviewOnly = ref(false)
+
+/** Kept out of the totals: every pair but a suggested one. */
+function isDeducted(tx: BankTransactionItem): boolean {
+  return tx.transfer_status !== null && tx.transfer_status !== 'suggested'
+}
 
 const hasFilters = computed(() =>
-  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value,
+  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value,
 )
 
 function resetFilters(): void {
   direction.value = 'all'
   search.value = ''
   showTransfers.value = true
+  toReviewOnly.value = false
 }
 
 const filtered = computed(() => {
@@ -156,7 +165,8 @@ const filtered = computed(() => {
   return (month.value?.transactions ?? []).filter((tx) => {
     if (direction.value === 'in' && !tx.is_credit) return false
     if (direction.value === 'out' && tx.is_credit) return false
-    if (!showTransfers.value && tx.transfer_account_id) return false
+    if (!showTransfers.value && isDeducted(tx)) return false
+    if (toReviewOnly.value && tx.transfer_status !== 'suggested') return false
     if (!query) return true
     return (tx.label ?? '').toLowerCase().includes(query)
       || tx.account_name.toLowerCase().includes(query)
@@ -206,9 +216,42 @@ function shortDay(day: string | null): string {
 
 function amountClass(tx: BankTransactionItem): string {
   // A transfer is neither income nor spending: coloured as one would contradict the totals.
-  if (tx.transfer_account_id) return 'text-text-muted dark:text-text-dark-muted'
+  if (isDeducted(tx)) return 'text-text-muted dark:text-text-dark-muted'
   return tx.is_credit ? 'text-success' : 'text-text-main dark:text-text-dark-main'
 }
+
+// ── Transfer decisions ──────────────────────────────────────
+
+/** The operation whose decision is on its way: its row stands still meanwhile. */
+const deciding = ref<string | null>(null)
+const decisionError = ref<string | null>(null)
+const linking = ref<BankTransactionItem | null>(null)
+
+async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
+  if (!tx.transfer_id) return
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await bank.decideTransfer(tx.id, tx.transfer_id, kind)
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    deciding.value = null
+  }
+}
+
+const QUESTION_MONTHS_SHOWN = 4
+/** The most recent months still holding a question, besides this one. */
+const questionMonths = computed(() =>
+  (bank.transferQuestions?.months ?? []).filter((q) => q.period !== period.value).reverse(),
+)
+const otherQuestionMonths = computed(() => questionMonths.value.slice(0, QUESTION_MONTHS_SHOWN))
+const olderQuestionMonths = computed(() => questionMonths.value.length - otherQuestionMonths.value.length)
+
+// The review filter has nothing left to show once the month is settled.
+watch(() => month.value?.transfer_questions, (count) => {
+  if (!count) toReviewOnly.value = false
+})
 
 // ── Loading and the query string ────────────────────────────
 
@@ -387,6 +430,46 @@ onMounted(() => void load())
           <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
           {{ amount(month.internal_transfers_amount) }} déplacés entre vos comptes, hors des totaux.
         </p>
+        <p
+          v-if="month.reversals_excluded > 0"
+          class="mt-1 flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted"
+        >
+          <Undo2 class="w-3.5 h-3.5 shrink-0" />
+          {{ amount(month.reversals_amount) }} remboursés ou annulés sur un même compte, hors des totaux.
+        </p>
+        <!-- Seen once between two current accounts: as often a third party
+             refunding a purchase as a transfer, so it still counts until the
+             user says. The only thing the page ever asks. -->
+        <p
+          v-if="month.transfer_questions > 0"
+          class="mt-1 flex items-center gap-1.5 text-xs text-warning"
+        >
+          <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
+          <button
+            type="button"
+            :aria-pressed="toReviewOnly"
+            class="font-medium hover:underline"
+            @click="toReviewOnly = !toReviewOnly"
+          >
+            {{ month.transfer_questions }} virement{{ month.transfer_questions > 1 ? 's' : '' }} possible{{ month.transfer_questions > 1 ? 's' : '' }} à vérifier
+          </button>
+          <span class="text-text-muted dark:text-text-dark-muted">— comptés dans les totaux d'ici là.</span>
+        </p>
+        <!-- The other months still holding a question: the tab's badge counts
+             them all, this is where to find them. -->
+        <div v-if="otherQuestionMonths.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+          <span>À vérifier aussi :</span>
+          <button
+            v-for="q in otherQuestionMonths"
+            :key="q.period"
+            type="button"
+            class="px-2 py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
+            @click="period = q.period; toReviewOnly = true"
+          >
+            {{ monthShort(q.period) }} {{ q.period.slice(0, 4) }} ({{ q.count }})
+          </button>
+          <span v-if="olderQuestionMonths">et {{ olderQuestionMonths }} mois plus ancien{{ olderQuestionMonths > 1 ? 's' : '' }}</span>
+        </div>
         <!-- No exchange rate ever arrives with a movement, so these never join a total. -->
         <p
           v-for="other in month.other_currencies"
@@ -432,6 +515,10 @@ onMounted(() => void load())
         </label>
       </div>
 
+      <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
+        {{ decisionError }}
+      </BaseAlert>
+
       <p v-if="hasFilters && filtered.length" class="mb-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ filtered.length }} opération{{ filtered.length > 1 ? 's' : '' }} ·
         <span class="font-semibold tabular-nums" :class="filteredTotal >= 0 ? 'text-success' : 'text-text-main dark:text-text-dark-main'">
@@ -450,6 +537,9 @@ onMounted(() => void load())
             :show-account="!accountFilter"
             :amount="signedAmount(tx)"
             :amount-class="amountClass(tx)"
+            :busy="deciding === tx.id"
+            @decide="(kind) => decide(tx, kind)"
+            @link="linking = tx"
           />
         </ul>
         <template v-else>
@@ -465,6 +555,9 @@ onMounted(() => void load())
                 :show-account="!accountFilter"
                 :amount="signedAmount(tx)"
                 :amount-class="amountClass(tx)"
+                :busy="deciding === tx.id"
+                @decide="(kind) => decide(tx, kind)"
+                @link="linking = tx"
               />
             </ul>
           </section>
@@ -487,5 +580,7 @@ onMounted(() => void load())
       :title="`Aucune opération en ${periodLabel}`"
       description="Synchronisez une banque ou importez un relevé d'opérations depuis le menu Importer."
     />
+
+    <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
   </div>
 </template>
