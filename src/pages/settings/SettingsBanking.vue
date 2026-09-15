@@ -6,7 +6,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
 import { BaseAlert, BaseBadge, BaseButton, BaseCollapsible, BaseInput, BaseModal, BaseSkeleton, BaseToggle } from '@/components'
-import type { BankExportImportResponse, BankSessionLinkedAccount, BankSessionSummary } from '@/types'
+import type { BankSessionLinkedAccount, BankSessionSummary } from '@/types'
 import { useFormatters } from '@/composables/useFormatters'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
 import BankLinkModal from '@/components/banking/BankLinkModal.vue'
@@ -272,58 +272,6 @@ function openSessionAccounts(uuid: string): void {
  */
 function dismissLinkModal(): void {
   showLinkModal.value = false
-}
-
-// --- Historical import ---
-const isImporting = ref(false)
-const isDraggingExport = ref(false)
-const importError = ref<string | null>(null)
-const importResult = ref<BankExportImportResponse | null>(null)
-const importedFileName = ref<string | null>(null)
-
-/** Account names for the result table: the API answers with uuids only. */
-const accountNameByUuid = computed<Record<string, string>>(() => {
-  const map: Record<string, string> = {}
-  for (const a of bank.summary?.accounts ?? []) map[a.id] = a.name
-  return map
-})
-
-async function readExportFile(file: File): Promise<void> {
-  importError.value = null
-  importResult.value = null
-  importedFileName.value = file.name
-
-  let payload: unknown
-  try {
-    payload = JSON.parse(await file.text())
-  } catch {
-    importError.value = 'Ce fichier n\'est pas du JSON valide.'
-    return
-  }
-
-  isImporting.value = true
-  try {
-    importResult.value = await bank.importBankingExport(payload)
-  } catch (e) {
-    importError.value = e instanceof Error ? e.message : 'Import impossible.'
-  } finally {
-    isImporting.value = false
-  }
-}
-
-function onExportFileSelect(event: Event): void {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) void readExportFile(file)
-  // Cleared so re-picking the same file after a rejected read still fires `change`.
-  input.value = ''
-}
-
-function onExportDrop(event: DragEvent): void {
-  event.preventDefault()
-  isDraggingExport.value = false
-  const file = event.dataTransfer?.files?.[0]
-  if (file) void readExportFile(file)
 }
 
 const disconnectingUuid = ref<string | null>(null)
@@ -805,70 +753,21 @@ onMounted(async () => {
       </div>
     </SettingsSection>
 
-    <!-- Historical catch-up -->
+    <!-- Historical catch-up lives on the Banque page, next to the accounts it feeds -->
     <SettingsSection
       :icon="FileJson"
-      title="Importer l'historique complet"
-      subtitle="La synchronisation ne remonte que ce que votre banque expose encore. L'export du portail Enable Banking, lui, contient tout l'historique."
+      title="Importer l'historique"
+      subtitle="La synchronisation ne remonte que ce que votre banque expose encore."
     >
-      <div class="space-y-4">
-        <label
-          :class="[
-            'flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-card transition-colors',
-            isImporting ? 'opacity-60 cursor-wait' : 'cursor-pointer',
-            isDraggingExport
-              ? 'border-primary bg-primary/5'
-              : 'border-surface-border dark:border-surface-dark-border hover:border-primary',
-          ]"
-          @drop="onExportDrop"
-          @dragover.prevent="isDraggingExport = true"
-          @dragleave="isDraggingExport = false"
-        >
-          <FileJson class="w-7 h-7 text-text-muted dark:text-text-dark-muted mb-2" />
-          <span v-if="isImporting" class="text-sm font-medium text-text-main dark:text-text-dark-main">
-            Import en cours…
-          </span>
-          <span v-else-if="importedFileName" class="text-sm font-medium text-text-main dark:text-text-dark-main">
-            {{ importedFileName }}
-          </span>
-          <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">
-            Glissez le fichier .json ici ou cliquez pour le choisir
-          </span>
-          <span class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
-            Les comptes sont reconnus par leur empreinte : seuls ceux déjà rattachés sont importés
-          </span>
-          <input type="file" accept=".json,application/json" class="hidden" :disabled="isImporting" @change="onExportFileSelect" />
-        </label>
-
-        <p v-if="importError" class="text-xs text-danger">{{ importError }}</p>
-
-        <BaseAlert v-if="importResult" :variant="importResult.imported_accounts ? 'success' : 'warning'">
-          <p class="font-medium">
-            {{ importResult.imported_accounts }} compte(s) importé(s).
-          </p>
-          <p v-if="!importResult.imported_accounts" class="mt-0.5 opacity-90">
-            Aucun compte de cet export ne correspond à un compte rattaché. Connectez d'abord la
-            banque, rattachez les comptes, puis relancez l'import.
-          </p>
-          <ul v-else class="mt-2 space-y-1">
-            <li v-for="r in importResult.results" :key="r.bank_account_uuid" class="text-xs">
-              <span class="font-medium">{{ accountNameByUuid[r.bank_account_uuid] ?? r.bank_account_uuid }}</span> —
-              {{ r.inserted }} ajoutée(s), {{ r.updated }} mise(s) à jour, {{ r.skipped }} déjà connue(s),
-              {{ r.snapshots_written }} point(s) d'historique
-              <template v-if="r.malformed"> · {{ r.malformed }} ligne(s) inexploitable(s)</template>
-              <template v-if="r.detail"> · {{ r.detail }}</template>
-            </li>
-          </ul>
-        </BaseAlert>
-
-        <BaseAlert variant="info">
-          <p class="font-medium">Où trouver ce fichier</p>
-          <p class="mt-0.5 opacity-90">
-            Dans le portail Enable Banking, ouvrez votre application puis la session bancaire
-            concernée, et exportez ses données au format JSON. L'export ignore la fenêtre de 90 jours
-            que l'API impose.
-          </p>
-        </BaseAlert>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-text-muted dark:text-text-dark-muted min-w-0 flex-1">
+          Les imports se font depuis la page Banque, menu « Importer » : l'export JSON Enable
+          Banking, ou les opérations d'un relevé CSV. Sur un compte synchronisé, un relevé complète
+          l'historique jusqu'au jour où celui de la banque commence, sans doublon.
+        </p>
+        <BaseButton variant="outline" size="sm" @click="router.push({ name: 'bank' })">
+          Aller à la page Banque
+        </BaseButton>
       </div>
     </SettingsSection>
 
