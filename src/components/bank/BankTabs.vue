@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * The Banque section's two views. Routes rather than in-page state, so an
+ * The Banque section's views. Routes rather than in-page state, so an
  * account's operations can be linked to and survive a reload.
  */
 import { onMounted, watch } from 'vue'
-import { ArrowLeftRight, Wallet } from 'lucide-vue-next'
+import { ArrowLeftRight, Tags, Wallet } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { useBankStore } from '@/stores/bank'
@@ -20,6 +20,7 @@ watch(() => bank.dataRevision, () => void bank.fetchTransferQuestions())
 const tabs = [
   { name: 'bank', label: 'Comptes', icon: Wallet },
   { name: 'bank-transactions', label: 'Opérations', icon: ArrowLeftRight },
+  { name: 'bank-categories', label: 'Catégories', icon: Tags },
 ] as const
 </script>
 

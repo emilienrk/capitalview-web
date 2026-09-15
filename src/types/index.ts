@@ -393,6 +393,101 @@ export interface BankTransactionItem {
   /** The movement on the other side, and how the pair was made. */
   transfer_id: string | null
   transfer_status: BankTransferStatus | null
+  /** Read from the label: display and filtering only, never a total. */
+  operation_type: OperationType
+  nature: OperationNature | null
+  category_id: string | null
+  category_name: string | null
+  /** What filed it. `manual` with no category is the user saying "none". */
+  category_source: CategorySource | null
+  rule_id: string | null
+}
+
+// ─── Catégories d'opérations ─────────────────────────────────
+
+export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' | 'INTEREST' | 'UNKNOWN'
+
+/** How an operation counts in the real cashflow. */
+export type OperationNature = 'EXPENSE' | 'INCOME' | 'SAVING' | 'INVESTMENT' | 'INTERNAL' | 'NEUTRALIZED'
+
+export type CategoryNature = 'EXPENSE' | 'INCOME' | 'SAVING' | 'INVESTMENT'
+
+/** Where a category was created, which decides where it is offered. */
+export type CategoryOrigin = 'cashflow' | 'bank' | 'ai'
+
+export type CategorySource = 'manual' | 'user_rule' | 'ai_rule'
+
+export type CategoryScope = 'bank' | 'planned'
+
+export interface BankCategory {
+  id: string
+  name: string
+  nature: CategoryNature
+  origin: CategoryOrigin
+  rule_count: number
+}
+
+/** A category a screen offers. `id` is null for a declared cashflow's text category not used in Banque yet. */
+export interface AvailableCategory {
+  id: string | null
+  name: string
+  nature: CategoryNature
+  origin: CategoryOrigin
+}
+
+export interface BankCategoryRule {
+  id: string
+  tokens: string[]
+  category_id: string
+  category_name: string | null
+  source: 'user' | 'ai'
+  created_at: string
+}
+
+export interface BankCategoryAssign {
+  category_id: string | null
+  apply_to_similar: boolean
+  tokens?: string[]
+}
+
+export interface BankCategoryAssignResult {
+  transaction: BankTransactionItem
+  /** Operations the rule now files across the whole history; 1 or 0 without a rule. */
+  filed_count: number
+}
+
+export interface BankRuleWords {
+  /** Every word of the label, rarest first. */
+  words: string[]
+  proposed: string[]
+}
+
+export interface BankUncategorizedGroup {
+  signature: string
+  transaction_id: string
+  label: string
+  is_credit: boolean
+  count: number
+  currency: string
+  total: number
+  median: number
+  last_date: string | null
+  tokens: string[]
+}
+
+export interface BankUncategorizedResponse {
+  total_groups: number
+  total_operations: number
+  groups: BankUncategorizedGroup[]
+}
+
+export interface BankAICategorizeResult {
+  processed: number
+  rules_created: number
+  categories_created: number
+  /** Passed back on the next call: the groups this run already left unfiled. */
+  skip: number
+  remaining: number
 }
 
 /**
@@ -1251,6 +1346,7 @@ export interface UserSettingsUpdate {
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
+  ai_categorization_enabled?: boolean
   open_banking_enabled?: boolean
   ai_vision_provider?: string | null
   ai_chat_provider?: string | null
@@ -1283,6 +1379,7 @@ export interface UserSettingsResponse {
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean
+  ai_categorization_enabled: boolean
   open_banking_enabled: boolean
   ai_vision_provider: string | null
   ai_chat_provider: string | null
