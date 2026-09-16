@@ -4,7 +4,7 @@ import { defaultYear, monthlyFigures, readCashflowView, writeCashflowView } from
 import type { RealCashflowTotals, RealCashflowYear } from '@/types'
 
 function totals(expenses: number): RealCashflowTotals {
-  return { income: 0, expenses, saving: 0, investment: 0, internal: 0, neutralized: 0 }
+  return { income: 0, expenses, saving: 0, investment: 0, neutral: 0, net: -expenses }
 }
 
 describe('defaultYear', () => {

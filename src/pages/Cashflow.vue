@@ -3,7 +3,6 @@ import { ArrowDown, ArrowUp, Circle, DollarSign, Pencil, Scale, Search, Trash2 }
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { useCashflowStore } from '@/stores/cashflow'
-import { useBankCategoriesStore } from '@/stores/bankCategories'
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
 import { useFormatters } from '@/composables/useFormatters'
@@ -76,20 +75,7 @@ async function toggleActive(item: CashflowResponse, value: boolean): Promise<voi
   await cashflow.updateCashflow(item.id, { is_active: value })
 }
 
-const bankCategories = useBankCategoriesStore()
-/** What the API offers the declared cashflow; null until it answers, or when it cannot. */
-const plannedCategories = ref<string[] | null>(null)
-
-async function loadPlannedCategories(): Promise<void> {
-  try {
-    plannedCategories.value = (await bankCategories.fetchAvailable('planned')).map(c => c.name)
-  } catch {
-    plannedCategories.value = null
-  }
-}
-
 const existingCategories = computed(() => {
-  if (plannedCategories.value) return plannedCategories.value
   const categories = new Set(cashflow.cashflows.map(c => c.category))
   return Array.from(categories)
     .sort()
@@ -349,7 +335,6 @@ function openCreate(type?: FlowType): void {
   resetForm()
   if (type) form.flow_type = type
   showFormModal.value = true
-  void loadPlannedCategories()
 }
 
 function openEdit(item: CashflowResponse): void {
@@ -367,7 +352,6 @@ function openEdit(item: CashflowResponse): void {
   selectedMonth.value = d.getMonth() + 1
   selectedYear.value = d.getFullYear()
   showFormModal.value = true
-  void loadPlannedCategories()
 }
 
 async function handleSubmit(): Promise<void> {

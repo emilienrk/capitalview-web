@@ -12,7 +12,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Search, Undo2 } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
-import { useBankCategoriesStore } from '@/stores/bankCategories'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
@@ -20,18 +19,13 @@ import {
 } from '@/components'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
-import BankCategoryPicker from '@/components/bank/BankCategoryPicker.vue'
-import {
-  ALL_CATEGORIES, OPERATION_TYPE_LABELS, UNCATEGORIZED, matchesCategory, matchesOperationType,
-} from '@/utils/bankCategories'
-import type { BankCategoryAssignResult, BankTransactionItem, BankTransferDecisionKind, OperationType } from '@/types'
+import type { BankTransactionItem, BankTransferDecisionKind } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 const ALL_ACCOUNTS = 'all'
 const STRIP_MONTHS = 12
 
 const bank = useBankStore()
-const categoriesStore = useBankCategoriesStore()
 const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
@@ -149,21 +143,6 @@ const search = ref('')
 const showTransfers = ref(true)
 /** Only the pairs offered to the user, for them to settle. */
 const toReviewOnly = ref(false)
-const categoryFilter = ref<string>(ALL_CATEGORIES)
-const typeFilter = ref<string>(ALL_CATEGORIES)
-
-const categoryOptions = computed(() => [
-  { label: 'Toutes catégories', value: ALL_CATEGORIES },
-  { label: 'À ranger', value: UNCATEGORIZED },
-  ...categoriesStore.categories.map((c) => ({ label: c.name, value: c.id })),
-])
-const typeOptions = [
-  { label: 'Tous types', value: ALL_CATEGORIES },
-  ...(Object.keys(OPERATION_TYPE_LABELS) as OperationType[]).map((value) => ({
-    label: OPERATION_TYPE_LABELS[value],
-    value,
-  })),
-]
 
 /** Kept out of the totals: every pair but a suggested one. */
 function isDeducted(tx: BankTransactionItem): boolean {
@@ -171,8 +150,7 @@ function isDeducted(tx: BankTransactionItem): boolean {
 }
 
 const hasFilters = computed(() =>
-  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value
-  || categoryFilter.value !== ALL_CATEGORIES || typeFilter.value !== ALL_CATEGORIES,
+  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value,
 )
 
 function resetFilters(): void {
@@ -180,8 +158,6 @@ function resetFilters(): void {
   search.value = ''
   showTransfers.value = true
   toReviewOnly.value = false
-  categoryFilter.value = ALL_CATEGORIES
-  typeFilter.value = ALL_CATEGORIES
 }
 
 const filtered = computed(() => {
@@ -191,8 +167,6 @@ const filtered = computed(() => {
     if (direction.value === 'out' && tx.is_credit) return false
     if (!showTransfers.value && isDeducted(tx)) return false
     if (toReviewOnly.value && tx.transfer_status !== 'suggested') return false
-    if (!matchesCategory(tx, categoryFilter.value)) return false
-    if (!matchesOperationType(tx, typeFilter.value)) return false
     if (!query) return true
     return (tx.label ?? '').toLowerCase().includes(query)
       || tx.account_name.toLowerCase().includes(query)
@@ -266,27 +240,6 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
-// ── Categories ──────────────────────────────────────────────
-
-const categorizing = ref<BankTransactionItem | null>(null)
-/** What the last filing did, said once under the filters. */
-const filedMessage = ref<string | null>(null)
-
-function onFiled(result: BankCategoryAssignResult): void {
-  const count = result.filed_count
-  filedMessage.value = result.transaction.category_name
-    ? `${count} opération${count > 1 ? 's' : ''} rangée${count > 1 ? 's' : ''} dans ${result.transaction.category_name}.`
-    : 'Opération laissée sans catégorie.'
-}
-
-// A category filter naming a deleted category would silently show nothing.
-watch(() => categoriesStore.categories, (categories) => {
-  const filter = categoryFilter.value
-  if (filter !== ALL_CATEGORIES && filter !== UNCATEGORIZED && !categories.some((c) => c.id === filter)) {
-    categoryFilter.value = ALL_CATEGORIES
-  }
-})
-
 const QUESTION_MONTHS_SHOWN = 4
 /** The most recent months still holding a question, besides this one. */
 const questionMonths = computed(() =>
@@ -350,10 +303,7 @@ watch(() => bank.summary, () => {
 // A sync or an import from the section header rewrote the movements.
 watch(() => bank.dataRevision, () => void load())
 
-onMounted(() => {
-  void load()
-  void categoriesStore.fetchCategories().catch(() => undefined)
-})
+onMounted(() => void load())
 </script>
 
 <template>
@@ -540,7 +490,7 @@ onMounted(() => {
     </BaseCard>
 
     <template v-else-if="month?.transactions.length">
-      <div class="mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+      <div class="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
         <div class="relative w-full sm:w-72">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
           <input
@@ -551,18 +501,12 @@ onMounted(() => {
             class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
           />
         </div>
-        <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+        <div class="grid grid-cols-2 gap-3 sm:flex">
           <div class="sm:w-48">
             <BaseSelect v-model="direction" :options="directionOptions" />
           </div>
           <div class="sm:w-48">
             <BaseSelect v-model="sortBy" :options="sortOptions" />
-          </div>
-          <div class="sm:w-44">
-            <BaseSelect v-model="categoryFilter" :options="categoryOptions" aria-label="Catégorie" />
-          </div>
-          <div class="sm:w-40">
-            <BaseSelect v-model="typeFilter" :options="typeOptions" aria-label="Type d'opération" />
           </div>
         </div>
         <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted sm:ml-auto">
@@ -570,10 +514,6 @@ onMounted(() => {
           Virements internes
         </label>
       </div>
-
-      <BaseAlert v-if="filedMessage" variant="success" dismissible class="mb-3" @dismiss="filedMessage = null">
-        {{ filedMessage }}
-      </BaseAlert>
 
       <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
         {{ decisionError }}
@@ -600,7 +540,6 @@ onMounted(() => {
             :busy="deciding === tx.id"
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
-            @categorize="categorizing = tx"
           />
         </ul>
         <template v-else>
@@ -619,7 +558,6 @@ onMounted(() => {
                 :busy="deciding === tx.id"
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
-                @categorize="categorizing = tx"
               />
             </ul>
           </section>
@@ -644,14 +582,5 @@ onMounted(() => {
     />
 
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
-    <BankCategoryPicker
-      :open="categorizing !== null"
-      :transaction-id="categorizing?.id ?? null"
-      :label="categorizing?.label ?? null"
-      :is-credit="categorizing?.is_credit ?? false"
-      :current-category-id="categorizing?.category_id ?? null"
-      @close="categorizing = null"
-      @saved="onFiled"
-    />
   </div>
 </template>
