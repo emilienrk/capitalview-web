@@ -149,7 +149,7 @@ const search = ref('')
 // the list disagree with it. They are only kept out of the totals.
 const showTransfers = ref(true)
 /** Only what waits for the user: pairs offered, and labels only they can type. */
-const toReviewOnly = ref(false)
+const toReviewOnly = ref(route.query.review === '1')
 const typeFilter = ref<string>(ALL)
 const typeOptions = [
   { label: 'Tous types', value: ALL },
@@ -334,8 +334,9 @@ watch(
 
 watch([period, accountId], ([p, account]) => {
   if (route.name !== 'bank-transactions') return
-  const query = { period: p, account: account === ALL_ACCOUNTS ? undefined : account }
-  if (route.query.period !== query.period || route.query.account !== query.account) {
+  // `review` only opens the page filtered: carried on, it would filter every month after.
+  const query = { period: p, account: account === ALL_ACCOUNTS ? undefined : account, review: undefined }
+  if (route.query.period !== query.period || route.query.account !== query.account || route.query.review) {
     void router.replace({ query: { ...route.query, ...query } })
   }
   void load()

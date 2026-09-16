@@ -4,10 +4,11 @@
  * side, and the largest expenses — shown, never taken out of the totals.
  */
 import { computed } from 'vue'
-import { ArrowDown, ArrowUp, PiggyBank, TrendingUp } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, PiggyBank, Scale, TrendingUp } from 'lucide-vue-next'
 
 import { BaseCard, BaseSegmentedControl, BaseSelect, BaseStatCard } from '@/components'
 import CashflowMonthsBarChart from '@/components/charts/CashflowMonthsBarChart.vue'
+import RealCashflowOpenQuestions from '@/components/cashflow/RealCashflowOpenQuestions.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { monthlyFigures, type MonthlyStatistic } from '@/utils/realCashflow'
@@ -47,8 +48,9 @@ const perMonth = computed(() => (props.statistic === 'median' ? 'médiane / mois
 const cards = computed(() => [
   { label: 'Entrées', key: 'income', icon: ArrowUp, tone: 'bg-success/10 text-success' },
   { label: 'Dépenses', key: 'expenses', icon: ArrowDown, tone: 'bg-danger/10 text-danger' },
-  { label: 'Mis de côté', key: 'saving', icon: PiggyBank, tone: 'bg-primary/10 text-primary' },
-  { label: 'Investi', key: 'investment', icon: TrendingUp, tone: 'bg-info/10 text-info' },
+  { label: 'Épargne', key: 'saving', icon: PiggyBank, tone: 'bg-primary/10 text-primary' },
+  { label: 'Investissement', key: 'investment', icon: TrendingUp, tone: 'bg-info/10 text-info' },
+  { label: 'Reste', key: 'net', icon: Scale, tone: 'bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main' },
 ] as const)
 
 function monthName(period: string): string {
@@ -81,7 +83,8 @@ function monthName(period: string): string {
     </p>
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <RealCashflowOpenQuestions :count="data.open_questions" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <BaseStatCard
           v-for="card in cards"
           :key="card.key"

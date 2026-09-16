@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 import { BaseButton, BaseCard } from '@/components'
+import RealCashflowOpenQuestions from '@/components/cashflow/RealCashflowOpenQuestions.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { RealCashflowMonthDetail } from '@/types'
@@ -27,8 +28,9 @@ const title = computed(() => {
 const figures = computed(() => [
   { label: 'Entrées', value: props.data.totals.income, tone: 'text-success' },
   { label: 'Dépenses', value: props.data.totals.expenses, tone: 'text-danger' },
-  { label: 'Mis de côté', value: props.data.totals.saving, tone: 'text-primary' },
-  { label: 'Investi', value: props.data.totals.investment, tone: 'text-info' },
+  { label: 'Épargne', value: props.data.totals.saving, tone: 'text-primary' },
+  { label: 'Investissement', value: props.data.totals.investment, tone: 'text-info' },
+  { label: 'Reste', value: props.data.totals.net, tone: 'text-text-main dark:text-text-dark-main' },
 ])
 </script>
 
@@ -49,8 +51,10 @@ const figures = computed(() => [
       </div>
     </div>
 
+    <RealCashflowOpenQuestions :count="data.open_questions" />
+
     <BaseCard>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div v-for="figure in figures" :key="figure.label">
           <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ figure.label }}</p>
           <p :class="['text-xl font-bold tabular-nums', figure.tone]">{{ amount(figure.value) }}</p>
@@ -59,6 +63,9 @@ const figures = computed(() => [
       <p v-for="other in data.other_currencies" :key="other.currency" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         En {{ other.currency }}, à part faute de taux : {{ maskValue(formatCurrency(other.outflow, other.currency)) }} en sortie,
         {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.
+      </p>
+      <p v-if="Number(data.totals.neutral)" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
+        Hors {{ amount(data.totals.neutral) }} neutres : déplacés entre vos comptes, remboursés ou annulés.
       </p>
     </BaseCard>
   </div>
