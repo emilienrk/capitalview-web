@@ -33,8 +33,8 @@ describe('openQuestionsNotice', () => {
   })
 
   it('counts what can still move the figures', () => {
-    expect(openQuestionsNotice(1)).toBe('1 point à confirmer peut encore changer ces chiffres.')
-    expect(openQuestionsNotice(12)).toBe('12 points à confirmer peuvent encore changer ces chiffres.')
+    expect(openQuestionsNotice(1)).toBe('1 opération attend une réponse et peut encore changer ces chiffres.')
+    expect(openQuestionsNotice(12)).toBe('12 opérations attendent une réponse et peuvent encore changer ces chiffres.')
   })
 })
 
