@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest'
+
+import { ALL, answerLabel, matchesCashflowType, matchesOperationType, needsReview } from '@/utils/cashflowTypes'
+import type { BankTransactionItem } from '@/types'
+
+function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransactionItem {
+  return {
+    id: 'tx-1', account_id: 'acc-1', account_name: 'Compte courant', operation_date: '2026-03-05',
+    amount: 40, currency: 'EUR', is_credit: false, is_pending: false, label: 'VIR INST ROUKINE EMILIEN',
+    transfer_account_id: null, transfer_account_name: null, transfer_id: null, transfer_status: null,
+    operation_type: 'TRANSFER', cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
+    flow_question: null, ...overrides,
+  }
+}
+
+describe('answerLabel', () => {
+  it('reads a credit answer as what it means for money coming in', () => {
+    expect(answerLabel('EXPENSE', true)).toBe('Remboursement')
+    expect(answerLabel('SAVING', true)).toBe("Reprise d'épargne")
+    expect(answerLabel('INVESTMENT', true)).toBe("Reprise d'investissement")
+  })
+
+  it('reads a debit answer as the type itself', () => {
+    expect(answerLabel('EXPENSE', false)).toBe('Dépense')
+    expect(answerLabel('SAVING', false)).toBe('Épargne')
+  })
+})
+
+describe('filters', () => {
+  it('keeps every operation until a type is picked', () => {
+    expect(matchesCashflowType(anOperation(), ALL)).toBe(true)
+    expect(matchesCashflowType(anOperation(), 'SAVING')).toBe(false)
+    expect(matchesCashflowType(anOperation({ cashflow_type: 'SAVING' }), 'SAVING')).toBe(true)
+  })
+
+  it('filters on the payment means', () => {
+    expect(matchesOperationType(anOperation(), 'TRANSFER')).toBe(true)
+    expect(matchesOperationType(anOperation(), 'CARD')).toBe(false)
+  })
+})
+
+describe('needsReview', () => {
+  it('holds a suggested pair and a flow question, nothing else', () => {
+    expect(needsReview(anOperation())).toBe(false)
+    expect(needsReview(anOperation({ transfer_status: 'suggested' }))).toBe(true)
+    expect(needsReview(anOperation({ flow_question: { choices: ['EXPENSE'], operation_count: 3 } }))).toBe(true)
+    expect(needsReview(anOperation({ transfer_status: 'recurring' }))).toBe(false)
+  })
+})
