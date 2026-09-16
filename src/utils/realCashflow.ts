@@ -18,12 +18,15 @@ export function monthlyFigures(year: RealCashflowYear, statistic: MonthlyStatist
   return statistic === 'median' ? year.monthly_median : year.monthly_mean
 }
 
-/** What the banner says while answers can still move the figures; null once nothing is open. */
+/**
+ * What the banner says while answers can still move the figures; null once
+ * nothing is open. Operations, not questions: one question can settle many.
+ */
 export function openQuestionsNotice(count: number): string | null {
   if (count <= 0) return null
   return count === 1
-    ? '1 point à confirmer peut encore changer ces chiffres.'
-    : `${count} points à confirmer peuvent encore changer ces chiffres.`
+    ? '1 opération attend une réponse et peut encore changer ces chiffres.'
+    : `${count} opérations attendent une réponse et peuvent encore changer ces chiffres.`
 }
 
 // Storage can be missing or throw (private browsing, blocked site data): the

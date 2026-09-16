@@ -84,7 +84,7 @@ function monthName(period: string): string {
 
     <template v-else>
       <RealCashflowOpenQuestions :count="data.open_questions" />
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
         <BaseStatCard
           v-for="card in cards"
           :key="card.key"

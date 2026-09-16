@@ -54,7 +54,7 @@ const figures = computed(() => [
     <RealCashflowOpenQuestions :count="data.open_questions" />
 
     <BaseCard>
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
         <div v-for="figure in figures" :key="figure.label">
           <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ figure.label }}</p>
           <p :class="['text-xl font-bold tabular-nums', figure.tone]">{{ amount(figure.value) }}</p>

@@ -5,7 +5,7 @@
  * choice types every operation of the label, and of nearby labels, on this
  * account and in this direction, including those imported later.
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
@@ -32,7 +32,6 @@ const { maskValue } = usePrivacyMode()
 const byLabel = ref(true)
 const saving = ref<CashflowType | 'clear' | null>(null)
 const error = ref<string | null>(null)
-const buttons = ref<Record<string, HTMLElement | null>>({})
 
 const hasLabel = computed(() => Boolean(props.tx?.label?.trim()))
 /** What the user set, which going back to the detected type undoes. */
@@ -40,14 +39,10 @@ const userSet = computed(() => props.tx?.type_source === 'override' || props.tx?
 
 watch(
   () => [props.open, props.tx?.id] as const,
-  async ([open]) => {
+  () => {
     error.value = null
     saving.value = null
     byLabel.value = hasLabel.value
-    if (!open || !props.tx) return
-    await nextTick()
-    const current = buttons.value[props.tx.cashflow_type]
-    current?.focus()
   },
   { immediate: true },
 )
@@ -103,7 +98,7 @@ async function backToDetected(): Promise<void> {
         <button
           v-for="type in CASHFLOW_TYPES"
           :key="type"
-          :ref="(el) => { buttons[type] = el as HTMLElement | null }"
+          :autofocus="tx.cashflow_type === type"
           type="button"
           :aria-pressed="tx.cashflow_type === type"
           :disabled="saving !== null"

@@ -537,35 +537,29 @@ onMounted(() => void load())
     </BaseCard>
 
     <template v-else-if="month?.transactions.length">
-      <div class="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div class="relative w-full sm:w-72">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Rechercher un libellé…"
-            aria-label="Rechercher un libellé"
-            class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-          />
+      <div class="mb-4 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="relative w-full sm:w-72">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
+            <input
+              v-model="search"
+              type="text"
+              placeholder="Rechercher un libellé…"
+              aria-label="Rechercher un libellé"
+              class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+            />
+          </div>
+          <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted whitespace-nowrap sm:ml-auto">
+            <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
+            Virements internes
+          </label>
         </div>
-        <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-          <div class="sm:w-48">
-            <BaseSelect v-model="direction" :options="directionOptions" />
-          </div>
-          <div class="sm:w-48">
-            <BaseSelect v-model="sortBy" :options="sortOptions" />
-          </div>
-          <div class="sm:w-44">
-            <BaseSelect v-model="typeFilter" :options="typeOptions" />
-          </div>
-          <div class="sm:w-56">
-            <BaseSelect v-model="meansFilter" :options="meansOptions" />
-          </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <BaseSelect v-model="direction" :options="directionOptions" />
+          <BaseSelect v-model="sortBy" :options="sortOptions" />
+          <BaseSelect v-model="typeFilter" :options="typeOptions" />
+          <BaseSelect v-model="meansFilter" :options="meansOptions" />
         </div>
-        <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted sm:ml-auto">
-          <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
-          Virements internes
-        </label>
       </div>
 
       <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
