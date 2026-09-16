@@ -1,10 +1,9 @@
 <script setup lang="ts">
-/** One completed month of the real cashflow, its categories, and its neighbours. */
+/** One completed month of the real cashflow and its neighbours. */
 import { computed } from 'vue'
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 import { BaseButton, BaseCard } from '@/components'
-import RealCashflowCategoryList from '@/components/cashflow/RealCashflowCategoryList.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { RealCashflowMonthDetail } from '@/types'
@@ -62,14 +61,5 @@ const figures = computed(() => [
         {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.
       </p>
     </BaseCard>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <BaseCard title="Sorties par catégorie">
-        <RealCashflowCategoryList :shares="data.by_category.expenses" :format="amount" bar-class="bg-danger/70" empty="Aucune dépense ce mois-ci" />
-      </BaseCard>
-      <BaseCard title="Entrées par catégorie">
-        <RealCashflowCategoryList :shares="data.by_category.income" :format="amount" bar-class="bg-success/70" empty="Aucune entrée ce mois-ci" />
-      </BaseCard>
-    </div>
   </div>
 </template>

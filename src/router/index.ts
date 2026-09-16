@@ -10,7 +10,6 @@ const Cashflow = () => import('@/pages/Cashflow.vue')
 const BankSection = () => import('@/pages/BankSection.vue')
 const Bank = () => import('@/pages/Bank.vue')
 const BankTransactions = () => import('@/pages/BankTransactions.vue')
-const BankCategories = () => import('@/pages/BankCategories.vue')
 const Wealth = () => import('@/pages/Asset.vue')
 const Crypto = () => import('@/pages/Crypto.vue')
 const Notes = () => import('@/pages/Notes.vue')
@@ -64,7 +63,6 @@ const routes = [
     children: [
       { path: '', name: 'bank', component: Bank },
       { path: 'transactions', name: 'bank-transactions', component: BankTransactions },
-      { path: 'categories', name: 'bank-categories', component: BankCategories },
     ],
   },
   {

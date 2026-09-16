@@ -1,10 +1,9 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed } from 'vue'
-import { ArrowLeftRight, Check, Link2, Sparkles, Tag, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, Link2, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
-import { OPERATION_TYPE_LABELS, isUncategorized } from '@/utils/bankCategories'
 import type { BankTransactionItem, BankTransferDecisionKind } from '@/types'
 
 const props = defineProps<{
@@ -21,16 +20,12 @@ const props = defineProps<{
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   link: []
-  categorize: []
 }>()
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
 )
-const toFile = computed(() => isUncategorized(props.tx))
-/** A paired transfer counts by its pair: its category is only shown once the user gave one. */
-const showsCategory = computed(() => toFile.value || props.tx.category_name !== null)
 </script>
 
 <template>
@@ -43,31 +38,6 @@ const showsCategory = computed(() => toFile.value || props.tx.category_name !== 
         <span v-if="date">{{ date }}</span>
         <span v-if="date && showAccount" aria-hidden="true">·</span>
         <span v-if="showAccount">{{ tx.account_name }}</span>
-        <span v-if="tx.operation_type !== 'UNKNOWN'" class="text-text-muted/80 dark:text-text-dark-muted/80">
-          {{ OPERATION_TYPE_LABELS[tx.operation_type] }}
-        </span>
-        <button
-          v-if="showsCategory"
-          type="button"
-          :class="[
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium transition-colors',
-            tx.category_name
-              ? 'bg-primary/10 text-primary hover:bg-primary/20'
-              : 'border border-dashed border-surface-border dark:border-surface-dark-border hover:text-text-main dark:hover:text-text-dark-main',
-          ]"
-          :title="tx.category_name ? 'Changer la catégorie' : 'Ranger cette opération'"
-          @click="$emit('categorize')"
-        >
-          <Tag class="w-3 h-3" />
-          {{ tx.category_name ?? 'À ranger' }}
-          <span
-            v-if="tx.category_source === 'ai_rule'"
-            class="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wide opacity-80"
-            title="Rangée par l'IA"
-          >
-            <Sparkles class="w-2.5 h-2.5" />IA
-          </span>
-        </button>
         <BaseBadge v-if="cancelled" variant="secondary">
           <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}

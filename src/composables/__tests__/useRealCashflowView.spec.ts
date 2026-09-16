@@ -14,9 +14,8 @@ const get = vi.mocked(apiClient.get)
 
 function aMonth(period: string, previous: string | null, next: string | null): RealCashflowMonthDetail {
   return {
-    period, currency: 'EUR', operation_count: 3, previous_period: previous, next_period: next, other_currencies: [],
-    totals: { income: 0, expenses: 0, saving: 0, investment: 0, internal: 0, neutralized: 0 },
-    by_category: { income: [], expenses: [], saving: [], investment: [] },
+    period, currency: 'EUR', operation_count: 3, open_questions: 0, previous_period: previous, next_period: next,
+    other_currencies: [], totals: { income: 0, expenses: 0, saving: 0, investment: 0, neutral: 0, net: 0 },
   }
 }
 

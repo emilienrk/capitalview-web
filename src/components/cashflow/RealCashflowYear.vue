@@ -1,15 +1,13 @@
 <script setup lang="ts">
 /**
- * A year of the real cashflow: monthly figures by nature, the months side by
- * side, where the money went, and the largest expenses — shown, never taken out
- * of the totals.
+ * A year of the real cashflow: monthly figures by type, the months side by
+ * side, and the largest expenses — shown, never taken out of the totals.
  */
 import { computed } from 'vue'
 import { ArrowDown, ArrowUp, PiggyBank, TrendingUp } from 'lucide-vue-next'
 
 import { BaseCard, BaseSegmentedControl, BaseSelect, BaseStatCard } from '@/components'
 import CashflowMonthsBarChart from '@/components/charts/CashflowMonthsBarChart.vue'
-import RealCashflowCategoryList from '@/components/cashflow/RealCashflowCategoryList.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { monthlyFigures, type MonthlyStatistic } from '@/utils/realCashflow'
@@ -100,8 +98,8 @@ function monthName(period: string): string {
       </div>
       <p class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         Sur {{ data.covered_months }} mois terminé{{ data.covered_months > 1 ? 's' : '' }} portant des opérations.
-        <template v-if="Number(data.totals.internal) || Number(data.totals.neutralized)">
-          Hors {{ amount(data.totals.internal) }} déplacés entre vos comptes et {{ amount(data.totals.neutralized) }} remboursés ou annulés.
+        <template v-if="Number(data.totals.neutral)">
+          Hors {{ amount(data.totals.neutral) }} neutres : déplacés entre vos comptes, remboursés ou annulés.
         </template>
       </p>
       <p v-for="other in data.other_currencies" :key="other.currency" class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
@@ -125,21 +123,6 @@ function monthName(period: string): string {
         </div>
       </BaseCard>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BaseCard title="Dépenses par catégorie" :subtitle="`${data.year}`">
-          <RealCashflowCategoryList :shares="data.by_category.expenses" :format="amount" bar-class="bg-danger/70" empty="Aucune dépense" />
-        </BaseCard>
-        <BaseCard title="Entrées par catégorie" :subtitle="`${data.year}`">
-          <RealCashflowCategoryList :shares="data.by_category.income" :format="amount" bar-class="bg-success/70" empty="Aucune entrée" />
-        </BaseCard>
-        <BaseCard v-if="data.by_category.saving.length" title="Mis de côté par catégorie">
-          <RealCashflowCategoryList :shares="data.by_category.saving" :format="amount" bar-class="bg-primary/70" empty="" />
-        </BaseCard>
-        <BaseCard v-if="data.by_category.investment.length" title="Investi par catégorie">
-          <RealCashflowCategoryList :shares="data.by_category.investment" :format="amount" bar-class="bg-info/70" empty="" />
-        </BaseCard>
-      </div>
-
       <BaseCard v-if="data.top_expenses.length" title="Les plus grosses dépenses" subtitle="Comptées dans les totaux" :padding="false">
         <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
           <li v-for="expense in data.top_expenses" :key="expense.id" class="flex items-center gap-3 px-4 sm:px-6 py-3">
@@ -148,7 +131,7 @@ function monthName(period: string): string {
                 {{ expense.label ?? 'Opération sans libellé' }}
               </p>
               <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-                {{ expense.operation_date }} · {{ expense.account_name }}<template v-if="expense.category_name"> · {{ expense.category_name }}</template>
+                {{ expense.operation_date }} · {{ expense.account_name }}
               </p>
             </div>
             <p class="shrink-0 text-sm font-semibold tabular-nums text-text-main dark:text-text-dark-main">{{ amount(-expense.amount) }}</p>

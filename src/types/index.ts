@@ -367,7 +367,7 @@ export type BankTransferStatus =
 
 export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
 
-/** Response of GET /banking/transfer-questions — pairs waiting for the user, by month. */
+/** Response of GET /banking/transfer-questions — pairs and flow questions waiting for the user, by month. */
 export interface BankTransferQuestionsResponse {
   total: number
   months: Array<{ period: string; count: number }>
@@ -393,128 +393,80 @@ export interface BankTransactionItem {
   /** The movement on the other side, and how the pair was made. */
   transfer_id: string | null
   transfer_status: BankTransferStatus | null
-  /** Read from the label: display and filtering only, never a total. */
+  /** Read from the label: display, filtering, and whether a transfer sent asks a flow question. */
   operation_type: OperationType
-  nature: OperationNature | null
-  category_id: string | null
-  category_name: string | null
-  /** What filed it. `manual` with no category is the user saying "none". */
-  category_source: CategorySource | null
-  rule_id: string | null
+  cashflow_type: CashflowType
+  type_source: TypeSource
+  /** The rule typing it, exact or reached from a nearby label. */
+  type_rule_id: string | null
+  /** Set on the last operation of a label only the user can type. */
+  flow_question: BankFlowQuestion | null
 }
 
-// ─── Catégories d'opérations ─────────────────────────────────
+// ─── Types de flux ───────────────────────────────────────────
 
 export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' | 'INTEREST' | 'UNKNOWN'
 
-/** How an operation counts in the real cashflow. */
-export type OperationNature = 'EXPENSE' | 'INCOME' | 'SAVING' | 'INVESTMENT' | 'INTERNAL' | 'NEUTRALIZED'
+/** How an operation counts in the real cashflow, one per operation. */
+export type CashflowType = 'INCOME' | 'EXPENSE' | 'SAVING' | 'INVESTMENT' | 'NEUTRAL'
 
-export type CategoryNature = 'EXPENSE' | 'INCOME' | 'SAVING' | 'INVESTMENT'
+/** What gave an operation its type, strongest first. */
+export type TypeSource = 'pair' | 'override' | 'rule' | 'default'
 
-/** Where a category was created, which decides where it is offered. */
-export type CategoryOrigin = 'cashflow' | 'bank' | 'ai'
+/** Every operation reading like this one on its account and direction, or this one alone. */
+export type TypeScope = 'label' | 'operation'
 
-export type CategorySource = 'manual' | 'user_rule' | 'ai_rule'
-
-export type CategoryScope = 'bank' | 'planned'
-
-export interface BankCategory {
-  id: string
-  name: string
-  nature: CategoryNature
-  origin: CategoryOrigin
-  rule_count: number
+export interface BankFlowQuestion {
+  choices: CashflowType[]
+  /** The operations of the label the answer types. */
+  operation_count: number
 }
 
-/** A category a screen offers. `id` is null for a declared cashflow's text category not used in Banque yet. */
-export interface AvailableCategory {
-  id: string | null
-  name: string
-  nature: CategoryNature
-  origin: CategoryOrigin
+export interface BankTransactionTypeUpdate {
+  type: CashflowType
+  scope: TypeScope
 }
 
-export interface BankCategoryRule {
-  id: string
-  tokens: string[]
-  category_id: string
-  category_name: string | null
-  source: 'user' | 'ai'
-  created_at: string
-}
-
-export interface BankCategoryAssign {
-  category_id: string | null
-  apply_to_similar: boolean
-  tokens?: string[]
-}
-
-export interface BankCategoryAssignResult {
+export interface BankTransactionTypeResult {
   transaction: BankTransactionItem
-  /** Operations the rule now files across the whole history; 1 or 0 without a rule. */
-  filed_count: number
+  /** Operations the label's rule now types, pairs left out; 1 for this operation alone. */
+  covered_count: number
 }
 
-export interface BankRuleWords {
-  /** Every word of the label, rarest first. */
-  words: string[]
-  proposed: string[]
-}
-
-export interface BankUncategorizedGroup {
-  signature: string
-  transaction_id: string
-  label: string
+export interface BankTypeRule {
+  id: string
+  account_id: string
+  account_name: string
   is_credit: boolean
-  count: number
-  currency: string
-  total: number
-  median: number
-  last_date: string | null
-  tokens: string[]
-}
-
-export interface BankUncategorizedResponse {
-  total_groups: number
-  total_operations: number
-  groups: BankUncategorizedGroup[]
+  signature: string
+  /** The most recent operation it types, null when it types nothing any more. */
+  label: string | null
+  type: CashflowType
+  operation_count: number
+  created_at: string
 }
 
 // ─── Cashflow réel ───────────────────────────────────────────
 
 /**
- * What moved, by nature. `income` and `expenses` are net of their own reversals,
- * `saving` and `investment` of what was taken back; `internal` and `neutralized`
- * are only informative.
+ * What moved, by type. `income` and `expenses` are net of their own reversals,
+ * `saving` and `investment` of what was taken back; `neutral` is only
+ * informative, and `net` what is left once spent, set aside and invested.
  */
 export interface RealCashflowTotals {
   income: number
   expenses: number
   saving: number
   investment: number
-  internal: number
-  neutralized: number
+  neutral: number
+  net: number
 }
 
 export interface RealCashflowMonth extends RealCashflowTotals {
   period: string // YYYY-MM
   operation_count: number
-}
-
-export interface RealCashflowCategoryShare {
-  /** Null for the operations nothing files. */
-  category_id: string | null
-  name: string
-  amount: number
-  count: number
-}
-
-export interface RealCashflowBreakdown {
-  income: RealCashflowCategoryShare[]
-  expenses: RealCashflowCategoryShare[]
-  saving: RealCashflowCategoryShare[]
-  investment: RealCashflowCategoryShare[]
+  /** Suggested pairs and operations waiting on a flow question this month. */
+  open_questions: number
 }
 
 export interface RealCashflowExpense {
@@ -523,7 +475,6 @@ export interface RealCashflowExpense {
   label: string | null
   amount: number
   account_name: string
-  category_name: string | null
 }
 
 /** Response of GET /banking/real-cashflow — completed months only. */
@@ -535,9 +486,9 @@ export interface RealCashflowYear {
   totals: RealCashflowTotals
   /** The months carrying data, which the mean and median are taken over. */
   covered_months: number
+  open_questions: number
   monthly_mean: RealCashflowTotals
   monthly_median: RealCashflowTotals
-  by_category: RealCashflowBreakdown
   top_expenses: RealCashflowExpense[]
   other_currencies: BankFlowCurrencyTotal[]
 }
@@ -548,20 +499,11 @@ export interface RealCashflowMonthDetail {
   currency: string
   totals: RealCashflowTotals
   operation_count: number
-  by_category: RealCashflowBreakdown
+  open_questions: number
   /** The nearest completed months carrying data, if any. */
   previous_period: string | null
   next_period: string | null
   other_currencies: BankFlowCurrencyTotal[]
-}
-
-export interface BankAICategorizeResult {
-  processed: number
-  rules_created: number
-  categories_created: number
-  /** Passed back on the next call: the groups this run already left unfiled. */
-  skip: number
-  remaining: number
 }
 
 /**
@@ -576,7 +518,7 @@ export interface BankTransactionsResponse {
   net: number
   internal_transfers_excluded: number
   internal_transfers_amount: number
-  /** Pairs offered to the user this month, still counted. */
+  /** Pairs offered to the user this month, still counted, and flow questions asked this month. */
   transfer_questions: number
   reversals_excluded: number
   reversals_amount: number
@@ -1420,7 +1362,6 @@ export interface UserSettingsUpdate {
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   ai_feature_enabled?: boolean
-  ai_categorization_enabled?: boolean
   open_banking_enabled?: boolean
   ai_vision_provider?: string | null
   ai_chat_provider?: string | null
@@ -1453,7 +1394,6 @@ export interface UserSettingsResponse {
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   ai_feature_enabled: boolean
-  ai_categorization_enabled: boolean
   open_banking_enabled: boolean
   ai_vision_provider: string | null
   ai_chat_provider: string | null
