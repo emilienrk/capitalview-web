@@ -24,7 +24,10 @@ const bankEnabled = computed(() => settingsStore.settings?.bank_module_enabled ?
 const noOperations = computed(() => store.year !== null && store.year.years_available.length === 0)
 
 onMounted(() => {
-  if (bankEnabled.value) void view.openYear()
+  if (!bankEnabled.value) return
+  void view.openYear()
+  // The banner links to the most recent month still holding a question.
+  void bank.fetchTransferQuestions()
 })
 
 // A sync, an import or a filing changed the operations the figures come from.

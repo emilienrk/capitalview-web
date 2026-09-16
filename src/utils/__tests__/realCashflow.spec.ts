@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { defaultYear, monthlyFigures, readCashflowView, writeCashflowView } from '@/utils/realCashflow'
+import { defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, writeCashflowView } from '@/utils/realCashflow'
 import type { RealCashflowTotals, RealCashflowYear } from '@/types'
 
 function totals(expenses: number): RealCashflowTotals {
@@ -24,6 +24,17 @@ describe('monthlyFigures', () => {
   it('switches between the mean and the median', () => {
     expect(monthlyFigures(year, 'mean').expenses).toBe(200)
     expect(monthlyFigures(year, 'median').expenses).toBe(100)
+  })
+})
+
+describe('openQuestionsNotice', () => {
+  it('says nothing once every point is settled', () => {
+    expect(openQuestionsNotice(0)).toBeNull()
+  })
+
+  it('counts what can still move the figures', () => {
+    expect(openQuestionsNotice(1)).toBe('1 point à confirmer peut encore changer ces chiffres.')
+    expect(openQuestionsNotice(12)).toBe('12 points à confirmer peuvent encore changer ces chiffres.')
   })
 })
 

@@ -18,6 +18,14 @@ export function monthlyFigures(year: RealCashflowYear, statistic: MonthlyStatist
   return statistic === 'median' ? year.monthly_median : year.monthly_mean
 }
 
+/** What the banner says while answers can still move the figures; null once nothing is open. */
+export function openQuestionsNotice(count: number): string | null {
+  if (count <= 0) return null
+  return count === 1
+    ? '1 point à confirmer peut encore changer ces chiffres.'
+    : `${count} points à confirmer peuvent encore changer ces chiffres.`
+}
+
 // Storage can be missing or throw (private browsing, blocked site data): the
 // page then simply opens on the declared view.
 export function readCashflowView(): CashflowView {
