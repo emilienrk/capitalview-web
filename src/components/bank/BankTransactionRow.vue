@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed } from 'vue'
-import { ArrowLeftRight, Check, Link2, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, HelpCircle, Link2, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
-import type { BankTransactionItem, BankTransferDecisionKind } from '@/types'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, OPERATION_TYPE_LABELS, answerLabel } from '@/utils/cashflowTypes'
+import type { BankTransactionItem, BankTransferDecisionKind, CashflowType } from '@/types'
 
 const props = defineProps<{
   tx: BankTransactionItem
@@ -20,11 +21,18 @@ const props = defineProps<{
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   link: []
+  answer: [type: CashflowType]
+  retype: []
 }>()
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
+)
+/** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */
+const typable = computed(() => props.tx.transfer_status === null || suggested.value)
+const paymentMeans = computed(() =>
+  props.tx.operation_type === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.tx.operation_type],
 )
 </script>
 
@@ -38,6 +46,16 @@ const cancelled = computed(() =>
         <span v-if="date">{{ date }}</span>
         <span v-if="date && showAccount" aria-hidden="true">·</span>
         <span v-if="showAccount">{{ tx.account_name }}</span>
+        <span v-if="paymentMeans" class="text-text-muted/80 dark:text-text-dark-muted/80">{{ paymentMeans }}</span>
+        <button
+          v-if="typable"
+          type="button"
+          :class="['px-2 py-0.5 rounded-full font-medium transition-opacity hover:opacity-80', CASHFLOW_TYPE_TONES[tx.cashflow_type]]"
+          :title="tx.type_source === 'default' ? 'Type détecté : le changer' : 'Type choisi : le changer'"
+          @click="$emit('retype')"
+        >
+          {{ CASHFLOW_TYPE_LABELS[tx.cashflow_type] }}
+        </button>
         <BaseBadge v-if="cancelled" variant="secondary">
           <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
@@ -48,6 +66,27 @@ const cancelled = computed(() =>
           <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
         </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
+      </div>
+      <!-- Asked on the last operation of a label only the user can type, beside
+           the transfer questions and in their style. -->
+      <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="inline-flex items-center gap-1 text-warning font-medium">
+          <HelpCircle class="w-3.5 h-3.5" />
+          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}
+        </span>
+        <button
+          v-for="choice in tx.flow_question.choices"
+          :key="choice"
+          type="button"
+          :disabled="busy"
+          class="px-2 py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          @click="$emit('answer', choice)"
+        >
+          {{ answerLabel(choice, tx.is_credit) }}
+        </button>
+        <span v-if="tx.flow_question.operation_count > 1" class="text-text-muted dark:text-text-dark-muted">
+          s'applique aux {{ tx.flow_question.operation_count }} opérations de ce libellé
+        </span>
       </div>
     </div>
     <p :class="['shrink-0 text-sm font-semibold tabular-nums', amountClass]">
