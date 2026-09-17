@@ -223,7 +223,7 @@ function monthName(period: string): string {
       <p class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         Sur {{ data.covered_months }} mois terminé{{ data.covered_months > 1 ? 's' : '' }} portant des opérations.
         <template v-if="Number(data.totals.neutral)">
-          Hors {{ amount(data.totals.neutral) }} neutres : déplacés entre vos comptes, remboursés ou annulés.
+          Hors {{ amount(data.totals.neutral) }} non comptés : déplacés entre vos comptes, remboursés ou annulés.
         </template>
       </p>
       <p v-for="other in data.other_currencies" :key="other.currency" class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
