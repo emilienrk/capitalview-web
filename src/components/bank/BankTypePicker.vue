@@ -11,7 +11,7 @@ import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { CASHFLOW_TYPES, answerLabel } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, answerHint, answerLabel } from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const props = defineProps<{
@@ -102,6 +102,7 @@ async function backToDetected(): Promise<void> {
           type="button"
           :aria-pressed="tx.cashflow_type === type"
           :disabled="saving !== null"
+          :title="answerHint(type, tx.is_credit)"
           :class="[
             'flex items-center px-3 py-2.5 rounded-button border text-sm font-medium transition-colors',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60',

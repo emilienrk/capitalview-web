@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { ArrowLeftRight, Check, HelpCircle, Link2, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, OPERATION_TYPE_LABELS, answerLabel } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, OPERATION_TYPE_LABELS, answerHint, answerLabel } from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransferDecisionKind, CashflowType } from '@/types'
 
 const props = defineProps<{
@@ -84,6 +84,7 @@ const paymentMeans = computed(() =>
           :key="choice"
           type="button"
           :disabled="busy"
+          :title="answerHint(choice, tx.is_credit)"
           class="px-2 py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('answer', choice)"
         >

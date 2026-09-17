@@ -42,6 +42,28 @@ export function answerLabel(type: CashflowType, isCredit: boolean): string {
   return credit[type]
 }
 
+/**
+ * What an answer does to the figures, shown on hover rather than written out:
+ * "Remboursement" is the one nobody guesses, and it is the answer most
+ * received transfers deserve.
+ */
+export function answerHint(type: CashflowType, isCredit: boolean): string {
+  if (type === 'NEUTRAL') return "Compté nulle part : de l'argent qui n'a fait que passer."
+  const credit: Record<Exclude<CashflowType, 'NEUTRAL'>, string> = {
+    INCOME: 'Compté dans vos entrées.',
+    EXPENSE: 'Déduit des dépenses du mois où il arrive, sans chercher la dépense.',
+    SAVING: 'Repris de votre épargne : baisse ce qui est mis de côté.',
+    INVESTMENT: 'Repris de vos investissements.',
+  }
+  const debit: Record<Exclude<CashflowType, 'NEUTRAL'>, string> = {
+    INCOME: 'Retiré de vos entrées.',
+    EXPENSE: 'Compté dans vos dépenses.',
+    SAVING: 'Mis de côté : ni dépensé, ni perdu.',
+    INVESTMENT: 'Investi : ni dépensé, ni perdu.',
+  }
+  return (isCredit ? credit : debit)[type]
+}
+
 export const ALL = 'all'
 
 export function matchesCashflowType(tx: BankTransactionItem, filter: string): boolean {
