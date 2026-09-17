@@ -1,4 +1,4 @@
-import type { BankTransactionItem, CashflowType, OperationType } from '@/types'
+import type { BankContributionMatch, BankTransactionItem, CashflowType, OperationType, TypeSource } from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
 
@@ -48,7 +48,11 @@ export function answerLabel(type: CashflowType, isCredit: boolean): string {
  * received transfers deserve.
  */
 export function answerHint(type: CashflowType, isCredit: boolean): string {
-  if (type === 'NEUTRAL') return "Compté nulle part : de l'argent qui n'a fait que passer."
+  // Said on both sides, because the doubt is the same: an object of yours sold
+  // is not a revenue, it is something you owned turned into cash.
+  if (type === 'NEUTRAL') {
+    return "Compté nulle part : de l'argent qui n'a fait que passer, ou un objet à vous revendu."
+  }
   const credit: Record<Exclude<CashflowType, 'NEUTRAL'>, string> = {
     INCOME: 'Compté dans vos entrées.',
     EXPENSE: 'Déduit des dépenses du mois où il arrive, sans chercher la dépense.',
@@ -63,6 +67,43 @@ export function answerHint(type: CashflowType, isCredit: boolean): string {
   }
   return (isCredit ? credit : debit)[type]
 }
+
+/** Why an operation carries its type, said where the type is shown. */
+export function typeSourceTitle(source: TypeSource): string {
+  if (source === 'default') return 'Type détecté : le changer'
+  if (source === 'contribution') return "Type déduit d'un versement sur un de vos comptes d'investissement : le changer"
+  return 'Type choisi : le changer'
+}
+
+/**
+ * What an investment account says about an operation, in one line. The amount
+ * and the day come formatted, so privacy mode and the locale apply where they
+ * are displayed.
+ */
+export function contributionNote(match: BankContributionMatch, amount: string, day: string): string {
+  const movement = match.is_deposit
+    ? `versement de ${amount} sur ${match.account_name}`
+    : `retrait de ${amount} depuis ${match.account_name}`
+  return match.exact
+    ? `Reconnu : ${movement}, le même jour.`
+    : `Un ${movement} le ${day} pourrait correspondre.`
+}
+
+/**
+ * What settling a suggested pair does to the figures, said on hover as
+ * `answerHint` says it for a type. In full, because both answers teach the
+ * pairing something durable about the two labels, not just about this pair.
+ */
+export const PAIR_HINTS = {
+  transfer:
+    "C'est un virement entre mes comptes : les deux lignes sortent des totaux, et les prochaines paires qui leur ressemblent s'apparieront seules.",
+  notTransfer:
+    "Ce n'est pas un virement : chaque ligne compte de son côté, et cette paire ne sera plus proposée.",
+  unlink:
+    'Dissocier : les deux opérations recomptent chacune de leur côté, dans les entrées et les dépenses.',
+  link:
+    "Lier à un virement entre vos comptes, ou au remboursement de cette opération : les deux sortent alors des totaux.",
+} as const
 
 export const ALL = 'all'
 

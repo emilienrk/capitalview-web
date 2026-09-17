@@ -17,7 +17,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { CASHFLOW_TYPE_LABELS } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, contributionNote } from '@/utils/cashflowTypes'
 import type { BankReviewItem, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType } from '@/types'
 
 const bank = useBankStore()
@@ -87,6 +87,13 @@ function signedAmount(tx: BankTransactionItem): string {
 
 function stakeOf(item: BankReviewItem): string | undefined {
   return item.operation_count > 1 && item.kind === 'flow' ? amount(Number(item.amount), item.transaction.currency) : undefined
+}
+
+/** The deposit an investment account holds facing the operation, to answer by. */
+function contributionOf(tx: BankTransactionItem): string | undefined {
+  const match = tx.contribution
+  if (!match) return undefined
+  return contributionNote(match, amount(Number(match.amount), tx.currency), shortDay(match.day))
 }
 
 // ── Answers ─────────────────────────────────────────────────
@@ -211,6 +218,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           amount-class="text-text-main dark:text-text-dark-main"
           :busy="busy === item.transaction.id"
           :stake-amount="stakeOf(item)"
+          :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
           @link="linking = item.transaction"
           @answer="(type) => answer(item.transaction, type)"

@@ -23,7 +23,7 @@ import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
   ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, matchesCashflowType, matchesOperationType,
-  needsReview,
+  contributionNote, needsReview,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType } from '@/types'
 
@@ -131,6 +131,13 @@ function amount(value: number, currency = month.value?.currency ?? 'EUR'): strin
 function stakeOf(tx: BankTransactionItem): string | undefined {
   const question = tx.flow_question
   return question && question.operation_count > 1 ? amount(Number(question.amount), tx.currency) : undefined
+}
+
+/** The deposit an investment account holds facing this operation, in one line. */
+function contributionOf(tx: BankTransactionItem): string | undefined {
+  const match = tx.contribution
+  if (!match) return undefined
+  return contributionNote(match, amount(Number(match.amount), tx.currency), shortDay(match.day))
 }
 
 function signedAmount(tx: BankTransactionItem): string {
@@ -595,6 +602,7 @@ onMounted(() => void load())
             :amount-class="amountClass(tx)"
             :busy="deciding === tx.id"
             :stake-amount="stakeOf(tx)"
+            :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
             @answer="(type) => answer(tx, type)"
@@ -616,6 +624,7 @@ onMounted(() => void load())
                 :amount-class="amountClass(tx)"
                 :busy="deciding === tx.id"
                 :stake-amount="stakeOf(tx)"
+                :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
                 @answer="(type) => answer(tx, type)"

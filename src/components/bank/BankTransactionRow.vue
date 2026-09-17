@@ -1,10 +1,19 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed } from 'vue'
-import { ArrowLeftRight, Check, HelpCircle, Link2, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, HelpCircle, Link2, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, OPERATION_TYPE_LABELS, answerHint, answerLabel } from '@/utils/cashflowTypes'
+import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
+import {
+  CASHFLOW_TYPE_LABELS,
+  CASHFLOW_TYPE_TONES,
+  OPERATION_TYPE_LABELS,
+  PAIR_HINTS,
+  answerHint,
+  answerLabel,
+  typeSourceTitle,
+} from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransferDecisionKind, CashflowType } from '@/types'
 
 const props = defineProps<{
@@ -18,6 +27,8 @@ const props = defineProps<{
   busy?: boolean
   /** The formatted total of the label a flow question settles. */
   stakeAmount?: string
+  /** What the user's investment accounts say about it, already formatted. */
+  contributionNote?: string
 }>()
 
 /** What the answer moves, said when the label weighs more than this operation. Formatted, privacy included. */
@@ -60,7 +71,7 @@ const paymentMeans = computed(() =>
           v-if="typable"
           type="button"
           :class="['px-2 py-0.5 rounded-full font-medium transition-opacity hover:opacity-80', CASHFLOW_TYPE_TONES[tx.cashflow_type]]"
-          :title="tx.type_source === 'default' ? 'Type détecté : le changer' : 'Type choisi : le changer'"
+          :title="typeSourceTitle(tx.type_source)"
           @click="$emit('retype')"
         >
           {{ CASHFLOW_TYPE_LABELS[tx.cashflow_type] }}
@@ -82,6 +93,18 @@ const paymentMeans = computed(() =>
         </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
       </div>
+      <!-- What the investment accounts say: the deposit this operation was
+           recognised as, or a nearby one to answer the question by. -->
+      <p
+        v-if="contributionNote"
+        :class="[
+          'mt-1 flex items-center gap-1 text-xs',
+          tx.contribution?.exact ? 'text-info' : 'text-text-muted dark:text-text-dark-muted',
+        ]"
+      >
+        <TrendingUp class="w-3.5 h-3.5 shrink-0" />
+        {{ contributionNote }}
+      </p>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
@@ -100,9 +123,14 @@ const paymentMeans = computed(() =>
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
-        <span v-if="tx.flow_question.operation_count > 1" class="text-text-muted dark:text-text-dark-muted">
-          s'applique aux {{ tx.flow_question.operation_count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
-        </span>
+        <!-- What the answer covers, openable: the operations it would type. -->
+        <BankFlowGroup
+          v-if="tx.flow_question.operation_count > 1"
+          :transaction-id="tx.id"
+          :count="tx.flow_question.operation_count"
+          :stake="stake ?? undefined"
+          :label="tx.label"
+        />
       </div>
     </div>
     <p :class="['shrink-0 text-sm font-semibold tabular-nums', amountClass]">
@@ -116,14 +144,14 @@ const paymentMeans = computed(() =>
       <template v-if="suggested">
         <BaseButton
           icon size="sm" variant="ghost" :disabled="busy"
-          aria-label="C'est un virement entre mes comptes" title="C'est un virement entre mes comptes"
+          aria-label="C'est un virement entre mes comptes" :title="PAIR_HINTS.transfer"
           @click="$emit('decide', 'transfer')"
         >
           <Check class="w-4 h-4" />
         </BaseButton>
         <BaseButton
           icon size="sm" variant="ghost" :disabled="busy"
-          aria-label="Ce n'est pas un virement" title="Ce n'est pas un virement"
+          aria-label="Ce n'est pas un virement" :title="PAIR_HINTS.notTransfer"
           @click="$emit('decide', 'not_transfer')"
         >
           <X class="w-4 h-4" />
@@ -133,7 +161,7 @@ const paymentMeans = computed(() =>
         v-else-if="tx.transfer_id"
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
         icon size="sm" variant="ghost" :disabled="busy"
-        aria-label="Dissocier" title="Dissocier : compter les deux opérations"
+        aria-label="Dissocier" :title="PAIR_HINTS.unlink"
         @click="$emit('decide', 'not_transfer')"
       >
         <Unlink class="w-4 h-4" />
@@ -142,7 +170,7 @@ const paymentMeans = computed(() =>
         v-else
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
         icon size="sm" variant="ghost" :disabled="busy"
-        aria-label="Lier à une autre opération" title="Lier à un virement ou à son remboursement"
+        aria-label="Lier à une autre opération" :title="PAIR_HINTS.link"
         @click="$emit('link')"
       >
         <Link2 class="w-4 h-4" />

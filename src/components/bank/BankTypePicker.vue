@@ -11,7 +11,7 @@ import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { CASHFLOW_TYPES, answerHint, answerLabel } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, answerHint, answerLabel, contributionNote } from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const props = defineProps<{
@@ -26,7 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const types = useCashflowTypesStore()
-const { formatCurrency } = useFormatters()
+const { formatCurrency, formatDateShort } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
 const byLabel = ref(true)
@@ -36,6 +36,16 @@ const error = ref<string | null>(null)
 const hasLabel = computed(() => Boolean(props.tx?.label?.trim()))
 /** What the user set, which going back to the detected type undoes. */
 const userSet = computed(() => props.tx?.type_source === 'override' || props.tx?.type_source === 'rule')
+/** Why it carries this type, when one of the investment accounts explains it. */
+const contribution = computed(() => {
+  const tx = props.tx
+  if (!tx?.contribution) return null
+  return contributionNote(
+    tx.contribution,
+    maskValue(formatCurrency(Number(tx.contribution.amount), tx.currency)),
+    formatDateShort(tx.contribution.day),
+  )
+})
 
 watch(
   () => [props.open, props.tx?.id] as const,
@@ -91,6 +101,8 @@ async function backToDetected(): Promise<void> {
         {{ tx.label ?? 'Opération sans libellé' }} · {{ tx.account_name }} ·
         <span class="font-semibold tabular-nums text-text-main dark:text-text-dark-main">{{ signed(tx) }}</span>
       </p>
+
+      <p v-if="contribution" class="text-sm text-info">{{ contribution }}</p>
 
       <BaseAlert v-if="error" variant="danger">{{ error }}</BaseAlert>
 

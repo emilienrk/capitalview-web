@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { ALL, answerHint, answerLabel, matchesCashflowType, matchesOperationType, needsReview } from '@/utils/cashflowTypes'
+import {
+  ALL, answerHint, answerLabel, contributionNote, matchesCashflowType, matchesOperationType, needsReview,
+  typeSourceTitle,
+} from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
 function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransactionItem {
@@ -9,7 +12,7 @@ function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransact
     amount: 40, currency: 'EUR', is_credit: false, is_pending: false, label: 'VIR INST ROUKINE EMILIEN',
     transfer_account_id: null, transfer_account_name: null, transfer_id: null, transfer_status: null,
     operation_type: 'TRANSFER', cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
-    flow_question: null, ...overrides,
+    flow_question: null, contribution: null, ...overrides,
   }
 }
 
@@ -55,5 +58,36 @@ describe('answerHint', () => {
     expect(answerHint('SAVING', true)).toContain('Repris')
     expect(answerHint('SAVING', false)).toContain('Mis de côté')
     expect(answerHint('NEUTRAL', true)).toBe(answerHint('NEUTRAL', false))
+  })
+})
+
+describe('contributionNote', () => {
+  const deposit = { account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: false }
+
+  it('names the deposit it was recognised as, on the very day', () => {
+    expect(contributionNote({ ...deposit, exact: true }, '200,00 €', '5 mars')).toBe(
+      'Reconnu : versement de 200,00 € sur PEA, le même jour.',
+    )
+  })
+
+  it('offers a nearby deposit without deciding for the user', () => {
+    expect(contributionNote(deposit, '200,00 €', '7 mars')).toBe(
+      'Un versement de 200,00 € sur PEA le 7 mars pourrait correspondre.',
+    )
+  })
+
+  it('reads a withdrawal as money coming back', () => {
+    expect(contributionNote({ ...deposit, is_deposit: false, exact: true }, '80,00 €', '5 mars')).toContain(
+      'retrait de 80,00 € depuis PEA',
+    )
+  })
+})
+
+describe('typeSourceTitle', () => {
+  it('separates what was detected, deduced and chosen', () => {
+    expect(typeSourceTitle('default')).toContain('détecté')
+    expect(typeSourceTitle('contribution')).toContain('déduit')
+    expect(typeSourceTitle('override')).toContain('choisi')
+    expect(typeSourceTitle('rule')).toContain('choisi')
   })
 })
