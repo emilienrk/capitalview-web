@@ -9,9 +9,10 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Search, Undo2 } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronLeft, ChevronRight, HelpCircle, Search, Undo2 } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
+import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
@@ -19,13 +20,19 @@ import {
 } from '@/components'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
-import type { BankTransactionItem, BankTransferDecisionKind } from '@/types'
+import BankTypePicker from '@/components/bank/BankTypePicker.vue'
+import {
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, matchesCashflowType, matchesOperationType,
+  contributionNote, needsReview,
+} from '@/utils/cashflowTypes'
+import type { BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 const ALL_ACCOUNTS = 'all'
 const STRIP_MONTHS = 12
 
 const bank = useBankStore()
+const cashflowTypes = useCashflowTypesStore()
 const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
@@ -120,6 +127,19 @@ function amount(value: number, currency = month.value?.currency ?? 'EUR'): strin
   return maskValue(formatCurrency(value, currency))
 }
 
+/** What a flow question moves, when its label is more than this one operation. */
+function stakeOf(tx: BankTransactionItem): string | undefined {
+  const question = tx.flow_question
+  return question && question.operation_count > 1 ? amount(Number(question.amount), tx.currency) : undefined
+}
+
+/** The deposit an investment account holds facing this operation, in one line. */
+function contributionOf(tx: BankTransactionItem): string | undefined {
+  const match = tx.contribution
+  if (!match) return undefined
+  return contributionNote(match, amount(Number(match.amount), tx.currency), shortDay(match.day))
+}
+
 function signedAmount(tx: BankTransactionItem): string {
   const value = Number(tx.amount)
   return amount(tx.is_credit ? value : -value, tx.currency)
@@ -141,8 +161,18 @@ const search = ref('')
 // Shown by default: they are on the bank statement, and hiding them would make
 // the list disagree with it. They are only kept out of the totals.
 const showTransfers = ref(true)
-/** Only the pairs offered to the user, for them to settle. */
+/** Only what waits for the user: pairs offered, and labels only they can type. */
 const toReviewOnly = ref(false)
+const typeFilter = ref<string>(ALL)
+const typeOptions = [
+  { label: 'Tous types', value: ALL },
+  ...CASHFLOW_TYPES.map((value) => ({ label: CASHFLOW_TYPE_LABELS[value], value })),
+]
+const meansFilter = ref<string>(ALL)
+const meansOptions = [
+  { label: 'Tous moyens de paiement', value: ALL },
+  ...Object.entries(OPERATION_TYPE_LABELS).map(([value, label]) => ({ label, value })),
+]
 
 /** Kept out of the totals: every pair but a suggested one. */
 function isDeducted(tx: BankTransactionItem): boolean {
@@ -150,7 +180,8 @@ function isDeducted(tx: BankTransactionItem): boolean {
 }
 
 const hasFilters = computed(() =>
-  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value,
+  direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value
+  || typeFilter.value !== ALL || meansFilter.value !== ALL,
 )
 
 function resetFilters(): void {
@@ -158,6 +189,8 @@ function resetFilters(): void {
   search.value = ''
   showTransfers.value = true
   toReviewOnly.value = false
+  typeFilter.value = ALL
+  meansFilter.value = ALL
 }
 
 const filtered = computed(() => {
@@ -166,7 +199,9 @@ const filtered = computed(() => {
     if (direction.value === 'in' && !tx.is_credit) return false
     if (direction.value === 'out' && tx.is_credit) return false
     if (!showTransfers.value && isDeducted(tx)) return false
-    if (toReviewOnly.value && tx.transfer_status !== 'suggested') return false
+    if (toReviewOnly.value && !needsReview(tx)) return false
+    if (!matchesCashflowType(tx, typeFilter.value)) return false
+    if (!matchesOperationType(tx, meansFilter.value)) return false
     if (!query) return true
     return (tx.label ?? '').toLowerCase().includes(query)
       || tx.account_name.toLowerCase().includes(query)
@@ -216,7 +251,7 @@ function shortDay(day: string | null): string {
 
 function amountClass(tx: BankTransactionItem): string {
   // A transfer is neither income nor spending: coloured as one would contradict the totals.
-  if (isDeducted(tx)) return 'text-text-muted dark:text-text-dark-muted'
+  if (isDeducted(tx) || tx.cashflow_type === 'NEUTRAL') return 'text-text-muted dark:text-text-dark-muted'
   return tx.is_credit ? 'text-success' : 'text-text-main dark:text-text-dark-main'
 }
 
@@ -235,6 +270,30 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     await bank.decideTransfer(tx.id, tx.transfer_id, kind)
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    deciding.value = null
+  }
+}
+
+// ── Cashflow types ──────────────────────────────────────────
+
+const retyping = ref<BankTransactionItem | null>(null)
+/** What the last correction did, said once under the filters. */
+const typedMessage = ref<string | null>(null)
+
+function onTyped(result: BankTransactionTypeResult): void {
+  const count = result.covered_count
+  const label = CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]
+  typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
+}
+
+async function answer(tx: BankTransactionItem, type: CashflowType): Promise<void> {
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    onTyped(await cashflowTypes.answerFlow(tx.id, type))
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
     deciding.value = null
   }
@@ -437,23 +496,23 @@ onMounted(() => void load())
           <Undo2 class="w-3.5 h-3.5 shrink-0" />
           {{ amount(month.reversals_amount) }} remboursés ou annulés sur un même compte, hors des totaux.
         </p>
-        <!-- Seen once between two current accounts: as often a third party
-             refunding a purchase as a transfer, so it still counts until the
-             user says. The only thing the page ever asks. -->
+        <!-- What only the user can say: a pair seen once between two current
+             accounts — as often a third party refunding a purchase as a transfer —
+             and a label nothing types. Both count by default until answered. -->
         <p
           v-if="month.transfer_questions > 0"
           class="mt-1 flex items-center gap-1.5 text-xs text-warning"
         >
-          <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
+          <HelpCircle class="w-3.5 h-3.5 shrink-0" />
           <button
             type="button"
             :aria-pressed="toReviewOnly"
             class="font-medium hover:underline"
             @click="toReviewOnly = !toReviewOnly"
           >
-            {{ month.transfer_questions }} virement{{ month.transfer_questions > 1 ? 's' : '' }} possible{{ month.transfer_questions > 1 ? 's' : '' }} à vérifier
+            {{ month.transfer_questions }} point{{ month.transfer_questions > 1 ? 's' : '' }} à vérifier
           </button>
-          <span class="text-text-muted dark:text-text-dark-muted">— comptés dans les totaux d'ici là.</span>
+          <span class="text-text-muted dark:text-text-dark-muted">— comptés par défaut d'ici là.</span>
         </p>
         <!-- The other months still holding a question: the tab's badge counts
              them all, this is where to find them. -->
@@ -490,30 +549,34 @@ onMounted(() => void load())
     </BaseCard>
 
     <template v-else-if="month?.transactions.length">
-      <div class="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div class="relative w-full sm:w-72">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Rechercher un libellé…"
-            aria-label="Rechercher un libellé"
-            class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-3 sm:flex">
-          <div class="sm:w-48">
-            <BaseSelect v-model="direction" :options="directionOptions" />
+      <div class="mb-4 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="relative w-full sm:w-72">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
+            <input
+              v-model="search"
+              type="text"
+              placeholder="Rechercher un libellé…"
+              aria-label="Rechercher un libellé"
+              class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+            />
           </div>
-          <div class="sm:w-48">
-            <BaseSelect v-model="sortBy" :options="sortOptions" />
-          </div>
+          <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted whitespace-nowrap sm:ml-auto">
+            <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
+            Virements internes
+          </label>
         </div>
-        <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted sm:ml-auto">
-          <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
-          Virements internes
-        </label>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <BaseSelect v-model="direction" :options="directionOptions" />
+          <BaseSelect v-model="sortBy" :options="sortOptions" />
+          <BaseSelect v-model="typeFilter" :options="typeOptions" />
+          <BaseSelect v-model="meansFilter" :options="meansOptions" />
+        </div>
       </div>
+
+      <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
+        {{ typedMessage }}
+      </BaseAlert>
 
       <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
         {{ decisionError }}
@@ -538,8 +601,12 @@ onMounted(() => void load())
             :amount="signedAmount(tx)"
             :amount-class="amountClass(tx)"
             :busy="deciding === tx.id"
+            :stake-amount="stakeOf(tx)"
+            :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
+            @answer="(type) => answer(tx, type)"
+            @retype="retyping = tx"
           />
         </ul>
         <template v-else>
@@ -556,8 +623,12 @@ onMounted(() => void load())
                 :amount="signedAmount(tx)"
                 :amount-class="amountClass(tx)"
                 :busy="deciding === tx.id"
+                :stake-amount="stakeOf(tx)"
+                :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
+                @answer="(type) => answer(tx, type)"
+                @retype="retyping = tx"
               />
             </ul>
           </section>
@@ -582,5 +653,12 @@ onMounted(() => void load())
     />
 
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
+    <BankTypePicker
+      :open="retyping !== null"
+      :tx="retyping"
+      @close="retyping = null"
+      @saved="onTyped"
+      @cleared="typedMessage = null"
+    />
   </div>
 </template>
