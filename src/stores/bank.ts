@@ -372,6 +372,15 @@ export const useBankStore = defineStore('bank', () => {
       other_transaction_id: otherTransactionId,
       kind,
     })
+    operationsRead()
+  }
+
+  /**
+   * How operations are read moved — a pair settled, a type given: every
+   * observed flow goes stale, the pages listening to `dataRevision` reload, and
+   * the questions are counted again.
+   */
+  function operationsRead(): void {
     invalidateCachePrefix('bank:flows:')
     dataRevision.value += 1
     void fetchTransferQuestions()
@@ -502,6 +511,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchTransferQuestions,
     fetchTransferCounterparts,
     decideTransfer,
+    operationsRead,
     fetchAspsps,
     authorizeBank,
     fetchSessionAccounts,

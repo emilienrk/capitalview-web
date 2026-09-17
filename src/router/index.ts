@@ -10,6 +10,7 @@ const Cashflow = () => import('@/pages/Cashflow.vue')
 const BankSection = () => import('@/pages/BankSection.vue')
 const Bank = () => import('@/pages/Bank.vue')
 const BankTransactions = () => import('@/pages/BankTransactions.vue')
+const BankReview = () => import('@/pages/BankReview.vue')
 const Wealth = () => import('@/pages/Asset.vue')
 const Crypto = () => import('@/pages/Crypto.vue')
 const Notes = () => import('@/pages/Notes.vue')
@@ -62,6 +63,7 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'bank', component: Bank },
+      { path: 'review', name: 'bank-review', component: BankReview },
       { path: 'transactions', name: 'bank-transactions', component: BankTransactions },
     ],
   },

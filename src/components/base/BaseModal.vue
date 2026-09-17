@@ -44,7 +44,8 @@ const FOCUSABLE_SELECTOR =
 function focusInitialElement(): void {
   const panel = panelRef.value
   if (!panel) return
-  const focusable = panel.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+  const focusable = panel.querySelector<HTMLElement>('[autofocus]')
+    ?? panel.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
   ;(focusable ?? panel).focus()
 }
 
