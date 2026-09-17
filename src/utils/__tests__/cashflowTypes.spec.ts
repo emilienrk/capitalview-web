@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ALL, answerLabel, matchesCashflowType, matchesOperationType, needsReview } from '@/utils/cashflowTypes'
+import { ALL, answerHint, answerLabel, matchesCashflowType, matchesOperationType, needsReview } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
 function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransactionItem {
@@ -45,5 +45,15 @@ describe('needsReview', () => {
     expect(needsReview(anOperation({ transfer_status: 'suggested' }))).toBe(true)
     expect(needsReview(anOperation({ flow_question: { choices: ['EXPENSE'], operation_count: 3 } }))).toBe(true)
     expect(needsReview(anOperation({ transfer_status: 'recurring' }))).toBe(false)
+  })
+})
+
+describe('answerHint', () => {
+  it('says what the answer does to the figures, on both sides', () => {
+    expect(answerHint('EXPENSE', true)).toContain('Déduit des dépenses')
+    expect(answerHint('EXPENSE', false)).toContain('Compté dans vos dépenses')
+    expect(answerHint('SAVING', true)).toContain('Repris')
+    expect(answerHint('SAVING', false)).toContain('Mis de côté')
+    expect(answerHint('NEUTRAL', true)).toBe(answerHint('NEUTRAL', false))
   })
 })

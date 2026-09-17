@@ -47,6 +47,13 @@ function changeText(comparison: Comparison): string {
 }
 
 const types = computed(() => CASHFLOW_TYPES.filter((type) => type !== 'NEUTRAL' && props.summary.byType[type] !== 0))
+
+/**
+ * A balance reads as money lost while part of it only moved to a savings or an
+ * investment account, whose other leg the selection leaves out. Said on the
+ * line already there rather than in one of its own.
+ */
+const setAside = computed(() => props.summary.byType.SAVING + props.summary.byType.INVESTMENT)
 </script>
 
 <template>
@@ -59,6 +66,7 @@ const types = computed(() => CASHFLOW_TYPES.filter((type) => type !== 'NEUTRAL' 
         <p class="mt-1 text-xl sm:text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main truncate">{{ amount(summary.total) }}</p>
         <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted truncate">
           +{{ amount(summary.inflow) }} / −{{ amount(summary.outflow) }}
+          <template v-if="setAside > 0"> · dont {{ amount(setAside) }} mis de côté</template>
         </p>
       </div>
       <div class="rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4 shadow-soft">
