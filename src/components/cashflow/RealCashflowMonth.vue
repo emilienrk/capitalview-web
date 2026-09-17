@@ -92,7 +92,7 @@ const explore = computed(() => ({
         {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.
       </p>
       <p v-if="Number(data.totals.neutral)" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
-        Hors {{ amount(data.totals.neutral) }} neutres : déplacés entre vos comptes, remboursés ou annulés.
+        Hors {{ amount(data.totals.neutral) }} non comptés : déplacés entre vos comptes, remboursés ou annulés.
       </p>
     </BaseCard>
 

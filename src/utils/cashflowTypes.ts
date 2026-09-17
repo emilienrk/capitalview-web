@@ -7,7 +7,7 @@ export const CASHFLOW_TYPE_LABELS: Record<CashflowType, string> = {
   EXPENSE: 'Dépense',
   SAVING: 'Épargne',
   INVESTMENT: 'Investissement',
-  NEUTRAL: 'Neutre',
+  NEUTRAL: 'Non compté',
 }
 
 export const CASHFLOW_TYPE_TONES: Record<CashflowType, string> = {
@@ -37,7 +37,7 @@ export function answerLabel(type: CashflowType, isCredit: boolean): string {
     EXPENSE: 'Remboursement',
     SAVING: "Reprise d'épargne",
     INVESTMENT: "Reprise d'investissement",
-    NEUTRAL: 'Neutre',
+    NEUTRAL: 'Non compté',
   }
   return credit[type]
 }
