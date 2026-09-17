@@ -16,7 +16,12 @@ const props = defineProps<{
   amountClass: string
   /** A decision about this operation is on its way. */
   busy?: boolean
+  /** The formatted total of the label a flow question settles. */
+  stakeAmount?: string
 }>()
+
+/** What the answer moves, said when the label weighs more than this operation. Formatted, privacy included. */
+const stake = computed(() => props.stakeAmount ?? null)
 
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
@@ -85,7 +90,7 @@ const paymentMeans = computed(() =>
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
         <span v-if="tx.flow_question.operation_count > 1" class="text-text-muted dark:text-text-dark-muted">
-          s'applique aux {{ tx.flow_question.operation_count }} opérations de ce libellé
+          s'applique aux {{ tx.flow_question.operation_count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
         </span>
       </div>
     </div>

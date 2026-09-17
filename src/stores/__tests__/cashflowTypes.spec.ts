@@ -50,4 +50,33 @@ describe('useCashflowTypesStore', () => {
     expect(apiClient.delete).toHaveBeenCalledWith('/banking/type-rules/r1')
     expect(store.rules?.map((rule) => rule.id)).toEqual(['r2'])
   })
+
+  it('reads the review queue, for every year or one', async () => {
+    const store = useCashflowTypesStore()
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ total_amount: 10, total_count: 1, years: [], questions: [] })
+    await store.fetchReviewQueue()
+    expect(apiClient.get).toHaveBeenCalledWith('/banking/review-queue')
+    expect(store.queue?.total_amount).toBe(10)
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ total_amount: 4, total_count: 1, years: [], questions: [] })
+    await store.fetchReviewQueue(2025)
+    expect(apiClient.get).toHaveBeenCalledWith('/banking/review-queue?year=2025')
+    expect(store.queueYear).toBe(2025)
+    expect(store.queue?.total_amount).toBe(4)
+  })
+
+  it('keeps the queue of the year asked last', async () => {
+    let answerAll!: (value: unknown) => void
+    vi.mocked(apiClient.get)
+      .mockImplementationOnce(() => new Promise((resolve) => { answerAll = resolve }))
+      .mockResolvedValueOnce({ total_amount: 4, total_count: 1, years: [], questions: [] })
+    const store = useCashflowTypesStore()
+
+    const all = store.fetchReviewQueue()
+    await store.fetchReviewQueue(2025)
+    answerAll({ total_amount: 99, total_count: 9, years: [], questions: [] })
+    await all
+
+    expect(store.queue?.total_amount).toBe(4)
+  })
 })

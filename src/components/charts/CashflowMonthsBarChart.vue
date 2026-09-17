@@ -11,7 +11,7 @@ import { useChartResize } from '@/composables/useChartResize'
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
 const props = defineProps<{
-  months: Array<{ period: string; income: number; expenses: number }>
+  months: Array<{ period: string; income: number; expenses: number; atypical?: boolean }>
   /** Formats an amount for the axis and the tooltip, privacy mode included. */
   format: (value: number) => string
   isDark?: boolean
@@ -71,7 +71,7 @@ const option = computed(() => {
         if (!month) return ''
         return `<div style="font-weight:600;margin-bottom:6px;text-transform:capitalize">${monthLabel(month.period)} ${month.period.slice(0, 4)}</div>
 <div>Entrées : <strong>${props.format(month.income)}</strong></div>
-<div>Dépenses : <strong>${props.format(month.expenses)}</strong></div>`
+<div>Dépenses : <strong>${props.format(month.expenses)}</strong></div>${month.atypical ? '<div style="margin-top:4px;color:#f59e0b">Mois inhabituel</div>' : ''}`
       },
     },
     series: [
@@ -87,7 +87,10 @@ const option = computed(() => {
         type: 'bar',
         barMaxWidth: 18,
         itemStyle: { color: '#ef4444', borderRadius: [4, 4, 0, 0] },
-        data: props.months.map((m) => Number(m.expenses)),
+        // An unusual month stands out in amber, the tooltip says why.
+        data: props.months.map((m) => (m.atypical
+          ? { value: Number(m.expenses), itemStyle: { color: '#f59e0b' } }
+          : Number(m.expenses))),
       },
     ],
   }
