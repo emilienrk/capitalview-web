@@ -36,6 +36,10 @@ const cancelled = computed(() =>
 )
 /** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */
 const typable = computed(() => props.tx.transfer_status === null || suggested.value)
+/** A transfer asked about: nothing pairs it, so where it went is unknown. */
+const unpairedTransfer = computed(
+  () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
+)
 const paymentMeans = computed(() =>
   props.tx.operation_type === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.tx.operation_type],
 )
@@ -69,6 +73,12 @@ const paymentMeans = computed(() =>
           <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
           <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
+        </BaseBadge>
+        <!-- Why this one is asked at all: the bank names no account, and none
+             of the user's own holds the other leg. -->
+        <BaseBadge v-else-if="unpairedTransfer" variant="secondary">
+          <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
+          {{ tx.is_credit ? 'depuis' : 'vers' }} ?
         </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
       </div>
