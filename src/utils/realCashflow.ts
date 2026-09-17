@@ -1,6 +1,6 @@
-import type { RealCashflowTotals, RealCashflowYear } from '@/types'
+import type { RealCashflowCoverageGap, RealCashflowTotals, RealCashflowYear } from '@/types'
 
-export type CashflowView = 'planned' | 'real'
+export type CashflowView = 'planned' | 'real' | 'explore'
 export type MonthlyStatistic = 'mean' | 'median'
 
 const VIEW_STORAGE_KEY = 'cashflow:view'
@@ -20,20 +20,55 @@ export function monthlyFigures(year: RealCashflowYear, statistic: MonthlyStatist
 
 /**
  * What the banner says while answers can still move the figures; null once
- * nothing is open. Operations, not questions: one question can settle many.
+ * nothing is open. Euros first: 188 operations says nothing of whether they
+ * matter, while the amount does. `amount` comes formatted, privacy included.
  */
-export function openQuestionsNotice(count: number): string | null {
+export function openQuestionsNotice(count: number, amount: string): string | null {
   if (count <= 0) return null
-  return count === 1
-    ? '1 opération attend une réponse et peut encore changer ces chiffres.'
-    : `${count} opérations attendent une réponse et peuvent encore changer ces chiffres.`
+  const operations = count === 1 ? '1 opération' : `${count} opérations`
+  return `${amount} restent à confirmer (${operations}) : ces chiffres peuvent encore changer.`
+}
+
+/**
+ * The change from `previous` to `current`, in percent; null when there is
+ * nothing to compare against.
+ */
+export function changePercent(current: number, previous: number | null | undefined): number | null {
+  if (previous === null || previous === undefined || Number(previous) === 0) return null
+  return ((Number(current) - Number(previous)) / Math.abs(Number(previous))) * 100
+}
+
+/** Whether a rise of this figure is good news: spending more is not. */
+export function riseIsGood(key: keyof RealCashflowTotals): boolean {
+  return key !== 'expenses'
+}
+
+export type RateTone = 'danger' | 'warning' | 'success'
+
+/** A savings rate under zero spends more than came in; under 10 % leaves little room. */
+export function savingsRateTone(rate: number): RateTone {
+  if (Number(rate) < 0) return 'danger'
+  if (Number(rate) < 10) return 'warning'
+  return 'success'
+}
+
+/**
+ * What a gap in an account's history means for the figures, in a sentence.
+ * `format` renders a YYYY-MM-DD day.
+ */
+export function coverageNotice(gap: RealCashflowCoverageGap, format: (day: string) => string): string {
+  const parts: string[] = []
+  if (gap.starts_late) parts.push(`n'a d'opérations qu'à partir du ${format(gap.first_day)}`)
+  if (gap.ends_early) parts.push(`n'est à jour qu'au ${format(gap.covered_until)}`)
+  return `${gap.account_name} ${parts.join(' et ')} : un virement vers ce compte hors de cette plage compte en dépense.`
 }
 
 // Storage can be missing or throw (private browsing, blocked site data): the
 // page then simply opens on the declared view.
 export function readCashflowView(): CashflowView {
   try {
-    return localStorage.getItem(VIEW_STORAGE_KEY) === 'real' ? 'real' : 'planned'
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY)
+    return stored === 'real' || stored === 'explore' ? stored : 'planned'
   } catch {
     return 'planned'
   }

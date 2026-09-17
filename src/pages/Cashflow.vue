@@ -2,6 +2,7 @@
 import { ArrowDown, ArrowUp, Circle, DollarSign, Pencil, Scale, Search, Trash2 } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useCashflowStore } from '@/stores/cashflow'
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
@@ -11,6 +12,8 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import RealCashflowView from '@/components/cashflow/RealCashflowView.vue'
+import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
+import { withoutExploreQuery } from '@/composables/useExploreFilters'
 import { readCashflowView, writeCashflowView, type CashflowView } from '@/utils/realCashflow'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
@@ -32,12 +35,35 @@ const searchQuery = ref('')
 const deleteConfirmId = ref<string | null>(null)
 const hasFetchedOnce = ref(false)
 
-/** Declared (visé) or observed (réel), remembered on this browser. */
-const view = ref<CashflowView>(readCashflowView())
-watch(view, writeCashflowView)
+const route = useRoute()
+const router = useRouter()
+
+function viewFromQuery(value: unknown): CashflowView | null {
+  return value === 'planned' || value === 'real' || value === 'explore' ? value : null
+}
+
+/**
+ * Declared (visé), observed (réel) or explored, remembered on this browser. A
+ * link can open one directly, the Explorer with its filters in the query.
+ */
+const view = ref<CashflowView>(viewFromQuery(route.query.view) ?? readCashflowView())
+watch(() => route.query.view, (value) => {
+  const asked = viewFromQuery(value)
+  if (asked) view.value = asked
+})
+watch(view, (value) => {
+  writeCashflowView(value)
+  // The Explorer's filters mean nothing to the other views: leaving it drops them.
+  if (value !== 'explore' && route.name === 'cashflow') {
+    const query = withoutExploreQuery(route.query)
+    delete query.view
+    if (Object.keys(query).length !== Object.keys(route.query).length) void router.replace({ query })
+  }
+})
 const viewOptions = [
   { label: 'Visé', value: 'planned' },
   { label: 'Réel', value: 'real' },
+  { label: 'Explorer', value: 'explore' },
 ]
 
 const form = reactive<CashflowCreate>({
@@ -438,6 +464,7 @@ onMounted(async () => {
     </PageHeader>
 
     <RealCashflowView v-if="view === 'real'" />
+    <ExploreView v-else-if="view === 'explore'" />
 
     <template v-else>
       <!-- Error -->

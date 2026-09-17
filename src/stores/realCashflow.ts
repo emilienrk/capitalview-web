@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 import { apiClient } from '@/api/client'
 import { getOrFetchCached } from '@/services/cache'
-import type { RealCashflowMonthDetail, RealCashflowYear } from '@/types'
+import type { RealCashflowCurrent, RealCashflowMonthDetail, RealCashflowYear } from '@/types'
 
 // Under the observed flows' prefix: a sync, an import or a filing makes them
 // stale at the same moments.
@@ -13,6 +13,7 @@ const CACHE_TTL_MS = 60 * 60 * 1000
 export const useRealCashflowStore = defineStore('realCashflow', () => {
   const year = ref<RealCashflowYear | null>(null)
   const month = ref<RealCashflowMonthDetail | null>(null)
+  const current = ref<RealCashflowCurrent | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
   // The last request made, so a slower earlier answer never replaces a newer one.
@@ -44,12 +45,24 @@ export const useRealCashflowStore = defineStore('realCashflow', () => {
     }, force)
   }
 
+  /** The month in progress: fetched beside the year, and never a reason to show an error over it. */
+  async function fetchCurrent(force = false): Promise<void> {
+    try {
+      current.value = await getOrFetchCached<RealCashflowCurrent>(
+        `${CACHE_PREFIX}current`, () => apiClient.get<RealCashflowCurrent>('/banking/real-cashflow/current'), CACHE_TTL_MS, force,
+      )
+    } catch {
+      current.value = null
+    }
+  }
+
   function reset(): void {
     year.value = null
     month.value = null
+    current.value = null
     error.value = null
     latest = ''
   }
 
-  return { year, month, loading, error, fetchYear, fetchMonth, reset }
+  return { year, month, current, loading, error, fetchYear, fetchMonth, fetchCurrent, reset }
 })

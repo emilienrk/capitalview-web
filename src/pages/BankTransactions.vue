@@ -127,6 +127,12 @@ function amount(value: number, currency = month.value?.currency ?? 'EUR'): strin
   return maskValue(formatCurrency(value, currency))
 }
 
+/** What a flow question moves, when its label is more than this one operation. */
+function stakeOf(tx: BankTransactionItem): string | undefined {
+  const question = tx.flow_question
+  return question && question.operation_count > 1 ? amount(Number(question.amount), tx.currency) : undefined
+}
+
 function signedAmount(tx: BankTransactionItem): string {
   const value = Number(tx.amount)
   return amount(tx.is_credit ? value : -value, tx.currency)
@@ -149,7 +155,7 @@ const search = ref('')
 // the list disagree with it. They are only kept out of the totals.
 const showTransfers = ref(true)
 /** Only what waits for the user: pairs offered, and labels only they can type. */
-const toReviewOnly = ref(route.query.review === '1')
+const toReviewOnly = ref(false)
 const typeFilter = ref<string>(ALL)
 const typeOptions = [
   { label: 'Tous types', value: ALL },
@@ -334,9 +340,8 @@ watch(
 
 watch([period, accountId], ([p, account]) => {
   if (route.name !== 'bank-transactions') return
-  // `review` only opens the page filtered: carried on, it would filter every month after.
-  const query = { period: p, account: account === ALL_ACCOUNTS ? undefined : account, review: undefined }
-  if (route.query.period !== query.period || route.query.account !== query.account || route.query.review) {
+  const query = { period: p, account: account === ALL_ACCOUNTS ? undefined : account }
+  if (route.query.period !== query.period || route.query.account !== query.account) {
     void router.replace({ query: { ...route.query, ...query } })
   }
   void load()
@@ -589,6 +594,7 @@ onMounted(() => void load())
             :amount="signedAmount(tx)"
             :amount-class="amountClass(tx)"
             :busy="deciding === tx.id"
+            :stake-amount="stakeOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
             @answer="(type) => answer(tx, type)"
@@ -609,6 +615,7 @@ onMounted(() => void load())
                 :amount="signedAmount(tx)"
                 :amount-class="amountClass(tx)"
                 :busy="deciding === tx.id"
+                :stake-amount="stakeOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
                 @answer="(type) => answer(tx, type)"

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-/** One completed month of the real cashflow and its neighbours. */
+/** One completed month of the real cashflow, its neighbours, and where its money went. */
 import { computed } from 'vue'
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
 
 import { BaseButton, BaseCard } from '@/components'
+import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterparts.vue'
+import RealCashflowCoverage from '@/components/cashflow/RealCashflowCoverage.vue'
 import RealCashflowOpenQuestions from '@/components/cashflow/RealCashflowOpenQuestions.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { exploreLink } from '@/utils/ledger'
 import type { RealCashflowMonthDetail } from '@/types'
 
 const props = defineProps<{ data: RealCashflowMonthDetail }>()
@@ -32,6 +35,12 @@ const figures = computed(() => [
   { label: 'Investissement', value: props.data.totals.investment, tone: 'text-info' },
   { label: 'Reste', value: props.data.totals.net, tone: 'text-text-main dark:text-text-dark-main' },
 ])
+
+const range = computed(() => ({ from: props.data.period, to: props.data.period }))
+const explore = computed(() => ({
+  name: 'cashflow',
+  query: exploreLink({ preset: 'custom', from: props.data.period, to: props.data.period }, { by: 'group' }),
+}))
 </script>
 
 <template>
@@ -51,7 +60,15 @@ const figures = computed(() => [
       </div>
     </div>
 
-    <RealCashflowOpenQuestions :count="data.open_questions" />
+    <div class="space-y-2">
+      <RealCashflowOpenQuestions
+        :count="data.open_questions"
+        :amount="data.open_amount"
+        :currency="data.currency"
+        :year="Number(data.period.slice(0, 4))"
+      />
+      <RealCashflowCoverage :gaps="data.coverage_gaps" />
+    </div>
 
     <BaseCard>
       <div class="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
@@ -59,6 +76,16 @@ const figures = computed(() => [
           <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ figure.label }}</p>
           <p :class="['text-xl font-bold tabular-nums', figure.tone]">{{ amount(figure.value) }}</p>
         </div>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-text-muted dark:text-text-dark-muted">
+          <template v-if="data.totals.savings_rate !== null">
+            Taux d'épargne : <strong class="text-text-main dark:text-text-dark-main tabular-nums">{{ Number(data.totals.savings_rate).toLocaleString('fr-FR') }} %</strong>
+          </template>
+        </p>
+        <router-link :to="explore" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+          <Search class="w-4 h-4" /> Explorer ce mois
+        </router-link>
       </div>
       <p v-for="other in data.other_currencies" :key="other.currency" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         En {{ other.currency }}, à part faute de taux : {{ maskValue(formatCurrency(other.outflow, other.currency)) }} en sortie,
@@ -68,5 +95,13 @@ const figures = computed(() => [
         Hors {{ amount(data.totals.neutral) }} neutres : déplacés entre vos comptes, remboursés ou annulés.
       </p>
     </BaseCard>
+
+    <RealCashflowCounterparts
+      :sources="data.top_sources"
+      :destinations="data.top_destinations"
+      :expenses="data.top_expenses"
+      :currency="data.currency"
+      :range="range"
+    />
   </div>
 </template>

@@ -420,6 +420,8 @@ export interface BankFlowQuestion {
   choices: CashflowType[]
   /** The operations of the label the answer types. */
   operation_count: number
+  /** What those operations add up to: what the answer can move. */
+  amount: number
 }
 
 export interface BankTransactionTypeUpdate {
@@ -460,6 +462,9 @@ export interface RealCashflowTotals {
   investment: number
   neutral: number
   net: number
+  /** Percent of the income not spent, and the part of it set aside or invested; null without income. */
+  savings_rate: number | null
+  placed_rate: number | null
 }
 
 export interface RealCashflowMonth extends RealCashflowTotals {
@@ -467,6 +472,41 @@ export interface RealCashflowMonth extends RealCashflowTotals {
   operation_count: number
   /** Suggested pairs and operations waiting on a flow question this month. */
   open_questions: number
+  /** What those operations weigh. */
+  open_amount: number
+  /** Spent far more than the year's other months. */
+  atypical: boolean
+}
+
+/** Where money went, or came from, read off the labels of one group. */
+export interface RealCashflowCounterpart {
+  group_key: string
+  name: string
+  amount: number
+  operation_count: number
+  /** Percent of what the listed direction weighs over the period. */
+  share: number
+}
+
+/** An account whose stored operations leave part of the period out. */
+export interface RealCashflowCoverageGap {
+  account_id: string
+  account_name: string
+  first_day: string
+  /** Its last sync when linked, its last operation when imported. */
+  covered_until: string
+  starts_late: boolean
+  ends_early: boolean
+}
+
+export interface RealCashflowSafetyNet {
+  available: number
+  savings: number
+  monthly_expenses: number
+  months: number | null
+  savings_months: number | null
+  /** Balances no sync refreshed in the last week. */
+  stale_accounts: string[]
 }
 
 export interface RealCashflowExpense {
@@ -487,10 +527,19 @@ export interface RealCashflowYear {
   /** The months carrying data, which the mean and median are taken over. */
   covered_months: number
   open_questions: number
+  open_amount: number
   monthly_mean: RealCashflowTotals
   monthly_median: RealCashflowTotals
   top_expenses: RealCashflowExpense[]
+  top_sources: RealCashflowCounterpart[]
+  top_destinations: RealCashflowCounterpart[]
   other_currencies: BankFlowCurrencyTotal[]
+  /** The year before over the same months; null when it has none covered. */
+  previous_year_to_date: RealCashflowTotals | null
+  /** The current year only: its totals plus the median month for each month left. */
+  projection: RealCashflowTotals | null
+  safety_net: RealCashflowSafetyNet | null
+  coverage_gaps: RealCashflowCoverageGap[]
 }
 
 /** Response of GET /banking/real-cashflow/months/{period}. */
@@ -500,10 +549,103 @@ export interface RealCashflowMonthDetail {
   totals: RealCashflowTotals
   operation_count: number
   open_questions: number
+  open_amount: number
   /** The nearest completed months carrying data, if any. */
   previous_period: string | null
   next_period: string | null
   other_currencies: BankFlowCurrencyTotal[]
+  top_expenses: RealCashflowExpense[]
+  top_sources: RealCashflowCounterpart[]
+  top_destinations: RealCashflowCounterpart[]
+  coverage_gaps: RealCashflowCoverageGap[]
+}
+
+/** Response of GET /banking/real-cashflow/current — the month in progress, day by day. */
+export interface RealCashflowCurrent {
+  period: string
+  currency: string
+  day: number
+  /** Pending card payments included. */
+  spent_to_date: number
+  pending_to_date: number
+  /** Over the last twelve completed months with operations; null without any. */
+  median_to_date: number | null
+  median_month: number | null
+  projection: number | null
+  open_amount: number
+  curve: Array<{ day: number; spent: number | null; median: number | null }>
+}
+
+export type BankReviewKind = 'flow' | 'transfer'
+
+/** One question waiting for the user, on the operation carrying it. */
+export interface BankReviewItem {
+  kind: BankReviewKind
+  transaction: BankTransactionItem
+  /** What the answer can move. */
+  amount: number
+  operation_count: number
+}
+
+/** Response of GET /banking/review-queue — every open question, heaviest first. */
+export interface BankReviewQueue {
+  total_amount: number
+  total_count: number
+  /** Over the whole history, whatever the year asked for. */
+  years: Array<{ year: number; amount: number; count: number }>
+  questions: BankReviewItem[]
+}
+
+export interface BankLedgerAccount {
+  id: string
+  name: string
+  type: string
+  institution: string | null
+  currency: string
+  balance: number
+  first_day: string | null
+  covered_until: string | null
+  linked: boolean
+}
+
+export interface BankLedgerGroup {
+  key: string
+  name: string
+  is_credit: boolean
+}
+
+export interface BankLedgerRow {
+  id: string
+  /** Indexes into the ledger's accounts and groups. */
+  account: number
+  group: number
+  /** YYYY-MM-DD */
+  day: string | null
+  amount: number
+  currency: string
+  is_credit: boolean
+  is_pending: boolean
+  label: string | null
+  operation_type: OperationType
+  cashflow_type: CashflowType
+  type_source: TypeSource
+  /** The rule typing it, so the type picker can take it back. */
+  type_rule_id: string | null
+  transfer_status: BankTransferStatus | null
+  /** Whether the real cashflow counts it, and by how much in its type's direction. */
+  counted: boolean
+  signed: number
+  question: BankReviewKind | null
+  /** An answer still to come can change how it counts. */
+  open: boolean
+}
+
+/** Response of GET /banking/ledger — every stored operation, typed. */
+export interface BankLedger {
+  currency: string
+  accounts: BankLedgerAccount[]
+  groups: BankLedgerGroup[]
+  rows: BankLedgerRow[]
 }
 
 /**
