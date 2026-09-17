@@ -401,6 +401,8 @@ export interface BankTransactionItem {
   type_rule_id: string | null
   /** Set on the last operation of a label only the user can type. */
   flow_question: BankFlowQuestion | null
+  /** What the user's investment accounts say about it: the evidence that typed it, or a nearby deposit. */
+  contribution: BankContributionMatch | null
 }
 
 // ─── Types de flux ───────────────────────────────────────────
@@ -411,10 +413,25 @@ export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' 
 export type CashflowType = 'INCOME' | 'EXPENSE' | 'SAVING' | 'INVESTMENT' | 'NEUTRAL'
 
 /** What gave an operation its type, strongest first. */
-export type TypeSource = 'pair' | 'override' | 'rule' | 'default'
+export type TypeSource = 'pair' | 'override' | 'rule' | 'contribution' | 'default'
 
 /** Every operation reading like this one on its account and direction, or this one alone. */
 export type TypeScope = 'label' | 'operation'
+
+/**
+ * A movement declared on an investment account that this operation could be.
+ * `exact` means the same day and a single candidate: the operation is typed on
+ * it. Otherwise it is a nearby amount, shown for the user to judge.
+ */
+export interface BankContributionMatch {
+  account_name: string
+  /** YYYY-MM-DD */
+  day: string
+  amount: number
+  /** A deposit into the account, as opposed to a withdrawal out of it. */
+  is_deposit: boolean
+  exact: boolean
+}
 
 export interface BankFlowQuestion {
   choices: CashflowType[]

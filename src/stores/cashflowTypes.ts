@@ -46,6 +46,13 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     changed()
   }
 
+  /** The operations one answer would type: exactly what the question counts. */
+  function fetchFlowGroup(transactionId: string): Promise<BankTransactionItem[]> {
+    return apiClient.get<BankTransactionItem[]>(
+      `/banking/transactions/${encodeURIComponent(transactionId)}/flow-group`,
+    )
+  }
+
   /** Every open question, heaviest first; the year narrows the list, never the years offered. */
   async function fetchReviewQueue(year: number | null = null): Promise<void> {
     queueYear.value = year
@@ -67,6 +74,7 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   }
 
   return {
-    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, deleteRule, fetchReviewQueue, reset,
+    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, deleteRule, fetchFlowGroup,
+    fetchReviewQueue, reset,
   }
 })

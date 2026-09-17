@@ -170,6 +170,9 @@ function asTransaction(entry: LedgerEntry): BankTransactionItem {
     type_source: entry.typeSource,
     type_rule_id: entry.typeRuleId,
     flow_question: null,
+    // The ledger carries the type's source but not the deposit behind it: the
+    // picker explains the deduction where the operation itself is listed.
+    contribution: null,
   }
 }
 
