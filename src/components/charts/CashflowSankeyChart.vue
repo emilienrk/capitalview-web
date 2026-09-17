@@ -246,7 +246,11 @@ const option = computed(() => {
           color: textColor,
           fontSize: isCompact.value ? 10 : 11,
           overflow: 'truncate',
-          width: isCompact.value ? 76 : 120,
+          // A name is drawn over the band leaving its node, so it may take a
+          // share of the chart. Fixed widths cut "M Serge Rouki…" even on a
+          // wide chart, the compact layout starting below 768px of chart —
+          // which a card on a desktop already is.
+          width: Math.min(280, Math.max(72, Math.round(containerWidth.value * 0.3))),
           formatter: (params: { name?: string }) => {
             const nodeId = params?.name ?? ''
             if (!nodeId || hiddenLabels.has(nodeId)) return ''
