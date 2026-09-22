@@ -20,9 +20,11 @@ export { default as BaseTextarea } from './base/BaseTextarea.vue'
 export { default as BaseTooltip } from './base/BaseTooltip.vue'
 export { default as BaseToggle } from './base/BaseToggle.vue'
 
+export { default as AssetPriceHistoryChart } from './charts/AssetPriceHistoryChart.vue'
 export { default as AssetValueHistoryChart } from './charts/AssetValueHistoryChart.vue'
 export { default as ChartPerformanceBadge } from './charts/ChartPerformanceBadge.vue'
 export { default as NetWorthHistoryChart } from './charts/NetWorthHistoryChart.vue'
 
+export { default as AssetPriceModal } from './modals/AssetPriceModal.vue'
 export { default as PhotoImportModal } from './modals/PhotoImportModal.vue'
 
