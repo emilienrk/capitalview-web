@@ -2251,3 +2251,40 @@ export interface NotificationListResponse {
   unread_count: number
   notifications: NotificationResponse[]
 }
+
+/** One daily close of an asset, in EUR. */
+export interface AssetPricePoint {
+  date: string
+  price: number
+}
+
+/** One of the user's own trades, positioned on the asset's price curve. */
+export interface AssetTimelineEvent {
+  date: string
+  /** BUY, SELL or INCOME — a dividend or staking reward. */
+  type: 'BUY' | 'SELL' | 'INCOME'
+  quantity: number
+  /**
+   * Where the marker sits on the price axis: the executed unit price for a
+   * BUY/SELL, the close of the day for INCOME (which has no price of its own).
+   */
+  price: number | null
+  /** Signed cash impact in EUR — negative when money went out. */
+  total: number
+  cost_basis_after: number | null
+}
+
+/** An asset's price history since the user first bought it, with their trades. */
+export interface AssetPriceTimelineResponse {
+  asset_key: string
+  symbol: string | null
+  name: string | null
+  asset_type: string | null
+  currency: string
+  points: AssetPricePoint[]
+  events: AssetTimelineEvent[]
+  /** Unit cost basis in EUR, fees included. Null once fully sold. */
+  average_buy_price: number | null
+  quantity_held: number
+  current_price: number | null
+}
