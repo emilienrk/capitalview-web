@@ -12,7 +12,7 @@ import {
 interface Props {
   open: boolean
   title?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -27,6 +27,8 @@ const sizeClasses: Record<string, string> = {
   sm: 'max-w-md',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  // Wide enough for a chart to read at a glance without scrolling it.
+  xl: 'max-w-4xl',
 }
 
 const titleId = useId()

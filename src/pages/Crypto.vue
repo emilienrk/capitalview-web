@@ -26,6 +26,7 @@ import BinanceImportModal from '@/components/imports/BinanceImportModal.vue'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
+import AssetPriceModal from '@/components/modals/AssetPriceModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type {
@@ -1032,6 +1033,16 @@ const cryptoChartSeries = computed(() => {
   return series.filter((line) => line.history.length > 0)
 })
 
+const priceChartAsset = ref<{ assetKey: string; name: string | null } | null>(null)
+
+/** Open the price curve of one holding, with this wallet's trades marked on it. */
+function openPriceChart(position: PositionResponse): void {
+  priceChartAsset.value = {
+    assetKey: position.asset_key,
+    name: position.name || position.asset_key,
+  }
+}
+
 const historyForAnalytics = computed<AccountHistorySnapshotResponse[]>(() => {
   const accountId = selectedAccountId.value
   if (accountId && crypto.accountHistoryById[accountId]?.length) {
@@ -1859,6 +1870,7 @@ onMounted(async () => {
             :format-amount="formatAmount"
             :mask-amount="maskAmount"
             @edit-transaction="openEditTransaction"
+            @show-price="openPriceChart"
           />
         </BaseCard>
       </template>
@@ -2059,6 +2071,7 @@ onMounted(async () => {
               :format-amount="formatAmount"
               :mask-amount="maskAmount"
               @edit-transaction="openEditTransaction"
+              @show-price="openPriceChart"
             />
           </div>
         </BaseCard>
@@ -2072,6 +2085,15 @@ onMounted(async () => {
         @action="openCreateAccount"
       />
     </template>
+
+    <!-- Asset Price Modal -->
+    <AssetPriceModal
+      :open="priceChartAsset !== null"
+      :asset-key="priceChartAsset?.assetKey ?? null"
+      :asset-name="priceChartAsset?.name ?? null"
+      :account-id="selectedAccountId"
+      @close="priceChartAsset = null"
+    />
 
     <!-- Create/Edit Account Modal -->
     <BaseModal :open="showAccountModal" :title="editingAccountId ? 'Modifier le portefeuille' : 'Nouveau portefeuille crypto'" @close="showAccountModal = false">

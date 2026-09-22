@@ -25,6 +25,7 @@ import CsvImportModal from '@/components/modals/CsvImportModal.vue'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
+import AssetPriceModal from '@/components/modals/AssetPriceModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
@@ -361,6 +362,17 @@ const sortedPositions = computed(() => {
     .filter(p => p.asset_key !== 'EUR')
     .sort((a, b) => Number(b.total_invested ?? 0) - Number(a.total_invested ?? 0))
 })
+
+const priceChartAsset = ref<{ assetKey: string; name: string | null } | null>(null)
+
+/** Open the price curve of one holding, with this account's trades marked on it. */
+function openPriceChart(position: PositionResponse): void {
+  if (!position.asset_key || position.asset_key === 'EUR') return
+  priceChartAsset.value = {
+    assetKey: position.asset_key,
+    name: position.name || position.symbol || position.asset_key,
+  }
+}
 
 const selectedAccountHistory = computed(() => {
   if (!selectedAccountId.value) return []
@@ -1612,10 +1624,16 @@ onMounted(async () => {
                   <tr
                     v-for="pos in sortedPositions"
                     :key="`${pos.asset_key ?? pos.symbol}-${pos.exchange || 'NONE'}`"
-                    class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                    class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors cursor-pointer"
+                    @click="openPriceChart(pos)"
                   >
                     <td class="px-4 py-2.5">
-                      <span class="font-medium text-text-main dark:text-text-dark-main">{{ pos.name || (pos.asset_key ?? pos.symbol) }}</span>
+                      <button
+                        type="button"
+                        class="font-medium text-text-main dark:text-text-dark-main text-left hover:text-primary dark:hover:text-primary transition-colors"
+                        :title="`Voir le cours de ${pos.name || (pos.asset_key ?? pos.symbol)}`"
+                        @click.stop="openPriceChart(pos)"
+                      >{{ pos.name || (pos.asset_key ?? pos.symbol) }}</button>
                       <span v-if="pos.exchange" class="ml-1 text-xs text-text-muted dark:text-text-dark-muted">({{ pos.exchange }})</span>
                     </td>
                     <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</td>
@@ -1641,7 +1659,12 @@ onMounted(async () => {
               <div
                 v-for="pos in sortedPositions"
                 :key="`${pos.asset_key ?? pos.symbol}-${pos.exchange || 'NONE'}`"
-                class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4"
+                role="button"
+                tabindex="0"
+                class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4 cursor-pointer active:bg-surface-hover dark:active:bg-surface-dark-hover transition-colors"
+                @click="openPriceChart(pos)"
+                @keydown.enter="openPriceChart(pos)"
+                @keydown.space.prevent="openPriceChart(pos)"
               >
                 <div class="flex items-start justify-between gap-3 mb-3">
                   <div class="min-w-0">
@@ -2023,6 +2046,15 @@ onMounted(async () => {
         <BaseButton variant="danger" :loading="stocks.isLoading" @click="handleDelete">Supprimer</BaseButton>
       </template>
     </BaseModal>
+
+    <!-- ── Asset Price Modal ──────────────────────────── -->
+    <AssetPriceModal
+      :open="priceChartAsset !== null"
+      :asset-key="priceChartAsset?.assetKey ?? null"
+      :asset-name="priceChartAsset?.name ?? null"
+      :account-id="selectedAccountId"
+      @close="priceChartAsset = null"
+    />
 
     <!-- ── CSV Import Modal ────────────────────────────── -->
     <CsvImportModal

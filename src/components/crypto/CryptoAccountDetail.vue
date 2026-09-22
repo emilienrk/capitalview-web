@@ -25,7 +25,14 @@ const tab = defineModel<'positions' | 'history'>('tab', { default: 'positions' }
 
 const emit = defineEmits<{
   (e: 'edit-transaction', tx: TransactionResponse): void
+  (e: 'show-price', position: PositionResponse): void
 }>()
+
+/** Fiat rows have no market curve of their own, so they stay inert. */
+function openPriceChart(position: PositionResponse): void {
+  if (isFiatSymbol(position.asset_key)) return
+  emit('show-price', position)
+}
 
 const { formatNumber, formatPercent, formatDateShort, profitLossClass } = useFormatters()
 const { effectiveTimezoneLabel } = useDisplayTimezone()
@@ -136,9 +143,24 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
               </tr>
             </thead>
             <tbody class="divide-y divide-surface-border dark:divide-surface-dark-border">
-              <tr v-for="pos in positions" :key="pos.asset_key" class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+              <tr
+                v-for="pos in positions"
+                :key="pos.asset_key"
+                :class="[
+                  'hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors',
+                  isFiatSymbol(pos.asset_key) ? '' : 'cursor-pointer',
+                ]"
+                @click="openPriceChart(pos)"
+              >
                 <td class="px-4 py-3">
-                  <p class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
+                  <button
+                    v-if="!isFiatSymbol(pos.asset_key)"
+                    type="button"
+                    class="font-semibold text-text-main dark:text-text-dark-main text-left hover:text-primary dark:hover:text-primary transition-colors"
+                    :title="`Voir le cours de ${pos.name || pos.asset_key}`"
+                    @click.stop="openPriceChart(pos)"
+                  >{{ pos.name || pos.asset_key }}</button>
+                  <p v-else class="font-semibold text-text-main dark:text-text-dark-main">{{ pos.name || pos.asset_key }}</p>
                   <p v-if="pos.name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.asset_key }}</p>
                 </td>
                 <td class="px-4 py-3 text-right font-mono text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 6) }}</td>
@@ -158,7 +180,17 @@ function txBadgeVariant(type: string): 'success' | 'danger' | 'warning' | 'info'
           <div
             v-for="pos in positions"
             :key="pos.asset_key"
-            class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-4"
+            :role="isFiatSymbol(pos.asset_key) ? undefined : 'button'"
+            :tabindex="isFiatSymbol(pos.asset_key) ? undefined : 0"
+            :class="[
+              'rounded-secondary border border-surface-border dark:border-surface-dark-border p-4',
+              isFiatSymbol(pos.asset_key)
+                ? ''
+                : 'cursor-pointer active:bg-surface-hover dark:active:bg-surface-dark-hover transition-colors',
+            ]"
+            @click="openPriceChart(pos)"
+            @keydown.enter="openPriceChart(pos)"
+            @keydown.space.prevent="openPriceChart(pos)"
           >
             <div class="flex items-center justify-between mb-3">
               <div>
