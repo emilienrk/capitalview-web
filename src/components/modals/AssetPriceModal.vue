@@ -25,7 +25,7 @@ const emit = defineEmits<{ close: [] }>()
 const CACHE_TTL_MS = 60 * 60 * 1000
 
 const { isDark } = useDarkMode()
-const { formatNumber } = useFormatters()
+const { formatNumber, formatPercent } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
 const timeline = ref<AssetPriceTimelineResponse | null>(null)
@@ -138,7 +138,7 @@ watch(
             v-if="versusCostBasis !== null"
             :class="['text-sm font-semibold', versusCostBasis >= 0 ? 'text-success' : 'text-danger']"
           >
-            {{ versusCostBasis >= 0 ? '+' : '' }}{{ versusCostBasis.toFixed(2) }} %
+            {{ formatPercent(versusCostBasis) }}
           </p>
           <p v-else class="text-sm font-semibold text-text-muted dark:text-text-dark-muted">—</p>
         </div>

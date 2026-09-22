@@ -10,6 +10,20 @@ import type { AssetPricePoint, AssetTimelineEvent } from '@/types'
 export const MIN_MARKER_SIZE = 8
 /** How much a marker may grow above the minimum, for the largest trade shown. */
 export const MARKER_SIZE_RANGE = 18
+/**
+ * The same growth on a phone. A 26 px disc is 7 % of a 390 px-wide plot, so a
+ * run of large buys a few days apart fuses into one blob; capping lower keeps
+ * them apart. The tap target does not shrink with it — see nearestMarker.
+ */
+export const SMALL_SCREEN_MARKER_SIZE_RANGE = 12
+
+/**
+ * How far an executed price may sit from the day's close before it is treated
+ * as a data problem rather than a trade: a factor of two either way. No liquid
+ * market moves that far inside one day, so a sale booked at 3 € on a day ETH
+ * closed at 2 300 € says the row is mis-entered, not that the trade was bad.
+ */
+export const OFF_MARKET_FACTOR = 2
 
 /**
  * The category axis is the union of quoted days and trade days: a trade can land
@@ -30,12 +44,16 @@ export function buildTimelineDates(
  * Bubble area, not radius, carries the amount: the eye reads a disc by its area,
  * so a trade ten times larger must come out about three times wider, not ten.
  */
-export function markerSize(total: number, largest: number): number {
+export function markerSize(
+  total: number,
+  largest: number,
+  range: number = MARKER_SIZE_RANGE,
+): number {
   if (!Number.isFinite(total) || !Number.isFinite(largest) || largest <= 0) {
-    return MIN_MARKER_SIZE + MARKER_SIZE_RANGE / 2
+    return MIN_MARKER_SIZE + range / 2
   }
   const share = Math.min(Math.abs(total) / largest, 1)
-  return MIN_MARKER_SIZE + MARKER_SIZE_RANGE * Math.sqrt(share)
+  return MIN_MARKER_SIZE + range * Math.sqrt(share)
 }
 
 /** The largest trade on the chart, which every other marker is sized against. */
@@ -68,4 +86,109 @@ export function buildCostBasisSeries(
     }
     return started ? carried : null
   })
+}
+
+/**
+ * A date → close reader that falls back to the last close before it.
+ *
+ * Mirrors the API's own lookup: a trade on a day the market never quoted (a
+ * weekend for a stock, a gap left by a failed backfill) is compared with the
+ * price that stood then, not with nothing.
+ */
+export function closeLookup(points: AssetPricePoint[]): (date: string) => number | null {
+  const sorted = [...points]
+    .map((point) => ({ date: point.date, price: Number(point.price) }))
+    .filter((point) => Number.isFinite(point.price))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+
+  return (date: string) => {
+    if (sorted.length === 0) return null
+    // Last index whose date is <= the one asked for; ISO dates sort as strings.
+    let low = 0
+    let high = sorted.length - 1
+    let found = -1
+    while (low <= high) {
+      const middle = (low + high) >> 1
+      if (sorted[middle]!.date <= date) {
+        found = middle
+        low = middle + 1
+      } else {
+        high = middle - 1
+      }
+    }
+    return sorted[found === -1 ? 0 : found]!.price
+  }
+}
+
+/** One trade as drawn: where it sits, and how it compares with its day. */
+export interface PlottedMarker {
+  event: AssetTimelineEvent
+  /**
+   * The height the marker is drawn at: the executed price, except when that
+   * price is off-market, where it rides the day's close instead — one mis-entered
+   * row must not drag the whole axis down to zero and flatten the curve.
+   */
+  y: number
+  /** Close of the trade's day (or the last one before it), when any is known. */
+  close: number | null
+  /** The executed price is more than OFF_MARKET_FACTOR away from that close. */
+  offMarket: boolean
+}
+
+/**
+ * The trades that can be drawn, oldest first, each placed against its day.
+ *
+ * Income already rides the curve (the API places it at the day's close), so it
+ * is never off-market; only a buy or a sale carries a price of its own that can
+ * disagree with the market.
+ */
+export function buildMarkers(
+  events: AssetTimelineEvent[],
+  closeOn: (date: string) => number | null,
+): PlottedMarker[] {
+  return events
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => event.price != null && Number.isFinite(Number(event.price)))
+    // Stable on equal dates, so same-day trades keep the order the API gave.
+    .sort((a, b) =>
+      a.event.date < b.event.date ? -1 : a.event.date > b.event.date ? 1 : a.index - b.index,
+    )
+    .map(({ event }) => {
+      const price = Number(event.price)
+      const close = closeOn(event.date)
+      const ratio = close != null && close > 0 ? price / close : null
+      const offMarket =
+        event.type !== 'INCOME'
+        && ratio != null
+        && (ratio < 1 / OFF_MARKET_FACTOR || ratio > OFF_MARKET_FACTOR)
+      return { event, y: offMarket && close != null ? close : price, close, offMarket }
+    })
+}
+
+/**
+ * Index of the marker closest to a tap, or -1 when none is within reach.
+ *
+ * Selecting by distance rather than by hit-testing the drawn disc is what makes
+ * small markers tappable: an 8 px point is far below a fingertip, and in a
+ * cluster the disc on top is not necessarily the one the finger meant.
+ * Positions that are off the plot (null) are skipped.
+ */
+export function nearestMarker(
+  positions: Array<{ x: number; y: number } | null>,
+  target: { x: number; y: number },
+  radius: number,
+): number {
+  let best = -1
+  let bestDistance = radius * radius
+  positions.forEach((position, index) => {
+    if (!position) return
+    const dx = position.x - target.x
+    const dy = position.y - target.y
+    const distance = dx * dx + dy * dy
+    if (distance <= bestDistance) {
+      best = index
+      bestDistance = distance
+    }
+  })
+  return best
 }
