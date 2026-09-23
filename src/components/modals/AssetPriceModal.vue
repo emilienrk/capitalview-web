@@ -89,7 +89,7 @@ watch(
 </script>
 
 <template>
-  <BaseModal :open="open" size="xl" @close="emit('close')">
+  <BaseModal :open="open" size="xl" scroll-fade @close="emit('close')">
     <template #header>
       <div class="min-w-0">
         <h2 class="text-lg font-semibold text-text-main dark:text-text-dark-main truncate">
@@ -163,10 +163,6 @@ watch(
         @update:performance="performance = $event"
       />
 
-      <p class="text-[11px] leading-relaxed text-text-muted dark:text-text-dark-muted">
-        La taille de chaque point suit le montant de l'opération. La ligne pointillée est votre
-        prix de revient unitaire : au-dessus, la position est en plus-value.
-      </p>
     </div>
   </BaseModal>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-vue-next'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -143,6 +143,54 @@ watch(
 function select(index: number): void {
   selectedIndex.value = index >= 0 && index < markers.value.length ? index : -1
 }
+
+const cardRef = ref<HTMLElement | null>(null)
+
+/** Below this, what is left under the card is padding, not content worth a fade. */
+const SCROLL_SNAP_TAIL = 32
+
+function scrollParentOf(element: HTMLElement): HTMLElement | null {
+  let node = element.parentElement
+  while (node) {
+    const { overflowY } = getComputedStyle(node)
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node
+    node = node.parentElement
+  }
+  return null
+}
+
+/**
+ * Bring the detail card fully into view once it has opened, scrolling only as
+ * far as needed — where it already shows, stepping with the arrows moves nothing.
+ *
+ * Worked out by hand rather than with scrollIntoView: Chromium treats a card
+ * whose box is visible as done even when its scroll margin is not, which left
+ * the container's bottom padding unscrolled and its fade lying over the card.
+ * When only that padding would remain below, the scroll runs to the end.
+ */
+watch(selectedIndex, async (index) => {
+  if (index < 0) return
+  await nextTick()
+  const card = cardRef.value
+  const scroller = card ? scrollParentOf(card) : null
+  if (!card || !scroller) return
+
+  const cardBox = card.getBoundingClientRect()
+  const view = scroller.getBoundingClientRect()
+  const remaining = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
+
+  let delta = 0
+  if (cardBox.top < view.top) {
+    delta = cardBox.top - view.top
+  } else if (cardBox.bottom > view.bottom || remaining > 0) {
+    const needed = Math.max(0, cardBox.bottom - view.bottom)
+    delta = remaining - needed <= SCROLL_SNAP_TAIL ? remaining : needed
+  }
+  if (Math.abs(delta) < 1) return
+
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  scroller.scrollBy({ top: delta, behavior: reduceMotion ? 'auto' : 'smooth' })
+})
 
 function step(delta: number): void {
   const count = markers.value.length
@@ -464,7 +512,7 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
     <!-- pan-y hands vertical swipes back to the page, so the modal still
          scrolls over the chart on a phone; horizontal drags and pinches stay
          with the chart for panning and zooming. -->
-    <div ref="containerRef" class="w-full h-[22rem] sm:h-80" style="touch-action: pan-y;">
+    <div ref="containerRef" class="price-chart-canvas w-full" style="touch-action: pan-y;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"
@@ -490,13 +538,16 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
          floating tooltip: on a phone the finger covers a tooltip, and it
          vanishes on the next touch. -->
     <div
+      ref="cardRef"
       class="rounded-secondary border border-surface-border dark:border-surface-dark-border p-3 sm:p-4"
       aria-live="polite"
     >
       <template v-if="selected">
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-2 min-w-0">
-            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 14 14" aria-hidden="true">
+        <!-- The date gets its own line: beside the type, the arrows and the
+             close button left it truncated on a phone. -->
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div class="flex items-start gap-2 min-w-0">
+            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" viewBox="0 0 14 14" aria-hidden="true">
               <circle v-if="selected.event.type === 'BUY'" cx="7" cy="7" r="6" :fill="colorOf('BUY')" />
               <rect
                 v-else-if="selected.event.type === 'SELL'"
@@ -505,10 +556,14 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
               />
               <polygon v-else points="7,1 13,13 1,13" :fill="colorOf('INCOME')" />
             </svg>
-            <p class="text-sm font-semibold text-text-main dark:text-text-dark-main truncate">
-              {{ EVENT_LABELS[selected.event.type] }}
-              <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ formatLongDate(selected.event.date) }}</span>
-            </p>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold leading-tight text-text-main dark:text-text-dark-main">
+                {{ EVENT_LABELS[selected.event.type] }}
+              </p>
+              <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                {{ formatLongDate(selected.event.date) }}
+              </p>
+            </div>
           </div>
 
           <div class="flex items-center gap-1 shrink-0">
@@ -544,7 +599,9 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
           </div>
         </div>
 
-        <dl class="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+        <!-- Three columns once the modal is wide: two rows instead of three is
+             what lets the whole modal fit a desktop screen without scrolling. -->
+        <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 text-xs">
           <div>
             <dt class="text-text-muted dark:text-text-dark-muted">Quantité</dt>
             <dd class="font-mono font-medium text-text-main dark:text-text-dark-main">
@@ -609,3 +666,21 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+ * On a phone the chart is sized so that it and an open detail card fit on
+ * screen together: tapping a point then scrolls the stats away once, and every
+ * later tap reads without scrolling. dvh follows the visible area as Safari's
+ * toolbars come and go; 20rem caps it on tall phones.
+ */
+.price-chart-canvas {
+  height: min(20rem, 43dvh);
+}
+
+@media (min-width: 640px) {
+  .price-chart-canvas {
+    height: 20rem;
+  }
+}
+</style>
