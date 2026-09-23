@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed } from 'vue'
-import { ArrowLeftRight, Check, HelpCircle, Link2, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, HelpCircle, Link2, Repeat, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
+import { useFormatters } from '@/composables/useFormatters'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
   CASHFLOW_TYPE_LABELS,
   CASHFLOW_TYPE_TONES,
@@ -14,7 +16,8 @@ import {
   answerLabel,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
-import type { BankTransactionItem, BankTransferDecisionKind, CashflowType } from '@/types'
+import { ROLE_NOTES, questionText } from '@/utils/recurring'
+import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind } from '@/types'
 
 const props = defineProps<{
   tx: BankTransactionItem
@@ -39,7 +42,22 @@ defineEmits<{
   link: []
   answer: [type: CashflowType]
   retype: []
+  subscribe: [decision: RecurringDecisionKind]
 }>()
+
+const { formatCurrency } = useFormatters()
+const { maskValue } = usePrivacyMode()
+
+function money(value: number): string {
+  return maskValue(formatCurrency(Number(value), props.tx.currency))
+}
+
+/** The answer a recurring payment's merchant makes likely, offered first. */
+const flowChoices = computed(() => {
+  const question = props.tx.flow_question
+  if (!question?.suggested) return question?.choices ?? []
+  return [question.suggested, ...question.choices.filter((choice) => choice !== question.suggested)]
+})
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 const cancelled = computed(() =>
@@ -91,6 +109,10 @@ const paymentMeans = computed(() =>
           <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.is_credit ? 'depuis' : 'vers' }} ?
         </BaseBadge>
+        <BaseBadge v-if="tx.recurring" variant="primary" :title="tx.recurring.name">
+          <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
+          Récurrent<template v-if="ROLE_NOTES[tx.recurring.role]"> · {{ ROLE_NOTES[tx.recurring.role] }}</template>
+        </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
       </div>
       <!-- What the investment accounts say: the deposit this operation was
@@ -110,15 +132,19 @@ const paymentMeans = computed(() =>
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
-          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}
+          <template v-if="tx.flow_question.recurring_name">Ce crédit de {{ tx.flow_question.recurring_name }}, c'est…</template>
+          <template v-else>{{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}</template>
         </span>
         <button
-          v-for="choice in tx.flow_question.choices"
+          v-for="choice in flowChoices"
           :key="choice"
           type="button"
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
-          class="px-2 py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          :class="[
+            'px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50',
+            choice === tx.flow_question.suggested ? 'ring-1 ring-warning/50' : '',
+          ]"
           @click="$emit('answer', choice)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
@@ -131,6 +157,37 @@ const paymentMeans = computed(() =>
           :stake="stake ?? undefined"
           :label="tx.label"
         />
+      </div>
+      <!-- A recurring charge found but not sure enough to count: asked on its
+           last debit, in the same style. The answer moves no total, only the
+           part of the expenses said to be recurring. -->
+      <div v-if="tx.recurring_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="inline-flex items-center gap-1 text-warning font-medium">
+          <Repeat class="w-3.5 h-3.5" />
+          {{ questionText(tx.recurring_question, money(tx.recurring_question.amount)) }}
+        </span>
+        <button
+          type="button"
+          :disabled="busy"
+          title="Compté dans les paiements récurrents, et ses prochaines échéances avec lui."
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          @click="$emit('subscribe', 'confirm')"
+        >
+          Oui
+        </button>
+        <button
+          type="button"
+          :disabled="busy"
+          title="Ce n'est pas récurrent : il ne sera plus proposé."
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          @click="$emit('subscribe', 'refuse')"
+        >
+          Non
+        </button>
+        <span class="basis-full text-text-muted dark:text-text-dark-muted">
+          {{ tx.recurring_question.occurrence_count }} échéances, ≈ {{ money(tx.recurring_question.annual_estimate) }} par an<template
+            v-if="tx.recurring_question.renamed_from.length"> · a changé de nom, anciennement {{ tx.recurring_question.renamed_from.join(', ') }}</template>
+        </span>
       </div>
     </div>
     <p :class="['shrink-0 text-sm font-semibold tabular-nums', amountClass]">

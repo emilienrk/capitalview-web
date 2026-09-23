@@ -27,6 +27,9 @@ const { formatCurrency } = useFormatters()
 const { maskValue, privacyMode } = usePrivacyMode()
 const { chartRef, containerRef, canRenderChart } = useChartResize()
 
+// An API older than recurring payments sends no due dates: nothing to come, not a crash.
+const upcoming = computed(() => props.data.upcoming ?? [])
+
 function amount(value: number | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value), props.data.currency))
 }
@@ -41,7 +44,6 @@ const monthName = computed(() => {
 const gap = computed(() =>
   props.data.median_to_date === null ? null : Number(props.data.spent_to_date) - Number(props.data.median_to_date),
 )
-const gapTone = computed(() => (gap.value === null ? '' : gap.value > 0 ? 'text-danger' : 'text-success'))
 
 const option = computed(() => {
   const textColor = props.isDark ? '#94a3b8' : '#6b7280'
@@ -108,7 +110,7 @@ const option = computed(() => {
         </p>
         <p v-if="data.median_to_date !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
           Un mois médian en était à {{ amount(data.median_to_date) }}
-          <span v-if="gap !== null" :class="['font-semibold tabular-nums', gapTone]">
+          <span v-if="gap !== null" class="font-semibold tabular-nums">
             ({{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }})
           </span>
         </p>
@@ -118,6 +120,15 @@ const option = computed(() => {
         </p>
         <p v-if="Number(data.pending_to_date)" class="text-xs text-text-muted dark:text-text-dark-muted">
           Dont {{ amount(data.pending_to_date) }} de paiements encore en attente.
+        </p>
+        <!-- The due dates still to come: what the rest of the month already owes. -->
+        <p
+          v-if="upcoming.length"
+          class="text-xs text-text-muted dark:text-text-dark-muted"
+          :title="upcoming.map((due) => `${due.name} le ${Number(due.date.slice(8))} : ${amount(due.amount)}`).join('\n')"
+        >
+          À venir ce mois : {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }},
+          {{ amount(data.upcoming_amount) }}
         </p>
         <router-link
           :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"

@@ -30,6 +30,7 @@ export async function resetAllSessionState(): Promise<void> {
     { useRealCashflowStore },
     { useCashflowTypesStore },
     { useLedgerStore },
+    { useRecurringStore },
   ] = await Promise.all([
     import('@/stores/dashboard'),
     import('@/stores/wealthHistory'),
@@ -48,6 +49,7 @@ export async function resetAllSessionState(): Promise<void> {
     import('@/stores/realCashflow'),
     import('@/stores/cashflowTypes'),
     import('@/stores/ledger'),
+    import('@/stores/recurring'),
   ])
 
   useDashboardStore().reset()
@@ -67,4 +69,5 @@ export async function resetAllSessionState(): Promise<void> {
   useRealCashflowStore().reset()
   useCashflowTypesStore().reset()
   useLedgerStore().reset()
+  useRecurringStore().reset()
 }

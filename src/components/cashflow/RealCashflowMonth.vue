@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** One completed month of the real cashflow, its neighbours, and where its money went. */
 import { computed } from 'vue'
-import { ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-vue-next'
 
 import { BaseButton, BaseCard } from '@/components'
 import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterparts.vue'
@@ -36,6 +36,8 @@ const figures = computed(() => [
   { label: 'Reste', value: props.data.totals.net, tone: 'text-text-main dark:text-text-dark-main' },
 ])
 
+// An API older than recurring payments sends none: an empty line, not a crash.
+const recurring = computed(() => props.data.recurring ?? [])
 const range = computed(() => ({ from: props.data.period, to: props.data.period }))
 const explore = computed(() => ({
   name: 'cashflow',
@@ -75,6 +77,9 @@ const explore = computed(() => ({
         <div v-for="figure in figures" :key="figure.label">
           <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ figure.label }}</p>
           <p :class="['text-xl font-bold tabular-nums', figure.tone]">{{ amount(figure.value) }}</p>
+          <p v-if="figure.label === 'Dépenses' && Number(data.totals.recurring)" class="text-xs text-text-muted dark:text-text-dark-muted">
+            {{ amount(data.totals.recurring) }} qui reviennent · {{ amount(data.totals.one_off) }} ponctuels
+          </p>
         </div>
       </div>
       <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -87,6 +92,13 @@ const explore = computed(() => ({
           <Search class="w-4 h-4" /> Explorer ce mois
         </router-link>
       </div>
+      <p v-if="recurring.length" class="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+        <Repeat class="w-3.5 h-3.5 shrink-0" />
+        <router-link :to="{ name: 'bank-recurring' }" class="font-medium hover:underline">Récurrent</router-link> :
+        <span v-for="(payment, index) in recurring" :key="payment.key">
+          {{ payment.name }} {{ amount(payment.amount) }}{{ index < recurring.length - 1 ? ',' : '' }}
+        </span>
+      </p>
       <p v-for="other in data.other_currencies" :key="other.currency" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
         En {{ other.currency }}, à part faute de taux : {{ maskValue(formatCurrency(other.outflow, other.currency)) }} en sortie,
         {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.

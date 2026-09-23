@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * The Banque section's two views. Routes rather than in-page state, so an
+ * The Banque section's views. Routes rather than in-page state, so an
  * account's operations can be linked to and survive a reload.
  */
-import { onMounted, watch } from 'vue'
-import { ArrowLeftRight, ListChecks, Wallet } from 'lucide-vue-next'
+import { nextTick, onMounted, ref, watch } from 'vue'
+import { ArrowLeftRight, ListChecks, Repeat, Wallet } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { useBankStore } from '@/stores/bank'
@@ -17,15 +17,27 @@ const bank = useBankStore()
 onMounted(() => void bank.fetchTransferQuestions())
 watch(() => bank.dataRevision, () => void bank.fetchTransferQuestions())
 
+// On a phone the strip scrolls: the tab shown is brought into it, never left
+// under the edge. Horizontal only, so the page itself does not move.
+const strip = ref<HTMLElement | null>(null)
+function showActive(): void {
+  const active = strip.value?.querySelector<HTMLElement>('[aria-current="page"]')
+  if (!strip.value || !active) return
+  strip.value.scrollLeft = active.offsetLeft - (strip.value.clientWidth - active.offsetWidth) / 2
+}
+onMounted(showActive)
+watch(() => route.name, () => void nextTick(showActive))
+
 const tabs = [
   { name: 'bank', label: 'Comptes', icon: Wallet },
   { name: 'bank-review', label: 'À trier', icon: ListChecks },
   { name: 'bank-transactions', label: 'Opérations', icon: ArrowLeftRight },
+  { name: 'bank-recurring', label: 'Récurrent', icon: Repeat },
 ] as const
 </script>
 
 <template>
-  <nav class="mb-6 flex gap-1 overflow-x-auto border-b border-surface-border dark:border-surface-dark-border">
+  <nav ref="strip" class="relative mb-6 flex gap-1 overflow-x-auto border-b border-surface-border dark:border-surface-dark-border">
     <router-link
       v-for="tab in tabs"
       :key="tab.name"

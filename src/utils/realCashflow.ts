@@ -38,20 +38,6 @@ export function changePercent(current: number, previous: number | null | undefin
   return ((Number(current) - Number(previous)) / Math.abs(Number(previous))) * 100
 }
 
-/** Whether a rise of this figure is good news: spending more is not. */
-export function riseIsGood(key: keyof RealCashflowTotals): boolean {
-  return key !== 'expenses'
-}
-
-export type RateTone = 'danger' | 'warning' | 'success'
-
-/** A savings rate under zero spends more than came in; under 10 % leaves little room. */
-export function savingsRateTone(rate: number): RateTone {
-  if (Number(rate) < 0) return 'danger'
-  if (Number(rate) < 10) return 'warning'
-  return 'success'
-}
-
 /**
  * What a gap in an account's history means for the figures, in a sentence.
  * `format` renders a YYYY-MM-DD day.

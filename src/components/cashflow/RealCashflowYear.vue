@@ -17,7 +17,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
 import {
-  changePercent, monthlyFigures, riseIsGood, savingsRateTone, type MonthlyStatistic,
+  changePercent, monthlyFigures, type MonthlyStatistic,
 } from '@/utils/realCashflow'
 import type { CashflowType, RealCashflowTotals, RealCashflowYear } from '@/types'
 
@@ -55,6 +55,10 @@ const statisticOptions = [
 ]
 
 const monthly = computed(() => monthlyFigures(props.data, props.statistic))
+// Taken off the two figures as shown, so the parts add up to the total to the
+// cent: each mean rounded apart could miss it by one.
+const cents = (value: number) => Math.round(Number(value) * 100) / 100
+const oneOff = computed(() => cents(monthly.value.expenses) - cents(monthly.value.recurring))
 const perMonth = computed(() => (props.statistic === 'median' ? 'médiane / mois' : 'moyenne / mois'))
 const isCurrentYear = computed(() => props.data.year === new Date().getFullYear())
 
@@ -73,17 +77,14 @@ const cards: Array<{ label: string; key: AmountKey; type: CashflowType | null; i
   { label: 'Reste', key: 'net', type: null, icon: Scale, tone: 'bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main' },
 ]
 
-function comparison(key: keyof RealCashflowTotals): { text: string; tone: string } | null {
+/** The change against last year, told without a verdict: the colour stays neutral. */
+function comparison(key: keyof RealCashflowTotals): string | null {
   const previous = props.data.previous_year_to_date
   const change = changePercent(Number(props.data.totals[key]), previous ? Number(previous[key]) : null)
   if (change === null || !Number.isFinite(change)) return null
-  const good = (change >= 0) === riseIsGood(key)
   const sign = change >= 0 ? '+' : '−'
   const label = isCurrentYear.value ? `vs ${props.data.year - 1} à date` : `vs ${props.data.year - 1}`
-  return {
-    text: `${sign}${Math.abs(change).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} % ${label}`,
-    tone: Math.abs(change) < 1 ? 'text-text-muted dark:text-text-dark-muted' : good ? 'text-success' : 'text-danger',
-  }
+  return `${sign}${Math.abs(change).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} % ${label}`
 }
 
 function cardLink(type: CashflowType | null) {
@@ -95,19 +96,10 @@ function cardLink(type: CashflowType | null) {
 }
 
 const rate = computed(() => props.data.totals.savings_rate)
-const rateTone = computed(() => {
-  if (rate.value === null) return 'text-text-muted dark:text-text-dark-muted'
-  return { danger: 'text-danger', warning: 'text-warning', success: 'text-success' }[savingsRateTone(rate.value)]
-})
 /** The gauge fills with the rate, capped at a full bar past 50 %. */
 const rateWidth = computed(() => `${Math.min(100, Math.max(0, Number(rate.value ?? 0) * 2))}%`)
 
 const net = computed(() => props.data.safety_net)
-const netTone = computed(() => {
-  const months = net.value?.months
-  if (months === null || months === undefined) return 'text-text-muted dark:text-text-dark-muted'
-  return Number(months) < 1 ? 'text-danger' : Number(months) < 3 ? 'text-warning' : 'text-success'
-})
 
 /** The year's money from its main sources to what it became. */
 const sankey = computed(() => {
@@ -215,8 +207,18 @@ function monthName(period: string): string {
           <p class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
             {{ perMonth }} · {{ amount(data.totals[card.key]) }} sur l'année
           </p>
-          <p v-if="comparison(card.key)" :class="['mt-0.5 text-xs font-medium tabular-nums', comparison(card.key)!.tone]">
-            {{ comparison(card.key)!.text }}
+          <p
+            v-if="card.key === 'expenses' && Number(monthly.recurring)"
+            class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted"
+            :title="data.running_recurring !== null
+              ? `Paiements récurrents en cours : ${amount(data.running_recurring)} / mois`
+              : undefined"
+          >
+            {{ amount(monthly.recurring) }} qui reviennent<template v-if="statistic === 'mean'">
+              · {{ amount(oneOff) }} ponctuels</template>
+          </p>
+          <p v-if="comparison(card.key)" class="mt-0.5 text-xs font-medium tabular-nums text-text-muted dark:text-text-dark-muted">
+            {{ comparison(card.key) }}
           </p>
         </router-link>
       </div>
@@ -234,9 +236,9 @@ function monthName(period: string): string {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <BaseCard>
           <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">Taux d'épargne</p>
-          <p :class="['mt-1.5 text-3xl font-bold tabular-nums', rateTone]">{{ percent(rate) }}</p>
+          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">{{ percent(rate) }}</p>
           <div class="mt-3 h-2 rounded-full bg-background-subtle dark:bg-background-dark-subtle overflow-hidden">
-            <div :class="['h-full rounded-full', rate !== null && rate < 0 ? 'bg-danger' : 'bg-success']" :style="{ width: rateWidth }" />
+            <div class="h-full rounded-full bg-primary" :style="{ width: rateWidth }" />
           </div>
           <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
             Part des entrées non dépensée<template v-if="data.totals.placed_rate !== null">, dont
@@ -254,7 +256,7 @@ function monthName(period: string): string {
           <p class="flex items-center gap-1.5 text-sm font-medium text-text-muted dark:text-text-dark-muted">
             <ShieldCheck class="w-4 h-4" /> Matelas de sécurité
           </p>
-          <p :class="['mt-1.5 text-3xl font-bold tabular-nums', netTone]">
+          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
             {{ net.months === null ? '—' : `${Number(net.months).toLocaleString('fr-FR')} mois` }}
           </p>
           <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
@@ -290,7 +292,7 @@ function monthName(period: string): string {
             :class="[
               'px-3 py-1.5 rounded-button text-xs font-medium capitalize disabled:opacity-40 disabled:cursor-not-allowed',
               m.atypical
-                ? 'bg-warning/10 text-warning hover:bg-warning/20'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
                 : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
             ]"
             :title="m.atypical ? 'Mois inhabituel : dépenses bien au-dessus des autres mois' : undefined"

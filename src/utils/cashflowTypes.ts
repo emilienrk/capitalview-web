@@ -106,8 +106,11 @@ export const PAIR_HINTS = {
 } as const
 
 export const ALL = 'all'
+/** Offered beside the types: a mark on expenses, not a type of its own. */
+export const RECURRING = 'recurring'
 
 export function matchesCashflowType(tx: BankTransactionItem, filter: string): boolean {
+  if (filter === RECURRING) return tx.recurring !== null
   return filter === ALL || tx.cashflow_type === filter
 }
 
@@ -115,7 +118,7 @@ export function matchesOperationType(tx: BankTransactionItem, filter: string): b
   return filter === ALL || tx.operation_type === filter
 }
 
-/** A pair offered to the user, or a label only the user can type. */
+/** A pair offered to the user, a label only the user can type, or a recurring payment to confirm. */
 export function needsReview(tx: BankTransactionItem): boolean {
-  return tx.transfer_status === 'suggested' || tx.flow_question !== null
+  return tx.transfer_status === 'suggested' || tx.flow_question !== null || tx.recurring_question !== null
 }

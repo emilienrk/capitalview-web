@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  changePercent, coverageNotice, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, riseIsGood,
-  savingsRateTone, writeCashflowView,
+  changePercent, coverageNotice, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, writeCashflowView,
 } from '@/utils/realCashflow'
 import type { RealCashflowCoverageGap, RealCashflowTotals, RealCashflowYear } from '@/types'
 
@@ -56,22 +55,6 @@ describe('changePercent', () => {
   it('has nothing to compare against zero or nothing', () => {
     expect(changePercent(100, 0)).toBeNull()
     expect(changePercent(100, null)).toBeNull()
-  })
-})
-
-describe('riseIsGood', () => {
-  it('is bad news only for spending', () => {
-    expect(riseIsGood('expenses')).toBe(false)
-    expect(riseIsGood('saving')).toBe(true)
-  })
-})
-
-describe('savingsRateTone', () => {
-  it('warns under ten percent and alarms under zero', () => {
-    expect(savingsRateTone(-0.1)).toBe('danger')
-    expect(savingsRateTone(0)).toBe('warning')
-    expect(savingsRateTone(9.9)).toBe('warning')
-    expect(savingsRateTone(10)).toBe('success')
   })
 })
 
