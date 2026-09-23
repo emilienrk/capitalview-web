@@ -544,8 +544,6 @@ export interface BankRecurringItem {
   extra_count: number
   accounts: string[]
   payment_method: OperationType
-  /** What it took each year, oldest first: the rent of every year it ran. */
-  paid_by_year: Array<{ year: number; amount: number }>
   price_changes: Array<{ date: string; before: number; after: number; percent: number }>
   episodes: Array<{ start: string; end: string }>
   renamed: Array<{ date: string; before: string; after: string }>

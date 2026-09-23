@@ -18,7 +18,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
-import { NATURE_LABELS, historyByNature, isCounted, isCurrent, isInTotal } from '@/utils/recurring'
+import { NATURE_LABELS, isCounted, isCurrent, isInTotal } from '@/utils/recurring'
 import type { BankRecurringItem, RecurringDirection } from '@/types'
 
 const bank = useBankStore()
@@ -89,8 +89,6 @@ const groups = computed(() => {
 })
 const grouped = computed(() => groups.value.some((group) => group.title !== 'À classer'))
 
-// Counted ones only, ended ones in: what was really paid, year by year.
-const history = computed(() => historyByNature(items.value.filter((item) => isCounted(item) && inCurrency(item))))
 const candidates = computed(() => items.value.filter((item) => item.state === 'candidate'))
 const ended = computed(() => items.value.filter((item) => isCounted(item) && !isCurrent(item)))
 const refused = computed(() => items.value.filter((item) => item.state === 'refused'))
@@ -191,28 +189,6 @@ function amount(value: number): string {
           <BankRecurringRow v-for="item in current" :key="item.key" :item="item" :others="mergeable" @failed="error = $event" />
         </ul>
       </BaseCard>
-
-      <BaseCollapsible
-        v-if="history.length"
-        :title="income ? 'Ce que ça a rapporté, année par année' : 'Ce que ça a coûté, année par année'"
-        :default-open="false"
-      >
-        <div class="-mx-4 space-y-3">
-          <div v-for="line in history" :key="line.nature ?? 'unfiled'">
-            <p class="flex items-baseline justify-between gap-3 text-sm">
-              <span class="font-medium text-text-main dark:text-text-dark-main">
-                {{ line.nature ? NATURE_LABELS[line.nature] : 'À classer' }}
-              </span>
-              <span class="tabular-nums text-text-muted dark:text-text-dark-muted">{{ amount(line.total) }} en tout</span>
-            </p>
-            <p class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-              <span v-for="year in line.years" :key="year.year" class="tabular-nums">
-                {{ year.year }} {{ amount(year.amount) }}
-              </span>
-            </p>
-          </div>
-        </div>
-      </BaseCollapsible>
 
       <BaseCollapsible
         v-for="section in folded"

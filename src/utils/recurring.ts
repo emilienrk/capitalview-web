@@ -55,33 +55,6 @@ export const NATURE_LABELS: Record<RecurringNature, string> = {
 }
 
 /**
- * What every payment of one nature took each year, newest year first: the rent
- * of a life, whoever the landlord was then. Ended ones count — that is the point.
- * Heaviest nature first, the unfiled ones last, as the tab lists them.
- */
-export function historyByNature(items: BankRecurringItem[]): Array<{
-  nature: RecurringNature | null
-  total: number
-  years: Array<{ year: number; amount: number }>
-}> {
-  const natures = new Map<RecurringNature | null, Map<number, number>>()
-  for (const item of items) {
-    const years = natures.get(item.nature) ?? new Map<number, number>()
-    for (const paid of item.paid_by_year) {
-      years.set(paid.year, (years.get(paid.year) ?? 0) + Number(paid.amount))
-    }
-    if (years.size) natures.set(item.nature, years)
-  }
-  return [...natures]
-    .map(([nature, years]) => ({
-      nature,
-      total: [...years.values()].reduce((sum, amount) => sum + amount, 0),
-      years: [...years].map(([year, amount]) => ({ year, amount })).sort((a, b) => b.year - a.year),
-    }))
-    .sort((a, b) => (a.nature === null ? 1 : b.nature === null ? -1 : b.total - a.total))
-}
-
-/**
  * What an operation's badge adds when it is not a plain due date. A refund on
  * an income is a debit taking part of it back, not money coming in.
  */
