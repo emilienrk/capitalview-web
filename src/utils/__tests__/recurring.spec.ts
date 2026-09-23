@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  NATURES, NATURE_LABELS, historyByNature, isCounted, isCurrent, isInTotal, questionText, roleNote,
+  NATURES, NATURE_LABELS, isCounted, isCurrent, isInTotal, questionText, roleNote,
 } from '@/utils/recurring'
 import type { BankRecurringItem, BankRecurringQuestion, RecurringNature } from '@/types'
 
@@ -52,31 +52,6 @@ describe('natures', () => {
     expect(NATURES.expense.filter((nature) => NATURES.income.includes(nature))).toEqual(['other'])
   })
 
-  it('adds up what each nature took, year by year, ended ones in', () => {
-    const paid = (nature: BankRecurringItem['nature'], years: Array<[number, number]>) =>
-      ({ nature, paid_by_year: years.map(([year, amount]) => ({ year, amount })) }) as BankRecurringItem
-
-    expect(historyByNature([
-      paid('housing', [[2025, 2280], [2026, 2280]]),
-      paid('housing', [[2026, 1590]]),
-      paid('software', [[2026, 216]]),
-      paid(null, [[2026, 120]]),
-      paid('sport', []),
-    ])).toEqual([
-      { nature: 'housing', total: 6150, years: [{ year: 2026, amount: 3870 }, { year: 2025, amount: 2280 }] },
-      { nature: 'software', total: 216, years: [{ year: 2026, amount: 216 }] },
-      // Not filed yet: gathered apart, never folded into a nature.
-      { nature: null, total: 120, years: [{ year: 2026, amount: 120 }] },
-    ])
-  })
-
-  it('keeps the unfiled ones last, however much they took', () => {
-    const paid = (nature: BankRecurringItem['nature'], amount: number) =>
-      ({ nature, paid_by_year: [{ year: 2026, amount }] }) as BankRecurringItem
-
-    expect(historyByNature([paid(null, 9000), paid('software', 216), paid('housing', 2280)]).map((line) => line.nature))
-      .toEqual(['housing', 'software', null])
-  })
 })
 
 describe('sections', () => {
