@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, answerHint, answerLabel, contributionNote, matchesCashflowType, matchesOperationType, needsReview,
-  typeSourceTitle,
+  ALL, RECURRING, answerHint, answerLabel, contributionNote, matchesCashflowType, matchesOperationType,
+  needsReview, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -12,7 +12,7 @@ function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransact
     amount: 40, currency: 'EUR', is_credit: false, is_pending: false, label: 'VIR INST ROUKINE EMILIEN',
     transfer_account_id: null, transfer_account_name: null, transfer_id: null, transfer_status: null,
     operation_type: 'TRANSFER', cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
-    flow_question: null, contribution: null, ...overrides,
+    flow_question: null, contribution: null, recurring: null, recurring_question: null, ...overrides,
   }
 }
 
@@ -36,6 +36,12 @@ describe('filters', () => {
     expect(matchesCashflowType(anOperation({ cashflow_type: 'SAVING' }), 'SAVING')).toBe(true)
   })
 
+  it('keeps only the operations of a recurring payment under Récurrent, whatever their type', () => {
+    const tag = { id: null, key: 'k', name: 'EDF', cadence: 'monthly', role: 'regular', state: 'auto' } as const
+    expect(matchesCashflowType(anOperation(), RECURRING)).toBe(false)
+    expect(matchesCashflowType(anOperation({ recurring: tag }), RECURRING)).toBe(true)
+  })
+
   it('filters on the payment means', () => {
     expect(matchesOperationType(anOperation(), 'TRANSFER')).toBe(true)
     expect(matchesOperationType(anOperation(), 'CARD')).toBe(false)
@@ -43,11 +49,17 @@ describe('filters', () => {
 })
 
 describe('needsReview', () => {
-  it('holds a suggested pair and a flow question, nothing else', () => {
+  it('holds a suggested pair, a flow question and a recurring question, nothing else', () => {
     expect(needsReview(anOperation())).toBe(false)
     expect(needsReview(anOperation({ transfer_status: 'suggested' }))).toBe(true)
     expect(needsReview(anOperation({ flow_question: { choices: ['EXPENSE'], operation_count: 3 } }))).toBe(true)
     expect(needsReview(anOperation({ transfer_status: 'recurring' }))).toBe(false)
+    expect(needsReview(anOperation({
+      recurring_question: {
+        cadence: 'monthly', amount: 21.6, variable: false, occurrence_count: 4, since: '2026-06-02',
+        annual_estimate: 259.2, renamed_from: [],
+      },
+    }))).toBe(true)
   })
 })
 
