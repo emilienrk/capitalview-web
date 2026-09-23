@@ -17,11 +17,16 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
+import { useRecurringStore } from '@/stores/recurring'
 import { CASHFLOW_TYPE_LABELS, contributionNote } from '@/utils/cashflowTypes'
-import type { BankReviewItem, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType } from '@/types'
+import type {
+  BankReviewItem, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
+  RecurringDecisionKind,
+} from '@/types'
 
 const bank = useBankStore()
 const types = useCashflowTypesStore()
+const recurring = useRecurringStore()
 const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
@@ -34,6 +39,9 @@ function readYear(value: unknown): number | null {
 
 const year = ref<number | null>(readYear(route.query.year))
 const queue = computed(() => (types.queueYear === year.value ? types.queue : null))
+// Nothing left in any year: the empty state says it alone, with no card of
+// zeros above it. A year left empty among others keeps the card, for its chips.
+const allSorted = computed(() => queue.value?.total_count === 0 && !types.queue?.years.length)
 const failed = ref(false)
 
 // Totals add questions up in the operations' own currency, the main one in practice.
@@ -136,6 +144,18 @@ async function undo(): Promise<void> {
   }
 }
 
+async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
+  busy.value = tx.id
+  error.value = null
+  try {
+    await recurring.decide(tx.id, decision)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
+  } finally {
+    busy.value = null
+  }
+}
+
 async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
   if (!tx.transfer_id) return
   busy.value = tx.id
@@ -152,7 +172,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
 
 <template>
   <div>
-    <BaseCard class="mb-6">
+    <BaseCard v-if="!allSorted" class="mb-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p class="text-sm text-text-muted dark:text-text-dark-muted">À confirmer</p>
@@ -163,6 +183,11 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           <p v-if="queue" class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
             {{ queue.total_count }} question{{ queue.total_count > 1 ? 's' : '' }}, les plus gros montants d'abord :
             quelques réponses suffisent à rendre le Réel juste.
+          </p>
+          <!-- Out of the amount above: saying yes or no to one moves no total. -->
+          <p v-if="queue?.recurring_count" class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+            Dont {{ queue.recurring_count }} paiement{{ queue.recurring_count > 1 ? 's' : '' }} récurrent{{ queue.recurring_count > 1 ? 's' : '' }} à confirmer,
+            montré{{ queue.recurring_count > 1 ? 's' : '' }} à {{ queue.recurring_count > 1 ? 'leur' : 'son' }} coût annuel, hors de ce montant.
           </p>
         </div>
         <p v-if="settled > 0" class="flex items-center gap-1.5 text-sm font-medium text-success">
@@ -223,6 +248,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           @link="linking = item.transaction"
           @answer="(type) => answer(item.transaction, type)"
           @retype="retyping = item.transaction"
+          @subscribe="(decision) => subscribe(item.transaction, decision)"
         />
       </ul>
     </BaseCard>

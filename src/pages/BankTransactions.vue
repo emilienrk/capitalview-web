@@ -13,6 +13,7 @@ import { ArrowLeftRight, ChevronLeft, ChevronRight, HelpCircle, Search, Undo2 } 
 
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
+import { useRecurringStore } from '@/stores/recurring'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
@@ -22,10 +23,12 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, matchesCashflowType, matchesOperationType,
-  contributionNote, needsReview,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, RECURRING, matchesCashflowType,
+  matchesOperationType, contributionNote, needsReview,
 } from '@/utils/cashflowTypes'
-import type { BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType } from '@/types'
+import type {
+  BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
+} from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 const ALL_ACCOUNTS = 'all'
@@ -33,6 +36,7 @@ const STRIP_MONTHS = 12
 
 const bank = useBankStore()
 const cashflowTypes = useCashflowTypesStore()
+const recurring = useRecurringStore()
 const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
@@ -167,6 +171,7 @@ const typeFilter = ref<string>(ALL)
 const typeOptions = [
   { label: 'Tous types', value: ALL },
   ...CASHFLOW_TYPES.map((value) => ({ label: CASHFLOW_TYPE_LABELS[value], value })),
+  { label: 'Récurrent', value: RECURRING },
 ]
 const meansFilter = ref<string>(ALL)
 const meansOptions = [
@@ -292,6 +297,19 @@ async function answer(tx: BankTransactionItem, type: CashflowType): Promise<void
   decisionError.value = null
   try {
     onTyped(await cashflowTypes.answerFlow(tx.id, type))
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
+  } finally {
+    deciding.value = null
+  }
+}
+
+async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await recurring.decide(tx.id, decision)
+    typedMessage.value = decision === 'confirm' ? 'Compté dans vos paiements récurrents.' : 'Ne sera plus proposé comme récurrent.'
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -522,7 +540,7 @@ onMounted(() => void load())
             v-for="q in otherQuestionMonths"
             :key="q.period"
             type="button"
-            class="px-2 py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
+            class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
             @click="period = q.period; toReviewOnly = true"
           >
             {{ monthShort(q.period) }} {{ q.period.slice(0, 4) }} ({{ q.count }})
@@ -607,6 +625,7 @@ onMounted(() => void load())
             @link="linking = tx"
             @answer="(type) => answer(tx, type)"
             @retype="retyping = tx"
+            @subscribe="(decision) => subscribe(tx, decision)"
           />
         </ul>
         <template v-else>
@@ -629,6 +648,7 @@ onMounted(() => void load())
                 @link="linking = tx"
                 @answer="(type) => answer(tx, type)"
                 @retype="retyping = tx"
+                @subscribe="(decision) => subscribe(tx, decision)"
               />
             </ul>
           </section>

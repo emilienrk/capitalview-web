@@ -5,7 +5,7 @@
  * Nothing is linked behind the user's back. The app groups real movements by
  * label and proposes the ones that could be a declaration's counterpart; the
  * link only becomes durable once the user picks one, because amount and spacing
- * cannot tell two 9,99 € subscriptions apart and only they know which is which.
+ * cannot tell two 9,99 € recurring payments apart and only they know which is which.
  */
 import { computed, onMounted, ref } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
