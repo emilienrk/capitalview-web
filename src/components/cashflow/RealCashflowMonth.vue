@@ -36,6 +36,8 @@ const figures = computed(() => [
   { label: 'Reste', value: props.data.totals.net, tone: 'text-text-main dark:text-text-dark-main' },
 ])
 
+// An API older than recurring payments sends none: an empty line, not a crash.
+const recurring = computed(() => props.data.recurring ?? [])
 const range = computed(() => ({ from: props.data.period, to: props.data.period }))
 const explore = computed(() => ({
   name: 'cashflow',
@@ -90,11 +92,11 @@ const explore = computed(() => ({
           <Search class="w-4 h-4" /> Explorer ce mois
         </router-link>
       </div>
-      <p v-if="data.recurring.length" class="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+      <p v-if="recurring.length" class="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted dark:text-text-dark-muted">
         <Repeat class="w-3.5 h-3.5 shrink-0" />
         <router-link :to="{ name: 'bank-recurring' }" class="font-medium hover:underline">Récurrent</router-link> :
-        <span v-for="(recurring, index) in data.recurring" :key="recurring.key">
-          {{ recurring.name }} {{ amount(recurring.amount) }}{{ index < data.recurring.length - 1 ? ',' : '' }}
+        <span v-for="(payment, index) in recurring" :key="payment.key">
+          {{ payment.name }} {{ amount(payment.amount) }}{{ index < recurring.length - 1 ? ',' : '' }}
         </span>
       </p>
       <p v-for="other in data.other_currencies" :key="other.currency" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">
