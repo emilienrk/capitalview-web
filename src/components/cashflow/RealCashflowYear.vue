@@ -55,6 +55,10 @@ const statisticOptions = [
 ]
 
 const monthly = computed(() => monthlyFigures(props.data, props.statistic))
+// Taken off the two figures as shown, so the parts add up to the total to the
+// cent: each mean rounded apart could miss it by one.
+const cents = (value: number) => Math.round(Number(value) * 100) / 100
+const oneOff = computed(() => cents(monthly.value.expenses) - cents(monthly.value.recurring))
 const perMonth = computed(() => (props.statistic === 'median' ? 'médiane / mois' : 'moyenne / mois'))
 const isCurrentYear = computed(() => props.data.year === new Date().getFullYear())
 
@@ -214,6 +218,16 @@ function monthName(period: string): string {
           </div>
           <p class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
             {{ perMonth }} · {{ amount(data.totals[card.key]) }} sur l'année
+          </p>
+          <p
+            v-if="card.key === 'expenses' && Number(monthly.recurring)"
+            class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted"
+            :title="data.running_recurring !== null
+              ? `Paiements récurrents en cours : ${amount(data.running_recurring)} / mois`
+              : undefined"
+          >
+            {{ amount(monthly.recurring) }} qui reviennent<template v-if="statistic === 'mean'">
+              · {{ amount(oneOff) }} ponctuels</template>
           </p>
           <p v-if="comparison(card.key)" :class="['mt-0.5 text-xs font-medium tabular-nums', comparison(card.key)!.tone]">
             {{ comparison(card.key)!.text }}
