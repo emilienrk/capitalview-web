@@ -28,16 +28,22 @@ const title = computed(() => {
   return new Date(year!, month! - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 })
 
-const figures = computed(() => [
-  { label: 'Entrées', value: props.data.totals.income, tone: 'text-success' },
-  { label: 'Dépenses', value: props.data.totals.expenses, tone: 'text-danger' },
-  { label: 'Épargne', value: props.data.totals.saving, tone: 'text-primary' },
-  { label: 'Investissement', value: props.data.totals.investment, tone: 'text-info' },
-  { label: 'Reste', value: props.data.totals.net, tone: 'text-text-main dark:text-text-dark-main' },
-])
+const figures = computed(() => {
+  const totals = props.data.totals
+  return [
+    { label: 'Entrées', value: totals.income, tone: 'text-success', split: { recurring: totals.recurring_income, oneOff: totals.one_off_income } },
+    { label: 'Dépenses', value: totals.expenses, tone: 'text-danger', split: { recurring: totals.recurring, oneOff: totals.one_off } },
+    { label: 'Épargne', value: totals.saving, tone: 'text-primary', split: null },
+    { label: 'Investissement', value: totals.investment, tone: 'text-info', split: null },
+    { label: 'Reste', value: totals.net, tone: 'text-text-main dark:text-text-dark-main', split: null },
+  ]
+})
 
-// An API older than recurring payments sends none: an empty line, not a crash.
-const recurring = computed(() => props.data.recurring ?? [])
+// An API older than recurring payments, or income, sends none: an empty line, not a crash.
+const recurringLines = computed(() => [
+  { key: 'expense', title: 'Paiements récurrents', query: {}, items: props.data.recurring ?? [] },
+  { key: 'income', title: 'Revenus récurrents', query: { direction: 'income' }, items: props.data.recurring_income ?? [] },
+].filter((line) => line.items.length))
 const range = computed(() => ({ from: props.data.period, to: props.data.period }))
 const explore = computed(() => ({
   name: 'cashflow',
@@ -77,8 +83,8 @@ const explore = computed(() => ({
         <div v-for="figure in figures" :key="figure.label">
           <p class="text-sm text-text-muted dark:text-text-dark-muted">{{ figure.label }}</p>
           <p :class="['text-xl font-bold tabular-nums', figure.tone]">{{ amount(figure.value) }}</p>
-          <p v-if="figure.label === 'Dépenses' && Number(data.totals.recurring)" class="text-xs text-text-muted dark:text-text-dark-muted">
-            {{ amount(data.totals.recurring) }} qui reviennent · {{ amount(data.totals.one_off) }} ponctuels
+          <p v-if="figure.split && Number(figure.split.recurring)" class="text-xs text-text-muted dark:text-text-dark-muted">
+            {{ amount(figure.split.recurring) }} qui reviennent · {{ amount(figure.split.oneOff) }} ponctuels
           </p>
         </div>
       </div>
@@ -92,11 +98,15 @@ const explore = computed(() => ({
           <Search class="w-4 h-4" /> Explorer ce mois
         </router-link>
       </div>
-      <p v-if="recurring.length" class="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+      <p
+        v-for="line in recurringLines"
+        :key="line.key"
+        class="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-text-muted dark:text-text-dark-muted"
+      >
         <Repeat class="w-3.5 h-3.5 shrink-0" />
-        <router-link :to="{ name: 'bank-recurring' }" class="font-medium hover:underline">Récurrent</router-link> :
-        <span v-for="(payment, index) in recurring" :key="payment.key">
-          {{ payment.name }} {{ amount(payment.amount) }}{{ index < recurring.length - 1 ? ',' : '' }}
+        <router-link :to="{ name: 'bank-recurring', query: line.query }" class="font-medium hover:underline">{{ line.title }}</router-link> :
+        <span v-for="(recurring, index) in line.items" :key="recurring.key">
+          {{ recurring.name }} {{ amount(recurring.amount) }}{{ index < line.items.length - 1 ? ',' : '' }}
         </span>
       </p>
       <p v-for="other in data.other_currencies" :key="other.currency" class="mt-3 text-xs text-text-muted dark:text-text-dark-muted">

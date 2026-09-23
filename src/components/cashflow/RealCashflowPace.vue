@@ -17,7 +17,7 @@ import { useChartResize } from '@/composables/useChartResize'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
-import type { RealCashflowCurrent } from '@/types'
+import type { RealCashflowCurrent, RealCashflowUpcoming } from '@/types'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
@@ -27,8 +27,13 @@ const { formatCurrency } = useFormatters()
 const { maskValue, privacyMode } = usePrivacyMode()
 const { chartRef, containerRef, canRenderChart } = useChartResize()
 
-// An API older than recurring payments sends no due dates: nothing to come, not a crash.
+// An API older than recurring payments, or income, sends no due dates: nothing to come, not a crash.
 const upcoming = computed(() => props.data.upcoming ?? [])
+const upcomingIncome = computed(() => props.data.upcoming_income ?? [])
+
+function dueList(dues: RealCashflowUpcoming[]): string {
+  return dues.map((due) => `${due.name} le ${Number(due.date.slice(8))} : ${amount(due.amount)}`).join('\n')
+}
 
 function amount(value: number | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value), props.data.currency))
@@ -122,13 +127,14 @@ const option = computed(() => {
           Dont {{ amount(data.pending_to_date) }} de paiements encore en attente.
         </p>
         <!-- The due dates still to come: what the rest of the month already owes. -->
-        <p
-          v-if="upcoming.length"
-          class="text-xs text-text-muted dark:text-text-dark-muted"
-          :title="upcoming.map((due) => `${due.name} le ${Number(due.date.slice(8))} : ${amount(due.amount)}`).join('\n')"
-        >
+        <p v-if="upcoming.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcoming)">
           À venir ce mois : {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }},
           {{ amount(data.upcoming_amount) }}
+        </p>
+        <!-- Apart from the spending: an income still to come lowers nothing above. -->
+        <p v-if="upcomingIncome.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcomingIncome)">
+          À recevoir ce mois : {{ upcomingIncome.length }} revenu{{ upcomingIncome.length > 1 ? 's' : '' }} récurrent{{ upcomingIncome.length > 1 ? 's' : '' }},
+          {{ amount(data.upcoming_income_amount) }}
         </p>
         <router-link
           :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"

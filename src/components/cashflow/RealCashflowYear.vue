@@ -58,7 +58,27 @@ const monthly = computed(() => monthlyFigures(props.data, props.statistic))
 // Taken off the two figures as shown, so the parts add up to the total to the
 // cent: each mean rounded apart could miss it by one.
 const cents = (value: number) => Math.round(Number(value) * 100) / 100
-const oneOff = computed(() => cents(monthly.value.expenses) - cents(monthly.value.recurring))
+
+/**
+ * What comes back of the income and of the expenses, and the running figure
+ * behind it. An API older than recurring income sends none of its fields.
+ */
+const splits = computed<Partial<Record<AmountKey, { recurring: number; oneOff: number; running: string | null }>>>(() => ({
+  income: {
+    recurring: monthly.value.recurring_income,
+    oneOff: cents(monthly.value.income) - cents(monthly.value.recurring_income),
+    running: props.data.running_recurring_income != null
+      ? `Revenus récurrents en cours : ${amount(props.data.running_recurring_income)} / mois`
+      : null,
+  },
+  expenses: {
+    recurring: monthly.value.recurring,
+    oneOff: cents(monthly.value.expenses) - cents(monthly.value.recurring),
+    running: props.data.running_recurring != null
+      ? `Paiements récurrents en cours : ${amount(props.data.running_recurring)} / mois`
+      : null,
+  },
+}))
 const perMonth = computed(() => (props.statistic === 'median' ? 'médiane / mois' : 'moyenne / mois'))
 const isCurrentYear = computed(() => props.data.year === new Date().getFullYear())
 
@@ -78,6 +98,8 @@ const cards: Array<{ label: string; key: AmountKey; type: CashflowType | null; i
 ]
 
 /** The change against last year, told without a verdict: the colour stays neutral. */
+const tiles = computed(() => cards.map((card) => ({ ...card, split: splits.value[card.key] ?? null })))
+
 function comparison(key: keyof RealCashflowTotals): string | null {
   const previous = props.data.previous_year_to_date
   const change = changePercent(Number(props.data.totals[key]), previous ? Number(previous[key]) : null)
@@ -187,7 +209,7 @@ function monthName(period: string): string {
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
         <router-link
-          v-for="card in cards"
+          v-for="card in tiles"
           :key="card.key"
           :to="cardLink(card.type)"
           class="group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft transition-colors hover:border-primary/40"
@@ -208,14 +230,12 @@ function monthName(period: string): string {
             {{ perMonth }} · {{ amount(data.totals[card.key]) }} sur l'année
           </p>
           <p
-            v-if="card.key === 'expenses' && Number(monthly.recurring)"
+            v-if="card.split && Number(card.split.recurring)"
             class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted"
-            :title="data.running_recurring !== null
-              ? `Paiements récurrents en cours : ${amount(data.running_recurring)} / mois`
-              : undefined"
+            :title="card.split.running ?? undefined"
           >
-            {{ amount(monthly.recurring) }} qui reviennent<template v-if="statistic === 'mean'">
-              · {{ amount(oneOff) }} ponctuels</template>
+            {{ amount(card.split.recurring) }} qui reviennent<template v-if="statistic === 'mean'">
+              · {{ amount(card.split.oneOff) }} ponctuels</template>
           </p>
           <p v-if="comparison(card.key)" class="mt-0.5 text-xs font-medium tabular-nums text-text-muted dark:text-text-dark-muted">
             {{ comparison(card.key) }}
