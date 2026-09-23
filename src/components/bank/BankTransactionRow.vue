@@ -16,7 +16,7 @@ import {
   answerLabel,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
-import { ROLE_NOTES, questionText } from '@/utils/recurring'
+import { questionText, roleNote } from '@/utils/recurring'
 import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind } from '@/types'
 
 const props = defineProps<{
@@ -43,6 +43,7 @@ defineEmits<{
   answer: [type: CashflowType]
   retype: []
   subscribe: [decision: RecurringDecisionKind]
+  recurring: []
 }>()
 
 const { formatCurrency } = useFormatters()
@@ -69,6 +70,22 @@ const typable = computed(() => props.tx.transfer_status === null || suggested.va
 const unpairedTransfer = computed(
   () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
 )
+/**
+ * What the API lets the user file under a recurring by hand: a past debit
+ * counted as spent or a credit counted as received, no transfer between the
+ * accounts — or one already filed, to take it out.
+ */
+const recurrable = computed(() => {
+  const tx = props.tx
+  if (tx.recurring) return true
+  return !tx.is_pending && tx.transfer_status === null && tx.cashflow_type === (tx.is_credit ? 'INCOME' : 'EXPENSE')
+})
+const recurringAction = computed(() =>
+  props.tx.recurring
+    ? `Retirer de ${props.tx.recurring.name}`
+    : `Rattacher à un ${props.tx.is_credit ? 'revenu' : 'paiement'} récurrent`,
+)
+const incomeQuestion = computed(() => props.tx.recurring_question?.direction === 'income')
 const paymentMeans = computed(() =>
   props.tx.operation_type === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.tx.operation_type],
 )
@@ -111,7 +128,7 @@ const paymentMeans = computed(() =>
         </BaseBadge>
         <BaseBadge v-if="tx.recurring" variant="primary" :title="tx.recurring.name">
           <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
-          Récurrent<template v-if="ROLE_NOTES[tx.recurring.role]"> · {{ ROLE_NOTES[tx.recurring.role] }}</template>
+          Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
         </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
       </div>
@@ -158,9 +175,9 @@ const paymentMeans = computed(() =>
           :label="tx.label"
         />
       </div>
-      <!-- A recurring charge found but not sure enough to count: asked on its
-           last debit, in the same style. The answer moves no total, only the
-           part of the expenses said to be recurring. -->
+      <!-- A recurring charge or income found but not sure enough to count:
+           asked on its last operation, in the same style. The answer moves no
+           total, only the part of the expenses or income said to be recurring. -->
       <div v-if="tx.recurring_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <Repeat class="w-3.5 h-3.5" />
@@ -169,7 +186,7 @@ const paymentMeans = computed(() =>
         <button
           type="button"
           :disabled="busy"
-          title="Compté dans les paiements récurrents, et ses prochaines échéances avec lui."
+          :title="`Compté dans les ${incomeQuestion ? 'revenus' : 'paiements'} récurrents, et ses prochaines échéances avec lui.`"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('subscribe', 'confirm')"
         >
@@ -178,7 +195,9 @@ const paymentMeans = computed(() =>
         <button
           type="button"
           :disabled="busy"
-          title="Ce n'est pas récurrent : il ne sera plus proposé."
+          :title="incomeQuestion
+            ? 'Pas un revenu récurrent : il ne sera plus proposé.'
+            : 'Ce n\'est pas récurrent : il ne sera plus proposé.'"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('subscribe', 'refuse')"
         >
@@ -195,6 +214,15 @@ const paymentMeans = computed(() =>
     </p>
     <!-- A fixed width, so the amounts line up whether a row offers one action or two. -->
     <div class="shrink-0 w-16 flex items-center justify-end gap-0.5">
+      <BaseButton
+        v-if="!suggested && recurrable"
+        class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+        icon size="sm" variant="ghost" :disabled="busy"
+        :aria-label="recurringAction" :title="recurringAction"
+        @click="$emit('recurring')"
+      >
+        <Repeat class="w-4 h-4" />
+      </BaseButton>
       <!-- Only a suggested pair asks: every other one was settled without the user.
            The corrections stay out of sight until hovered, so the list does not
            read as a to-do list. -->

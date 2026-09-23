@@ -36,10 +36,19 @@ describe('filters', () => {
     expect(matchesCashflowType(anOperation({ cashflow_type: 'SAVING' }), 'SAVING')).toBe(true)
   })
 
-  it('keeps only the operations of a recurring payment under Récurrent, whatever their type', () => {
-    const tag = { id: null, key: 'k', name: 'EDF', cadence: 'monthly', role: 'regular', state: 'auto' } as const
+  it('keeps only the operations of a recurring payment or income under Récurrent, whatever their type', () => {
+    const tag = {
+      id: null, key: 'k', direction: 'expense', name: 'EDF', cadence: 'monthly', role: 'regular', state: 'auto',
+    } as const
+    const salary = anOperation({
+      is_credit: true, cashflow_type: 'INCOME', recurring: { ...tag, direction: 'income', name: 'Employeur' },
+    })
     expect(matchesCashflowType(anOperation(), RECURRING)).toBe(false)
     expect(matchesCashflowType(anOperation({ recurring: tag }), RECURRING)).toBe(true)
+    expect(matchesCashflowType(salary, RECURRING)).toBe(true)
+    // Still an income under its type: the mark does not move it.
+    expect(matchesCashflowType(salary, 'INCOME')).toBe(true)
+    expect(matchesCashflowType(salary, 'EXPENSE')).toBe(false)
   })
 
   it('filters on the payment means', () => {
@@ -50,15 +59,17 @@ describe('filters', () => {
 
 describe('needsReview', () => {
   it('holds a suggested pair, a flow question and a recurring question, nothing else', () => {
+    const question = {
+      direction: 'expense', cadence: 'monthly', amount: 21.6, variable: false, occurrence_count: 4, since: '2026-06-02',
+      annual_estimate: 259.2, renamed_from: [],
+    } as const
     expect(needsReview(anOperation())).toBe(false)
     expect(needsReview(anOperation({ transfer_status: 'suggested' }))).toBe(true)
     expect(needsReview(anOperation({ flow_question: { choices: ['EXPENSE'], operation_count: 3 } }))).toBe(true)
     expect(needsReview(anOperation({ transfer_status: 'recurring' }))).toBe(false)
+    expect(needsReview(anOperation({ recurring_question: question }))).toBe(true)
     expect(needsReview(anOperation({
-      recurring_question: {
-        cadence: 'monthly', amount: 21.6, variable: false, occurrence_count: 4, since: '2026-06-02',
-        annual_estimate: 259.2, renamed_from: [],
-      },
+      is_credit: true, cashflow_type: 'INCOME', recurring_question: { ...question, direction: 'income' },
     }))).toBe(true)
   })
 })

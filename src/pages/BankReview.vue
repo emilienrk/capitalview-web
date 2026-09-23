@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { CheckCircle2 } from 'lucide-vue-next'
 
 import { BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSkeleton } from '@/components'
+import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
@@ -109,6 +110,7 @@ function contributionOf(tx: BankTransactionItem): string | undefined {
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
 const linking = ref<BankTransactionItem | null>(null)
+const filing = ref<BankTransactionItem | null>(null)
 const retyping = ref<BankTransactionItem | null>(null)
 /** The last label answered, which "Annuler" takes back. */
 const lastAnswer = ref<{ ruleId: string; message: string } | null>(null)
@@ -184,10 +186,11 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
             {{ queue.total_count }} question{{ queue.total_count > 1 ? 's' : '' }}, les plus gros montants d'abord :
             quelques réponses suffisent à rendre le Réel juste.
           </p>
-          <!-- Out of the amount above: saying yes or no to one moves no total. -->
+          <!-- Out of the amount above: saying yes or no to one moves no total.
+               Payments and income alike, the count does not tell them apart. -->
           <p v-if="queue?.recurring_count" class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-            Dont {{ queue.recurring_count }} paiement{{ queue.recurring_count > 1 ? 's' : '' }} récurrent{{ queue.recurring_count > 1 ? 's' : '' }} à confirmer,
-            montré{{ queue.recurring_count > 1 ? 's' : '' }} à {{ queue.recurring_count > 1 ? 'leur' : 'son' }} coût annuel, hors de ce montant.
+            Dont {{ queue.recurring_count }} récurrent{{ queue.recurring_count > 1 ? 's' : '' }} à confirmer, paiement ou revenu,
+            montré{{ queue.recurring_count > 1 ? 's' : '' }} à {{ queue.recurring_count > 1 ? 'leur' : 'son' }} montant annuel, hors de ce montant.
           </p>
         </div>
         <p v-if="settled > 0" class="flex items-center gap-1.5 text-sm font-medium text-success">
@@ -246,6 +249,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
           @link="linking = item.transaction"
+          @recurring="filing = item.transaction"
           @answer="(type) => answer(item.transaction, type)"
           @retype="retyping = item.transaction"
           @subscribe="(decision) => subscribe(item.transaction, decision)"
@@ -271,6 +275,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     </BaseEmptyState>
 
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
+    <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker :open="retyping !== null" :tx="retyping" @close="retyping = null" @saved="remember" />
   </div>
 </template>

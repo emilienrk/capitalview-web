@@ -1,8 +1,8 @@
 import type {
-  BankRecurringItem, BankRecurringQuestion, RecurringCadence, RecurringNature, RecurringRole,
+  BankRecurringItem, BankRecurringQuestion, RecurringCadence, RecurringDirection, RecurringNature, RecurringRole,
 } from '@/types'
 
-/** As an adjective: « Paiement mensuel ». */
+/** As an adjective: « Paiement mensuel », « Revenu mensuel ». */
 export const CADENCE_LABELS: Record<RecurringCadence, string> = {
   weekly: 'hebdomadaire',
   biweekly: 'toutes les 2 semaines',
@@ -26,10 +26,14 @@ export const CADENCE_PER: Record<RecurringCadence, string> = {
   annual: '/ an',
 }
 
-/** The natures the picker offers, roof first. */
-export const NATURES: readonly RecurringNature[] = [
-  'housing', 'energy', 'insurance', 'credit', 'telecom', 'transport', 'sport', 'leisure', 'software', 'other',
-]
+/**
+ * The natures the picker offers for each direction, roof first, salary first:
+ * the API refuses a salary on a payment and a phone plan on an income.
+ */
+export const NATURES: Record<RecurringDirection, readonly RecurringNature[]> = {
+  expense: ['housing', 'energy', 'insurance', 'credit', 'telecom', 'transport', 'sport', 'leisure', 'software', 'other'],
+  income: ['salary', 'allowance', 'pension', 'rental', 'support', 'interest', 'other'],
+}
 
 export const NATURE_LABELS: Record<RecurringNature, string> = {
   housing: 'Logement',
@@ -41,6 +45,12 @@ export const NATURE_LABELS: Record<RecurringNature, string> = {
   sport: 'Sport',
   leisure: 'Loisirs',
   software: 'Logiciels',
+  salary: 'Salaire',
+  allowance: 'Aides et allocations',
+  pension: 'Pension, retraite',
+  rental: 'Loyers perçus',
+  support: "Aide d'un proche",
+  interest: 'Intérêts',
   other: 'Autre',
 }
 
@@ -71,13 +81,19 @@ export function historyByNature(items: BankRecurringItem[]): Array<{
     .sort((a, b) => (a.nature === null ? 1 : b.nature === null ? -1 : b.total - a.total))
 }
 
-/** What an operation's badge adds when it is not a plain due date. */
-export const ROLE_NOTES: Record<RecurringRole, string | null> = {
-  regular: null,
-  extra: 'hors échéance',
-  cancelled: 'annulée',
-  refund: 'remboursement',
-  manual: null,
+/**
+ * What an operation's badge adds when it is not a plain due date. A refund on
+ * an income is a debit taking part of it back, not money coming in.
+ */
+export function roleNote(role: RecurringRole, direction: RecurringDirection): string | null {
+  const notes: Record<RecurringRole, string | null> = {
+    regular: null,
+    extra: 'hors échéance',
+    cancelled: 'annulée',
+    refund: direction === 'income' ? 'reprise' : 'remboursement',
+    manual: null,
+  }
+  return notes[role]
 }
 
 /** « Paiement mensuel · 21,60 € depuis juillet 2025 ? » — `amount` comes formatted. */
@@ -85,10 +101,11 @@ export function questionText(question: BankRecurringQuestion, amount: string): s
   const [year, month] = question.since.split('-').map(Number)
   const since = new Date(year!, month! - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
   const approx = question.variable ? '≈ ' : ''
-  return `Paiement ${CADENCE_LABELS[question.cadence]} · ${approx}${amount} depuis ${since} ?`
+  const kind = question.direction === 'income' ? 'Revenu' : 'Paiement'
+  return `${kind} ${CADENCE_LABELS[question.cadence]} · ${approx}${amount} depuis ${since} ?`
 }
 
-/** Counted in the expenses: found sure enough, or said yes to. */
+/** Counted in the expenses, or the income: found sure enough, or said yes to. */
 export function isCounted(item: BankRecurringItem): boolean {
   return item.state === 'auto' || item.state === 'confirmed'
 }
