@@ -13,10 +13,16 @@ interface Props {
   open: boolean
   title?: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * Fade the body's top and bottom edges while content runs past them, so a
+   * scrolled-away section still reads as there. Opt-in: most modals fit.
+   */
+  scrollFade?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
+  scrollFade: false,
 })
 
 const emit = defineEmits<{
@@ -33,6 +39,30 @@ const sizeClasses: Record<string, string> = {
 
 const titleId = useId()
 const panelRef = ref<HTMLElement | null>(null)
+const bodyRef = ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
+
+const fadeTop = ref(false)
+const fadeBottom = ref(false)
+
+function updateFades(): void {
+  const body = bodyRef.value
+  if (!props.scrollFade || !body) return
+  fadeTop.value = body.scrollTop > 1
+  fadeBottom.value = body.scrollTop + body.clientHeight < body.scrollHeight - 1
+}
+
+// Scroll alone does not cover it: content that grows (a detail card opening)
+// or a body that shrinks (the phone's toolbar coming back) changes what runs
+// past the edges without a single scroll event.
+watch(contentRef, (content, _previous, onCleanup) => {
+  if (!props.scrollFade || !content || typeof ResizeObserver === 'undefined') return
+  const observer = new ResizeObserver(() => updateFades())
+  observer.observe(content)
+  if (bodyRef.value) observer.observe(bodyRef.value)
+  updateFades()
+  onCleanup(() => observer.disconnect())
+})
 
 /** Element focused before the modal opened — restored on close. */
 let previouslyFocused: HTMLElement | null = null
@@ -147,7 +177,7 @@ function onBackdropClick(): void {
           :aria-labelledby="props.title ? titleId : undefined"
           tabindex="-1"
           :class="[
-            'relative w-full bg-surface dark:bg-surface-dark rounded-card shadow-modal border border-surface-border dark:border-surface-dark-border animate-slide-up flex flex-col max-h-[90vh] outline-none',
+            'relative w-full bg-surface dark:bg-surface-dark rounded-card shadow-modal border border-surface-border dark:border-surface-dark-border animate-slide-up flex flex-col max-h-[90dvh] outline-none',
             sizeClasses[props.size],
           ]"
         >
@@ -172,8 +202,32 @@ function onBackdropClick(): void {
           </div>
 
           <!-- Body -->
-          <div class="p-6 overflow-y-auto flex-1">
-            <slot />
+          <div class="relative flex-1 min-h-0 flex flex-col">
+            <div ref="bodyRef" class="p-6 overflow-y-auto flex-1" @scroll.passive="updateFades">
+              <div ref="contentRef">
+                <slot />
+              </div>
+            </div>
+            <template v-if="props.scrollFade">
+              <div
+                aria-hidden="true"
+                :class="[
+                  'pointer-events-none absolute inset-x-0 top-0 h-10 bg-linear-to-b from-surface dark:from-surface-dark to-transparent transition-opacity duration-200',
+                  fadeTop ? 'opacity-100' : 'opacity-0',
+                ]"
+              />
+              <!-- Rounded when it is the panel's last edge: the panel does not
+                   clip its children, so a square fade would paint past the
+                   corners. -->
+              <div
+                aria-hidden="true"
+                :class="[
+                  'pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-surface dark:from-surface-dark to-transparent transition-opacity duration-200',
+                  $slots.footer ? '' : 'rounded-b-card',
+                  fadeBottom ? 'opacity-100' : 'opacity-0',
+                ]"
+              />
+            </template>
           </div>
 
           <!-- Footer -->
