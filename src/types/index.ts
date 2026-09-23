@@ -403,9 +403,9 @@ export interface BankTransactionItem {
   flow_question: BankFlowQuestion | null
   /** What the user's investment accounts say about it: the evidence that typed it, or a nearby deposit. */
   contribution: BankContributionMatch | null
-  /** The counted recurring payment it belongs to. */
+  /** The counted recurring payment or income it belongs to. */
   recurring: BankRecurringTag | null
-  /** Set on the last debit of a series found but not sure enough to count. */
+  /** Set on the last operation of a series found but not sure enough to count. */
   recurring_question: BankRecurringQuestion | null
 }
 
@@ -450,6 +450,9 @@ export interface BankFlowQuestion {
 
 // ─── Récurrent ───────────────────────────────────────────────
 
+/** What comes back: a payment in the debits, an income in the credits. */
+export type RecurringDirection = 'expense' | 'income'
+
 export type RecurringCadence =
   | 'weekly' | 'biweekly' | 'fourweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual'
 
@@ -459,18 +462,28 @@ export type RecurringState = 'auto' | 'confirmed' | 'candidate' | 'refused'
 /** `stale`: its account is known only up to `covered_until`, before the next due date. */
 export type RecurringStatus = 'active' | 'late' | 'ended' | 'stale'
 
-/** `extra`: debited off a due date; `cancelled`: refunded or rejected, counts for nothing. */
+/**
+ * `extra`: off a due date (a prorata, a salary paid early); `cancelled`:
+ * refunded or rejected, counts for nothing; `refund`: a credit from a payment's
+ * merchant, or a debit the user attached to an income as taken back.
+ */
 export type RecurringRole = 'regular' | 'extra' | 'cancelled' | 'refund' | 'manual'
 
-/** What a payment is for, as the user filed it. Never guessed. */
+/**
+ * What a payment is for, or where an income comes from, as the user filed it.
+ * Never guessed. Each direction takes its own natures, `other` both.
+ */
 export type RecurringNature =
   | 'housing' | 'energy' | 'insurance' | 'credit'
-  | 'telecom' | 'transport' | 'sport' | 'leisure' | 'software' | 'other'
+  | 'telecom' | 'transport' | 'sport' | 'leisure' | 'software'
+  | 'salary' | 'allowance' | 'pension' | 'rental' | 'support' | 'interest'
+  | 'other'
 
 export interface BankRecurringTag {
   /** The user's decision; null for one counted without asking and never decided. */
   id: string | null
   key: string
+  direction: RecurringDirection
   name: string
   cadence: RecurringCadence
   role: RecurringRole
@@ -478,6 +491,7 @@ export interface BankRecurringTag {
 }
 
 export interface BankRecurringQuestion {
+  direction: RecurringDirection
   cadence: RecurringCadence
   amount: number
   variable: boolean
@@ -494,7 +508,7 @@ export type RecurringDecisionKind = 'confirm' | 'refuse'
 export interface BankRecurringUpdate {
   name?: string | null
   cadence?: RecurringCadence | null
-  /** Null goes back to the guess made from the merchant. */
+  /** Null files it back under « À classer »; one of the other direction is refused (422). */
   nature?: RecurringNature | null
   /** YYYY-MM-DD, the day the user ended it. */
   ended_on?: string | null
@@ -504,10 +518,11 @@ export interface BankRecurringItem {
   /** The user's decision; null for a series never decided. */
   id: string | null
   key: string
-  /** Its last debit, to act on it. */
+  direction: RecurringDirection
+  /** Its last operation, to act on it. */
   transaction_id: string
   name: string
-  /** What it is for; null until the user files it. */
+  /** What it is for, or where it comes from; null until the user files it. */
   nature: RecurringNature | null
   state: RecurringState
   confidence: string | null
@@ -521,7 +536,7 @@ export interface BankRecurringItem {
   annual_estimate: number
   paid_last_12_months: number
   first_date: string
-  /** The first debit is near the start of the account's history: it may be older. */
+  /** The first operation is near the start of the account's history: it may be older. */
   since_at_least: boolean
   last_date: string
   next_date: string
@@ -538,10 +553,13 @@ export interface BankRecurringItem {
   ended_on: string | null
 }
 
-/** Response of GET /banking/recurring — active ones first, by monthly cost. */
+export type RecurringOperationAction = 'include' | 'exclude'
+
+/** Response of GET /banking/recurring — one direction, active ones first, by monthly amount. */
 export interface BankRecurringResponse {
+  direction: RecurringDirection
   currency: string
-  /** The active recurring payments counted, in `currency`. */
+  /** The active ones counted, in `currency`. */
   monthly_total: number
   annual_total: number
   items: BankRecurringItem[]
@@ -592,6 +610,9 @@ export interface RealCashflowTotals {
   recurring: number
   /** The rest of `expenses`, taken month by month: a median month's is never a difference of medians. */
   one_off: number
+  /** The same split of `income`: what counted recurring income brought, and the rest. */
+  recurring_income: number
+  one_off_income: number
 }
 
 export interface RealCashflowMonth extends RealCashflowTotals {
@@ -667,8 +688,28 @@ export interface RealCashflowYear {
   projection: RealCashflowTotals | null
   safety_net: RealCashflowSafetyNet | null
   coverage_gaps: RealCashflowCoverageGap[]
-  /** The current year only: what the active recurring payments cost a month. */
+  /** The current year only: what the active recurring payments cost a month, and the income brings. */
   running_recurring: number | null
+  running_recurring_income: number | null
+}
+
+/** What one recurring payment, or income, weighed in a month. */
+export interface RealCashflowRecurring {
+  id: string | null
+  key: string
+  name: string
+  nature: RecurringNature | null
+  amount: number
+  count: number
+}
+
+/** A due date of an active recurring payment, or income, still to come this month. */
+export interface RealCashflowUpcoming {
+  id: string | null
+  key: string
+  name: string
+  date: string
+  amount: number
 }
 
 /** Response of GET /banking/real-cashflow/months/{period}. */
@@ -687,11 +728,9 @@ export interface RealCashflowMonthDetail {
   top_sources: RealCashflowCounterpart[]
   top_destinations: RealCashflowCounterpart[]
   coverage_gaps: RealCashflowCoverageGap[]
-  /** What each recurring payment weighed this month. */
-  recurring: Array<{
-    id: string | null; key: string; name: string; nature: RecurringNature | null
-    amount: number; count: number
-  }>
+  /** What each recurring payment weighed this month, and each recurring income brought. */
+  recurring: RealCashflowRecurring[]
+  recurring_income: RealCashflowRecurring[]
 }
 
 /** Response of GET /banking/real-cashflow/current — the month in progress, day by day. */
@@ -709,8 +748,11 @@ export interface RealCashflowCurrent {
   open_amount: number
   curve: Array<{ day: number; spent: number | null; median: number | null }>
   /** The due dates of active recurring payments still to come this month. */
-  upcoming: Array<{ id: string | null; key: string; name: string; date: string; amount: number }>
+  upcoming: RealCashflowUpcoming[]
   upcoming_amount: number
+  /** The income still expected this month, apart: it moves no spending. */
+  upcoming_income: RealCashflowUpcoming[]
+  upcoming_income_amount: number
 }
 
 export type BankReviewKind = 'flow' | 'transfer' | 'recurring'
@@ -719,7 +761,7 @@ export type BankReviewKind = 'flow' | 'transfer' | 'recurring'
 export interface BankReviewItem {
   kind: BankReviewKind
   transaction: BankTransactionItem
-  /** What the answer can move; for a recurring payment, what it costs a year. */
+  /** What the answer can move; for a recurring payment or income, what it weighs a year. */
   amount: number
   operation_count: number
 }
@@ -777,6 +819,16 @@ export interface BankLedgerRow {
   question: BankReviewKind | null
   /** An answer still to come can change how it counts. */
   open: boolean
+  /** Index into the ledger's `recurring`: a counted row of a counted recurring payment or income. */
+  recurring: number | null
+}
+
+export interface BankLedgerRecurring {
+  id: string | null
+  key: string
+  direction: RecurringDirection
+  name: string
+  cadence: RecurringCadence
 }
 
 /** Response of GET /banking/ledger — every stored operation, typed. */
@@ -785,6 +837,7 @@ export interface BankLedger {
   accounts: BankLedgerAccount[]
   groups: BankLedgerGroup[]
   rows: BankLedgerRow[]
+  recurring: BankLedgerRecurring[]
 }
 
 /**
