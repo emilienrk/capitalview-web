@@ -53,13 +53,6 @@ function money(value: number): string {
   return maskValue(formatCurrency(Number(value), props.tx.currency))
 }
 
-/** The answer a recurring payment's merchant makes likely, offered first. */
-const flowChoices = computed(() => {
-  const question = props.tx.flow_question
-  if (!question?.suggested) return question?.choices ?? []
-  return [question.suggested, ...question.choices.filter((choice) => choice !== question.suggested)]
-})
-
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
@@ -126,7 +119,12 @@ const paymentMeans = computed(() =>
           <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.is_credit ? 'depuis' : 'vers' }} ?
         </BaseBadge>
-        <BaseBadge v-if="tx.recurring" variant="primary" :title="tx.recurring.name">
+        <!-- A refund happened once: it names what it comes off, not a rhythm. -->
+        <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
+          <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
+          {{ tx.recurring.direction === 'income' ? 'Reprise' : 'Remboursement' }} · {{ tx.recurring.name }}
+        </BaseBadge>
+        <BaseBadge v-else-if="tx.recurring" variant="primary" :title="tx.recurring.name">
           <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
           Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
         </BaseBadge>
@@ -149,19 +147,15 @@ const paymentMeans = computed(() =>
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
-          <template v-if="tx.flow_question.recurring_name">Ce crédit de {{ tx.flow_question.recurring_name }}, c'est…</template>
-          <template v-else>{{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}</template>
+          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}
         </span>
         <button
-          v-for="choice in flowChoices"
+          v-for="choice in tx.flow_question.choices"
           :key="choice"
           type="button"
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
-          :class="[
-            'px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50',
-            choice === tx.flow_question.suggested ? 'ring-1 ring-warning/50' : '',
-          ]"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('answer', choice)"
         >
           {{ answerLabel(choice, tx.is_credit) }}

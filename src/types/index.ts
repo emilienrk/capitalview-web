@@ -417,7 +417,7 @@ export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' 
 export type CashflowType = 'INCOME' | 'EXPENSE' | 'SAVING' | 'INVESTMENT' | 'NEUTRAL'
 
 /** What gave an operation its type, strongest first. */
-export type TypeSource = 'pair' | 'override' | 'rule' | 'contribution' | 'default'
+export type TypeSource = 'pair' | 'override' | 'rule' | 'contribution' | 'recurring' | 'default'
 
 /** Every operation reading like this one on its account and direction, or this one alone. */
 export type TypeScope = 'label' | 'operation'
@@ -443,9 +443,6 @@ export interface BankFlowQuestion {
   operation_count: number
   /** What those operations add up to: what the answer can move. */
   amount: number
-  /** Offered first, never applied: a credit from a recurring payment's merchant reads as a refund. */
-  suggested: CashflowType | null
-  recurring_name: string | null
 }
 
 // ─── Récurrent ───────────────────────────────────────────────
