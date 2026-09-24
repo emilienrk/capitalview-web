@@ -72,6 +72,7 @@ export function answerHint(type: CashflowType, isCredit: boolean): string {
 export function typeSourceTitle(source: TypeSource): string {
   if (source === 'default') return 'Type détecté : le changer'
   if (source === 'contribution') return "Type déduit d'un versement sur un de vos comptes d'investissement : le changer"
+  if (source === 'recurring') return 'Type donné par son récurrent : le changer'
   return 'Type choisi : le changer'
 }
 
