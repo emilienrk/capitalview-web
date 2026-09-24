@@ -131,6 +131,8 @@ const sankey = computed(() => {
     'hub:epargne': 'Épargne',
     'hub:external': "Pris sur l'existant",
     'outflow:expenses': 'Dépenses',
+    'outflow:recurring': 'Récurrentes',
+    'outflow:one_off': 'Ponctuelles',
     'outflow:investment': 'Investissement',
     'outflow:rest': 'Reste',
   }
@@ -139,6 +141,8 @@ const sankey = computed(() => {
     'hub:epargne': 'hub:epargne',
     'hub:external': 'hub:external',
     'outflow:expenses': 'outflow:expenses',
+    'outflow:recurring': 'outflow:recurring',
+    'outflow:one_off': 'outflow:one_off',
     'outflow:investment': 'outflow:investment',
     'outflow:rest': 'outflow:rest',
   }
@@ -159,7 +163,12 @@ const sankey = computed(() => {
     nodeGroups['inflow:others'] = 'inflow:others'
     links.push({ source: 'inflow:others', target: 'hub:revenus', value: income - named })
   }
-  links.push({ source: 'hub:revenus', target: 'outflow:expenses', value: Number(totals.expenses) })
+  const expenses = Number(totals.expenses)
+  links.push({ source: 'hub:revenus', target: 'outflow:expenses', value: expenses })
+  // Split from the expenses themselves, so the two branches always add up to them.
+  const recurring = Math.min(Number(totals.recurring), expenses)
+  links.push({ source: 'outflow:expenses', target: 'outflow:recurring', value: recurring })
+  links.push({ source: 'outflow:expenses', target: 'outflow:one_off', value: expenses - recurring })
   links.push({ source: 'hub:revenus', target: 'hub:epargne', value: Number(totals.saving) })
   links.push({ source: 'hub:revenus', target: 'outflow:investment', value: Number(totals.investment) })
   if (Number(totals.net) > 0) links.push({ source: 'hub:revenus', target: 'outflow:rest', value: Number(totals.net) })
