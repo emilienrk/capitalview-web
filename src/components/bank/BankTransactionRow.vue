@@ -168,6 +168,14 @@ const paymentMeans = computed(() =>
           :stake="stake ?? undefined"
           :label="tx.label"
         />
+        <!-- The hints sit on operations the question is not asked on: said
+             here, and shown on each of them once the list is open. -->
+        <span v-if="tx.flow_question.hints" class="basis-full inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted">
+          <TrendingUp class="w-3.5 h-3.5 shrink-0" />
+          {{ tx.flow_question.hints === 1
+            ? "Une de ces opérations pourrait être un versement sur un compte d'investissement."
+            : `${tx.flow_question.hints} de ces opérations pourraient être des versements sur un compte d'investissement.` }}
+        </span>
       </div>
       <!-- A recurring charge or income found but not sure enough to count:
            asked on its last operation, in the same style. The answer moves no

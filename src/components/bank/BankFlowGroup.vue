@@ -15,6 +15,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
+import { contributionNote } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   transactionId: string
@@ -53,6 +54,12 @@ function signed(tx: BankTransactionItem): string {
   return maskValue(formatCurrency(tx.is_credit ? value : -value, tx.currency))
 }
 
+function hint(tx: BankTransactionItem): string | null {
+  const match = tx.contribution
+  if (!match) return null
+  return contributionNote(match, maskValue(formatCurrency(Number(match.amount), tx.currency)), day(match.day))
+}
+
 function day(value: string | null): string {
   if (!value) return ''
   const [year, month, date] = value.split('-').map(Number)
@@ -82,18 +89,21 @@ function day(value: string | null): string {
         <li
           v-for="operation in operations"
           :key="operation.id"
-          class="flex items-baseline gap-2 px-2.5 py-1.5 text-text-muted dark:text-text-dark-muted"
+          class="px-2.5 py-1.5 text-text-muted dark:text-text-dark-muted"
         >
-          <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
-          <span class="shrink-0">{{ operation.account_name }}</span>
-          <!-- The references and dates a bank writes into its labels differ from
-               one operation to the next; the words they share are what groups them. -->
-          <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
-            {{ operation.label }}
-          </span>
-          <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
-            {{ signed(operation) }}
-          </span>
+          <div class="flex items-baseline gap-2">
+            <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
+            <span class="shrink-0">{{ operation.account_name }}</span>
+            <!-- The references and dates a bank writes into its labels differ from
+                 one operation to the next; the words they share are what groups them. -->
+            <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
+              {{ operation.label }}
+            </span>
+            <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
+              {{ signed(operation) }}
+            </span>
+          </div>
+          <p v-if="hint(operation)" class="text-info">{{ hint(operation) }}</p>
         </li>
       </template>
       <li v-else-if="failed" class="px-2.5 py-1.5 text-danger">

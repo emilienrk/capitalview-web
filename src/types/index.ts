@@ -443,6 +443,8 @@ export interface BankFlowQuestion {
   operation_count: number
   /** What those operations add up to: what the answer can move. */
   amount: number
+  /** How many of them a deposit declared a few days away could be. */
+  hints: number
 }
 
 // ─── Récurrent ───────────────────────────────────────────────
