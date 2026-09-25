@@ -121,14 +121,11 @@ const depositForm = reactive<EurDepositCreate>({
  * its balance is the bank's, and the transfer shows up there on the next sync —
  * deducting it here as well would count it twice.
  */
-const sortedBankAccounts = computed(() => {
-  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR' && !a.is_linked)
-  return [...accounts].sort((a, b) => {
-    if (a.account_type === 'CHECKING') return -1
-    if (b.account_type === 'CHECKING') return 1
-    return 0
-  })
-})
+// Current accounts only: a savings account (Livret A, LDD, PEL…) pays out to
+// its holder's current account, never to a broker or an exchange.
+const sortedBankAccounts = computed(() =>
+  (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR' && !a.is_linked && a.account_type === 'CHECKING'),
+)
 
 // ── Unified asset search ─────────────────────────────────────
 interface AssetOption {
