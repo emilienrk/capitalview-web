@@ -72,6 +72,7 @@ export function answerHint(type: CashflowType, isCredit: boolean): string {
 export function typeSourceTitle(source: TypeSource): string {
   if (source === 'default') return 'Type détecté : le changer'
   if (source === 'contribution') return "Type déduit d'un versement sur un de vos comptes d'investissement : le changer"
+  if (source === 'recurring') return 'Type donné par son récurrent : le changer'
   return 'Type choisi : le changer'
 }
 
@@ -106,7 +107,10 @@ export const PAIR_HINTS = {
 } as const
 
 export const ALL = 'all'
-/** Offered beside the types: a mark on expenses, not a type of its own. */
+/**
+ * Offered beside the types: a mark on expenses and income, not a type of its
+ * own. Payments and income both, the direction filter tells them apart.
+ */
 export const RECURRING = 'recurring'
 
 export function matchesCashflowType(tx: BankTransactionItem, filter: string): boolean {
@@ -118,7 +122,7 @@ export function matchesOperationType(tx: BankTransactionItem, filter: string): b
   return filter === ALL || tx.operation_type === filter
 }
 
-/** A pair offered to the user, a label only the user can type, or a recurring payment to confirm. */
+/** A pair offered to the user, a label only the user can type, or a recurring payment or income to confirm. */
 export function needsReview(tx: BankTransactionItem): boolean {
   return tx.transfer_status === 'suggested' || tx.flow_question !== null || tx.recurring_question !== null
 }

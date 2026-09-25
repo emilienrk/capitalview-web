@@ -137,7 +137,7 @@ const option = computed(() => {
     const targetGroup = getNodeGroup(link.target)
     let color = props.isDark ? 'rgba(148, 163, 184, 0.5)' : 'rgba(148, 163, 184, 0.4)'
 
-    if (sourceGroup === 'hub:revenus' && targetGroup.startsWith('outflow:')) {
+    if (targetGroup.startsWith('outflow:')) {
       color = getIntensityColor(targetGroup, true)
     } else if (targetGroup === 'hub:revenus' && sourceGroup.startsWith('inflow:')) {
       color = getIntensityColor(sourceGroup, false)
@@ -186,9 +186,10 @@ const option = computed(() => {
         if (hubIds.has(nodeId)) return ''
         const label = getNodeLabel(nodeId)
         if (!label) return ''
-        const total = props.links
-          .filter((l) => l.source === nodeId || l.target === nodeId)
-          .reduce((sum, l) => sum + l.value, 0)
+        // A node in the middle has links on both sides: count one side only.
+        const into = props.links.filter((l) => l.target === nodeId).reduce((sum, l) => sum + l.value, 0)
+        const out = props.links.filter((l) => l.source === nodeId).reduce((sum, l) => sum + l.value, 0)
+        const total = Math.max(into, out)
         const totalStr = total > 0
           ? `<br/><span style="font-size:13px;font-weight:600">${total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €</span>`
           : ''
@@ -205,7 +206,9 @@ const option = computed(() => {
         nodeWidth: isCompact.value ? 12 : 14,
         nodeGap: isCompact.value ? 10 : 12,
         draggable: false,
-        nodeAlign: 'justify',
+        // Left, not justified: a split of the expenses must not push saving and
+        // investing to a column of their own, across the expenses' band.
+        nodeAlign: 'left',
         emphasis: {
           focus: 'none',
         },
@@ -230,15 +233,17 @@ const option = computed(() => {
               show: false,
             },
           },
-          {
-            depth: 2,
+          // Past the hub, a name sits before its node: the last column has no
+          // room after it. Three columns, or four once the expenses split.
+          ...[2, 3].map((depth) => ({
+            depth,
             label: {
               position: 'inside',
               align: 'right',
               verticalAlign: 'middle',
               padding: [0, 12, 0, 0],
             },
-          },
+          })),
         ],
         label: {
           position: isCompact.value ? 'inside' : 'right',

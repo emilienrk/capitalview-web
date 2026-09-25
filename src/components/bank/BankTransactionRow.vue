@@ -16,7 +16,7 @@ import {
   answerLabel,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
-import { ROLE_NOTES, questionText } from '@/utils/recurring'
+import { questionText, roleNote } from '@/utils/recurring'
 import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind } from '@/types'
 
 const props = defineProps<{
@@ -43,6 +43,7 @@ defineEmits<{
   answer: [type: CashflowType]
   retype: []
   subscribe: [decision: RecurringDecisionKind]
+  recurring: []
 }>()
 
 const { formatCurrency } = useFormatters()
@@ -51,13 +52,6 @@ const { maskValue } = usePrivacyMode()
 function money(value: number): string {
   return maskValue(formatCurrency(Number(value), props.tx.currency))
 }
-
-/** The answer a recurring payment's merchant makes likely, offered first. */
-const flowChoices = computed(() => {
-  const question = props.tx.flow_question
-  if (!question?.suggested) return question?.choices ?? []
-  return [question.suggested, ...question.choices.filter((choice) => choice !== question.suggested)]
-})
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 const cancelled = computed(() =>
@@ -69,6 +63,22 @@ const typable = computed(() => props.tx.transfer_status === null || suggested.va
 const unpairedTransfer = computed(
   () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
 )
+/**
+ * What the API lets the user file under a recurring by hand: a past debit
+ * counted as spent or a credit counted as received, no transfer between the
+ * accounts — or one already filed, to take it out.
+ */
+const recurrable = computed(() => {
+  const tx = props.tx
+  if (tx.recurring) return true
+  return !tx.is_pending && tx.transfer_status === null && tx.cashflow_type === (tx.is_credit ? 'INCOME' : 'EXPENSE')
+})
+const recurringAction = computed(() =>
+  props.tx.recurring
+    ? `Retirer de ${props.tx.recurring.name}`
+    : `Rattacher à un ${props.tx.is_credit ? 'revenu' : 'paiement'} récurrent`,
+)
+const incomeQuestion = computed(() => props.tx.recurring_question?.direction === 'income')
 const paymentMeans = computed(() =>
   props.tx.operation_type === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.tx.operation_type],
 )
@@ -109,9 +119,14 @@ const paymentMeans = computed(() =>
           <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.is_credit ? 'depuis' : 'vers' }} ?
         </BaseBadge>
-        <BaseBadge v-if="tx.recurring" variant="primary" :title="tx.recurring.name">
+        <!-- A refund happened once: it names what it comes off, not a rhythm. -->
+        <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
+          <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
+          {{ tx.recurring.direction === 'income' ? 'Reprise' : 'Remboursement' }} · {{ tx.recurring.name }}
+        </BaseBadge>
+        <BaseBadge v-else-if="tx.recurring" variant="primary" :title="tx.recurring.name">
           <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
-          Récurrent<template v-if="ROLE_NOTES[tx.recurring.role]"> · {{ ROLE_NOTES[tx.recurring.role] }}</template>
+          Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
         </BaseBadge>
         <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
       </div>
@@ -132,19 +147,15 @@ const paymentMeans = computed(() =>
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
-          <template v-if="tx.flow_question.recurring_name">Ce crédit de {{ tx.flow_question.recurring_name }}, c'est…</template>
-          <template v-else>{{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}</template>
+          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}
         </span>
         <button
-          v-for="choice in flowChoices"
+          v-for="choice in tx.flow_question.choices"
           :key="choice"
           type="button"
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
-          :class="[
-            'px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50',
-            choice === tx.flow_question.suggested ? 'ring-1 ring-warning/50' : '',
-          ]"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('answer', choice)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
@@ -157,10 +168,18 @@ const paymentMeans = computed(() =>
           :stake="stake ?? undefined"
           :label="tx.label"
         />
+        <!-- The hints sit on operations the question is not asked on: said
+             here, and shown on each of them once the list is open. -->
+        <span v-if="tx.flow_question.hints" class="basis-full inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted">
+          <TrendingUp class="w-3.5 h-3.5 shrink-0" />
+          {{ tx.flow_question.hints === 1
+            ? "Une de ces opérations pourrait être un versement sur un compte d'investissement."
+            : `${tx.flow_question.hints} de ces opérations pourraient être des versements sur un compte d'investissement.` }}
+        </span>
       </div>
-      <!-- A recurring charge found but not sure enough to count: asked on its
-           last debit, in the same style. The answer moves no total, only the
-           part of the expenses said to be recurring. -->
+      <!-- A recurring charge or income found but not sure enough to count:
+           asked on its last operation, in the same style. The answer moves no
+           total, only the part of the expenses or income said to be recurring. -->
       <div v-if="tx.recurring_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <Repeat class="w-3.5 h-3.5" />
@@ -169,7 +188,7 @@ const paymentMeans = computed(() =>
         <button
           type="button"
           :disabled="busy"
-          title="Compté dans les paiements récurrents, et ses prochaines échéances avec lui."
+          :title="`Compté dans les ${incomeQuestion ? 'revenus' : 'paiements'} récurrents, et ses prochaines échéances avec lui.`"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('subscribe', 'confirm')"
         >
@@ -178,7 +197,9 @@ const paymentMeans = computed(() =>
         <button
           type="button"
           :disabled="busy"
-          title="Ce n'est pas récurrent : il ne sera plus proposé."
+          :title="incomeQuestion
+            ? 'Pas un revenu récurrent : il ne sera plus proposé.'
+            : 'Ce n\'est pas récurrent : il ne sera plus proposé.'"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
           @click="$emit('subscribe', 'refuse')"
         >
@@ -195,6 +216,15 @@ const paymentMeans = computed(() =>
     </p>
     <!-- A fixed width, so the amounts line up whether a row offers one action or two. -->
     <div class="shrink-0 w-16 flex items-center justify-end gap-0.5">
+      <BaseButton
+        v-if="!suggested && recurrable"
+        class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+        icon size="sm" variant="ghost" :disabled="busy"
+        :aria-label="recurringAction" :title="recurringAction"
+        @click="$emit('recurring')"
+      >
+        <Repeat class="w-4 h-4" />
+      </BaseButton>
       <!-- Only a suggested pair asks: every other one was settled without the user.
            The corrections stay out of sight until hovered, so the list does not
            read as a to-do list. -->

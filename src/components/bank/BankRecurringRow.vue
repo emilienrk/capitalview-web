@@ -1,20 +1,25 @@
 <script setup lang="ts">
 /**
- * One recurring payment in the Récurrent tab: what it costs and when it is due,
- * opened on its history and on what can be said about it.
+ * One recurring payment, or income, in the Récurrent tab: what it costs or
+ * brings and when it is due, opened on its history and on what can be said
+ * about it.
  */
 import { computed, ref, watch } from 'vue'
-import { ChevronDown, TrendingDown, TrendingUp } from 'lucide-vue-next'
+import { ChevronDown, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton, BaseInput, BaseSelect, BaseSkeleton } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useRecurringStore } from '@/stores/recurring'
 import { OPERATION_TYPE_LABELS } from '@/utils/cashflowTypes'
-import { CADENCE_LABELS, CADENCE_PER, NATURES, NATURE_LABELS, ROLE_NOTES, isCounted } from '@/utils/recurring'
+import { CADENCE_LABELS, CADENCE_PER, NATURES, NATURE_LABELS, isCounted, roleNote } from '@/utils/recurring'
 import type { BankRecurringItem, BankTransactionItem, RecurringDecisionKind, RecurringNature } from '@/types'
 
-const props = defineProps<{ item: BankRecurringItem }>()
+const props = defineProps<{
+  item: BankRecurringItem
+  /** What it can be merged with: the others of its list, of its direction. */
+  others?: BankRecurringItem[]
+}>()
 
 const emit = defineEmits<{ failed: [message: string] }>()
 
@@ -26,6 +31,7 @@ function money(value: number, currency = props.item.currency): string {
   return maskValue(formatCurrency(Number(value), currency))
 }
 
+const income = computed(() => props.item.direction === 'income')
 const counted = computed(() => isCounted(props.item))
 const ended = computed(() => props.item.status === 'ended')
 const lastChange = computed(() => props.item.price_changes[props.item.price_changes.length - 1] ?? null)
@@ -36,7 +42,9 @@ const means = computed(() =>
 /** Where it stands, said once beside its name; nothing when it simply runs. */
 const statusBadge = computed(() => {
   const item = props.item
-  if (item.ended_on) return { variant: 'secondary' as const, text: `Résilié le ${formatDate(item.ended_on)}` }
+  if (item.ended_on) {
+    return { variant: 'secondary' as const, text: `${income.value ? 'Terminé' : 'Résilié'} le ${formatDate(item.ended_on)}` }
+  }
   if (item.status === 'late') return { variant: 'warning' as const, text: 'En retard' }
   if (item.status === 'stale' && item.covered_until) {
     return { variant: 'secondary' as const, text: `À jour au ${formatDate(item.covered_until)}` }
@@ -89,12 +97,8 @@ async function decide(decision: RecurringDecisionKind): Promise<void> {
   await act(() => store.decide(props.item.transaction_id, decision))
 }
 
-/** One counted without asking has no decision yet to edit: saying yes makes it. */
-async function decisionId(): Promise<string> {
-  if (props.item.id) return props.item.id
-  const decided = await store.decide(props.item.transaction_id, 'confirm')
-  if (!decided?.id) throw new Error("Impossible d'enregistrer ce choix.")
-  return decided.id
+function decisionId(): Promise<string> {
+  return store.decisionId(props.item)
 }
 
 function startRename(): void {
@@ -115,7 +119,9 @@ async function setEnded(endedOn: string | null): Promise<void> {
   await act(async () => store.update(await decisionId(), { ended_on: endedOn }))
 }
 
-const natureOptions = NATURES.map((nature) => ({ label: NATURE_LABELS[nature], value: nature }))
+const natureOptions = computed(() =>
+  NATURES[props.item.direction].map((nature) => ({ label: NATURE_LABELS[nature], value: nature })),
+)
 
 // The select shows what is stored, never what a failed write attempted.
 const natureChoice = ref<RecurringNature | undefined>(props.item.nature ?? undefined)
@@ -128,6 +134,25 @@ async function setNature(nature: string | number | undefined): Promise<void> {
   if (!await act(async () => store.update(await decisionId(), { nature: nature as RecurringNature }))) {
     natureChoice.value = props.item.nature ?? undefined
   }
+}
+
+/** Out of the series for good: the detection will not take it back. */
+async function detach(operation: BankTransactionItem): Promise<void> {
+  if (!await act(async () => store.correct(await decisionId(), operation.id, 'exclude'))) return
+  operations.value = operations.value?.filter((kept) => kept.id !== operation.id) ?? null
+}
+
+const mergeOptions = computed(() =>
+  (props.others ?? [])
+    .filter((other) => other.key !== props.item.key && other.state !== 'refused')
+    .map((other) => ({ label: other.name, value: other.key })),
+)
+
+/** The other one's operations join this one, which keeps its name. */
+async function mergeWith(key: string | number | undefined): Promise<void> {
+  const other = props.others?.find((candidate) => candidate.key === key)
+  if (!other) return
+  await act(async () => store.merge(await decisionId(), other))
 }
 
 function today(): string {
@@ -177,7 +202,7 @@ function today(): string {
 
     <!-- A found series not counted yet: the same yes or no as on its operation. -->
     <div v-if="item.state === 'candidate'" class="mt-2 flex items-center gap-1.5 text-xs">
-      <span class="text-warning font-medium">C'est un paiement récurrent ?</span>
+      <span class="text-warning font-medium">C'est un {{ income ? 'revenu' : 'paiement' }} récurrent ?</span>
       <button
         type="button" :disabled="busy"
         class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
@@ -199,10 +224,10 @@ function today(): string {
         {{ item.since_at_least ? 'Au moins depuis' : 'Depuis' }} le {{ formatDate(item.first_date) }} ·
         {{ item.occurrence_count }} échéance{{ item.occurrence_count > 1 ? 's' : '' }}<template v-if="item.extra_count">
           et {{ item.extra_count }} hors échéance</template> ·
-        {{ money(item.paid_last_12_months) }} payés sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an
+        {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an
       </p>
       <p v-if="item.price_changes.length">
-        Prix :
+        {{ income ? 'Montant' : 'Prix' }} :
         <template v-for="(change, index) in item.price_changes" :key="change.date">
           {{ index ? ', ' : '' }}{{ money(change.before) }} → {{ money(change.after) }} le {{ formatDate(change.date) }}
         </template>
@@ -217,23 +242,35 @@ function today(): string {
         Anciens noms : {{ item.renamed.map((rename) => rename.before).join(', ') }}
       </p>
       <p v-if="item.refunds.items.length">
-        {{ money(item.refunds.total) }} remboursés ({{ item.refunds.items.length }} crédit{{ item.refunds.items.length > 1 ? 's' : '' }})
+        {{ money(item.refunds.total) }} {{ income ? 'repris' : 'remboursés' }}
+        ({{ item.refunds.items.length }} {{ income ? 'débit' : 'crédit' }}{{ item.refunds.items.length > 1 ? 's' : '' }})
       </p>
 
       <ul class="max-h-72 overflow-y-auto rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border">
         <template v-if="operations">
-          <li v-for="operation in operations" :key="operation.id" class="flex items-baseline gap-2 px-2.5 py-1.5">
+          <li v-for="operation in operations" :key="operation.id" class="group flex items-baseline gap-2 px-2.5 py-1.5">
             <span class="shrink-0 tabular-nums">{{ formatDate(operation.operation_date) }}</span>
             <span class="truncate" :title="operation.label ?? undefined">{{ operation.label }}</span>
             <span
-              v-if="operation.recurring && ROLE_NOTES[operation.recurring.role]"
+              v-if="operation.recurring && roleNote(operation.recurring.role, item.direction)"
               class="shrink-0 text-text-muted/80 dark:text-text-dark-muted/80"
             >
-              {{ ROLE_NOTES[operation.recurring.role] }}
+              {{ roleNote(operation.recurring.role, item.direction) }}
             </span>
             <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
               {{ signed(operation) }}
             </span>
+            <button
+              v-if="item.state !== 'refused'"
+              type="button"
+              :disabled="busy"
+              class="shrink-0 self-center rounded p-0.5 hover:text-danger disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+              :aria-label="`Retirer cette opération de ${item.name}`"
+              :title="`N'en fait pas partie : ${income ? 'ce revenu' : 'ce paiement'} ne la reprendra plus.`"
+              @click="detach(operation)"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
           </li>
         </template>
         <li v-else-if="loadFailed" class="px-2.5 py-1.5 text-danger">Impossible de charger ces opérations.</li>
@@ -241,7 +278,7 @@ function today(): string {
       </ul>
 
       <form v-if="renaming" class="flex items-center gap-2" @submit.prevent="saveName">
-        <div class="flex-1"><BaseInput v-model="name" aria-label="Nom du paiement récurrent" /></div>
+        <div class="flex-1"><BaseInput v-model="name" :aria-label="income ? 'Nom du revenu récurrent' : 'Nom du paiement récurrent'" /></div>
         <BaseButton size="sm" type="submit" :loading="busy">Enregistrer</BaseButton>
         <BaseButton size="sm" variant="ghost" @click="renaming = false">Annuler</BaseButton>
       </form>
@@ -252,7 +289,7 @@ function today(): string {
             :options="natureOptions"
             placeholder="À classer"
             :disabled="busy"
-            aria-label="Ce paiement sert à"
+            :aria-label="income ? 'Ce revenu vient de' : 'Ce paiement sert à'"
             @update:model-value="setNature"
           />
         </div>
@@ -261,15 +298,27 @@ function today(): string {
         </BaseButton>
         <template v-if="counted">
           <BaseButton v-if="item.ended_on" size="sm" variant="outline" :disabled="busy" @click="setEnded(null)">
-            Pas résilié
+            {{ income ? 'Pas terminé' : 'Pas résilié' }}
           </BaseButton>
           <BaseButton v-else-if="!ended" size="sm" variant="outline" :disabled="busy" @click="setEnded(today())">
-            Je l'ai résilié
+            {{ income ? "Il s'est arrêté" : "Je l'ai résilié" }}
           </BaseButton>
           <BaseButton size="sm" variant="ghost" :disabled="busy" @click="decide('refuse')">
-            Ce n'est pas récurrent
+            {{ income ? "Ce n'est pas un revenu récurrent" : "Ce n'est pas récurrent" }}
           </BaseButton>
         </template>
+        <!-- A contract that changed hands, an allowance paid by another office:
+             one series, which the detection saw as two. -->
+        <div v-if="item.state !== 'refused' && mergeOptions.length" class="w-48">
+          <BaseSelect
+            :model-value="undefined"
+            :options="mergeOptions"
+            placeholder="Fusionner avec…"
+            :disabled="busy"
+            :aria-label="`Fusionner ${item.name} avec un autre ${income ? 'revenu' : 'paiement'} récurrent`"
+            @update:model-value="mergeWith"
+          />
+        </div>
         <BaseButton
           v-if="item.state === 'refused' && item.id"
           size="sm" variant="outline" :disabled="busy"

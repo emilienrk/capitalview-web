@@ -29,6 +29,7 @@ function row(overrides: Partial<BankLedgerRow>): BankLedgerRow {
     signed: 10,
     question: null,
     open: false,
+    recurring: null,
     ...overrides,
   }
 }
@@ -47,6 +48,7 @@ function ledger(rows: BankLedgerRow[]): BankLedger {
       { key: 'vinted', name: 'Vinted', is_credit: true },
     ],
     rows,
+    recurring: [],
   }
 }
 

@@ -19,6 +19,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
   BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSelect, BaseSkeleton, BaseToggle,
 } from '@/components'
+import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
@@ -266,6 +267,7 @@ function amountClass(tx: BankTransactionItem): string {
 const deciding = ref<string | null>(null)
 const decisionError = ref<string | null>(null)
 const linking = ref<BankTransactionItem | null>(null)
+const filing = ref<BankTransactionItem | null>(null)
 
 async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
   if (!tx.transfer_id) return
@@ -307,9 +309,10 @@ async function answer(tx: BankTransactionItem, type: CashflowType): Promise<void
 async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
   deciding.value = tx.id
   decisionError.value = null
+  const kind = tx.recurring_question?.direction === 'income' ? 'revenus' : 'paiements'
   try {
     await recurring.decide(tx.id, decision)
-    typedMessage.value = decision === 'confirm' ? 'Compté dans vos paiements récurrents.' : 'Ne sera plus proposé comme récurrent.'
+    typedMessage.value = decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.'
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -623,6 +626,7 @@ onMounted(() => void load())
             :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
+            @recurring="filing = tx"
             @answer="(type) => answer(tx, type)"
             @retype="retyping = tx"
             @subscribe="(decision) => subscribe(tx, decision)"
@@ -646,6 +650,7 @@ onMounted(() => void load())
                 :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
+                @recurring="filing = tx"
                 @answer="(type) => answer(tx, type)"
                 @retype="retyping = tx"
                 @subscribe="(decision) => subscribe(tx, decision)"
@@ -673,6 +678,7 @@ onMounted(() => void load())
     />
 
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
+    <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker
       :open="retyping !== null"
       :tx="retyping"

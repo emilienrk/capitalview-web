@@ -5,15 +5,18 @@ import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
 import type {
   BankRecurringItem, BankRecurringUpdate, BankRecurringResponse, BankTransactionItem,
-  RecurringDecisionKind,
+  RecurringCadence, RecurringDecisionKind, RecurringDirection, RecurringOperationAction,
 } from '@/types'
 
-/** The recurring charges found in the operations, and what the user decided about them. */
+/**
+ * The recurring charges and income found in the operations, and what the user
+ * decided about them. The API lists one direction at a time.
+ */
 export const useRecurringStore = defineStore('recurring', () => {
-  const list = ref<BankRecurringResponse | null>(null)
+  const lists = ref<Record<RecurringDirection, BankRecurringResponse | null>>({ expense: null, income: null })
 
-  async function fetchList(): Promise<void> {
-    list.value = await apiClient.get<BankRecurringResponse>('/banking/recurring')
+  async function fetchList(direction: RecurringDirection = 'expense'): Promise<void> {
+    lists.value[direction] = await apiClient.get<BankRecurringResponse>(`/banking/recurring?direction=${direction}`)
   }
 
   /** Yes or no to the series the operation belongs to; the refusal is kept. */
@@ -27,8 +30,42 @@ export const useRecurringStore = defineStore('recurring', () => {
     return item
   }
 
+  /** One counted without asking has no decision yet to edit: saying yes makes it. */
+  async function decisionId(item: Pick<BankRecurringItem, 'id' | 'transaction_id'>): Promise<string> {
+    if (item.id) return item.id
+    const decided = await decide(item.transaction_id, 'confirm')
+    if (!decided?.id) throw new Error("Impossible d'enregistrer ce choix.")
+    return decided.id
+  }
+
+  /** An operation the detection left out: a debit makes a payment, a credit an income. */
+  async function mark(transactionId: string, cadence?: RecurringCadence, name?: string): Promise<BankRecurringItem | null> {
+    const item = await apiClient.post<BankRecurringItem | null>('/banking/recurring', {
+      transaction_id: transactionId, cadence, name,
+    })
+    changed()
+    return item
+  }
+
   async function update(id: string, data: BankRecurringUpdate): Promise<void> {
     await apiClient.patch(`/banking/recurring/${encodeURIComponent(id)}`, data)
+    changed()
+  }
+
+  /** Attaches an operation the detection missed, or detaches one it took, for good. */
+  async function correct(id: string, transactionId: string, action: RecurringOperationAction): Promise<void> {
+    await apiClient.post(`/banking/recurring/${encodeURIComponent(id)}/operations`, {
+      transaction_id: transactionId, action,
+    })
+    changed()
+  }
+
+  /** One of two: the other one, decided or reached through its last operation, goes. */
+  async function merge(id: string, other: Pick<BankRecurringItem, 'id' | 'transaction_id'>): Promise<void> {
+    await apiClient.post(
+      `/banking/recurring/${encodeURIComponent(id)}/merge`,
+      other.id ? { other_id: other.id } : { other_transaction_id: other.transaction_id },
+    )
     changed()
   }
 
@@ -47,15 +84,15 @@ export const useRecurringStore = defineStore('recurring', () => {
     )
   }
 
-  // A decision moves the questions, the expenses' recurring share and the
-  // list: everything listening to `dataRevision` reloads.
+  // A decision moves the questions, the recurring share of the expenses and
+  // the income, and the lists: everything listening to `dataRevision` reloads.
   function changed(): void {
     useBankStore().operationsRead()
   }
 
   function reset(): void {
-    list.value = null
+    lists.value = { expense: null, income: null }
   }
 
-  return { list, fetchList, decide, update, remove, fetchOperations, reset }
+  return { lists, fetchList, decide, decisionId, mark, update, correct, merge, remove, fetchOperations, reset }
 })
