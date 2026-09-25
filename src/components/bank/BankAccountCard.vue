@@ -34,9 +34,8 @@ function todayIso(): string {
 }
 
 /**
- * One badge for the bank link, where there used to be two ("Banque liée" and
- * "connecté") saying the same thing. Only a linked account gets one: an
- * imported account is not synchronised with anything.
+ * One badge for the bank link. Only a linked account gets one: an imported
+ * account is not synchronised with anything.
  */
 const syncBadge = computed<{ label: string; variant: BadgeVariant; title?: string } | null>(() => {
   const account = props.account
@@ -161,7 +160,7 @@ async function reseedHistory(): Promise<void> {
     </div>
 
     <!--
-      Ruling R19: the bank publishes a single OTHR balance on a card account
+      The bank publishes a single OTHR balance on a card account
       and no accounting one. A curve is walked back *from* a balance, so
       there is nothing to draw it from — by design, not by failure. Said
       permanently rather than only after a sync: a balance with no history is
@@ -192,7 +191,7 @@ async function reseedHistory(): Promise<void> {
     </div>
 
     <!--
-      Ruling R18: shown only when reconciliation_status === 'gap'. The balance
+      Shown only when reconciliation_status === 'gap'. The balance
       itself is the bank's and is right; what the check doubts is the list of
       operations since the previous sync, so that is what the message talks
       about — in the user's terms, not the ledger's.

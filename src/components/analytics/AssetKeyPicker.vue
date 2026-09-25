@@ -2,12 +2,10 @@
 /**
  * Pick a line by its name. The ISIN is what gets stored, never what gets typed.
  *
- * The analysis settings used to ask for an ISIN outright. That is the wrong
- * question: nobody recognises IE00B4L5Y983, and getting it wrong fails in
- * silence — the plan scores an allocation against a line the portfolio does not
- * contain, and nothing on the page says so. Here the choice comes from what has
- * actually been traded, held or sold, and the key stays visible underneath as
- * confirmation rather than as the input.
+ * Nobody recognises IE00B4L5Y983, and a mistyped ISIN fails in silence: the
+ * plan scores an allocation against a line the portfolio does not contain. The
+ * choice comes from what has been traded, held or sold, and the key stays
+ * visible underneath as confirmation.
  *
  * Free entry survives, one click away. A plan is a statement about the future
  * and may legitimately name a line never bought yet — but that is the rare case,

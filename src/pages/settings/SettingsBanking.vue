@@ -118,8 +118,8 @@ async function copyCallbackUrl(): Promise<void> {
   }
 }
 
-/** Any PEM armor used to pass, so the public half of the pair sailed through and
- *  only surfaced later as a misleading "clé refusée" diagnostic. */
+/** A private key only: a public one would surface later as a misleading
+ *  "clé refusée" diagnostic. */
 const PRIVATE_KEY_ARMOR = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/
 
 /** A rejected drop must not leave the previous file looking accepted. */

@@ -111,7 +111,7 @@ async function mountSelector(): Promise<void> {
   // Postale, Société Générale (particuliers), the 39 Crédit Agricole and the 15
   // Caisse d'Épargne among them — the feature was unusable for most people.
   // Flagging them instead was not worth it either: a marker on three entries out
-  // of four carries no signal (same reasoning as ruling R18).
+  // of four carries no signal.
   element.addEventListener('selected', onAspspSelected as EventListener)
   host.appendChild(element)
 }
@@ -198,8 +198,7 @@ const takenAccountIds = computed(() => {
 /**
  * The attachment is one-to-one, and the API answers 409 on a second one. Offering
  * a taken account would send the user into that refusal at the very end of a
- * journey that cost them a strong authentication. A card and a current account
- * also have to stay apart for the cross-account deduplication to work at all.
+ * journey that cost them a strong authentication.
  */
 const availableAccountOptions = computed(() =>
   capitalViewAccountOptions.value.filter((o) => !takenAccountIds.value.has(o.value)),

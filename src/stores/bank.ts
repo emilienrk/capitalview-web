@@ -69,8 +69,7 @@ export const useBankStore = defineStore('bank', () => {
    * The last synchronisation's outcome per CapitalView account uuid.
    *
    * `POST /banking/sync` is a 200 whatever happened to each account, so a lost
-   * consent or a bank that publishes no usable balance used to be a silent
-   * no-op: the page redrew unchanged and said nothing. Kept until the next
+   * consent would otherwise go unsaid. Kept until the next
    * sync, and only ever populated by one — an account absent from this map has
    * not been attempted in this sitting, which is not the same as "it worked".
    */

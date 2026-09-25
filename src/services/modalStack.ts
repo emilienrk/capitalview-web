@@ -6,16 +6,15 @@
  * which one paints on top — and that order is the mount order, which has
  * nothing to do with the order the user opens them in. The confirm dialog
  * mounted in App.vue sits earlier in <body> than any lazy-loaded page's modal,
- * so it used to open *underneath* the very modal that asked for it. Counting
- * from the opening makes the last one opened the visible one, whatever was
- * mounted first.
+ * and would open *underneath* the very modal that asked for it. Counting from
+ * the opening makes the last one opened the visible one.
  *
  * Lives here rather than in BaseModal because `<script setup>` runs per
  * instance: a counter declared there would be duplicated, not shared — the same
  * reason `scrollLock` is its own module.
  */
 
-/** Floor of the range, matching the `z-50` modals used to carry. */
+/** Floor of the range, matching Tailwind's `z-50`. */
 export const BASE_MODAL_Z_INDEX = 50
 
 let openModals = 0

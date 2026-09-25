@@ -6,11 +6,10 @@
  * button: pointer devices open it on hover, touch devices on tap, and a keyboard
  * on focus. That also makes it reachable rather than decorative.
  *
- * The panel is teleported to <body> and placed by Floating UI. Positioned
- * inside its trigger's box it used to be clipped by any card with
- * `overflow: hidden`, painted under the fixed sidebar, and cut at the bottom of
- * the screen; out here it flips to whichever side has room and slides back
- * inside the viewport, and follows its trigger on scroll and resize.
+ * The panel is teleported to <body> and placed by Floating UI: inside its
+ * trigger's box it would be clipped by any card with `overflow: hidden` and
+ * painted under the fixed sidebar. Out here it flips to whichever side has room
+ * and follows its trigger on scroll and resize.
  *
  * It is for secondary reading — a caveat, a definition. Anything a user must see
  * to avoid a wrong conclusion belongs on the page, not in here.

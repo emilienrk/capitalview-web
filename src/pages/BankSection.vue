@@ -96,7 +96,7 @@ async function syncNow(): Promise<void> {
 }
 
 /**
- * Spec §D1: the synchronisation is fired after the page has rendered, never
+ * The synchronisation is fired after the page has rendered, never
  * before. The daily cap is re-checked server-side, so a redundant call is
  * harmless — a blocking one would not be.
  */
