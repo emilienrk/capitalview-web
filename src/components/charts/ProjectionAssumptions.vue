@@ -13,6 +13,7 @@ import { computed, ref, watch } from 'vue'
 import { BaseButton, BaseInput, BaseModal, BaseTooltip } from '@/components'
 import {
   PROJECTION_ROWS,
+  PROVENANCE_CODES,
   draftsToAssets,
   isDirty as draftsDiffer,
   basisLabel,
@@ -77,7 +78,7 @@ const editableRows = computed(() =>
       const values = draft.value[row.key]
       if (!values) return []
       const basis = props.parametersUsed?.assets?.[row.key]?.basis ?? null
-      const warnings = (basis?.warnings ?? []).filter((w) => w.code !== 'not_measured')
+      const warnings = (basis?.warnings ?? []).filter((w) => !PROVENANCE_CODES.has(w.code))
       return [
         {
           ...row,

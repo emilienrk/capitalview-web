@@ -18,6 +18,7 @@ export const PROJECTION_ROWS: { key: ProjectionCategory; label: string }[] = [
   { key: 'STOCK', label: 'Actions' },
   { key: 'CRYPTO', label: 'Crypto' },
   { key: 'BANK', label: 'Banque' },
+  { key: 'PLACEMENT', label: 'Placements' },
 ]
 
 /**
@@ -123,15 +124,28 @@ export function isDirty(drafts: AssumptionDrafts, measured: AssumptionDrafts): b
  * whoever displays it, and a translation must not hinge on matching a string
  * produced by the API.
  */
+/**
+ * Codes that say why a figure is missing rather than doubt one: they belong
+ * with the provenance, in grey, rather than flagged in every single render.
+ */
+export const PROVENANCE_CODES = new Set(['not_measured', 'contribution_not_measured'])
+
 export function basisLabel(basis: ProjectionAssetBasis | null | undefined): string | null {
   if (!basis) return null
-  // Not a reservation about a figure but the reason there is none — it belongs
-  // with the provenance, in grey, rather than flagged in every single render.
   if (basis.warnings?.some((warning) => warning.code === 'not_measured')) {
     return 'non déduit : les soldes suivent vos revenus et dépenses'
   }
+  if (basis.return === 'declared_rates') {
+    return 'taux saisis sur vos livrets ; versements non déduits'
+  }
   if (basis.return === 'annualised_twr') {
     return `mesuré sur ${basis.return_days} j — rendement time-weighted annualisé`
+  }
+  if (basis.return === 'observed_twr') {
+    return `mesuré entre vos relevés sur ${basis.return_days} j`
+  }
+  if (basis.return === 'expected_rate') {
+    return 'taux attendu saisi sur vos placements'
   }
   if (basis.contribution === 'net_external_flows') {
     return `versements mesurés sur ${basis.contribution_months} mois`
@@ -156,8 +170,14 @@ export function warningLabel(warning: ProjectionBasisWarning): string {
       return `Rendement annualisé sur ${days} j seulement : statistiquement fragile.`
     case 'extreme_rate':
       return `Rendement de ${rate} %/an : peu susceptible de tenir sur toute la durée projetée.`
+    case 'expected_rate_used':
+      return "Rendement pris sur le taux attendu que vous avez saisi, faute d'un an de relevés : c'est une hypothèse, pas une mesure."
+    case 'no_statement':
+      return "Aucun relevé de solde saisi sur vos placements : aucun rendement n'est déduit."
     case 'not_measured':
       return 'Les soldes bancaires bougent avec vos revenus et dépenses, pas avec une performance : rien n’est déduit ici.'
+    case 'contribution_not_measured':
+      return 'Rendement pris sur les taux saisis sur vos livrets ; aucun versement n’est déduit, les soldes bougeant avec vos revenus et dépenses.'
     default:
       return warning.code
   }
@@ -180,6 +200,8 @@ export function shortWarningLabel(warnings: ProjectionBasisWarning[]): string {
     unaligned_flows: 'versements non valorisés',
     weak_annualisation: 'historique court',
     extreme_rate: 'rendement élevé',
+    expected_rate_used: 'taux supposé',
+    no_statement: 'aucun relevé',
   }
   const label = short[first.code] ?? first.code
   return warnings.length > 1 ? `${label} +${warnings.length - 1}` : label

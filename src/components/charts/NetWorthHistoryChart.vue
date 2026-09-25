@@ -83,6 +83,9 @@ const rangeOptions = computed<RangeOption[]>(() => granularityRangeOptions[effec
 
 const allDates = computed<string[]>(() => props.history.map(s => s.snapshot_date))
 
+// A user with no placement gets no empty band in the stack or the legend.
+const hasPlacements = computed(() => props.history.some(s => Number(s.placements_value ?? 0) > 0))
+
 function shiftMonths(date: Date, months: number): Date {
   const shifted = new Date(date)
   shifted.setMonth(shifted.getMonth() - months)
@@ -150,6 +153,7 @@ watch(
     const names = ['Bourse', 'Crypto', 'Patrimoine total']
     if (props.bankEnabled !== false) names.unshift('Cash')
     if (props.wealthEnabled !== false) names.push('Patrimoine matériel')
+    if (hasPlacements.value) names.push('Placements')
     return names
   },
   (names) => {
@@ -170,6 +174,7 @@ const COLORS = {
   crypto:  '#f59e0b', // warning (amber-500)
   bank:    '#3b82f6', // info (blue-500)
   assets:  '#475569', // secondary (slate-600)
+  placements: '#8b5cf6', // violet-500
 }
 
 const option = computed(() => {
@@ -226,6 +231,22 @@ const option = computed(() => {
     color: COLORS.crypto,
     data: props.history.map(s => s.crypto_value),
   })
+
+  if (hasPlacements.value) {
+    series.push({
+      name: 'Placements',
+      type: 'line',
+      stack: 'wealth',
+      areaStyle: { opacity: 0.4 },
+      smooth: !isDaily,
+      symbol: showDailyPoints ? 'circle' : 'none',
+      showSymbol: showDailyPoints,
+      symbolSize: 4,
+      lineStyle: { width: isDaily ? 1 : 0 },
+      color: COLORS.placements,
+      data: props.history.map(s => s.placements_value ?? 0),
+    })
+  }
 
   if (props.wealthEnabled !== false) {
     series.push({

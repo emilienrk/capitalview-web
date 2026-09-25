@@ -249,7 +249,7 @@ const PROJECTION_MONTHS = 120
 /** Which pockets the visible chart is made of — the assumptions panel shows those. */
 const activeProjectionCategories = computed<ProjectionCategory[]>(() => {
   const slide = activeProjection.value.key
-  return slide === 'total' ? ['STOCK', 'CRYPTO', 'BANK'] : [slide.toUpperCase() as ProjectionCategory]
+  return slide === 'total' ? ['STOCK', 'CRYPTO', 'BANK', 'PLACEMENT'] : [slide.toUpperCase() as ProjectionCategory]
 })
 
 function recalculateProjection(

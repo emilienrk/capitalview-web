@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  PROVENANCE_CODES,
   basisLabel,
   draftsToAssets,
   isDirty,
@@ -139,6 +140,20 @@ describe('provenance et réserves', () => {
         warnings: [],
       }),
     ).toBe('versements mesurés sur 6 mois')
+  })
+
+  it('présente les taux saisis sur les livrets comme une provenance, pas une réserve', () => {
+    expect(
+      basisLabel({
+        contribution: 'unavailable',
+        contribution_months: 0,
+        contribution_total: 0,
+        return: 'declared_rates',
+        return_days: 0,
+        warnings: [{ code: 'contribution_not_measured', values: {} }],
+      }),
+    ).toBe('taux saisis sur vos livrets ; versements non déduits')
+    expect(PROVENANCE_CODES.has('contribution_not_measured')).toBe(true)
   })
 
   it('écrit ses propres phrases à partir des codes du serveur', () => {
