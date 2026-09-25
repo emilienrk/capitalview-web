@@ -6,6 +6,7 @@ import Login from '@/pages/Login.vue'
 
 const Dashboard = () => import('@/pages/Dashboard.vue')
 const Stock = () => import('@/pages/Stock.vue')
+const Placements = () => import('@/pages/Placements.vue')
 const Cashflow = () => import('@/pages/Cashflow.vue')
 const BankSection = () => import('@/pages/BankSection.vue')
 const Bank = () => import('@/pages/Bank.vue')
@@ -79,6 +80,12 @@ const routes = [
     path: '/stock',
     name: 'stock',
     component: Stock,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/placements',
+    name: 'placements',
+    component: Placements,
     meta: { requiresAuth: true },
   },
 
