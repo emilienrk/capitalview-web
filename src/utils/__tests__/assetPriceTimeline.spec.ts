@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
-  MARKER_SIZE_RANGE,
+  MAX_MARKER_SIZE,
   MIN_MARKER_SIZE,
-  SMALL_SCREEN_MARKER_SIZE_RANGE,
+  SMALL_SCREEN_MAX_MARKER_SIZE,
   buildCostBasisSeries,
   buildMarkers,
   buildTimelineDates,
@@ -51,9 +51,18 @@ describe('buildTimelineDates', () => {
 
 describe('markerSize', () => {
   it("suit l'aire du disque, pas son diamètre", () => {
-    // Un quart du montant maximal ⇒ la moitié de l'amplitude, pas le quart.
-    expect(markerSize(250, 1000)).toBeCloseTo(MIN_MARKER_SIZE + MARKER_SIZE_RANGE * 0.5, 6)
-    expect(markerSize(1000, 1000)).toBeCloseTo(MIN_MARKER_SIZE + MARKER_SIZE_RANGE, 6)
+    // Un quart du montant maximal ⇒ la moitié du diamètre, pas le quart.
+    expect(markerSize(250, 1000)).toBeCloseTo(MAX_MARKER_SIZE * 0.5, 6)
+    expect(markerSize(1000, 1000)).toBeCloseTo(MAX_MARKER_SIZE, 6)
+  })
+
+  it("se mesure depuis le plus gros achat, sans marge ajoutée à chacun", () => {
+    // Moitié du montant ⇒ moitié de l'aire : le rapport des diamètres vaut √½.
+    expect(markerSize(500, 1000) / markerSize(1000, 1000)).toBeCloseTo(Math.SQRT1_2, 6)
+  })
+
+  it('garde un plancher pour les poussières', () => {
+    expect(markerSize(1, 10_000)).toBe(MIN_MARKER_SIZE)
   })
 
   it('traite les sorties comme les entrées : seule la taille compte', () => {
@@ -66,7 +75,7 @@ describe('markerSize', () => {
   })
 
   it('plafonne un montant au-delà du maximum annoncé', () => {
-    expect(markerSize(5000, 1000)).toBeCloseTo(MIN_MARKER_SIZE + MARKER_SIZE_RANGE, 6)
+    expect(markerSize(5000, 1000)).toBeCloseTo(MAX_MARKER_SIZE, 6)
   })
 })
 
@@ -109,10 +118,11 @@ describe('buildCostBasisSeries', () => {
 
 describe('markerSize sur petit écran', () => {
   it('plafonne plus bas, sans toucher au minimum', () => {
-    expect(markerSize(1000, 1000, SMALL_SCREEN_MARKER_SIZE_RANGE))
-      .toBeCloseTo(MIN_MARKER_SIZE + SMALL_SCREEN_MARKER_SIZE_RANGE, 6)
-    expect(markerSize(1000, 1000, SMALL_SCREEN_MARKER_SIZE_RANGE))
+    expect(markerSize(1000, 1000, SMALL_SCREEN_MAX_MARKER_SIZE))
+      .toBeCloseTo(SMALL_SCREEN_MAX_MARKER_SIZE, 6)
+    expect(markerSize(1000, 1000, SMALL_SCREEN_MAX_MARKER_SIZE))
       .toBeLessThan(markerSize(1000, 1000))
+    expect(markerSize(1, 10_000, SMALL_SCREEN_MAX_MARKER_SIZE)).toBe(MIN_MARKER_SIZE)
   })
 })
 

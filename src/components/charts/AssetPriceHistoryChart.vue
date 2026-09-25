@@ -14,8 +14,8 @@ import VChart from 'vue-echarts'
 import type { AssetPriceTimelineResponse, AssetTimelineEvent } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import {
-  MARKER_SIZE_RANGE,
-  SMALL_SCREEN_MARKER_SIZE_RANGE,
+  MAX_MARKER_SIZE,
+  SMALL_SCREEN_MAX_MARKER_SIZE,
   buildCostBasisSeries,
   buildMarkers,
   buildTimelineDates,
@@ -105,12 +105,12 @@ const markers = computed<PlottedMarker[]>(() =>
 )
 
 const largestTrade = computed(() => largestTradeTotal(events.value))
-const markerRange = computed(() =>
-  isSmall.value ? SMALL_SCREEN_MARKER_SIZE_RANGE : MARKER_SIZE_RANGE,
+const maxMarkerSize = computed(() =>
+  isSmall.value ? SMALL_SCREEN_MAX_MARKER_SIZE : MAX_MARKER_SIZE,
 )
 
 function sizeOf(marker: PlottedMarker): number {
-  return markerSize(Number(marker.event.total ?? 0), largestTrade.value, markerRange.value)
+  return markerSize(Number(marker.event.total ?? 0), largestTrade.value, maxMarkerSize.value)
 }
 
 function colorOf(type: AssetTimelineEvent['type']): string {
@@ -329,6 +329,10 @@ const option = computed(() => {
       data: [[current.event.date, current.y]],
       itemStyle: { color: 'transparent', borderColor: palette.selection, borderWidth: 2 },
       tooltip: { show: false },
+      // The ring is a series that appears on each selection, so it would get
+      // ECharts' one-second entrance; a selection has to answer the click.
+      animationDuration: 150,
+      animationDurationUpdate: 150,
       z: 30,
     })
   }

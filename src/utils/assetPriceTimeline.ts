@@ -6,16 +6,19 @@
 
 import type { AssetPricePoint, AssetTimelineEvent } from '@/types'
 
-/** Smallest marker that still reads as a deliberate point rather than noise. */
-export const MIN_MARKER_SIZE = 8
-/** How much a marker may grow above the minimum, for the largest trade shown. */
-export const MARKER_SIZE_RANGE = 18
 /**
- * The same growth on a phone. A 26 px disc is 7 % of a 390 px-wide plot, so a
- * run of large buys a few days apart fuses into one blob; capping lower keeps
- * them apart. The tap target does not shrink with it — see nearestMarker.
+ * Floor for a trade far below the largest one: under it a disc and its ring
+ * read as noise. Only dust hits it — a trade a tenth of the largest is 8 px.
  */
-export const SMALL_SCREEN_MARKER_SIZE_RANGE = 12
+export const MIN_MARKER_SIZE = 6
+/** Diameter of the largest trade shown; every other marker is sized against it. */
+export const MAX_MARKER_SIZE = 26
+/**
+ * The same on a phone. A 26 px disc is 7 % of a 390 px-wide plot, so a run of
+ * large buys a few days apart fuses into one blob; capping lower keeps them
+ * apart. The tap target does not shrink with it — see nearestMarker.
+ */
+export const SMALL_SCREEN_MAX_MARKER_SIZE = 20
 
 /**
  * How far an executed price may sit from the day's close before it is treated
@@ -43,17 +46,21 @@ export function buildTimelineDates(
 /**
  * Bubble area, not radius, carries the amount: the eye reads a disc by its area,
  * so a trade ten times larger must come out about three times wider, not ten.
+ *
+ * Scaled from the largest trade down rather than from a fixed minimum up: an
+ * offset added to every marker made a 0,11 € buy a third the width of a 22 €
+ * one, where its area says it is two hundred times smaller.
  */
 export function markerSize(
   total: number,
   largest: number,
-  range: number = MARKER_SIZE_RANGE,
+  max: number = MAX_MARKER_SIZE,
 ): number {
   if (!Number.isFinite(total) || !Number.isFinite(largest) || largest <= 0) {
-    return MIN_MARKER_SIZE + range / 2
+    return max / 2
   }
   const share = Math.min(Math.abs(total) / largest, 1)
-  return MIN_MARKER_SIZE + range * Math.sqrt(share)
+  return Math.max(MIN_MARKER_SIZE, max * Math.sqrt(share))
 }
 
 /** The largest trade on the chart, which every other marker is sized against. */
