@@ -54,6 +54,15 @@ function money(value: number): string {
 }
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
+/** The other side of a pair offered to the user: what the pair is judged by. */
+const offered = computed(() => {
+  const { transfer_label: label, transfer_date: day } = props.tx
+  if (!suggested.value || !label) return null
+  const when = day
+    ? new Date(`${day}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
+  return `En face, sur ${props.tx.transfer_account_name}${when ? ` le ${when}` : ''} : ${label}`
+})
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
 )
@@ -141,6 +150,10 @@ const paymentMeans = computed(() =>
       >
         <TrendingUp class="w-3.5 h-3.5 shrink-0" />
         {{ contributionNote }}
+      </p>
+      <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
+        <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
+        <span class="truncate" :title="offered">{{ offered }}</span>
       </p>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->

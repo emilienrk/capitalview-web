@@ -371,6 +371,8 @@ export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
 export interface BankTransferQuestionsResponse {
   total: number
   months: Array<{ period: string; count: number }>
+  /** Recurring payments and income to confirm, asked in their own tab. */
+  recurring: number
 }
 
 /** One stored movement, as the bank reported it. */
@@ -393,6 +395,9 @@ export interface BankTransactionItem {
   /** The movement on the other side, and how the pair was made. */
   transfer_id: string | null
   transfer_status: BankTransferStatus | null
+  /** Only on a suggested pair: the other side's label and day, the amount being the same. */
+  transfer_label?: string | null
+  transfer_date?: string | null
   /** Read from the label: display, filtering, and whether a transfer sent asks a flow question. */
   operation_type: OperationType
   cashflow_type: CashflowType
