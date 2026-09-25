@@ -1605,17 +1605,24 @@ export interface AIProviderUpdate {
   selected_model?: string | null
 }
 
-export interface AIModelEntry {
-  id: string
-  label: string
-  default?: boolean
-}
-
 export interface AIProviderOption {
   provider: string
   label: string
   has_key: boolean
-  models: AIModelEntry[]
+}
+
+/** A model the user's key can reach, as the provider lists it. */
+export interface AIModelOption {
+  id: string
+  label: string
+  /** Reads images, so it can serve the photo import */
+  vision: boolean
+}
+
+export interface AIModelsResponse {
+  models: AIModelOption[]
+  /** What "automatic" (selected_model = null) calls */
+  recommended: string | null
 }
 
 export interface AIOptionsResponse {

@@ -65,8 +65,8 @@ const isSingleMode = computed(
     settingsStore.settings?.crypto_mode === 'SINGLE',
 )
 
-// Vision providers: Google and Anthropic (matches backend registry CAPABILITY_PRIORITY["vision"])
-const VISION_PROVIDER_IDS = ['google', 'anthropic']
+// Vision providers (matches backend registry CAPABILITY_PRIORITY["vision"])
+const VISION_PROVIDER_IDS = ['google', 'anthropic', 'openrouter']
 const hasVisionProvider = computed(() => {
   const s = settingsStore.settings
   if (!s?.ai_feature_enabled) return false
@@ -2939,7 +2939,7 @@ onMounted(async () => {
                 variant="ghost"
                 size="sm"
                 :disabled="!hasVisionProvider"
-                :title="hasVisionProvider ? 'Importer depuis une photo' : 'Configurez un provider IA avec support Vision (Google ou Anthropic) pour activer cette fonctionnalité'"
+                :title="hasVisionProvider ? 'Importer depuis une photo' : 'Configurez un provider IA avec support Vision (Google, Anthropic ou OpenRouter) pour activer cette fonctionnalité'"
                 @click="openPhotoImport(txForm.account_id); showTxModal = false"
               >
                 <Camera class="w-4 h-4 sm:mr-1.5" />

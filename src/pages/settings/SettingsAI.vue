@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { Sparkles, Trash2, Eye, MessageSquare, ChevronDown, Check, KeyRound, SlidersHorizontal } from 'lucide-vue-next'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
-import { BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseSpinner, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
-import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig } from '@/types'
+import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig, AIModelsResponse } from '@/types'
+import { AUTO_MODEL, callsAModelThatReadsImages, modelSelectOptions } from '@/utils/aiModels'
+
+// Past this many models (OpenRouter lists hundreds), a filter field narrows the select.
+const MODEL_FILTER_THRESHOLD = 15
 
 const settingsStore = useSettingsStore()
 const { confirmDialog } = useConfirm()
@@ -19,6 +23,11 @@ const savingPreference = ref<'vision' | 'chat' | null>(null)
 const providerError = ref<Record<string, string>>({})
 const providerSuccess = ref<Record<string, string>>({})
 const apiKeyInputs = ref<Record<string, string>>({})
+// Models detected per provider, read live from it with the user's key
+const providerModels = ref<Record<string, AIModelsResponse>>({})
+const modelsLoading = ref<Record<string, boolean>>({})
+const modelsError = ref<Record<string, string>>({})
+const modelFilter = ref<Record<string, string>>({})
 
 // --- Computed helpers ---
 const settings = computed(() => settingsStore.settings)
@@ -64,6 +73,63 @@ onMounted(async () => {
   }
 })
 
+async function loadModels(providerId: string) {
+  modelsLoading.value[providerId] = true
+  delete modelsError.value[providerId]
+  try {
+    providerModels.value[providerId] = await apiClient.get<AIModelsResponse>(
+      `/settings/ai/providers/${providerId}/models`
+    )
+  } catch (e: any) {
+    delete providerModels.value[providerId]
+    modelsError.value[providerId] = e?.message ?? 'Impossible de lister les modèles.'
+  } finally {
+    modelsLoading.value[providerId] = false
+  }
+}
+
+// Detect the models of every provider holding a key, once the settings are in
+// and whenever a key appears.
+watch(
+  () => isAiEnabled.value
+    ? (settings.value?.ai_providers ?? []).filter(p => p.has_key).map(p => p.provider).join(',')
+    : '',
+  (keyed) => {
+    for (const providerId of keyed.split(',').filter(Boolean)) {
+      if (!providerModels.value[providerId] && !modelsLoading.value[providerId]) {
+        loadModels(providerId)
+      }
+    }
+  },
+  { immediate: true },
+)
+
+/** Whether a provider's model reads images; null while its list is unknown. */
+function readsImages(providerId: string): boolean | null {
+  const detected = providerModels.value[providerId]
+  if (!detected) return null
+  return callsAModelThatReadsImages(
+    detected.models,
+    detected.recommended,
+    configuredProviders.value[providerId]?.selected_model ?? null,
+  )
+}
+
+function modelOptions(providerId: string) {
+  const detected = providerModels.value[providerId]
+  if (!detected) return []
+  return modelSelectOptions(
+    detected.models,
+    detected.recommended,
+    configuredProviders.value[providerId]?.selected_model ?? null,
+    {
+      filter: modelFilter.value[providerId] ?? '',
+      // Only worth saying where the provider can read images at all
+      flagTextOnly: visionOptions.value.some(o => o.provider === providerId),
+    },
+  )
+}
+
 // --- Actions ---
 async function toggleAiFeature() {
   if (!settings.value) return
@@ -93,6 +159,8 @@ async function saveProviderKey(providerId: string) {
     // Refresh options to update has_key flags
     aiOptions.value = await apiClient.get<AIOptionsResponse>('/settings/ai/options')
     apiKeyInputs.value[providerId] = ''
+    if (key) loadModels(providerId)
+    else delete providerModels.value[providerId]
     providerSuccess.value[providerId] = key ? 'Clé enregistrée.' : 'Clé supprimée.'
     setTimeout(() => delete providerSuccess.value[providerId], 3000)
   } catch (e: any) {
@@ -120,6 +188,7 @@ async function clearProviderKey(providerId: string) {
       const p = settings.value.ai_providers?.find(x => x.provider === providerId)
       if (p) p.has_key = false
     }
+    delete providerModels.value[providerId]
     aiOptions.value = await apiClient.get<AIOptionsResponse>('/settings/ai/options')
     providerSuccess.value[providerId] = 'Clé supprimée.'
     setTimeout(() => delete providerSuccess.value[providerId], 3000)
@@ -130,18 +199,20 @@ async function clearProviderKey(providerId: string) {
   }
 }
 
-async function saveModel(providerId: string, modelId: string) {
+async function saveModel(providerId: string, value: string | number | undefined) {
   savingProvider.value = providerId
+  delete providerError.value[providerId]
   try {
+    const modelId = value === undefined || value === AUTO_MODEL ? null : String(value)
     const result = await apiClient.put<AIProviderConfig>(
-      `/settings/ai/providers/${providerId}`, { selected_model: modelId || null }
+      `/settings/ai/providers/${providerId}`, { selected_model: modelId }
     )
     const p = settings.value?.ai_providers?.find(x => x.provider === providerId)
     if (p) p.selected_model = result.selected_model
     providerSuccess.value[providerId] = 'Modèle enregistré.'
     setTimeout(() => delete providerSuccess.value[providerId], 3000)
-  } catch {
-    // silent
+  } catch (e: any) {
+    providerError.value[providerId] = e?.message ?? 'Erreur lors de l\'enregistrement du modèle.'
   } finally {
     savingProvider.value = null
   }
@@ -166,29 +237,22 @@ function keyPlaceholder(providerId: string): string {
     anthropic: 'sk-ant-api03-...',
     google: 'AIzaSy...',
     deepseek: 'sk-...',
+    openrouter: 'sk-or-v1-...',
   }
   return configuredProviders.value[providerId]?.has_key
     ? '•••••••••••••••• (Clé configurée)'
     : (prefixes[providerId] ?? 'Clé API...')
 }
 
-/** Model list as BaseSelect expects it, the default one saying so in its label. */
-function modelOptions(models: { id: string; label: string; default?: boolean }[]) {
-  return models.map((model) => ({
-    value: model.id,
-    label: `${model.label}${model.default ? ' (défaut)' : ''}`,
-  }))
-}
-
 // All unique providers from options
 const allProviders = computed(() => {
   const seen = new Set<string>()
-  const result: { provider: string; label: string; models: any[] }[] = []
+  const result: { provider: string; label: string }[] = []
   for (const cap of ['vision', 'chat'] as const) {
     for (const o of aiOptions.value?.capabilities[cap] ?? []) {
       if (!seen.has(o.provider)) {
         seen.add(o.provider)
-        result.push({ provider: o.provider, label: o.label, models: o.models })
+        result.push({ provider: o.provider, label: o.label })
       }
     }
   }
@@ -286,15 +350,38 @@ const allProviders = computed(() => {
             <p v-if="providerSuccess[p.provider]" class="text-xs text-success">{{ providerSuccess[p.provider] }}</p>
             <p v-if="providerError[p.provider]" class="text-xs text-danger">{{ providerError[p.provider] }}</p>
 
-            <!-- Model selector (only if key configured) -->
-            <BaseSelect
-              v-if="configuredProviders[p.provider]?.has_key && p.models.length > 1"
-              label="Modèle"
-              placeholder="Modèle par défaut"
-              :model-value="configuredProviders[p.provider]?.selected_model ?? ''"
-              :options="modelOptions(p.models)"
-              @update:model-value="saveModel(p.provider, String($event))"
-            />
+            <!-- Model selector: the list is read from the provider with the key -->
+            <div v-if="configuredProviders[p.provider]?.has_key" class="space-y-2">
+              <div v-if="modelsLoading[p.provider]" class="flex items-center gap-2 text-xs text-text-muted dark:text-text-dark-muted">
+                <BaseSpinner size="sm" />
+                Détection des modèles disponibles…
+              </div>
+
+              <div v-else-if="modelsError[p.provider]" class="flex items-start justify-between gap-3">
+                <p class="text-xs text-danger">{{ modelsError[p.provider] }}</p>
+                <BaseButton size="sm" variant="outline" @click="loadModels(p.provider)">Réessayer</BaseButton>
+              </div>
+
+              <template v-else-if="providerModels[p.provider]">
+                <BaseInput
+                  v-if="providerModels[p.provider]!.models.length > MODEL_FILTER_THRESHOLD"
+                  :model-value="modelFilter[p.provider] ?? ''"
+                  placeholder="Filtrer les modèles (ex. gemini, claude, gpt)…"
+                  @update:model-value="modelFilter[p.provider] = String($event)"
+                />
+                <BaseSelect
+                  label="Modèle"
+                  :model-value="configuredProviders[p.provider]?.selected_model ?? AUTO_MODEL"
+                  :options="modelOptions(p.provider)"
+                  :disabled="savingProvider === p.provider"
+                  @update:model-value="saveModel(p.provider, $event)"
+                />
+                <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                  {{ providerModels[p.provider]!.models.length }} modèles détectés avec votre clé.
+                  « Automatique » choisit le meilleur disponible et suit les nouveautés du fournisseur.
+                </p>
+              </template>
+            </div>
           </div>
         </div>
       </SettingsSection>
@@ -322,7 +409,7 @@ const allProviders = computed(() => {
             </div>
 
             <BaseAlert v-if="!hasAnyVisionKey" variant="warning" class="text-xs">
-              Configurez une clé API <strong>Google</strong> ou <strong>Anthropic</strong> ci-dessus pour activer l'import par image.
+              Configurez une clé API <strong>Google</strong>, <strong>Anthropic</strong> ou <strong>OpenRouter</strong> ci-dessus pour activer l'import par image.
             </BaseAlert>
 
             <div v-else class="space-y-2">
@@ -350,6 +437,9 @@ const allProviders = computed(() => {
                   <div>
                     <p class="text-sm font-medium text-text-main dark:text-text-dark-main">{{ opt.label }}</p>
                     <p v-if="!opt.has_key" class="text-xs text-text-muted dark:text-text-dark-muted">Clé API non configurée</p>
+                    <p v-else-if="readsImages(opt.provider) === false" class="text-xs text-warning">
+                      Le modèle choisi ne lit pas les images : l'import passera au fournisseur suivant.
+                    </p>
                   </div>
                 </div>
                 <Check v-if="effectiveVisionProvider === opt.provider && opt.has_key" class="w-4 h-4 text-primary shrink-0" stroke-width="2.5" />
