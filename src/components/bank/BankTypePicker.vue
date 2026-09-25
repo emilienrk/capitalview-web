@@ -40,11 +40,10 @@ const userSet = computed(() => props.tx?.type_source === 'override' || props.tx?
 const contribution = computed(() => {
   const tx = props.tx
   if (!tx?.contribution) return null
-  return contributionNote(
-    tx.contribution,
-    maskValue(formatCurrency(Number(tx.contribution.amount), tx.currency)),
-    formatDateShort(tx.contribution.day),
-  )
+  const format = (value: number) => maskValue(formatCurrency(value, tx.currency))
+  // The row says it with a badge; here the type needs its reason spelled out.
+  return contributionNote(tx.contribution, Number(tx.amount), format, formatDateShort(tx.contribution.day))
+    ?? `${tx.contribution.is_deposit ? 'Versé sur' : 'Retiré de'} ${tx.contribution.account_name} le même jour.`
 })
 
 watch(

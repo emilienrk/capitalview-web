@@ -62,8 +62,8 @@ export function answerHint(type: CashflowType, isCredit: boolean): string {
   const debit: Record<Exclude<CashflowType, 'NEUTRAL'>, string> = {
     INCOME: 'Retiré de vos entrées.',
     EXPENSE: 'Compté dans vos dépenses.',
-    SAVING: 'Mis de côté : ni dépensé, ni perdu.',
-    INVESTMENT: 'Investi : ni dépensé, ni perdu.',
+    SAVING: 'Compté dans votre épargne.',
+    INVESTMENT: 'Compté dans vos investissements.',
   }
   return (isCredit ? credit : debit)[type]
 }
@@ -77,17 +77,33 @@ export function typeSourceTitle(source: TypeSource): string {
 }
 
 /**
- * What an investment account says about an operation, in one line. The amount
- * and the day come formatted, so privacy mode and the locale apply where they
- * are displayed.
+ * What an investment account says about an operation, in one line, or null
+ * when a badge says it all: the same amount, on the very day. `format` puts
+ * an amount in the operation's currency, privacy mode included.
  */
-export function contributionNote(match: BankContributionMatch, amount: string, day: string): string {
-  const movement = match.is_deposit
-    ? `versement de ${amount} sur ${match.account_name}`
-    : `retrait de ${amount} depuis ${match.account_name}`
-  return match.exact
-    ? `Reconnu : ${movement}, le même jour.`
-    : `Un ${movement} le ${day} pourrait correspondre.`
+export function contributionNote(
+  match: BankContributionMatch,
+  operationAmount: number,
+  format: (value: number) => string,
+  day: string,
+): string | null {
+  const amount = Number(match.amount)
+  if (!match.exact) {
+    const movement = match.is_deposit
+      ? `Un versement de ${format(amount)} sur ${match.account_name}`
+      : `Un retrait de ${format(amount)} depuis ${match.account_name}`
+    return `${movement} le ${day} pourrait être celui-ci.`
+  }
+  const fee = Math.abs(Number(operationAmount) - amount)
+  if (fee < 0.005) return null
+  return match.is_deposit
+    ? `${format(amount)} arrivés sur ${match.account_name}, ${format(fee)} de frais.`
+    : `${format(amount)} retirés de ${match.account_name}, ${format(fee)} de frais.`
+}
+
+/** The investment account an operation went to or came from, for its badge. */
+export function contributionBadge(match: BankContributionMatch): string {
+  return `${match.is_deposit ? 'vers' : 'depuis'} ${match.account_name}`
 }
 
 /**

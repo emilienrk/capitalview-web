@@ -14,6 +14,7 @@ import {
   PAIR_HINTS,
   answerHint,
   answerLabel,
+  contributionBadge,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
@@ -121,6 +122,12 @@ const paymentMeans = computed(() =>
           <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
           {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
           <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
+        </BaseBadge>
+        <!-- A deposit or withdrawal the investment account proves: read like a
+             transfer to one of the user's accounts. -->
+        <BaseBadge v-else-if="tx.contribution?.exact" variant="info">
+          <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
+          {{ contributionBadge(tx.contribution) }}
         </BaseBadge>
         <!-- Why this one is asked at all: the bank names no account, and none
              of the user's own holds the other leg. -->

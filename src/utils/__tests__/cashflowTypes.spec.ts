@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionNote, matchesCashflowType, matchesOperationType,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType, matchesOperationType,
   needsReview, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
@@ -79,30 +79,36 @@ describe('answerHint', () => {
     expect(answerHint('EXPENSE', true)).toContain('Déduit des dépenses')
     expect(answerHint('EXPENSE', false)).toContain('Compté dans vos dépenses')
     expect(answerHint('SAVING', true)).toContain('Repris')
-    expect(answerHint('SAVING', false)).toContain('Mis de côté')
+    expect(answerHint('SAVING', false)).toBe('Compté dans votre épargne.')
     expect(answerHint('NEUTRAL', true)).toBe(answerHint('NEUTRAL', false))
   })
 })
 
 describe('contributionNote', () => {
   const deposit = { account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: false }
+  const euros = (value: number) => `${value.toFixed(2).replace('.', ',')} €`
 
-  it('names the deposit it was recognised as, on the very day', () => {
-    expect(contributionNote({ ...deposit, exact: true }, '200,00 €', '5 mars')).toBe(
-      'Reconnu : versement de 200,00 € sur PEA, le même jour.',
+  it('says nothing of a deposit of the very amount on the very day: the badge does', () => {
+    expect(contributionNote({ ...deposit, exact: true }, 200, euros, '5 mars')).toBeNull()
+    expect(contributionBadge({ ...deposit, exact: true })).toBe('vers PEA')
+  })
+
+  it('names the fee a platform kept', () => {
+    expect(contributionNote({ ...deposit, amount: 199, exact: true }, 200, euros, '5 mars')).toBe(
+      '199,00 € arrivés sur PEA, 1,00 € de frais.',
     )
   })
 
   it('offers a nearby deposit without deciding for the user', () => {
-    expect(contributionNote(deposit, '200,00 €', '7 mars')).toBe(
-      'Un versement de 200,00 € sur PEA le 7 mars pourrait correspondre.',
+    expect(contributionNote(deposit, 200, euros, '7 mars')).toBe(
+      'Un versement de 200,00 € sur PEA le 7 mars pourrait être celui-ci.',
     )
   })
 
   it('reads a withdrawal as money coming back', () => {
-    expect(contributionNote({ ...deposit, is_deposit: false, exact: true }, '80,00 €', '5 mars')).toContain(
-      'retrait de 80,00 € depuis PEA',
-    )
+    const withdrawal = { ...deposit, is_deposit: false }
+    expect(contributionNote(withdrawal, 80, euros, '5 mars')).toContain('retrait de 200,00 € depuis PEA')
+    expect(contributionBadge({ ...withdrawal, exact: true })).toBe('depuis PEA')
   })
 })
 

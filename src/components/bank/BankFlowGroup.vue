@@ -57,7 +57,7 @@ function signed(tx: BankTransactionItem): string {
 function hint(tx: BankTransactionItem): string | null {
   const match = tx.contribution
   if (!match) return null
-  return contributionNote(match, maskValue(formatCurrency(Number(match.amount), tx.currency)), day(match.day))
+  return contributionNote(match, Number(tx.amount), (value) => maskValue(formatCurrency(value, tx.currency)), day(match.day))
 }
 
 function day(value: string | null): string {
