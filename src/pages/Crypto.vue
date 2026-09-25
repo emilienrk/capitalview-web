@@ -150,29 +150,23 @@ const accountFormError = ref<string | null>(null)
 const deductFromBank = ref(true)
 const selectedBankAccountId = ref<string | null>(null)
 
-/** Sorted bank accounts: CHECKING first, then others */
 /**
- * The bank accounts a euro movement can be booked against — euro ones only.
+ * The bank accounts a euro movement can be booked against, current accounts first.
  *
- * The deduction (and the credit, on a withdrawal) writes the balance back to
- * the account, and the movement is in euros while the balance is in the
- * account's own currency. Converting here would put a rate the app cannot vouch
- * for into a stored balance, so the account is left out instead and adjusted by
- * hand. See docs/currencies.md in the API.
+ * Euro ones only: the deduction (and the credit, on a withdrawal) writes the
+ * balance back to the account, and converting here would put a rate the app
+ * cannot vouch for into a stored balance (see docs/currencies.md in the API).
+ * Never a synchronised one either: its balance is the bank's, and the transfer
+ * shows up there on the next sync — booking it here as well would count it twice.
  */
 const sortedBankAccounts = computed(() => {
-  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR')
+  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR' && !a.is_linked)
   return [...accounts].sort((a, b) => {
     if (a.account_type === 'CHECKING') return -1
     if (b.account_type === 'CHECKING') return 1
     return 0
   })
 })
-
-/** Accounts exist, but none in euros — a different thing from having none. */
-const hasOnlyForeignBankAccounts = computed(
-  () => !sortedBankAccounts.value.length && (bank.summary?.accounts?.length ?? 0) > 0,
-)
 
 const searchResults = ref<(AssetSearchResult & { _source?: 'known' | 'api' })[]>([])
 const isSearching = ref(false)
@@ -2359,8 +2353,9 @@ onMounted(async () => {
 
           <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
 
-          <!-- Bank account option — FIAT_DEPOSIT deducts, FIAT_WITHDRAW credits -->
-          <div v-if="txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw" class="rounded-card border border-surface-border dark:border-surface-dark-border p-4 space-y-3">
+          <!-- Bank account option — FIAT_DEPOSIT deducts, FIAT_WITHDRAW credits.
+               Only offered for a manually kept euro account. -->
+          <div v-if="(txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw) && sortedBankAccounts.length" class="rounded-card border border-surface-border dark:border-surface-dark-border p-4 space-y-3">
             <label class="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -2372,7 +2367,7 @@ onMounted(async () => {
               </span>
             </label>
 
-            <div v-if="deductFromBank && sortedBankAccounts.length" class="space-y-2">
+            <div v-if="deductFromBank" class="space-y-2">
               <label class="block text-xs text-text-muted dark:text-text-dark-muted">{{ txForm.type === 'FIAT_DEPOSIT' ? 'Compte source' : 'Compte de destination' }}</label>
               <select
                 v-model="selectedBankAccountId"
@@ -2388,11 +2383,6 @@ onMounted(async () => {
               </select>
             </div>
 
-            <p v-if="deductFromBank && !sortedBankAccounts.length" class="text-xs text-text-muted dark:text-text-dark-muted">
-              {{ hasOnlyForeignBankAccounts
-                ? 'Aucun compte en euros : le report automatique n’est pas possible sur un compte en devise étrangère.'
-                : 'Aucun compte bancaire configuré.' }}
-            </p>
           </div>
         </div>
 

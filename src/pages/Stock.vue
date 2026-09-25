@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pencil, TrendingUp, Upload, Banknote, RefreshCw, ChevronLeft, ChevronRight, Camera, BarChart3 } from 'lucide-vue-next'
+import { Pencil, TrendingUp, Upload, RefreshCw, ChevronLeft, ChevronRight, Camera, BarChart3 } from 'lucide-vue-next'
 
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
@@ -49,9 +49,6 @@ const showPlatformImportModal = ref(false)
 const platformImportAccountId = ref('')
 const showPhotoImportModal = ref(false)
 const photoImportAccountId = ref<string | null>(null)
-const showDepositModal = ref(false)
-const depositAccountId = ref<string | null>(null)
-const depositStockAccountId = ref<string | null>(null)
 const editingDepositId = ref<string | null>(null)
 const deductFromBank = ref(true)
 const selectedBankAccountId = ref<string | null>(null)
@@ -87,8 +84,6 @@ const showMobilePnlLabels = ref(false)
 const txFormError = ref<string | null>(null)
 /** Inline validation error shown inside the account modal. */
 const accountFormError = ref<string | null>(null)
-/** Inline validation error shown inside the deposit modal. */
-const depositFormError = ref<string | null>(null)
 
 const accountForm = reactive<StockAccountCreate>({
   name: '',
@@ -117,29 +112,23 @@ const depositForm = reactive<EurDepositCreate>({
   notes: '',
 })
 
-/** Sorted bank accounts: CHECKING first, then others */
 /**
- * The bank accounts a euro deposit can be deducted from — euro ones only.
+ * The bank accounts a euro deposit can be deducted from, current accounts first.
  *
- * The deduction writes `balance - amount` back to the account, and the deposit
- * is in euros while the balance is in the account's own currency. Converting
- * here would put a rate the app cannot vouch for into a stored balance, so the
- * account is left out instead and adjusted by hand. See docs/currencies.md in
- * the API.
+ * Euro ones only: the deduction writes `balance - amount` back to the account,
+ * and converting here would put a rate the app cannot vouch for into a stored
+ * balance (see docs/currencies.md in the API). Never a synchronised one either:
+ * its balance is the bank's, and the transfer shows up there on the next sync —
+ * deducting it here as well would count it twice.
  */
 const sortedBankAccounts = computed(() => {
-  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR')
+  const accounts = (bank.summary?.accounts ?? []).filter((a) => a.currency === 'EUR' && !a.is_linked)
   return [...accounts].sort((a, b) => {
     if (a.account_type === 'CHECKING') return -1
     if (b.account_type === 'CHECKING') return 1
     return 0
   })
 })
-
-/** Accounts exist, but none in euros — a different thing from having none. */
-const hasOnlyForeignBankAccounts = computed(
-  () => !sortedBankAccounts.value.length && (bank.summary?.accounts?.length ?? 0) > 0,
-)
 
 // ── Unified asset search ─────────────────────────────────────
 interface AssetOption {
@@ -163,6 +152,7 @@ const txTypeOptions = [
   { label: 'Achat', value: 'BUY' },
   { label: 'Vente', value: 'SELL' },
   { label: 'Dividende', value: 'DIVIDEND' },
+  { label: 'Dépôt d’euros', value: 'DEPOSIT' },
 ]
 
 const accountTypeLabels: Record<string, string> = {
@@ -703,9 +693,19 @@ const txPriceLabel = computed(() => {
   return 'Prix unitaire (€)'
 })
 
+const isDepositType = computed(() => txForm.type === 'DEPOSIT')
+
+// A trade being edited stays a trade, and a deposit stays a deposit: the two are
+// stored and updated through different routes.
+const txTypeSelectOptions = computed(() =>
+  editingTxId.value ? txTypeOptions.filter((option) => option.value !== 'DEPOSIT') : txTypeOptions,
+)
+
 // When the transaction type changes, update the asset picker scope
 watch(() => txForm.type, (newType) => {
-  if (newType === 'SELL' || newType === 'DIVIDEND') {
+  if (newType === 'DEPOSIT') {
+    void prepareDeposit()
+  } else if (newType === 'SELL' || newType === 'DIVIDEND') {
     // Restrict to owned positions, filtered by the current query if any
     const q = assetQuery.value.trim().toLowerCase()
     assetOptions.value = !q
@@ -790,6 +790,7 @@ async function handleSubmitAccount(): Promise<void> {
 async function openAddTransaction(accountId: string): Promise<void> {
   txFormError.value = null
   editingTxId.value = null
+  editingDepositId.value = null
   txForm.account_id = accountId
   txForm.symbol = ''
   txForm.asset_key = ''
@@ -826,50 +827,47 @@ function openCsvImport(accountId?: string): void {
   showCsvImportModal.value = true
 }
 
-async function openDeposit(accountId?: string): Promise<void> {
-  depositFormError.value = null
-  depositAccountId.value = accountId ?? null
-  depositStockAccountId.value = accountId ?? stocks.accounts[0]?.id ?? null
-  editingDepositId.value = null
+/** A deposit is picked from the transaction's type: reset its form and offer the bank accounts. */
+async function prepareDeposit(): Promise<void> {
+  if (editingDepositId.value) return
   depositForm.amount = 0
   depositForm.fees = 0
-  depositForm.executed_at = nowDatetimeLocal()
+  depositForm.executed_at = txForm.executed_at || nowDatetimeLocal()
   depositForm.notes = ''
-  deductFromBank.value = true
-  // Fetch bank accounts to pre-select
   await bank.fetchAccounts()
-  const first = sortedBankAccounts.value[0]
-  selectedBankAccountId.value = first?.id ?? null
-  showDepositModal.value = true
+  selectedBankAccountId.value = sortedBankAccounts.value[0]?.id ?? null
+  deductFromBank.value = selectedBankAccountId.value !== null
 }
 
 function openEditDeposit(tx: TransactionResponse): void {
-  depositFormError.value = null
-  depositAccountId.value = selectedAccountId.value
+  txFormError.value = null
+  editingTxId.value = null
   editingDepositId.value = tx.id
+  txForm.account_id = selectedAccountId.value!
+  txForm.type = 'DEPOSIT'
   depositForm.amount = tx.amount
   depositForm.fees = Number(tx.fees ?? 0)
   depositForm.executed_at = isoToDatetimeLocal(tx.executed_at)
   depositForm.notes = tx.notes ?? ''
   // Don't deduct from bank: the deduction already happened at creation
   deductFromBank.value = false
-  showDepositModal.value = true
+  showTxModal.value = true
 }
 
 async function handleSubmitDeposit(): Promise<void> {
   const dateErr = checkDateValid(depositForm.executed_at)
   if (dateErr) {
-    depositFormError.value = dateErr
+    txFormError.value = dateErr
     return
   }
 
   if (depositForm.amount <= 0) {
-    depositFormError.value = 'Le montant doit être strictement positif.'
+    txFormError.value = 'Le montant doit être strictement positif.'
     return
   }
 
   if (depositForm.fees < 0) {
-    depositFormError.value = 'Les frais doivent être positifs ou nuls.'
+    txFormError.value = 'Les frais doivent être positifs ou nuls.'
     return
   }
 
@@ -878,15 +876,15 @@ async function handleSubmitDeposit(): Promise<void> {
   const netAmountPreview = grossAmount - feesAmount
 
   if (netAmountPreview <= 0) {
-    depositFormError.value = 'Le montant net (montant - frais) doit être strictement positif.'
+    txFormError.value = 'Le montant net (montant - frais) doit être strictement positif.'
     return
   }
 
-  depositFormError.value = null
+  txFormError.value = null
 
   // Editing an existing deposit
   if (editingDepositId.value) {
-    showDepositModal.value = false
+    showTxModal.value = false
     const result = await stocks.updateTransaction(editingDepositId.value, {
       amount: grossAmount,
       fees: feesAmount,
@@ -894,7 +892,7 @@ async function handleSubmitDeposit(): Promise<void> {
       notes: depositForm.notes || undefined,
     })
     if (!result) {
-      showDepositModal.value = true
+      showTxModal.value = true
       return
     }
     if (result) {
@@ -923,17 +921,16 @@ async function handleSubmitDeposit(): Promise<void> {
     }
   }
 
-  // Use stock account selector if opened from header (no pre-set account)
-  const targetStockAccountId = depositStockAccountId.value ?? depositAccountId.value
-  showDepositModal.value = false
-  const result = await stocks.depositEur(targetStockAccountId!, {
+  const targetStockAccountId = txForm.account_id
+  showTxModal.value = false
+  const result = await stocks.depositEur(targetStockAccountId, {
     amount: grossAmount,
     fees: feesAmount,
     executed_at: datetimeLocalToIso(depositForm.executed_at),
     notes: depositForm.notes || undefined,
   })
   if (!result) {
-    showDepositModal.value = true
+    showTxModal.value = true
     return
   }
   if (result) {
@@ -951,7 +948,7 @@ async function handleSubmitDeposit(): Promise<void> {
         stocks.fetchAccount(selectedAccountId.value),
         fetchAccountTransactions(selectedAccountId.value),
       ])
-    } else if (targetStockAccountId) {
+    } else {
       await stocks.fetchAccounts()
     }
     void reloadChartsAfterMutation(targetStockAccountId)
@@ -1028,6 +1025,7 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
 function openEditTransaction(tx: any): void {
   txFormError.value = null
   editingTxId.value = tx.id
+  editingDepositId.value = null
   txForm.account_id = selectedAccountId.value!
   txForm.symbol = tx.symbol
   txForm.asset_key = tx.asset_key || ''
@@ -1131,13 +1129,10 @@ async function deleteTransaction(id: string): Promise<void> {
     confirmLabel: 'Supprimer',
   })
   if (confirmed) {
-    const wasDepositModal = !!editingDepositId.value
     showTxModal.value = false
-    showDepositModal.value = false
     const success = await stocks.deleteTransaction(id)
     if (!success) {
-      if (wasDepositModal) showDepositModal.value = true
-      else showTxModal.value = true
+      showTxModal.value = true
       return
     }
     if (selectedAccountId.value) {
@@ -1343,9 +1338,6 @@ onMounted(async () => {
   <div>
     <PageHeader title="Bourse" description="PEA, PEA-PME et Comptes-Titres">
       <template #actions>
-        <BaseButton size="sm" variant="outline" @click="openDeposit()" :disabled="!stocks.accounts.length">
-          <Banknote class="w-4 h-4" /><span class="hidden sm:inline">&nbsp; Déposer</span>
-        </BaseButton>
         <ImportMenu
           size="sm"
           :items="IMPORT_MENU_ITEMS"
@@ -1874,149 +1866,234 @@ onMounted(async () => {
     </BaseModal>
 
     <!-- ── Create/Edit Transaction Modal ─────────────────────── -->
-    <BaseModal :open="showTxModal" :title="editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction'" @close="showTxModal = false">
+    <BaseModal
+      :open="showTxModal"
+      :title="editingDepositId ? 'Modifier le dépôt' : editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction'"
+      @close="showTxModal = false"
+    >
       <BaseAlert v-if="txFormError" variant="danger" dismissible class="mb-4" @dismiss="txFormError = null">
         {{ txFormError }}
       </BaseAlert>
-      <form @submit.prevent="handleSubmitTransaction" class="space-y-4">
+      <form @submit.prevent="isDepositType ? handleSubmitDeposit() : handleSubmitTransaction()" class="space-y-4">
 
         <!-- Type first so the asset picker scope adapts immediately -->
-        <BaseSelect v-model="txForm.type" label="Type de transaction" :options="txTypeOptions" required />
+        <BaseSelect
+          v-model="txForm.type"
+          label="Type de transaction"
+          :options="txTypeSelectOptions"
+          :disabled="!!editingDepositId"
+          required
+        />
 
-        <!-- ── Dividend mode toggle ── -->
-        <template v-if="txForm.type === 'DIVIDEND'">
-          <div class="inline-flex w-full bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-1">
-            <button
-              type="button"
-              @click="dividendMode = 'cash'"
-              :class="[
-                'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                dividendMode === 'cash'
-                  ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                  : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-              ]"
-            >Versement en espèces</button>
-            <button
-              type="button"
-              @click="dividendMode = 'shares'"
-              :class="[
-                'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                dividendMode === 'shares'
-                  ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                  : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-              ]"
-            >En actions (DRIP)</button>
-          </div>
-          <p v-if="isDividendShares" class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
-            Les actions reçues sont enregistrées comme un achat à 0 € — réduit le PRU moyen sans sortie de cash
+        <!-- ── EUR deposit ── -->
+        <template v-if="isDepositType">
+          <BaseInput
+            v-model="depositForm.amount"
+            label="Montant (€)"
+            type="number"
+            step="any"
+            min="0.01"
+            placeholder="0.00"
+            required
+          />
+          <BaseInput
+            v-model="depositForm.fees"
+            label="Frais (€)"
+            type="number"
+            step="any"
+            min="0"
+            placeholder="0.00"
+          />
+          <p class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
+            Montant crédité en bourse : montant - frais.
           </p>
+          <BaseInput
+            v-model="depositForm.executed_at"
+            label="Date du dépôt"
+            type="datetime-local"
+            required
+          />
+          <BaseInput
+            v-model="depositForm.notes!"
+            label="Notes"
+            placeholder="Optionnel"
+          />
+
+          <!-- Only a manually kept euro account can be deducted: a synchronised
+               one sees the transfer on its own at the next sync. -->
+          <div
+            v-if="!editingDepositId && sortedBankAccounts.length"
+            class="rounded-card border border-surface-border dark:border-surface-dark-border p-4 space-y-3"
+          >
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="deductFromBank"
+                class="h-4 w-4 rounded accent-primary"
+              />
+              <span class="text-sm font-medium text-text-main dark:text-text-dark-main">
+                Déduire de mon compte bancaire
+              </span>
+            </label>
+
+            <div v-if="deductFromBank" class="space-y-2">
+              <label class="block text-xs text-text-muted dark:text-text-dark-muted">Compte source</label>
+              <select
+                v-model="selectedBankAccountId"
+                class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option
+                  v-for="acc in sortedBankAccounts"
+                  :key="acc.id"
+                  :value="acc.id"
+                >
+                  {{ acc.name }} — {{ formatCurrency(acc.balance, acc.currency) }}
+                </option>
+              </select>
+            </div>
+          </div>
         </template>
 
-        <!-- ── Unified asset picker ── -->
-        <div>
-          <BaseAutocomplete
-            id="stock-tx-asset"
-            :model-value="assetQuery"
-            @update:model-value="handleAssetInput"
-            @select="handleSelectUnifiedAsset"
-            label="Actif"
-            :placeholder="(txForm.type === 'SELL' || txForm.type === 'DIVIDEND') ? 'Choisir parmi vos positions…' : 'Nom, symbole ou ISIN…'"
-            :options="assetOptions"
-            :display-value="formatAssetOption"
-            :loading="isAssetSearching"
-            :show-all-on-focus="true"
-            remote
-          >
-            <template #item="{ item }">
-              <div class="flex items-center justify-between gap-2 w-full">
-                <div class="min-w-0 flex items-baseline gap-1.5 truncate">
-                  <span class="font-medium text-text-main dark:text-text-dark-main">
-                    {{ item.name || item.symbol }}
-                  </span>
-                  <span v-if="item.name && item.asset_key" class="text-text-muted dark:text-text-dark-muted text-xs">
-                    ({{ item.asset_key }})
-                  </span>
-                  <span v-else-if="item.name && item.symbol" class="text-text-muted dark:text-text-dark-muted text-xs">
-                    ({{ item.symbol }})
-                  </span>
-                </div>  
-                <span
-                  :class="[
-                    'text-xs shrink-0 px-1.5 py-0.5 rounded-secondary font-medium',
-                    item._source === 'known'
-                      ? 'bg-primary-light text-primary'
-                      : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted',
-                  ]"
-                >{{ item._source === 'known' ? 'portefeuille' : 'marché' }}</span>
-              </div>
-            </template>
-          </BaseAutocomplete>
-          <p v-if="assetError" class="text-xs text-danger mt-1">{{ assetError }}</p>
-          <p v-else-if="txForm.type === 'SELL' || txForm.type === 'DIVIDEND'" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
-            Seules vos positions actuelles sont proposées
-          </p>
-          <p v-else class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
-            Tapez un nom, un symbole ou un ISIN — les actifs de votre portefeuille apparaissent en premier
-          </p>
-        </div>
+        <template v-else>
+          <!-- ── Dividend mode toggle ── -->
+          <template v-if="txForm.type === 'DIVIDEND'">
+            <div class="inline-flex w-full bg-background-subtle dark:bg-background-dark-subtle rounded-lg p-1">
+              <button
+                type="button"
+                @click="dividendMode = 'cash'"
+                :class="[
+                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
+                  dividendMode === 'cash'
+                    ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
+                ]"
+              >Versement en espèces</button>
+              <button
+                type="button"
+                @click="dividendMode = 'shares'"
+                :class="[
+                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
+                  dividendMode === 'shares'
+                    ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
+                ]"
+              >En actions (DRIP)</button>
+            </div>
+            <p v-if="isDividendShares" class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
+              Les actions reçues sont enregistrées comme un achat à 0 € — réduit le PRU moyen sans sortie de cash
+            </p>
+          </template>
 
-        <!-- Symbole + ISIN pré-remplis (confirmation / correction) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <BaseInput
-            v-model="txForm.symbol"
-            label="Symbole"
-            placeholder="Ex : AAPL, MC.PA…"
-            required
-          />
-          <BaseInput
-            v-model="txForm.asset_key!"
-            label="ISIN"
-            placeholder="Obligatoire"
-            required
-          />
-        </div>
-
-        <!-- Place de marché optionnelle -->
-        <div v-if="showExchange">
-          <BaseInput
-            v-model="txForm.exchange!"
-            label="Place de marché"
-            placeholder="Ex : XPAR, XNAS…"
-          />
-        </div>
-        <button
-          v-if="!showExchange"
-          type="button"
-          class="text-xs text-primary hover:underline -mt-2 block"
-          @click="showExchange = true"
-        >
-          + Ajouter une place de marché
-        </button>
-
-        <div :class="isDividendShares ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'">
+          <!-- ── Unified asset picker ── -->
           <div>
-            <BaseInput v-model="txForm.amount" :label="txAmountLabel" type="number" step="any" min="0" required />
-            <p v-if="txForm.type === 'SELL' && sellMaxAmount !== null" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
-              Disponible : {{ formatNumber(sellMaxAmount, 4) }} action{{ sellMaxAmount !== 1 ? 's' : '' }}
+            <BaseAutocomplete
+              id="stock-tx-asset"
+              :model-value="assetQuery"
+              @update:model-value="handleAssetInput"
+              @select="handleSelectUnifiedAsset"
+              label="Actif"
+              :placeholder="(txForm.type === 'SELL' || txForm.type === 'DIVIDEND') ? 'Choisir parmi vos positions…' : 'Nom, symbole ou ISIN…'"
+              :options="assetOptions"
+              :display-value="formatAssetOption"
+              :loading="isAssetSearching"
+              :show-all-on-focus="true"
+              remote
+            >
+              <template #item="{ item }">
+                <div class="flex items-center justify-between gap-2 w-full">
+                  <div class="min-w-0 flex items-baseline gap-1.5 truncate">
+                    <span class="font-medium text-text-main dark:text-text-dark-main">
+                      {{ item.name || item.symbol }}
+                    </span>
+                    <span v-if="item.name && item.asset_key" class="text-text-muted dark:text-text-dark-muted text-xs">
+                      ({{ item.asset_key }})
+                    </span>
+                    <span v-else-if="item.name && item.symbol" class="text-text-muted dark:text-text-dark-muted text-xs">
+                      ({{ item.symbol }})
+                    </span>
+                  </div>  
+                  <span
+                    :class="[
+                      'text-xs shrink-0 px-1.5 py-0.5 rounded-secondary font-medium',
+                      item._source === 'known'
+                        ? 'bg-primary-light text-primary'
+                        : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted',
+                    ]"
+                  >{{ item._source === 'known' ? 'portefeuille' : 'marché' }}</span>
+                </div>
+              </template>
+            </BaseAutocomplete>
+            <p v-if="assetError" class="text-xs text-danger mt-1">{{ assetError }}</p>
+            <p v-else-if="txForm.type === 'SELL' || txForm.type === 'DIVIDEND'" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
+              Seules vos positions actuelles sont proposées
+            </p>
+            <p v-else class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
+              Tapez un nom, un symbole ou un ISIN — les actifs de votre portefeuille apparaissent en premier
             </p>
           </div>
-          <BaseInput
-            v-if="!isDividendShares"
-            v-model="txForm.price_per_unit"
-            :label="txPriceLabel"
-            type="number" step="any" min="0"
-            required
-          />
-        </div>
-        <BaseInput v-if="!isDividendShares" v-model="txForm.fees!" label="Frais (€)" type="number" step="any" min="0" placeholder="0.00" />
-        <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
+
+          <!-- Symbole + ISIN pré-remplis (confirmation / correction) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <BaseInput
+              v-model="txForm.symbol"
+              label="Symbole"
+              placeholder="Ex : AAPL, MC.PA…"
+              required
+            />
+            <BaseInput
+              v-model="txForm.asset_key!"
+              label="ISIN"
+              placeholder="Obligatoire"
+              required
+            />
+          </div>
+
+          <!-- Place de marché optionnelle -->
+          <div v-if="showExchange">
+            <BaseInput
+              v-model="txForm.exchange!"
+              label="Place de marché"
+              placeholder="Ex : XPAR, XNAS…"
+            />
+          </div>
+          <button
+            v-if="!showExchange"
+            type="button"
+            class="text-xs text-primary hover:underline -mt-2 block"
+            @click="showExchange = true"
+          >
+            + Ajouter une place de marché
+          </button>
+
+          <div :class="isDividendShares ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'">
+            <div>
+              <BaseInput v-model="txForm.amount" :label="txAmountLabel" type="number" step="any" min="0" required />
+              <p v-if="txForm.type === 'SELL' && sellMaxAmount !== null" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">
+                Disponible : {{ formatNumber(sellMaxAmount, 4) }} action{{ sellMaxAmount !== 1 ? 's' : '' }}
+              </p>
+            </div>
+            <BaseInput
+              v-if="!isDividendShares"
+              v-model="txForm.price_per_unit"
+              :label="txPriceLabel"
+              type="number" step="any" min="0"
+              required
+            />
+          </div>
+          <BaseInput v-if="!isDividendShares" v-model="txForm.fees!" label="Frais (€)" type="number" step="any" min="0" placeholder="0.00" />
+          <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
+        </template>
       </form>
       <template #footer>
         <div class="flex justify-between w-full">
-          <BaseButton v-if="editingTxId" variant="danger" @click="deleteTransaction(editingTxId)">
+          <BaseButton
+            v-if="editingTxId || editingDepositId"
+            variant="danger"
+            @click="deleteTransaction((editingTxId || editingDepositId)!)"
+          >
             Supprimer
           </BaseButton>
-          <div v-else>
+          <div v-else-if="!isDepositType">
             <BaseButton
               variant="ghost"
               size="sm"
@@ -2026,10 +2103,14 @@ onMounted(async () => {
               <span class="hidden sm:inline">Depuis une photo</span>
             </BaseButton>
           </div>
+          <div v-else></div>
           <div class="flex gap-2">
             <BaseButton variant="ghost" @click="showTxModal = false">Annuler</BaseButton>
-            <BaseButton :loading="stocks.isLoading" @click="handleSubmitTransaction">
-              {{ editingTxId ? 'Enregistrer' : 'Valider' }}
+            <BaseButton
+              :loading="stocks.isLoading || (isDepositType && bank.isLoading)"
+              @click="isDepositType ? handleSubmitDeposit() : handleSubmitTransaction()"
+            >
+              {{ editingTxId || editingDepositId ? 'Enregistrer' : isDepositType ? 'Valider le dépôt' : 'Valider' }}
             </BaseButton>
           </div>
         </div>
@@ -2085,106 +2166,5 @@ onMounted(async () => {
       @confirm="handlePhotoImport"
       @close="showPhotoImportModal = false"
     />
-
-    <!-- ── EUR Deposit Modal ──────────────────────────── -->
-    <BaseModal :open="showDepositModal" :title="editingDepositId ? 'Modifier le dépôt' : 'Déposer des euros'" @close="showDepositModal = false">
-      <BaseAlert v-if="depositFormError" variant="danger" dismissible class="mb-4" @dismiss="depositFormError = null">
-        {{ depositFormError }}
-      </BaseAlert>
-      <form @submit.prevent="handleSubmitDeposit" class="space-y-4">
-        <!-- Stock account selector (only for new deposits) -->
-        <div v-if="!editingDepositId">
-          <label class="block text-xs font-medium text-text-muted dark:text-text-dark-muted mb-1">Compte de bourse</label>
-          <select
-            v-model="depositStockAccountId"
-            class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            required
-          >
-            <option v-for="acc in stocks.accounts" :key="acc.id" :value="acc.id">
-              {{ acc.name }} — {{ acc.account_type }}
-            </option>
-          </select>
-        </div>
-        <BaseInput
-          v-model="depositForm.amount"
-          label="Montant (€)"
-          type="number"
-          step="any"
-          min="0.01"
-          placeholder="0.00"
-          required
-        />
-        <BaseInput
-          v-model="depositForm.fees"
-          label="Frais (€)"
-          type="number"
-          step="any"
-          min="0"
-          placeholder="0.00"
-        />
-        <p class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
-          Montant crédité en bourse : montant - frais.
-        </p>
-        <BaseInput
-          v-model="depositForm.executed_at"
-          label="Date du dépôt"
-          type="datetime-local"
-          required
-        />
-        <BaseInput
-          v-model="depositForm.notes!"
-          label="Notes"
-          placeholder="Optionnel"
-        />
-
-        <!-- Bank deduction option (only for new deposits) -->
-        <div v-if="!editingDepositId" class="rounded-card border border-surface-border dark:border-surface-dark-border p-4 space-y-3">
-          <label class="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              v-model="deductFromBank"
-              class="h-4 w-4 rounded accent-primary"
-            />
-            <span class="text-sm font-medium text-text-main dark:text-text-dark-main">
-              Déduire de mon compte bancaire
-            </span>
-          </label>
-
-          <div v-if="deductFromBank && sortedBankAccounts.length" class="space-y-2">
-            <label class="block text-xs text-text-muted dark:text-text-dark-muted">Compte source</label>
-            <select
-              v-model="selectedBankAccountId"
-              class="w-full px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
-              <option
-                v-for="acc in sortedBankAccounts"
-                :key="acc.id"
-                :value="acc.id"
-              >
-                {{ acc.name }} — {{ formatCurrency(acc.balance, acc.currency) }}
-              </option>
-            </select>
-          </div>
-
-          <p v-if="deductFromBank && !sortedBankAccounts.length" class="text-xs text-text-muted dark:text-text-dark-muted">
-            {{ hasOnlyForeignBankAccounts
-              ? 'Aucun compte en euros : la déduction automatique n’est pas possible depuis un compte en devise étrangère.'
-              : 'Aucun compte bancaire configuré.' }}
-          </p>
-        </div>
-      </form>
-      <template #footer>
-        <div class="flex justify-between w-full">
-          <BaseButton v-if="editingDepositId" variant="danger" @click="deleteTransaction(editingDepositId)">
-            Supprimer
-          </BaseButton>
-          <div v-else></div>
-          <div class="flex gap-2">
-            <BaseButton variant="ghost" @click="showDepositModal = false">Annuler</BaseButton>
-            <BaseButton :loading="stocks.isLoading || bank.isLoading" @click="handleSubmitDeposit">{{ editingDepositId ? 'Enregistrer' : 'Valider le dépôt' }}</BaseButton>
-          </div>
-        </div>
-      </template>
-    </BaseModal>
   </div>
 </template>
