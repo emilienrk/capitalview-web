@@ -27,6 +27,7 @@ import type {
   BankSummaryResponse,
   BankAccountCreate,
   BankAccountUpdate,
+  SavingsInterestResponse,
   AccountHistorySnapshotResponse,
 } from '@/types'
 
@@ -43,6 +44,8 @@ export const useBankStore = defineStore('bank', () => {
   const historyLoading = ref(false)
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
+  /** This year's interest per savings account that has a rate, from GET /bank/interest. */
+  const interestByAccount = ref<Record<string, SavingsInterestResponse>>({})
 
   /** What actually moved, from GET /banking/flows. Null until first asked. */
   const observedFlows = ref<BankFlowsResponse | null>(null)
@@ -136,6 +139,16 @@ export const useBankStore = defineStore('bank', () => {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des comptes'
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function fetchInterest(): Promise<void> {
+    try {
+      const rows = await apiClient.get<SavingsInterestResponse[]>('/bank/interest')
+      interestByAccount.value = Object.fromEntries(rows.map((row) => [row.account_id, row]))
+    } catch {
+      // An estimate is an extra: the accounts stand without it.
+      interestByAccount.value = {}
     }
   }
 
@@ -465,6 +478,7 @@ export const useBankStore = defineStore('bank', () => {
     currentAccount.value = null
     history.value = []
     accountHistoryById.value = {}
+    interestByAccount.value = {}
     observedFlows.value = null
     observedFlowsKey.value = null
     transactions.value = null
@@ -483,6 +497,7 @@ export const useBankStore = defineStore('bank', () => {
     historyLoading,
     isSyncing,
     error,
+    interestByAccount,
     isHistoryCacheValid,
     observedFlows,
     observedFlowsLoading,
@@ -496,6 +511,7 @@ export const useBankStore = defineStore('bank', () => {
     hasStaleSync,
     fetchAccounts,
     fetchAccount,
+    fetchInterest,
     createAccount,
     updateAccount,
     deleteAccount,

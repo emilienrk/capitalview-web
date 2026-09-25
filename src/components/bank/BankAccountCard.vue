@@ -23,7 +23,7 @@ const emit = defineEmits<{
 const bank = useBankStore()
 const router = useRouter()
 const settingsStore = useSettingsStore()
-const { formatCurrency, formatDate, formatAccountType } = useFormatters()
+const { formatCurrency, formatDate, formatNumber, formatAccountType } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
 const openBankingEnabled = computed(() => settingsStore.settings?.open_banking_enabled ?? false)
@@ -58,6 +58,11 @@ const syncBadge = computed<{ label: string; variant: BadgeVariant; title?: strin
     : `Synchronisé le ${formatDate(account.last_synced_at)}`
   return { label, variant: 'success', title }
 })
+
+/** This year's interest, once the account has a rate. */
+const interest = computed(() => bank.interestByAccount[props.account.id] ?? null)
+/** A savings account with no rate yet: worth a nudge, not a warning. */
+const missingRate = computed(() => props.account.interest_method !== null && props.account.interest_rate === null)
 
 /** Positive: the bank counts more coming in than the stored operations explain. */
 const gapDirection = computed(() => ((props.account.reconciliation_gap ?? 0) > 0 ? 'entrées' : 'sorties'))
@@ -255,6 +260,53 @@ async function reseedHistory(): Promise<void> {
         </button>
       </div>
     </div>
+
+    <div
+      v-if="interest"
+      class="mt-3 p-2.5 rounded-input bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border text-xs"
+    >
+      <div class="flex items-center justify-between gap-2 text-text-muted dark:text-text-dark-muted">
+        <span>Intérêts {{ interest.year }} · {{ formatNumber(Number(interest.rate) * 100, 2) }} % brut</span>
+        <span class="shrink-0 -my-1">
+          <BaseHelpPopover label="Comment sont-ils calculés ?" width="md">
+            Estimation avant impôts, à partir de l'historique du solde et du taux saisi.
+            <template v-if="interest.method === 'FORTNIGHTLY'">
+              Par quinzaines : un versement rapporte à partir du 1er ou du 16 qui suit, un retrait
+              cesse de rapporter dès le 1er ou le 16 qui précède.
+            </template>
+            <template v-else>Au jour le jour, sur le solde de chaque soir.</template>
+            « Fin d'année » suppose que le solde reste celui d'aujourd'hui jusqu'au 31 décembre,
+            date à laquelle les intérêts sont versés.
+            <template v-if="interest.tracked_from">
+              Comptés depuis le {{ formatDate(interest.tracked_from) }} : l'historique du solde
+              ne remonte pas plus loin.
+            </template>
+          </BaseHelpPopover>
+        </span>
+      </div>
+      <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+        <span class="text-text-muted dark:text-text-dark-muted">
+          Acquis
+          <span class="ml-1 font-semibold tabular-nums text-text-main dark:text-text-dark-main">
+            {{ maskValue(formatCurrency(interest.earned)) }}
+          </span>
+        </span>
+        <span class="text-text-muted dark:text-text-dark-muted">
+          Fin d'année
+          <span class="ml-1 font-semibold tabular-nums text-success">
+            ≈ {{ maskValue(formatCurrency(interest.estimated)) }}
+          </span>
+        </span>
+      </div>
+    </div>
+    <button
+      v-else-if="missingRate"
+      type="button"
+      class="mt-3 self-start text-xs font-medium text-primary hover:underline underline-offset-2"
+      @click.stop="emit('edit', account)"
+    >
+      Ajouter le taux pour estimer les intérêts
+    </button>
 
     <!-- mt-auto: the footer sits at the bottom whatever the card above says,
          so the cards of one row line up. -->

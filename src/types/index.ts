@@ -146,8 +146,14 @@ export interface BankAccountCreate {
   /** ISO 4217 code. Defaults to EUR; refused if no exchange rate is published. */
   currency?: string
   opened_at?: string | null
+  /** Savings and livrets only. Rates are decimals (0.025 = 2.5 %/year), gross. */
+  interest_rate?: number | null
+  boosted_rate?: number | null
+  boosted_until?: string | null
+  interest_method?: InterestMethod | null
 }
 
+/** An interest field left out is kept; null clears it. */
 export interface BankAccountUpdate {
   name?: string
   institution_name?: string
@@ -155,6 +161,28 @@ export interface BankAccountUpdate {
   balance?: number
   currency?: string
   opened_at?: string | null
+  interest_rate?: number | null
+  boosted_rate?: number | null
+  boosted_until?: string | null
+  interest_method?: InterestMethod | null
+}
+
+/** By quinzaine (every regulated livret) or by the day. */
+export type InterestMethod = 'FORTNIGHTLY' | 'DAILY'
+
+/** GET /bank/interest: one savings account's interest this year, gross of tax. */
+export interface SavingsInterestResponse {
+  account_id: string
+  year: number
+  /** The rate in force today. */
+  rate: number
+  method: InterestMethod
+  /** Accrued over the quinzaines (or days) already over. */
+  earned: number
+  /** The year's total if the balance stays at today's until 31 December. */
+  estimated: number
+  /** First day counted, when the history starts inside the year. */
+  tracked_from: string | null
 }
 
 /** Mirrors the API enums of the same names (dtos/bank.py, dtos/banking.py). */
@@ -186,6 +214,11 @@ export interface BankAccountResponse {
   account_type: BankAccountType
   identifier: string | null
   opened_at: string | null
+  interest_rate: number | null
+  boosted_rate: number | null
+  boosted_until: string | null
+  /** Null on an account that bears no interest. */
+  interest_method: InterestMethod | null
   created_at: string
   updated_at: string
   balance_updated_at: string | null
@@ -1786,6 +1819,84 @@ export interface AssetSummaryResponse {
   assets: AssetResponse[]
 }
 
+// ─── Placements (AV, PER, SCPI…) ────────────────────────────
+
+export type PlacementType =
+  | 'AV'
+  | 'PER'
+  | 'EPARGNE_SALARIALE'
+  | 'SCPI'
+  | 'CROWDFUNDING'
+  | 'CAPITALISATION'
+  | 'OTHER'
+export type PlacementEntryType = 'VALUATION' | 'DEPOSIT' | 'WITHDRAW'
+
+export interface PlacementAccountCreate {
+  name: string
+  placement_type: PlacementType
+  institution_name?: string | null
+  opened_at?: string | null
+  expected_return_rate?: number | null
+}
+
+export type PlacementAccountUpdate = Partial<PlacementAccountCreate>
+
+export interface PlacementAccountResponse {
+  id: string
+  name: string
+  placement_type: PlacementType
+  institution_name: string | null
+  opened_at: string | null
+  expected_return_rate: number | null
+  current_value: number
+  total_deposits: number
+  total_withdrawals: number
+  net_invested: number
+  gain: number | null
+  gain_percentage: number | null
+  last_valuation_date: string | null
+  last_valuation_value: number | null
+  days_since_valuation: number | null
+  is_stale: boolean
+  annual_return_rate: number | null
+  return_days: number
+  tax_anniversary_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PlacementSummaryResponse {
+  total_value: number
+  total_deposits: number
+  total_withdrawals: number
+  net_invested: number
+  accounts: PlacementAccountResponse[]
+}
+
+export interface PlacementEntryCreate {
+  type: PlacementEntryType
+  amount: number
+  occurred_at: string
+  note?: string | null
+}
+
+export interface PlacementEntryUpdate {
+  amount?: number
+  occurred_at?: string
+  note?: string | null
+}
+
+export interface PlacementEntryResponse {
+  id: string
+  account_id: string
+  type: PlacementEntryType
+  amount: number
+  occurred_at: string
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Dashboard Statistics ────────────────────────────────────
 
 export interface InvestmentDistribution {
@@ -1795,6 +1906,9 @@ export interface InvestmentDistribution {
   crypto_invested: number
   crypto_current_value: number | null
   crypto_percentage: number | null
+  placements_invested: number
+  placements_current_value: number
+  placements_percentage: number | null
   total_deposits: number
   total_withdrawals: number
 }
@@ -1818,7 +1932,7 @@ export interface DashboardStatisticsResponse {
 
 // ─── Projection ─────────────────────────────────────────────
 
-export type ProjectionCategory = 'BANK' | 'STOCK' | 'CRYPTO'
+export type ProjectionCategory = 'BANK' | 'STOCK' | 'CRYPTO' | 'PLACEMENT'
 
 export interface ProjectionAssetParameters {
   monthly_injection?: number | null
@@ -1988,6 +2102,7 @@ export interface GlobalHistorySnapshotResponse {
   crypto_value: number
   bank_value: number
   assets_value: number
+  placements_value: number
 }
 
 export interface AssetHistorySnapshotResponse {

@@ -68,6 +68,8 @@ const chartSeries = computed(() =>
 )
 
 async function loadChartHistories(force = false): Promise<void> {
+  // The interest rides along: it is read off the same balance history.
+  void bank.fetchInterest()
   await bank.fetchHistory(force)
   const accounts = bank.summary?.accounts ?? []
   await Promise.all(accounts.map((account) => bank.fetchHistoryForAccount(account.id, force)))
