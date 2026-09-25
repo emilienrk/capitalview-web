@@ -186,11 +186,10 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
             {{ queue.total_count }} question{{ queue.total_count > 1 ? 's' : '' }}, les plus gros montants d'abord :
             quelques réponses suffisent à rendre le Réel juste.
           </p>
-          <!-- Out of the amount above: saying yes or no to one moves no total.
-               Payments and income alike, the count does not tell them apart. -->
+          <!-- Asked in their own tab: saying yes or no to one moves no total. -->
           <p v-if="queue?.recurring_count" class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-            Dont {{ queue.recurring_count }} récurrent{{ queue.recurring_count > 1 ? 's' : '' }} à confirmer, paiement ou revenu,
-            montré{{ queue.recurring_count > 1 ? 's' : '' }} à {{ queue.recurring_count > 1 ? 'leur' : 'son' }} montant annuel, hors de ce montant.
+            Et {{ queue.recurring_count }} récurrent{{ queue.recurring_count > 1 ? 's' : '' }} à confirmer, paiement ou revenu,
+            dans <router-link :to="{ name: 'bank-recurring' }" class="text-primary hover:underline">Récurrent</router-link>.
           </p>
         </div>
         <p v-if="settled > 0" class="flex items-center gap-1.5 text-sm font-medium text-success">

@@ -58,6 +58,13 @@ const tabs = [
       >
         {{ bank.transferQuestions.total }}
       </span>
+      <span
+        v-if="tab.name === 'bank-recurring' && bank.transferQuestions?.recurring"
+        class="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-xs font-semibold leading-5 text-center tabular-nums"
+        :title="`${bank.transferQuestions.recurring} récurrent${bank.transferQuestions.recurring > 1 ? 's' : ''} à confirmer`"
+      >
+        {{ bank.transferQuestions.recurring }}
+      </span>
     </router-link>
   </nav>
 </template>
