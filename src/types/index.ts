@@ -975,53 +975,6 @@ export interface CashflowResponse {
 
 // Every total below is in euros, and null when a currency in play has no
 // published rate — same contract as BankSummaryResponse.total_balance.
-/** One real movement behind a declaration, for the "3 derniers" line. */
-export interface RecentOccurrence {
-  day: string
-  amount: number
-}
-
-/** One group of real movements that could be a declaration's counterpart. */
-export interface MatchCandidate {
-  pattern: string
-  observed_amount: number
-  occurrences: number
-  last_seen: string
-}
-
-/** The verdicts of GET /cashflow/me/comparison, in the order they are decided. */
-export type ComparisonStatus =
-  | 'unmatched'
-  | 'missing'
-  | 'duplicated'
-  | 'drifted'
-  | 'on_track'
-
-/**
- * What one declaration says, against what actually moved for it.
- *
- * Nothing is linked behind the user's back: until `match_pattern` is confirmed
- * through PUT /cashflow/{id}/match, the status is `unmatched` and `candidates`
- * holds what the app merely proposes.
- */
-export interface CashflowComparison {
-  cashflow_id: string
-  name: string
-  flow_type: FlowType
-  frequency: Frequency
-  category: string
-  declared_amount: number
-  /** The declaration's own currency; observed amounts in another are ignored. */
-  currency: string
-  status: ComparisonStatus
-  match_pattern: string | null
-  observed_amount: number | null
-  last_seen: string | null
-  occurrences: number
-  recent: RecentOccurrence[]
-  candidates: MatchCandidate[]
-}
-
 export interface CashflowCategoryResponse {
   category: string
   total_amount: number | null
