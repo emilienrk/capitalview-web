@@ -26,7 +26,7 @@ export function monthlyFigures(year: RealCashflowYear, statistic: MonthlyStatist
 export function openQuestionsNotice(count: number, amount: string): string | null {
   if (count <= 0) return null
   const operations = count === 1 ? '1 opération' : `${count} opérations`
-  return `${amount} restent à confirmer (${operations}) : ces chiffres peuvent encore changer.`
+  return `${amount} à confirmer (${operations})`
 }
 
 /**
@@ -44,20 +44,25 @@ export function changePercent(current: number, previous: number | null | undefin
  */
 export function coverageNotice(gap: RealCashflowCoverageGap, format: (day: string) => string): string {
   const parts: string[] = []
-  if (gap.starts_late) parts.push(`n'a d'opérations qu'à partir du ${format(gap.first_day)}`)
+  if (gap.starts_late) parts.push(`n'a d'opérations que depuis le ${format(gap.first_day)}`)
   if (gap.ends_early) parts.push(`n'est à jour qu'au ${format(gap.covered_until)}`)
-  return `${gap.account_name} ${parts.join(' et ')} : un virement vers ce compte hors de cette plage compte en dépense.`
+  return `${gap.account_name} ${parts.join(' et ')} : un virement vers lui hors de cette période compte en dépense.`
 }
 
 // Storage can be missing or throw (private browsing, blocked site data): the
-// page then simply opens on the declared view.
-export function readCashflowView(): CashflowView {
+// page then opens on its default view.
+export function readCashflowView(): CashflowView | null {
   try {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY)
-    return stored === 'real' || stored === 'explore' ? stored : 'planned'
+    return stored === 'planned' || stored === 'real' || stored === 'explore' ? stored : null
   } catch {
-    return 'planned'
+    return null
   }
+}
+
+/** Nothing chosen yet: the operations once there are accounts to read them from, the plan before. */
+export function defaultCashflowView(hasBankAccounts: boolean): CashflowView {
+  return hasBankAccounts ? 'real' : 'planned'
 }
 
 export function writeCashflowView(view: CashflowView): void {

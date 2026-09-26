@@ -196,6 +196,18 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
+  /** The user's word that an imported account missed nothing up to today. */
+  async function confirmUpToDate(id: string): Promise<boolean> {
+    try {
+      await apiClient.post(`/bank/accounts/${id}/up-to-date`, {})
+      invalidateHistoryCache()
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Erreur lors de la confirmation'
+      return false
+    }
+  }
+
   async function deleteAccount(id: string): Promise<boolean> {
     isLoading.value = true
     error.value = null
@@ -515,6 +527,7 @@ export const useBankStore = defineStore('bank', () => {
     createAccount,
     updateAccount,
     deleteAccount,
+    confirmUpToDate,
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,

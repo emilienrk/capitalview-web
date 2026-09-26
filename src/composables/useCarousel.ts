@@ -1,4 +1,4 @@
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue'
 
 export interface CarouselSlide<K extends string = string> {
   key: K
@@ -22,17 +22,31 @@ export interface UseCarouselReturn<K extends string> {
  * Cyclic slide navigation shared by the chart carousels (Crypto, Stock,
  * Dashboard). Includes lightweight touch-swipe handlers that don't block
  * page scroll (horizontal threshold 60px, max vertical drift 60px).
+ *
+ * The slides may change: while the chosen one — `initial` until the user
+ * moves — is missing, the first stands in for it, and it comes back once
+ * available.
  */
 export function useCarousel<K extends string>(
-  slides: ReadonlyArray<CarouselSlide<K>>,
+  slidesSource: MaybeRefOrGetter<ReadonlyArray<CarouselSlide<K>>>,
+  initial?: K,
 ): UseCarouselReturn<K> {
-  const current = ref(slides[0]!.key) as Ref<K>
+  const chosen = ref(initial ?? toValue(slidesSource)[0]!.key) as Ref<K>
+  const current = computed<K>({
+    get: () => {
+      const slides = toValue(slidesSource)
+      return slides.some((slide) => slide.key === chosen.value) ? chosen.value : slides[0]!.key
+    },
+    set: (key) => { chosen.value = key },
+  })
 
   const currentLabel = computed<string>(() => {
+    const slides = toValue(slidesSource)
     return slides.find((slide) => slide.key === current.value)?.label ?? slides[0]!.label
   })
 
   function shift(offset: number): void {
+    const slides = toValue(slidesSource)
     if (!slides.length) return
     const idx = slides.findIndex((slide) => slide.key === current.value)
     const normalizedIdx = idx >= 0 ? idx : 0

@@ -638,6 +638,8 @@ export interface RealCashflowTotals {
   investment: number
   neutral: number
   net: number
+  /** What the income left once spent, before any was set aside; taken month by month like `one_off`. */
+  cashflow: number
   /** Percent of the income not spent, and the part of it set aside or invested; null without income. */
   savings_rate: number | null
   placed_rate: number | null

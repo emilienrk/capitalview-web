@@ -14,7 +14,9 @@ import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import RealCashflowView from '@/components/cashflow/RealCashflowView.vue'
 import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
 import { withoutExploreQuery } from '@/composables/useExploreFilters'
-import { readCashflowView, writeCashflowView, type CashflowView } from '@/utils/realCashflow'
+import {
+  defaultCashflowView, readCashflowView, writeCashflowView, type CashflowView,
+} from '@/utils/realCashflow'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
   BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle, BaseSegmentedControl,
@@ -42,17 +44,27 @@ function viewFromQuery(value: unknown): CashflowView | null {
   return value === 'planned' || value === 'real' || value === 'explore' ? value : null
 }
 
+const settings = useSettingsStore()
+const hasBankAccounts = computed(() =>
+  (settings.settings?.bank_module_enabled ?? true) && (bank.summary?.accounts.length ?? 0) > 0,
+)
+
 /**
- * Declared (visé), observed (réel) or explored, remembered on this browser. A
- * link can open one directly, the Explorer with its filters in the query.
+ * Observed (réel), declared (visé) or explored, remembered on this browser once
+ * chosen. A link can open one directly, the Explorer with its filters in the
+ * query. Nothing chosen: the default waits for the accounts to be known.
  */
-const view = ref<CashflowView>(viewFromQuery(route.query.view) ?? readCashflowView())
+const view = ref<CashflowView | null>(
+  viewFromQuery(route.query.view) ?? readCashflowView() ?? (bank.summary ? defaultCashflowView(hasBankAccounts.value) : null),
+)
 watch(() => route.query.view, (value) => {
   const asked = viewFromQuery(value)
   if (asked) view.value = asked
 })
-watch(view, (value) => {
-  writeCashflowView(value)
+watch(view, (value, previous) => {
+  if (value === null) return
+  // Only a pick is remembered: the default is none.
+  if (previous !== null) writeCashflowView(value)
   // The Explorer's filters mean nothing to the other views: leaving it drops them.
   if (value !== 'explore' && route.name === 'cashflow') {
     const query = withoutExploreQuery(route.query)
@@ -61,8 +73,8 @@ watch(view, (value) => {
   }
 })
 const viewOptions = [
-  { label: 'Visé', value: 'planned' },
   { label: 'Réel', value: 'real' },
+  { label: 'Visé', value: 'planned' },
   { label: 'Explorer', value: 'explore' },
 ]
 
@@ -445,6 +457,7 @@ async function handleDelete(id: string): Promise<void> {
 
 onMounted(async () => {
   await Promise.all([cashflow.fetchAll(), bank.fetchAccounts()])
+  if (view.value === null) view.value = defaultCashflowView(hasBankAccounts.value)
   hasFetchedOnce.value = true
 })
 </script>
@@ -454,9 +467,9 @@ onMounted(async () => {
     <PageHeader title="Flux de trésorerie" description="Ce que vous prévoyez, et ce que vos comptes ont réellement vu passer">
       <template #actions>
         <BaseSegmentedControl
-          :model-value="view"
+          :model-value="view ?? ''"
           :options="viewOptions"
-          aria-label="Cashflow visé ou réel"
+          aria-label="Cashflow réel ou visé"
           @update:model-value="view = $event as CashflowView"
         />
         <BaseAddButton v-if="view === 'planned'" @click="openCreate()">Nouveau flux</BaseAddButton>
@@ -466,7 +479,7 @@ onMounted(async () => {
     <RealCashflowView v-if="view === 'real'" />
     <ExploreView v-else-if="view === 'explore'" />
 
-    <template v-else>
+    <template v-else-if="view === 'planned'">
       <!-- Error -->
       <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
         {{ cashflow.error }}

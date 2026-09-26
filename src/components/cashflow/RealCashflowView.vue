@@ -8,7 +8,6 @@ import { Landmark } from 'lucide-vue-next'
 
 import { BaseAlert, BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
 import RealCashflowMonth from '@/components/cashflow/RealCashflowMonth.vue'
-import RealCashflowPace from '@/components/cashflow/RealCashflowPace.vue'
 import RealCashflowYear from '@/components/cashflow/RealCashflowYear.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useRealCashflowView } from '@/composables/useRealCashflowView'
@@ -27,14 +26,12 @@ const noOperations = computed(() => store.year !== null && store.year.years_avai
 onMounted(() => {
   if (!bankEnabled.value) return
   void view.openYear()
-  void store.fetchCurrent()
 })
 
 // A sync, an import or a filing changed the operations the figures come from.
 watch(() => bank.dataRevision, () => {
   if (mode.value === 'month' && store.month) void store.fetchMonth(store.month.period, true)
   else void store.fetchYear(view.selectedYear.value, true)
-  void store.fetchCurrent(true)
 })
 </script>
 
@@ -67,8 +64,6 @@ watch(() => bank.dataRevision, () => {
           Réessayer
         </BaseButton>
       </BaseAlert>
-
-      <RealCashflowPace v-if="mode === 'year' && store.current" :data="store.current" :is-dark="isDark" class="mb-6" />
 
       <RealCashflowMonth
         v-if="mode === 'month' && store.month"

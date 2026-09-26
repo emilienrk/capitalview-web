@@ -5,8 +5,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-vue
 
 import { BaseButton, BaseCard } from '@/components'
 import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterparts.vue'
-import RealCashflowCoverage from '@/components/cashflow/RealCashflowCoverage.vue'
-import RealCashflowOpenQuestions from '@/components/cashflow/RealCashflowOpenQuestions.vue'
+import RealCashflowNotices from '@/components/cashflow/RealCashflowNotices.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
@@ -68,15 +67,13 @@ const explore = computed(() => ({
       </div>
     </div>
 
-    <div class="space-y-2">
-      <RealCashflowOpenQuestions
-        :count="data.open_questions"
-        :amount="data.open_amount"
-        :currency="data.currency"
-        :year="Number(data.period.slice(0, 4))"
-      />
-      <RealCashflowCoverage :gaps="data.coverage_gaps" />
-    </div>
+    <RealCashflowNotices
+      :count="data.open_questions"
+      :amount="data.open_amount"
+      :currency="data.currency"
+      :gaps="data.coverage_gaps"
+      :year="Number(data.period.slice(0, 4))"
+    />
 
     <BaseCard>
       <div class="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">

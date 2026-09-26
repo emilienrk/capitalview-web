@@ -12,7 +12,6 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 
-import { BaseCard } from '@/components'
 import { useChartResize } from '@/composables/useChartResize'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -103,49 +102,47 @@ const option = computed(() => {
 </script>
 
 <template>
-  <BaseCard>
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
-      <div class="lg:col-span-2 space-y-2">
-        <p class="flex items-center gap-2 text-sm font-medium text-text-muted dark:text-text-dark-muted">
-          <Gauge class="w-4 h-4" /> {{ monthName }} en cours
-        </p>
-        <p class="text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
-          {{ amount(data.spent_to_date) }}
-          <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
-        </p>
-        <p v-if="data.median_to_date !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
-          Un mois médian en était à {{ amount(data.median_to_date) }}
-          <span v-if="gap !== null" class="font-semibold tabular-nums">
-            ({{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }})
-          </span>
-        </p>
-        <p v-if="data.projection !== null" class="text-sm text-text-main dark:text-text-dark-main">
-          Fin de mois estimée : <strong class="tabular-nums">{{ amount(data.projection) }}</strong>
-          <span class="text-text-muted dark:text-text-dark-muted"> pour {{ amount(data.median_month) }} un mois médian</span>
-        </p>
-        <p v-if="Number(data.pending_to_date)" class="text-xs text-text-muted dark:text-text-dark-muted">
-          Dont {{ amount(data.pending_to_date) }} de paiements encore en attente.
-        </p>
-        <!-- The due dates still to come: what the rest of the month already owes. -->
-        <p v-if="upcoming.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcoming)">
-          À venir ce mois : {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }},
-          {{ amount(data.upcoming_amount) }}
-        </p>
-        <!-- Apart from the spending: an income still to come lowers nothing above. -->
-        <p v-if="upcomingIncome.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcomingIncome)">
-          À recevoir ce mois : {{ upcomingIncome.length }} revenu{{ upcomingIncome.length > 1 ? 's' : '' }} récurrent{{ upcomingIncome.length > 1 ? 's' : '' }},
-          {{ amount(data.upcoming_income_amount) }}
-        </p>
-        <router-link
-          :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"
-          class="inline-block text-sm font-medium text-primary hover:underline"
-        >
-          Explorer ce mois
-        </router-link>
-      </div>
-      <div ref="containerRef" class="lg:col-span-3 h-36 w-full">
-        <VChart v-if="canRenderChart" ref="chartRef" :option="option" autoresize class="w-full h-full" />
-      </div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
+    <div class="lg:col-span-2 space-y-2">
+      <p class="flex items-center gap-2 text-sm font-medium text-text-muted dark:text-text-dark-muted">
+        <Gauge class="w-4 h-4" /> {{ monthName }} en cours
+      </p>
+      <p class="text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
+        {{ amount(data.spent_to_date) }}
+        <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
+      </p>
+      <p v-if="data.median_to_date !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
+        Un mois médian en était à {{ amount(data.median_to_date) }}
+        <span v-if="gap !== null" class="font-semibold tabular-nums">
+          ({{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }})
+        </span>
+      </p>
+      <p v-if="data.projection !== null" class="text-sm text-text-main dark:text-text-dark-main">
+        Fin de mois estimée : <strong class="tabular-nums">{{ amount(data.projection) }}</strong>
+        <span class="text-text-muted dark:text-text-dark-muted"> pour {{ amount(data.median_month) }} un mois médian</span>
+      </p>
+      <p v-if="Number(data.pending_to_date)" class="text-xs text-text-muted dark:text-text-dark-muted">
+        Dont {{ amount(data.pending_to_date) }} de paiements encore en attente.
+      </p>
+      <!-- The due dates still to come: what the rest of the month already owes. -->
+      <p v-if="upcoming.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcoming)">
+        À venir ce mois : {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }},
+        {{ amount(data.upcoming_amount) }}
+      </p>
+      <!-- Apart from the spending: an income still to come lowers nothing above. -->
+      <p v-if="upcomingIncome.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcomingIncome)">
+        À recevoir ce mois : {{ upcomingIncome.length }} revenu{{ upcomingIncome.length > 1 ? 's' : '' }} récurrent{{ upcomingIncome.length > 1 ? 's' : '' }},
+        {{ amount(data.upcoming_income_amount) }}
+      </p>
+      <router-link
+        :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"
+        class="inline-block text-sm font-medium text-primary hover:underline"
+      >
+        Explorer ce mois
+      </router-link>
     </div>
-  </BaseCard>
+    <div ref="containerRef" class="lg:col-span-3 h-36 w-full">
+      <VChart v-if="canRenderChart" ref="chartRef" :option="option" autoresize class="w-full h-full" />
+    </div>
+  </div>
 </template>

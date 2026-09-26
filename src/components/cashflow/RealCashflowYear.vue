@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * A year of the real cashflow: monthly figures by type against the year
- * before, the savings rate and the safety net, the months side by side, where
- * the money went, and who it came from and went to.
+ * before, where the money went, the months side by side, the savings rate and
+ * the safety net, and who it came from and went to.
  */
 import { computed } from 'vue'
 import { ArrowDown, ArrowUp, PiggyBank, Scale, ShieldCheck, Sparkles, TrendingUp } from 'lucide-vue-next'
@@ -11,8 +11,7 @@ import { BaseCard, BaseSegmentedControl, BaseSelect } from '@/components'
 import CashflowMonthsBarChart from '@/components/charts/CashflowMonthsBarChart.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterparts.vue'
-import RealCashflowCoverage from '@/components/cashflow/RealCashflowCoverage.vue'
-import RealCashflowOpenQuestions from '@/components/cashflow/RealCashflowOpenQuestions.vue'
+import RealCashflowNotices from '@/components/cashflow/RealCashflowNotices.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
@@ -63,23 +62,18 @@ const cents = (value: number) => Math.round(Number(value) * 100) / 100
  * What comes back of the income and of the expenses, and the running figure
  * behind it. An API older than recurring income sends none of its fields.
  */
-const splits = computed<Partial<Record<AmountKey, { recurring: number; oneOff: number; running: string | null }>>>(() => ({
+const splits = computed<Partial<Record<AmountKey, { recurring: number; oneOff: number; running: number | null }>>>(() => ({
   income: {
     recurring: monthly.value.recurring_income,
     oneOff: cents(monthly.value.income) - cents(monthly.value.recurring_income),
-    running: props.data.running_recurring_income != null
-      ? `Revenus récurrents en cours : ${amount(props.data.running_recurring_income)} / mois`
-      : null,
+    running: props.data.running_recurring_income ?? null,
   },
   expenses: {
     recurring: monthly.value.recurring,
     oneOff: cents(monthly.value.expenses) - cents(monthly.value.recurring),
-    running: props.data.running_recurring != null
-      ? `Paiements récurrents en cours : ${amount(props.data.running_recurring)} / mois`
-      : null,
+    running: props.data.running_recurring ?? null,
   },
 }))
-const perMonth = computed(() => (props.statistic === 'median' ? 'médiane / mois' : 'moyenne / mois'))
 const isCurrentYear = computed(() => props.data.year === new Date().getFullYear())
 
 /** The months the year covers so far, for the links into the Explorer. */
@@ -88,18 +82,28 @@ const range = computed(() => ({
   to: props.data.months[props.data.months.length - 1]?.period ?? `${props.data.year}-12`,
 }))
 
-type AmountKey = 'income' | 'expenses' | 'saving' | 'investment' | 'net'
+type AmountKey = 'income' | 'expenses' | 'cashflow' | 'saving' | 'investment'
 const cards: Array<{ label: string; key: AmountKey; type: CashflowType | null; icon: typeof ArrowUp; tone: string }> = [
   { label: 'Entrées', key: 'income', type: 'INCOME', icon: ArrowUp, tone: 'bg-success/10 text-success' },
   { label: 'Dépenses', key: 'expenses', type: 'EXPENSE', icon: ArrowDown, tone: 'bg-danger/10 text-danger' },
+  { label: 'Cashflow', key: 'cashflow', type: null, icon: Scale, tone: 'bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main' },
   { label: 'Épargne', key: 'saving', type: 'SAVING', icon: PiggyBank, tone: 'bg-primary/10 text-primary' },
   { label: 'Investissement', key: 'investment', type: 'INVESTMENT', icon: TrendingUp, tone: 'bg-info/10 text-info' },
-  { label: 'Reste', key: 'net', type: null, icon: Scale, tone: 'bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main' },
 ]
 
-/** The change against last year, told without a verdict: the colour stays neutral. */
-const tiles = computed(() => cards.map((card) => ({ ...card, split: splits.value[card.key] ?? null })))
+/** The detail behind a tile, on hover: the year's total, and what comes back. */
+function detail(key: AmountKey): string {
+  const lines = [`${amount(props.data.totals[key])} sur l'année`]
+  const split = splits.value[key]
+  if (split && Number(split.recurring)) {
+    lines.push(`${amount(split.recurring)} / mois qui reviennent`)
+    if (props.statistic === 'mean') lines.push(`${amount(split.oneOff)} / mois ponctuels`)
+    if (split.running !== null) lines.push(`Récurrents en cours : ${amount(split.running)} / mois`)
+  }
+  return lines.join('\n')
+}
 
+/** The change against last year, told without a verdict: the colour stays neutral. */
 function comparison(key: keyof RealCashflowTotals): string | null {
   const previous = props.data.previous_year_to_date
   const change = changePercent(Number(props.data.totals[key]), previous ? Number(previous[key]) : null)
@@ -122,6 +126,13 @@ const rate = computed(() => props.data.totals.savings_rate)
 const rateWidth = computed(() => `${Math.min(100, Math.max(0, Number(rate.value ?? 0) * 2))}%`)
 
 const net = computed(() => props.data.safety_net)
+
+/** Which months the figures stand on: the one in progress is never among them. */
+const basis = computed(() => {
+  const months = props.data.covered_months
+  const what = props.statistic === 'median' ? 'Médiane' : 'Moyenne'
+  return `${what} sur ${months} mois terminé${months > 1 ? 's' : ''}${isCurrentYear.value ? ', mois en cours exclu' : ''}`
+})
 
 /** The year's money from its main sources to what it became. */
 const sankey = computed(() => {
@@ -206,109 +217,60 @@ function monthName(period: string): string {
     </p>
 
     <template v-else>
-      <div class="space-y-2">
-        <RealCashflowOpenQuestions
-          :count="data.open_questions"
-          :amount="data.open_amount"
-          :currency="data.currency"
-          :year="data.year"
-        />
-        <RealCashflowCoverage :gaps="data.coverage_gaps" />
-      </div>
+      <RealCashflowNotices
+        :count="data.open_questions"
+        :amount="data.open_amount"
+        :currency="data.currency"
+        :gaps="data.coverage_gaps"
+        :year="data.year"
+      />
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
-        <router-link
-          v-for="card in tiles"
-          :key="card.key"
-          :to="cardLink(card.type)"
-          class="group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft transition-colors hover:border-primary/40"
-          :title="`Explorer : ${card.label.toLowerCase()} ${data.year}`"
+      <div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+          <router-link
+            v-for="card in cards"
+            :key="card.key"
+            :to="cardLink(card.type)"
+            class="group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft transition-colors hover:border-primary/40"
+            :title="detail(card.key)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">{{ card.label }}</p>
+                <p class="mt-1.5 text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main truncate">
+                  {{ amount(monthly[card.key]) }}<span class="ml-1 text-sm font-medium text-text-muted dark:text-text-dark-muted">/ mois</span>
+                </p>
+              </div>
+              <div :class="['w-10 h-10 shrink-0 rounded-full flex items-center justify-center', card.tone]">
+                <component :is="card.icon" class="w-5 h-5" />
+              </div>
+            </div>
+            <p v-if="comparison(card.key)" class="mt-1 text-xs font-medium tabular-nums text-text-muted dark:text-text-dark-muted">
+              {{ comparison(card.key) }}
+            </p>
+          </router-link>
+        </div>
+        <p
+          class="mt-2 text-xs text-text-muted dark:text-text-dark-muted"
+          :title="Number(data.totals.neutral) ? `Hors ${amount(data.totals.neutral)} déplacés entre vos comptes, remboursés ou annulés.` : undefined"
         >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">{{ card.label }}</p>
-              <p class="mt-1.5 text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main truncate">
-                {{ amount(monthly[card.key]) }}
-              </p>
-            </div>
-            <div :class="['w-10 h-10 shrink-0 rounded-full flex items-center justify-center', card.tone]">
-              <component :is="card.icon" class="w-5 h-5" />
-            </div>
-          </div>
-          <p class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
-            {{ perMonth }} · {{ amount(data.totals[card.key]) }} sur l'année
-          </p>
-          <p
-            v-if="card.split && Number(card.split.recurring)"
-            class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted"
-            :title="card.split.running ?? undefined"
-          >
-            {{ amount(card.split.recurring) }} qui reviennent<template v-if="statistic === 'mean'">
-              · {{ amount(card.split.oneOff) }} ponctuels</template>
-          </p>
-          <p v-if="comparison(card.key)" class="mt-0.5 text-xs font-medium tabular-nums text-text-muted dark:text-text-dark-muted">
-            {{ comparison(card.key) }}
-          </p>
-        </router-link>
+          {{ basis }}.
+        </p>
+        <p v-for="other in data.other_currencies" :key="other.currency" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+          En {{ other.currency }}, à part faute de taux : {{ maskValue(formatCurrency(other.outflow, other.currency)) }} en sortie,
+          {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.
+        </p>
       </div>
-      <p class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
-        Sur {{ data.covered_months }} mois terminé{{ data.covered_months > 1 ? 's' : '' }} portant des opérations.
-        <template v-if="Number(data.totals.neutral)">
-          Hors {{ amount(data.totals.neutral) }} non comptés : déplacés entre vos comptes, remboursés ou annulés.
-        </template>
-      </p>
-      <p v-for="other in data.other_currencies" :key="other.currency" class="-mt-3 text-xs text-text-muted dark:text-text-dark-muted">
-        En {{ other.currency }}, à part faute de taux : {{ maskValue(formatCurrency(other.outflow, other.currency)) }} en sortie,
-        {{ maskValue(formatCurrency(other.inflow, other.currency)) }} en entrée.
-      </p>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <BaseCard>
-          <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">Taux d'épargne</p>
-          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">{{ percent(rate) }}</p>
-          <div class="mt-3 h-2 rounded-full bg-background-subtle dark:bg-background-dark-subtle overflow-hidden">
-            <div class="h-full rounded-full bg-primary" :style="{ width: rateWidth }" />
-          </div>
-          <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
-            Part des entrées non dépensée<template v-if="data.totals.placed_rate !== null">, dont
-              <strong class="text-text-main dark:text-text-dark-main">{{ percent(data.totals.placed_rate) }}</strong> mis de côté ou investis</template>.
-          </p>
-          <p
-            v-if="data.previous_year_to_date?.savings_rate !== null && data.previous_year_to_date?.savings_rate !== undefined"
-            class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
-          >
-            {{ percent(data.previous_year_to_date.savings_rate) }} {{ isCurrentYear ? `en ${data.year - 1} à date` : `en ${data.year - 1}` }}
-          </p>
-        </BaseCard>
-
-        <BaseCard v-if="net">
-          <p class="flex items-center gap-1.5 text-sm font-medium text-text-muted dark:text-text-dark-muted">
-            <ShieldCheck class="w-4 h-4" /> Matelas de sécurité
-          </p>
-          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
-            {{ net.months === null ? '—' : `${Number(net.months).toLocaleString('fr-FR')} mois` }}
-          </p>
-          <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
-            {{ amount(net.available) }} disponibles pour {{ amount(net.monthly_expenses) }} dépensés un mois médian<template v-if="net.savings_months !== null">,
-              dont {{ Number(net.savings_months).toLocaleString('fr-FR') }} mois sur les livrets</template>.
-          </p>
-          <p v-if="net.stale_accounts.length" class="mt-1 text-xs text-warning">
-            Solde peut-être daté : {{ net.stale_accounts.join(', ') }}.
-          </p>
-        </BaseCard>
-
-        <BaseCard v-if="data.projection">
-          <p class="flex items-center gap-1.5 text-sm font-medium text-text-muted dark:text-text-dark-muted">
-            <Sparkles class="w-4 h-4" /> Fin d'année estimée
-          </p>
-          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">{{ amount(data.projection.net) }}</p>
-          <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
-            de reste si les mois à venir ressemblent au mois médian :
-            {{ amount(data.projection.income) }} d'entrées, {{ amount(data.projection.expenses) }} de dépenses,
-            {{ amount(Number(data.projection.saving) + Number(data.projection.investment)) }} mis de côté.
-          </p>
-        </BaseCard>
-      </div>
+      <BaseCard v-if="!privacyMode && sankey.links.length" title="Ce que sont devenues les entrées" :subtitle="`${data.year}, mois terminés`">
+        <CashflowSankeyChart
+          :links="sankey.links"
+          :node-labels="sankey.nodeLabels"
+          :node-groups="sankey.nodeGroups"
+          :hide-node-labels="['hub:revenus']"
+          :is-dark="isDark"
+        />
+      </BaseCard>
 
       <BaseCard title="Mois par mois" subtitle="Cliquez un mois pour le détailler">
         <CashflowMonthsBarChart :months="data.months" :format="amount" :is-dark="isDark" @select="emit('select-month', $event)" />
@@ -332,24 +294,66 @@ function monthName(period: string): string {
         </div>
       </BaseCard>
 
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <BaseCard v-if="!privacyMode && sankey.links.length" title="Ce que sont devenues les entrées" :subtitle="`${data.year}, mois terminés`">
-          <CashflowSankeyChart
-            :links="sankey.links"
-            :node-labels="sankey.nodeLabels"
-            :node-groups="sankey.nodeGroups"
-            :hide-node-labels="['hub:revenus']"
-            :is-dark="isDark"
-          />
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <BaseCard>
+          <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">Taux d'épargne</p>
+          <p class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main">{{ percent(rate) }}</p>
+          <div class="mt-3 h-2 rounded-full bg-background-subtle dark:bg-background-dark-subtle overflow-hidden">
+            <div class="h-full rounded-full bg-primary" :style="{ width: rateWidth }" />
+          </div>
+          <p v-if="data.totals.placed_rate !== null" class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
+            Dont {{ percent(data.totals.placed_rate) }} mis de côté ou investis
+          </p>
+          <p
+            v-if="data.previous_year_to_date?.savings_rate !== null && data.previous_year_to_date?.savings_rate !== undefined"
+            class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
+          >
+            {{ percent(data.previous_year_to_date.savings_rate) }} {{ isCurrentYear ? `en ${data.year - 1} à date` : `en ${data.year - 1}` }}
+          </p>
         </BaseCard>
-        <RealCashflowCounterparts
-          :sources="data.top_sources"
-          :destinations="data.top_destinations"
-          :expenses="data.top_expenses"
-          :currency="data.currency"
-          :range="range"
-        />
+
+        <BaseCard v-if="net">
+          <p class="flex items-center gap-1.5 text-sm font-medium text-text-muted dark:text-text-dark-muted">
+            <ShieldCheck class="w-4 h-4" /> Matelas de sécurité
+          </p>
+          <p
+            class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main"
+            :title="`${amount(net.available)} disponibles pour ${amount(net.monthly_expenses)} dépensés un mois médian`"
+          >
+            {{ net.months === null ? '—' : `${Number(net.months).toLocaleString('fr-FR')} mois` }}
+          </p>
+          <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
+            {{ amount(net.available) }} disponibles<template v-if="net.savings_months !== null">,
+              dont {{ Number(net.savings_months).toLocaleString('fr-FR') }} mois sur les livrets</template>
+          </p>
+          <p v-if="net.stale_accounts.length" class="mt-1 text-xs text-warning">
+            Solde peut-être daté : {{ net.stale_accounts.join(', ') }}
+          </p>
+        </BaseCard>
+
+        <BaseCard v-if="data.projection">
+          <p class="flex items-center gap-1.5 text-sm font-medium text-text-muted dark:text-text-dark-muted">
+            <Sparkles class="w-4 h-4" /> Cashflow fin d'année estimé
+          </p>
+          <p
+            class="mt-1.5 text-3xl font-bold tabular-nums text-text-main dark:text-text-dark-main"
+            :title="`${amount(data.projection.income)} d'entrées, ${amount(data.projection.expenses)} de dépenses`"
+          >
+            {{ amount(data.projection.cashflow) }}
+          </p>
+          <p class="mt-2 text-sm text-text-muted dark:text-text-dark-muted">
+            Si les mois à venir ressemblent au mois médian
+          </p>
+        </BaseCard>
       </div>
+
+      <RealCashflowCounterparts
+        :sources="data.top_sources"
+        :destinations="data.top_destinations"
+        :expenses="data.top_expenses"
+        :currency="data.currency"
+        :range="range"
+      />
     </template>
   </div>
 </template>

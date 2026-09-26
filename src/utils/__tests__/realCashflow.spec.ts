@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  changePercent, coverageNotice, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, writeCashflowView,
+  changePercent, coverageNotice, defaultCashflowView, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, writeCashflowView,
 } from '@/utils/realCashflow'
 import type { RealCashflowCoverageGap, RealCashflowTotals, RealCashflowYear } from '@/types'
 
@@ -37,8 +37,8 @@ describe('openQuestionsNotice', () => {
   })
 
   it('weighs what can still move the figures, then counts it', () => {
-    expect(openQuestionsNotice(1, '400,00 €')).toBe('400,00 € restent à confirmer (1 opération) : ces chiffres peuvent encore changer.')
-    expect(openQuestionsNotice(12, '3 200,00 €')).toBe('3 200,00 € restent à confirmer (12 opérations) : ces chiffres peuvent encore changer.')
+    expect(openQuestionsNotice(1, '400,00 €')).toBe('400,00 € à confirmer (1 opération)')
+    expect(openQuestionsNotice(12, '3 200,00 €')).toBe('3 200,00 € à confirmer (12 opérations)')
   })
 })
 
@@ -66,13 +66,13 @@ describe('coverageNotice', () => {
 
   it('says where the history starts, ends, or both', () => {
     expect(coverageNotice(gap, (day) => day)).toBe(
-      "Livret A n'a d'opérations qu'à partir du 2025-01-28 : un virement vers ce compte hors de cette plage compte en dépense.",
+      "Livret A n'a d'opérations que depuis le 2025-01-28 : un virement vers lui hors de cette période compte en dépense.",
     )
     expect(coverageNotice({ ...gap, ends_early: true }, (day) => day)).toBe(
-      "Livret A n'a d'opérations qu'à partir du 2025-01-28 et n'est à jour qu'au 2026-08-31 : un virement vers ce compte hors de cette plage compte en dépense.",
+      "Livret A n'a d'opérations que depuis le 2025-01-28 et n'est à jour qu'au 2026-08-31 : un virement vers lui hors de cette période compte en dépense.",
     )
     expect(coverageNotice({ ...gap, starts_late: false, ends_early: true }, (day) => day)).toBe(
-      "Livret A n'est à jour qu'au 2026-08-31 : un virement vers ce compte hors de cette plage compte en dépense.",
+      "Livret A n'est à jour qu'au 2026-08-31 : un virement vers lui hors de cette période compte en dépense.",
     )
   })
 })
@@ -92,12 +92,19 @@ describe('the remembered view', () => {
     expect(readCashflowView()).toBe('explore')
   })
 
-  it('falls back to the declared view when storage throws', () => {
+  it('reads nothing when storage throws, leaving the choice to the default', () => {
     vi.stubGlobal('localStorage', {
       getItem: () => { throw new Error('blocked') },
       setItem: () => { throw new Error('blocked') },
     })
     expect(() => writeCashflowView('real')).not.toThrow()
-    expect(readCashflowView()).toBe('planned')
+    expect(readCashflowView()).toBeNull()
+  })
+})
+
+describe('defaultCashflowView', () => {
+  it('opens on the operations once there are accounts, on the plan before', () => {
+    expect(defaultCashflowView(true)).toBe('real')
+    expect(defaultCashflowView(false)).toBe('planned')
   })
 })
