@@ -41,30 +41,34 @@ async function confirm(accountId: string): Promise<void> {
     v-if="questions || gaps.length"
     class="space-y-1.5 rounded-card border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-text-main dark:text-text-dark-main"
   >
-    <li v-if="questions" class="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <HelpCircle class="w-4 h-4 shrink-0 text-warning" />
-      <span>{{ questions }}</span>
-      <router-link
-        :to="{ name: 'bank-review', query: year ? { year: String(year) } : {} }"
-        class="font-medium text-warning hover:underline"
-      >
-        Trier
-      </router-link>
+    <li v-if="questions" class="flex items-start gap-2">
+      <HelpCircle class="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+      <p>
+        {{ questions }}
+        <router-link
+          :to="{ name: 'bank-review', query: year ? { year: String(year) } : {} }"
+          class="ml-1 font-medium text-warning hover:underline"
+        >
+          Trier
+        </router-link>
+      </p>
     </li>
-    <li v-for="gap in gaps" :key="gap.account_id" class="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <AlertTriangle class="w-4 h-4 shrink-0 text-warning" />
-      <span>{{ coverageNotice(gap, formatDate) }}</span>
-      <router-link :to="{ name: 'bank' }" class="font-medium text-warning hover:underline">Importer un relevé</router-link>
-      <!-- A quiet account is not a stale one: the user can say so. -->
-      <button
-        v-if="gap.ends_early"
-        type="button"
-        class="font-medium text-text-muted dark:text-text-dark-muted hover:underline disabled:opacity-50"
-        :disabled="confirming === gap.account_id"
-        @click="confirm(gap.account_id)"
-      >
-        Rien de nouveau depuis
-      </button>
+    <li v-for="gap in gaps" :key="gap.account_id" class="flex items-start gap-2">
+      <AlertTriangle class="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+      <p>
+        {{ coverageNotice(gap, formatDate) }}
+        <router-link :to="{ name: 'bank' }" class="ml-1 font-medium text-warning hover:underline">Importer un relevé</router-link>
+        <!-- A quiet account is not a stale one: the user can say so. -->
+        <button
+          v-if="gap.ends_early"
+          type="button"
+          class="ml-2 font-medium text-text-muted dark:text-text-dark-muted hover:underline disabled:opacity-50"
+          :disabled="confirming === gap.account_id"
+          @click="confirm(gap.account_id)"
+        >
+          Rien de nouveau depuis
+        </button>
+      </p>
     </li>
   </ul>
 </template>

@@ -47,7 +47,7 @@ const hasMonth = computed(() => {
   return current !== null && (Number(current.spent_to_date) > 0 || current.median_to_date !== null)
 })
 const chartSlides = computed<Array<{ key: BankChartSlide; label: string }>>(() => [
-  ...(hasMonth.value ? [{ key: 'month' as const, label: 'Dépenses du mois' }] : []),
+  ...(hasMonth.value ? [{ key: 'month' as const, label: 'Mois en cours' }] : []),
   { key: 'total', label: 'Total du cash' },
   { key: 'accounts', label: 'Par compte' },
 ])
@@ -120,7 +120,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
       <template #header>
         <div class="flex items-start sm:items-center justify-between gap-3">
           <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">
-            {{ chartSlide === 'month' ? 'Mois en cours' : 'Évolution du solde' }}
+            {{ chartSlide === 'month' ? 'Dépenses du mois' : 'Évolution du solde' }}
           </h3>
           <ChartPerformanceBadge v-if="chartSlide !== 'month'" :performance="chartPerformance" />
         </div>

@@ -103,13 +103,22 @@ function detail(key: AmountKey): string {
   return lines.join('\n')
 }
 
-/** The change against last year, told without a verdict: the colour stays neutral. */
+/**
+ * The change against last year, told without a verdict: the colour stays
+ * neutral. The cashflow's in euros: a difference near zero makes any percent
+ * of it huge and meaningless.
+ */
 function comparison(key: keyof RealCashflowTotals): string | null {
   const previous = props.data.previous_year_to_date
-  const change = changePercent(Number(props.data.totals[key]), previous ? Number(previous[key]) : null)
+  if (!previous) return null
+  const label = isCurrentYear.value ? `vs ${props.data.year - 1} à date` : `vs ${props.data.year - 1}`
+  if (key === 'cashflow') {
+    const change = Number(props.data.totals.cashflow) - Number(previous.cashflow)
+    return `${change >= 0 ? '+' : '−'}${amount(Math.abs(change))} ${label}`
+  }
+  const change = changePercent(Number(props.data.totals[key]), Number(previous[key]))
   if (change === null || !Number.isFinite(change)) return null
   const sign = change >= 0 ? '+' : '−'
-  const label = isCurrentYear.value ? `vs ${props.data.year - 1} à date` : `vs ${props.data.year - 1}`
   return `${sign}${Math.abs(change).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} % ${label}`
 }
 
@@ -226,7 +235,7 @@ function monthName(period: string): string {
       />
 
       <div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <router-link
             v-for="card in cards"
             :key="card.key"
@@ -234,19 +243,17 @@ function monthName(period: string): string {
             class="group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft transition-colors hover:border-primary/40"
             :title="detail(card.key)"
           >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted">{{ card.label }}</p>
-                <p class="mt-1.5 text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main truncate">
-                  {{ amount(monthly[card.key]) }}<span class="ml-1 text-sm font-medium text-text-muted dark:text-text-dark-muted">/ mois</span>
-                </p>
-              </div>
-              <div :class="['w-10 h-10 shrink-0 rounded-full flex items-center justify-center', card.tone]">
-                <component :is="card.icon" class="w-5 h-5" />
-              </div>
-            </div>
-            <p v-if="comparison(card.key)" class="mt-1 text-xs font-medium tabular-nums text-text-muted dark:text-text-dark-muted">
-              {{ comparison(card.key) }}
+            <p class="flex items-center gap-2 text-sm font-medium text-text-muted dark:text-text-dark-muted">
+              <span :class="['w-6 h-6 shrink-0 rounded-full flex items-center justify-center', card.tone]">
+                <component :is="card.icon" class="w-3.5 h-3.5" />
+              </span>
+              {{ card.label }}
+            </p>
+            <p class="mt-2 text-2xl font-bold tabular-nums whitespace-nowrap text-text-main dark:text-text-dark-main">
+              {{ amount(monthly[card.key]) }}
+            </p>
+            <p class="mt-1 text-xs tabular-nums text-text-muted dark:text-text-dark-muted">
+              par mois<template v-if="comparison(card.key)"> · <span class="font-medium">{{ comparison(card.key) }}</span></template>
             </p>
           </router-link>
         </div>
