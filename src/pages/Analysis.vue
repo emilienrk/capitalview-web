@@ -10,7 +10,7 @@ import { useAnalysisStore } from '@/stores/analysis'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import { BaseAlert, BaseButton, BaseEmptyState, BaseSpinner } from '@/components'
-import VerdictBanner from '@/components/analytics/VerdictBanner.vue'
+import SignalBoard from '@/components/analytics/SignalBoard.vue'
 import BehaviourSection from '@/components/analytics/sections/BehaviourSection.vue'
 import CostSection from '@/components/analytics/sections/CostSection.vue'
 import FeesSection from '@/components/analytics/sections/FeesSection.vue'
@@ -40,6 +40,26 @@ const plan = computed(() => analysis.data?.plan ?? null)
 function shows(key: string): boolean {
   return isSectionVisible(settingsStore.settings?.analysis_hidden_sections, key)
 }
+
+/** The section each signal's block is drawn in, so a hidden one takes its line along. */
+const SECTION_OF: Record<string, string> = {
+  regularity: 'behaviour',
+  deposit_lag: 'behaviour',
+  market_conditioning: 'behaviour',
+  investor_gap: 'cost',
+  counterfactual: 'cost',
+  execution: 'cost',
+  concentration: 'holdings',
+  fees: 'fees',
+  exits: 'fees',
+  plan: 'plan',
+}
+
+const signals = computed(() =>
+  (analysis.data?.signals ?? []).filter((signal) =>
+    shows(SECTION_OF[signal.block] ?? signal.block),
+  ),
+)
 
 /**
  * Each block stands on its own data — the replay blocks need only transactions
@@ -125,7 +145,7 @@ onMounted(async () => {
       />
 
       <template v-else>
-        <VerdictBanner v-if="shows('verdict') && analysis.data?.verdict" :verdict="analysis.data.verdict" />
+        <SignalBoard v-if="shows('verdict') && signals.length" :signals="signals" />
 
         <BaseAlert v-if="planError && shows('plan')" variant="warning" class="mb-6">
           Ton plan cible n'est pas évalué : {{ planError }}

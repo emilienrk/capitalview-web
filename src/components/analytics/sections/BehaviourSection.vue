@@ -5,17 +5,22 @@
  * lands.
  *
  * Each card folds itself away when its gate withheld the headline number. The
- * verdict sits under the figures, not above them: the numbers are the block, the
- * sentence is the reading.
+ * headline carries its scale, so whether it is good or bad is read off the
+ * colour; the one sentence under the figures only states them.
  */
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
+import ComparisonBars from '@/components/analytics/ComparisonBars.vue'
+import FigureTile from '@/components/analytics/FigureTile.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
-import ReadingScale from '@/components/analytics/ReadingScale.vue'
+import NoteChip from '@/components/analytics/NoteChip.vue'
+import ReliabilityBadge from '@/components/analytics/ReliabilityBadge.vue'
+import SignificancePill from '@/components/analytics/SignificancePill.vue'
 import ContributionHeatmap from '@/components/analytics/ContributionHeatmap.vue'
 import DensityComparison from '@/components/analytics/DensityComparison.vue'
 import MarketStateScatter from '@/components/analytics/MarketStateScatter.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useReadingFormat } from '@/composables/useReadingFormat'
 import type {
   DepositLagResponse,
   MarketConditioningResponse,
@@ -31,6 +36,7 @@ defineProps<{
 
 const { formatCurrency } = useFormatters()
 const { maskValue } = usePrivacyMode()
+const { formatReading } = useReadingFormat()
 
 function eur(value: number | string | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value)))
@@ -46,10 +52,18 @@ function eur(value: number | string | null): string {
     <!-- ── 2.1 · purchase rhythm ─────────────────────────────────── -->
     <CollapsibleBlock
       v-if="regularity"
+      id="analyse-regularity"
+      class="scroll-mt-20"
       title="Rythme réel des achats"
       :measurable="regularity.deployment_gap.value !== null"
       :summary="regularity.deployment_gap.caveat"
     >
+      <template v-if="regularity.cadence_label" #badge>
+        <NoteChip :label="regularity.cadence_label">
+          Cadence lue sur tes ordres — soit un jour du mois, soit un intervalle médian — jamais
+          déclarée.
+        </NoteChip>
+      </template>
       <template #help>
         <li>
           <strong>La régularité se mesure sur la courbe de capital cumulé</strong>, pas sur les
@@ -57,73 +71,43 @@ function eur(value: number | string | null): string {
           dernier jour de la fenêtre, rapporté au capital total. Un rythme strict de 30 jours
           dérive d'un mois sur l'autre sans que la discipline change ; jugé au mois, il était
           sanctionné à tort. Les indicateurs mensuels restent affichés à titre d'illustration.
-          Des ordres discrets laissent un plancher d'environ 1/(2n) : quelques pour cent d'écart,
-          c'est une droite.
         </li>
         <li>
-          <strong>Comment la lire.</strong> Le repère dépend du nombre d'ordres : avec
-          {{ regularity.purchase_count }} achats, des versements parfaitement réguliers
-          donneraient déjà environ
-          {{ (100 / (2 * regularity.purchase_count)).toFixed(1) }} % — c'est le plancher, pas un
-          défaut. On considère la droite tenue jusqu'au double de ce plancher. À l'autre bout,
-          50 % correspond à tout verser en une seule fois le premier jour.
-          <ReadingScale
-            :value="regularity.deployment_gap.value === null ? null : Number(regularity.deployment_gap.value) * 100"
-            :bands="[
-              { upTo: 100 / regularity.purchase_count, label: 'régulier', tone: 'good' },
-              { upTo: 25, label: 'des à-coups', tone: 'watch' },
-              { label: 'par à-coups massifs', tone: 'bad' },
-            ]"
-            :format="(n) => `${n.toFixed(1)} %`"
-          />
+          <strong>Le repère dépend du nombre d'ordres</strong> : avec
+          {{ regularity.purchase_count }} achats, des versements parfaitement réguliers donneraient
+          déjà environ {{ (100 / (2 * regularity.purchase_count)).toFixed(1) }} % — c'est le
+          plancher, pas un défaut. La droite est tenue jusqu'au double de ce plancher. À l'autre
+          bout, 50 % correspond à tout verser en une seule fois le premier jour.
         </li>
         <li>
-          <strong>La cadence est détectée, jamais déclarée.</strong> Elle est lue sur les ordres —
-          soit un jour du mois, soit un intervalle médian — et c'est le plus resserré des deux qui
-          est nommé. Aucun « mode d'investissement » n'est demandé : la page cherche la stratégie
-          réelle, pas la stratégie annoncée.
-        </li>
-        <li>
-          L'<strong>indice de concentration temporelle</strong> (HHI) appliqué à la répartition de
-          ton capital dans le temps est un usage maison : l'indice est standard, le porter sur
-          l'axe du temps est une lecture propre à cette page. Son inverse se lit en « achats
-          mensuels égaux équivalents ».
+          Les <strong>mois « pleins » équivalents</strong> sont l'inverse d'un indice de
+          concentration (HHI) porté sur l'axe du temps : combien d'achats mensuels égaux ta
+          répartition représente.
         </li>
       </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <!-- The measure that judges regularity: distance to a straight-line
-             deployment, which has no notion of a calendar month and so cannot be
-             fooled by one. -->
         <MetricTile
-          label="Écart à un déploiement linéaire"
+          label="Écart à un rythme régulier"
           :metric="regularity.deployment_gap"
+          :reading="regularity.reading"
           kind="pct"
-          invert
         />
         <MetricTile
-          label="Achats mensuels égaux équivalents"
+          label="Mois « pleins » équivalents"
           :metric="regularity.equivalent_monthly_purchases"
           kind="count"
         />
         <MetricTile
-          label="Mois avec au moins un achat"
+          label="Mois avec un achat"
           :metric="regularity.invested_share"
           kind="pct"
         />
         <MetricTile
-          label="Plus longue interruption"
+          label="Plus longue pause"
           :metric="regularity.longest_gap_months"
           kind="months"
         />
       </div>
-
-      <p
-        v-if="regularity.cadence_label"
-        class="mb-3 text-xs text-text-muted dark:text-text-dark-muted"
-      >
-        Cadence détectée : {{ regularity.cadence_label }}. Elle est lue sur les ordres, jamais
-        déclarée.
-      </p>
 
       <!-- The heatmap is the same numbers in another shape: when the gate
            withheld them, the API sends an empty series and nothing is drawn. -->
@@ -133,7 +117,7 @@ function eur(value: number | string | null): string {
         :is-dark="isDark"
       />
 
-      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+      <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ regularity.verdict }}
       </p>
     </CollapsibleBlock>
@@ -141,123 +125,146 @@ function eur(value: number | string | null): string {
     <!-- ── 2.4 · deposit to purchase lag ─────────────────────────── -->
     <CollapsibleBlock
       v-if="depositLag"
+      id="analyse-deposit_lag"
+      class="scroll-mt-20"
       title="Entre le virement et l'investissement"
       :measurable="depositLag.median_days.value !== null"
       :summary="depositLag.median_days.caveat"
     >
+      <template v-if="Number(depositLag.unmatched_share) > 0" #badge>
+        <NoteChip
+          :label="`${Math.round(Number(depositLag.unmatched_share) * 100)} % via provisions auto`"
+        >
+          Ces achats sont financés par des provisions automatiques : l'app crée le dépôt au moment
+          de l'achat, donc leur délai réel est inconnu et ils sont exclus du calcul.
+        </NoteChip>
+      </template>
       <template #help>
         <li>
-          <strong>Deux conventions de coût coexistent</strong>, pour deux objets différents : le
-          délai dépôt → achat suit un <strong>FIFO sur les liquidités</strong> (on suit un euro),
-          là où les plus-values réalisées de l'app utilisent le <strong>coût moyen pondéré</strong>.
-          Ce n'est pas une incohérence, et aligner les deux ferait dire à cette page l'inverse de
-          tes encarts de la page Bourse.
-        </li>
-        <li>
-          <strong>Achat ≠ dépôt.</strong> Tout ce qui juge ton comportement d'investissement est
-          calculé sur tes <strong>achats</strong>. Les dépôts ne servent qu'à trois choses : la
-          performance réelle de tes euros, le délai avant investissement, et le coût du cash resté
-          dormant.
-        </li>
-        <li>
           <strong>Comment le lire.</strong> Chaque euro déposé est suivi jusqu'à l'achat qui le
-          consomme, et le délai médian est celui de la moitié de tes euros. En dessous de deux
-          jours, l'app considère ton argent investi à l'arrivée ; au-delà d'une semaine, elle le
-          signale dans le verdict d'ensemble.
-          <ReadingScale
-            :value="depositLag.median_days.value"
-            :bands="[
-              { upTo: 2, label: 'investi à l’arrivée', tone: 'good' },
-              { upTo: 7, label: 'quelques jours', tone: 'watch' },
-              { label: 'le cash attend', tone: 'bad' },
-            ]"
-            :format="(n) => `${Math.round(n)} j`"
-          />
+          consomme (FIFO sur les liquidités), et le délai médian est celui de la moitié de tes
+          euros.
+        </li>
+        <li>
+          <strong>Deux conventions de coût coexistent</strong>, pour deux objets différents : ce
+          délai suit un FIFO sur les liquidités, là où les plus-values réalisées de l'app utilisent
+          le coût moyen pondéré. Ce n'est pas une incohérence.
+        </li>
+        <li>
+          <strong>Déposé, jamais investi</strong> : dépôts moins achats, le chiffre que ton relevé
+          confirme.
+          <template
+            v-if="Number(depositLag.unpaired_deposits_eur) > Number(depositLag.never_invested_eur)"
+          >
+            L'appariement FIFO en laisse {{ eur(depositLag.unpaired_deposits_eur) }} sans achat en
+            face : les achats financés par une provision automatique ne consomment rien de la file.
+          </template>
+        </li>
+        <li>
+          <strong>Variabilité des montants</strong> : écart-type rapporté à la moyenne, mois par
+          mois. Plus la barre est courte, plus le rythme est régulier.
         </li>
       </template>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricTile label="Délai médian" :metric="depositLag.median_days" kind="days" />
-        <MetricTile label="Délai au 9ᵉ décile" :metric="depositLag.p90_days" kind="days" />
+      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricTile
-          label="Régularité des dépôts"
-          :metric="depositLag.deposit_variation"
-          kind="ratio"
+          label="Délai médian"
+          :metric="depositLag.median_days"
+          :reading="depositLag.reading"
+          kind="days"
         />
-        <MetricTile
-          label="Régularité des achats"
-          :metric="depositLag.purchase_variation"
-          kind="ratio"
+        <MetricTile label="9 fois sur 10, moins de" :metric="depositLag.p90_days" kind="days" />
+        <FigureTile label="Déposé, jamais investi">
+          {{ eur(depositLag.never_invested_eur) }}
+        </FigureTile>
+      </div>
+
+      <div
+        v-if="
+          depositLag.deposit_variation.value !== null &&
+          depositLag.purchase_variation.value !== null
+        "
+      >
+        <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted">
+          Variabilité des montants
+        </p>
+        <ComparisonBars
+          format="decimal"
+          :items="[
+            { label: 'Dépôts', value: depositLag.deposit_variation.value },
+            { label: 'Achats', value: depositLag.purchase_variation.value, emphasis: true },
+          ]"
         />
       </div>
 
-      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+      <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ depositLag.verdict }}
-      </p>
-
-      <p
-        v-if="Number(depositLag.unmatched_share) > 0"
-        class="mt-3 text-xs text-text-muted dark:text-text-dark-muted"
-      >
-        {{ Math.round(Number(depositLag.unmatched_share) * 100) }} % des achats sont financés
-        par des provisions automatiques : l'app crée le dépôt au moment de l'achat, donc leur
-        délai réel est inconnu et ils sont exclus du calcul plutôt qu'appariés de force.
-      </p>
-      <p
-        v-if="Number(depositLag.never_invested_eur) > 0"
-        class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
-      >
-        {{ eur(depositLag.never_invested_eur) }} déposés n'ont pas été investis — dépôts moins
-        achats, le chiffre que ton relevé confirme.
-        <template
-          v-if="Number(depositLag.unpaired_deposits_eur) > Number(depositLag.never_invested_eur)"
-        >
-          L'appariement FIFO en laisse {{ eur(depositLag.unpaired_deposits_eur) }} sans achat en
-          face : les achats financés par une provision automatique ne consomment rien de la file.
-        </template>
       </p>
     </CollapsibleBlock>
 
     <!-- ── 2.2 · market conditioning ─────────────────────────────── -->
     <CollapsibleBlock
       v-if="conditioning"
+      id="analyse-market_conditioning"
+      class="scroll-mt-20"
       title="Contrarian ou suiveur ?"
       :measurable="conditioning.weighted_drawdown.value !== null"
       :summary="conditioning.weighted_drawdown.caveat"
     >
+      <template #badge>
+        <SignificancePill
+          :detectable="conditioning.is_detectable"
+          :p-value="conditioning.p_value"
+        />
+      </template>
       <template #help>
         <li>
+          <strong>Distance au plus haut</strong> : où en est l'indice par rapport à son plus haut
+          des douze derniers mois, le jour de l'achat, pondéré par les euros investis.
+          <strong>Hausse du mois d'avant</strong> : sa variation sur les 21 séances précédentes.
+        </li>
+        <li>
           L'état du marché est mesuré en <strong>séances</strong>, jamais en jours calendaires, et
-          un jour dont l'année glissante précédente n'est pas complète est écarté : un plus-haut
-          calculé sur une fenêtre tronquée afficherait un écart quasi nul et se lirait à tort
-          comme un achat dans le creux.
+          un jour dont l'année glissante précédente n'est pas complète est écarté.
         </li>
         <li>
           Les tests de permutation re-tirent tes achats au hasard (5 000 fois) en gelant tout le
-          reste. Le tirage est <strong>à graine fixe</strong> : deux consultations donnent le même
-          résultat. Au-delà de p = 0,10, la page dit « rien de détectable » — jamais « tu es bon ».
+          reste, à graine fixe. Au-delà de p = 0,10, la page dit « hasard » — jamais « tu es bon ».
         </li>
+        <li>Le découpage par année est une tendance, pas une preuve : 12 mois par période.</li>
       </template>
-      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricTile
-          label="L'euro moyen entre à"
-          :metric="conditioning.weighted_drawdown"
-          kind="pct"
-        />
-        <MetricTile
-          label="Un jour au hasard"
-          :metric="conditioning.unconditional_drawdown"
-          kind="pct"
-        />
-        <MetricTile
-          label="Élan du marché aux achats"
-          :metric="conditioning.weighted_momentum"
-          kind="pct"
-        />
-        <MetricTile
-          label="Élan un jour au hasard"
-          :metric="conditioning.unconditional_momentum"
-          kind="pct"
-        />
+      <div class="mb-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div>
+          <p
+            class="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted"
+          >
+            Distance au plus haut
+            <ReliabilityBadge
+              :reliability="conditioning.weighted_drawdown.reliability"
+              :caveat="conditioning.weighted_drawdown.caveat"
+            />
+          </p>
+          <ComparisonBars
+            format="pct"
+            :items="[
+              { label: 'Tes achats', value: conditioning.weighted_drawdown.value, emphasis: true },
+              { label: 'Un jour au hasard', value: conditioning.unconditional_drawdown.value },
+            ]"
+          />
+        </div>
+        <div>
+          <p
+            class="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted"
+          >
+            Hausse du mois d'avant
+          </p>
+          <ComparisonBars
+            format="pct"
+            :items="[
+              { label: 'Tes achats', value: conditioning.weighted_momentum.value, emphasis: true },
+              { label: 'Un jour au hasard', value: conditioning.unconditional_momentum.value },
+            ]"
+          />
+        </div>
       </div>
 
       <template v-if="conditioning.density.length">
@@ -269,27 +276,19 @@ function eur(value: number | string | null): string {
         />
       </template>
 
-      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+      <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ conditioning.verdict }}
       </p>
 
       <div
         v-if="conditioning.yearly.length"
-        class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted dark:text-text-dark-muted"
+        class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted dark:text-text-dark-muted"
       >
         <span v-for="bucket in conditioning.yearly" :key="bucket.label">
-          {{ bucket.label }} : {{ (Number(bucket.drawdown) * 100).toFixed(1) }} %
+          {{ bucket.label }} :
+          <span class="tabular-nums">{{ formatReading(bucket.drawdown, 'pct') }}</span>
         </span>
-        <span class="italic">— tendance, pas preuve : 12 mois par période.</span>
       </div>
-
-      <p
-        v-if="conditioning.p_value !== null"
-        class="mt-2 text-xs text-text-muted dark:text-text-dark-muted"
-      >
-        Test de permutation : p = {{ Number(conditioning.p_value).toFixed(3) }}
-        <template v-if="!conditioning.is_detectable"> — indistinguable du hasard.</template>
-      </p>
     </CollapsibleBlock>
   </section>
 </template>

@@ -2144,6 +2144,37 @@ export interface MetricOut {
   caveat: string | null
 }
 
+export type Tone = 'good' | 'watch' | 'bad'
+
+/** How a reading's value and ceilings are printed. */
+export type ReadingFormat = 'pct' | 'days' | 'decimal' | 'bps' | 'times'
+
+export interface BandOut {
+  /** Inclusive ceiling; null on the last band, which runs to infinity. */
+  up_to: number | string | null
+  label: string
+  tone: Tone
+}
+
+/** Where a block's headline figure sits on the API's own scale. */
+export interface ReadingOut {
+  value: number | string | null
+  format: ReadingFormat
+  active: number | null
+  tone: Tone | null
+  bands: BandOut[]
+}
+
+export interface SignalOut {
+  block: string
+  label: string
+  tone: Tone | 'neutral'
+  value: number | string | null
+  format: ReadingFormat | null
+  /** Signed from the reader's side: negative is money lost. */
+  eur: number | string | null
+}
+
 export interface InvestorGapResponse {
   twr: MetricOut
   twr_annualised: MetricOut
@@ -2221,6 +2252,7 @@ export interface RegularityResponse {
   equivalent_monthly_purchases: MetricOut
   day_of_month_spread: MetricOut
   median_day_of_month: number | null
+  reading?: ReadingOut | null
   verdict: string
 }
 
@@ -2237,6 +2269,7 @@ export interface DepositLagResponse {
   deposit_variation: MetricOut
   purchase_variation: MetricOut
   idle_cash_opportunity: number | string | null
+  reading?: ReadingOut | null
   verdict: string
 }
 
@@ -2321,6 +2354,7 @@ export interface ConcentrationResponse {
   max_correlation: number | string | null
   overlap: number
   dropped: AssetLabelOut[]
+  reading?: ReadingOut | null
   verdict: string
 }
 
@@ -2357,6 +2391,7 @@ export interface FeesResponse {
   projection_eur: number | string | null
   projection_note: string
   ter_note: string
+  reading?: ReadingOut | null
   verdict: string
 }
 
@@ -2380,6 +2415,7 @@ export interface ExitsResponse {
   payoff_ratio: MetricOut
   episode_count: number
   episodes: EpisodeOut[]
+  reading?: ReadingOut | null
   verdict: string
 }
 
@@ -2435,6 +2471,7 @@ export interface PlanResponse {
   rebalance_eur: number | string | null
   under_invested_months: number
   under_in_down_months: number
+  reading?: ReadingOut | null
   verdict: string
   error: string | null
 }
@@ -2462,6 +2499,7 @@ export interface InvestorAnalyticsResponse {
   days: number
   benchmark_asset_key: string
   verdict: string
+  signals: SignalOut[]
   investor_gap: InvestorGapResponse | null
   counterfactual: CounterfactualResponse | null
   execution: ExecutionResponse | null

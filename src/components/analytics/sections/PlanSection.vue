@@ -6,7 +6,6 @@
 import { computed } from 'vue'
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
-import ReadingScale from '@/components/analytics/ReadingScale.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { PlanResponse } from '@/types'
@@ -74,6 +73,8 @@ const DRIFT_THRESHOLD_POINTS = 10
     </h2>
 
     <CollapsibleBlock
+      id="analyse-plan"
+      class="scroll-mt-20"
       :measurable="plan.adherence_ratio.value !== null"
       title="Adhérence au plan"
       :summary="plan.adherence_ratio.caveat"
@@ -99,21 +100,17 @@ const DRIFT_THRESHOLD_POINTS = 10
         </li>
         <li>
           <strong>Comment la lire.</strong> L'adhérence est ce que tu as investi divisé par ce
-          que tu avais promis, sur les mois complets depuis ta date de départ. L'app considère le
-          plan tenu à partir de 0,98, et signale la dérive d'allocation au-delà de 10 points.
-          <ReadingScale
-            :value="plan.adherence_ratio.value"
-            :bands="[
-              { upTo: 0.8, label: 'décroché', tone: 'bad' },
-              { upTo: 0.98, label: 'en retrait', tone: 'watch' },
-              { label: 'tenu', tone: 'good' },
-            ]"
-            :format="(n) => n.toFixed(2)"
-          />
+          que tu avais promis, sur les mois complets depuis ta date de départ. La dérive
+          d'allocation est signalée au-delà de 10 points.
         </li>
       </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricTile label="Adhérence" :metric="plan.adherence_ratio" kind="pct" />
+        <MetricTile
+          label="Adhérence"
+          :metric="plan.adherence_ratio"
+          :reading="plan.reading"
+          kind="pct"
+        />
         <MetricTile label="Investi par mois, en réel" :metric="plan.average_monthly" kind="eur" />
         <MetricTile label="Dérive d'allocation" :metric="plan.drift_l1" kind="points" />
       </div>
@@ -197,7 +194,7 @@ const DRIFT_THRESHOLD_POINTS = 10
         </table>
       </div>
 
-      <p class="mt-3 text-sm leading-relaxed text-text-muted dark:text-text-dark-muted">
+      <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ plan.verdict }}
       </p>
     </CollapsibleBlock>

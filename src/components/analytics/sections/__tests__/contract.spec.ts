@@ -41,6 +41,19 @@ const metric = (value: number | null = 1) => ({
 
 const label = (key: string) => ({ asset_key: key, symbol: key, name: key })
 
+/** ReadingOut, with the bands the API sends for the fee load. */
+const feeReading = {
+  value: '20',
+  format: 'bps',
+  active: 0,
+  tone: 'good',
+  bands: [
+    { up_to: '25', label: 'léger', tone: 'good' },
+    { up_to: '75', label: 'visible', tone: 'watch' },
+    { up_to: null, label: 'lourd', tone: 'bad' },
+  ],
+}
+
 /** RegularityResponse. */
 const regularity = {
   monthly: [
@@ -102,6 +115,7 @@ const fees = {
   projection_eur: '900',
   projection_note: 'Une note.',
   ter_note: 'Une note.',
+  reading: feeReading,
   verdict: 'Un verdict.',
 }
 
@@ -125,6 +139,17 @@ const concentration = {
   max_correlation: '0.42',
   overlap: 400,
   dropped: [{ asset_key: 'FR0011550193', symbol: 'PAEEM', name: 'Amundi PEA Emergents' }],
+  reading: {
+    value: '1.1',
+    format: 'decimal',
+    active: 0,
+    tone: 'bad',
+    bands: [
+      { up_to: '1.5', label: 'un seul pari', tone: 'bad' },
+      { up_to: '2.5', label: 'deux directions', tone: 'watch' },
+      { up_to: null, label: 'réparti', tone: 'good' },
+    ],
+  },
   verdict: 'Un verdict.',
 }
 
@@ -225,14 +250,14 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('250,00')
   })
 
-  it('FeesSection rend sans le message de calibrage quand les frais comptent', async () => {
-    const html = await render('FeesSection', { fees: { ...fees, avoidable: true }, exits: null })
-    expect(html).not.toContain('information de calibrage')
-  })
-
-  it('FeesSection montre le message de calibrage quand la charge reste sous la cible', async () => {
+  it('FeesSection juge la charge par sa couleur et son échelle, sans phrase de conseil', async () => {
     const html = await render('FeesSection', { fees, exits: null })
-    expect(html).toContain('information de calibrage')
+    // Le coût annuel en pourcentage, pas en bps, coloré par sa bande.
+    expect(html).toContain('0,20 %')
+    expect(html).toContain('text-success')
+    expect(html).toContain('léger')
+    expect(html).not.toContain('bps')
+    expect(html).not.toContain('calibrage, pas')
   })
 
   it('FeesSection annonce l’extrapolation quand les frais sont partiels', async () => {
@@ -247,16 +272,15 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     }
     const html = await render('FeesSection', { fees: partial, exits: null })
 
-    expect(html).toContain('Totaux estimés')
-    expect(html).toContain('8 de tes 77 ordres')
-    expect(html).toContain('10 %')
+    // Une étiquette à côté du titre, la phrase complète derrière.
+    expect(html).toContain('Estimé · frais saisis sur 8/77 ordres')
     // Et la tuile porte son propre marqueur, comme les autres fiabilités.
     expect(html).toContain('aria-label="Estimé"')
   })
 
   it('FeesSection n’annonce rien quand tous les ordres portent leurs frais', async () => {
     const html = await render('FeesSection', { fees, exits: null })
-    expect(html).not.toContain('Totaux estimés')
+    expect(html).not.toContain('Estimé ·')
   })
 
   it('FeesSection remplace le seuil par le tarif sur une commission proportionnelle', async () => {
@@ -266,9 +290,8 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     const html = await render('FeesSection', { fees: pct, exits: null })
 
     expect(html).toContain('Tarif par ordre')
-    expect(html).toContain('0.50 %')
-    expect(html).not.toContain('Seuil de calibrage')
-    expect(html).toContain('Regrouper tes achats ne changerait donc rien')
+    expect(html).toContain('0,50 %')
+    expect(html).not.toContain('Ordre minimum rentable')
     // Et le décompte d'ordres sous le seuil disparaît avec lui.
     expect(html).not.toContain('sont sous le seuil')
   })
@@ -279,6 +302,12 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     // lignes écartées est du texte, et c'est lui qui affichait "undefined".
     expect(html).toContain('Amundi PEA Emergents')
     expect(html).not.toContain('undefined')
+  })
+
+  it('HoldingsSection montre l’échelle des paris sous le chiffre, hors du « ? »', async () => {
+    const html = await render('HoldingsSection', { concentration, turnover: null })
+    expect(html).toContain('un seul pari')
+    expect(html).toContain('text-danger')
   })
 
   it('une métrique fiable ne porte aucun marqueur', async () => {
