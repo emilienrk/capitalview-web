@@ -41,6 +41,19 @@ const { formatReading } = useReadingFormat()
 function eur(value: number | string | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value)))
 }
+
+/**
+ * Invested on arrival, nine times in ten within the week, and nothing left
+ * waiting: the user already knows it, so the block folds to its verdict.
+ */
+function lagIsSettled(lag: DepositLagResponse): boolean {
+  return (
+    lag.reading?.tone === 'good' &&
+    lag.p90_days.value !== null &&
+    Number(lag.p90_days.value) <= 7 &&
+    Number(lag.never_invested_eur) <= 0.02 * Number(lag.matched_eur)
+  )
+}
 </script>
 
 <template>
@@ -128,8 +141,8 @@ function eur(value: number | string | null): string {
       id="analyse-deposit_lag"
       class="scroll-mt-20"
       title="Entre le virement et l'investissement"
-      :measurable="depositLag.median_days.value !== null"
-      :summary="depositLag.median_days.caveat"
+      :measurable="depositLag.median_days.value !== null && !lagIsSettled(depositLag)"
+      :summary="lagIsSettled(depositLag) ? depositLag.verdict : depositLag.median_days.caveat"
     >
       <template v-if="Number(depositLag.unmatched_share) > 0" #badge>
         <NoteChip

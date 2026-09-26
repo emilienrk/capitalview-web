@@ -250,6 +250,25 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('250,00')
   })
 
+  it('BehaviourSection replie le délai de dépôt quand rien n’attend', async () => {
+    const settled = {
+      ...depositLag,
+      median_days: metric(1),
+      p90_days: metric(3),
+      never_invested_eur: '40',
+      reading: { value: '1', format: 'days', active: 0, tone: 'good', bands: [] },
+      verdict: 'La moitié de tes euros est investie en 1 jour(s) ou moins.',
+    }
+    const html = await render('BehaviourSection', {
+      regularity: null,
+      depositLag: settled,
+      conditioning: null,
+    })
+    expect(html).toContain('Entre le virement et l&#39;investissement')
+    expect(html).toContain('investie en 1 jour(s) ou moins')
+    expect(html).not.toContain('Délai médian')
+  })
+
   it('FeesSection juge la charge par sa couleur et son échelle, sans phrase de conseil', async () => {
     const html = await render('FeesSection', { fees, exits: null })
     // Le coût annuel en pourcentage, pas en bps, coloré par sa bande.
