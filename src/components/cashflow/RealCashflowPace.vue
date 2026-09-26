@@ -5,7 +5,6 @@
  * month is heading. The one figure worth reading before the month is over.
  */
 import { computed } from 'vue'
-import { Gauge } from 'lucide-vue-next'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
@@ -37,12 +36,6 @@ function dueList(dues: RealCashflowUpcoming[]): string {
 function amount(value: number | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value), props.data.currency))
 }
-
-const monthName = computed(() => {
-  const [year, month] = props.data.period.split('-').map(Number)
-  const name = new Date(year!, month! - 1, 1).toLocaleDateString('fr-FR', { month: 'long' })
-  return name.charAt(0).toUpperCase() + name.slice(1)
-})
 
 /** Positive when ahead of the median month at this day. */
 const gap = computed(() =>
@@ -104,35 +97,33 @@ const option = computed(() => {
 <template>
   <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
     <div class="lg:col-span-2 space-y-2">
-      <p class="flex items-center gap-2 text-sm font-medium text-text-muted dark:text-text-dark-muted">
-        <Gauge class="w-4 h-4" /> {{ monthName }} en cours
-      </p>
       <p class="text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
         {{ amount(data.spent_to_date) }}
         <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
       </p>
-      <p v-if="data.median_to_date !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
-        Un mois médian en était à {{ amount(data.median_to_date) }}
-        <span v-if="gap !== null" class="font-semibold tabular-nums">
-          ({{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }})
-        </span>
+      <!-- The median's own amount is the dashed curve: only the gap is spelled out. -->
+      <p v-if="gap !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
+        <span class="font-semibold tabular-nums">{{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }}</span>
+        face à un mois médian au même jour
       </p>
       <p v-if="data.projection !== null" class="text-sm text-text-main dark:text-text-dark-main">
         Fin de mois estimée : <strong class="tabular-nums">{{ amount(data.projection) }}</strong>
-        <span class="text-text-muted dark:text-text-dark-muted"> pour {{ amount(data.median_month) }} un mois médian</span>
+        <span v-if="data.median_month !== null" class="text-text-muted dark:text-text-dark-muted">
+          · médian {{ amount(data.median_month) }}
+        </span>
       </p>
-      <p v-if="Number(data.pending_to_date)" class="text-xs text-text-muted dark:text-text-dark-muted">
-        Dont {{ amount(data.pending_to_date) }} de paiements encore en attente.
-      </p>
-      <!-- The due dates still to come: what the rest of the month already owes. -->
-      <p v-if="upcoming.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcoming)">
-        À venir ce mois : {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }},
-        {{ amount(data.upcoming_amount) }}
-      </p>
-      <!-- Apart from the spending: an income still to come lowers nothing above. -->
-      <p v-if="upcomingIncome.length" class="text-xs text-text-muted dark:text-text-dark-muted" :title="dueList(upcomingIncome)">
-        À recevoir ce mois : {{ upcomingIncome.length }} revenu{{ upcomingIncome.length > 1 ? 's' : '' }} récurrent{{ upcomingIncome.length > 1 ? 's' : '' }},
-        {{ amount(data.upcoming_income_amount) }}
+      <!-- An income still to come lowers nothing above: it only shares the footnote line. -->
+      <p
+        v-if="Number(data.pending_to_date) || upcoming.length || upcomingIncome.length"
+        class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-muted dark:text-text-dark-muted"
+      >
+        <span v-if="Number(data.pending_to_date)">dont {{ amount(data.pending_to_date) }} en attente</span>
+        <span v-if="upcoming.length" :title="dueList(upcoming)">
+          {{ upcoming.length }} prélèvement{{ upcoming.length > 1 ? 's' : '' }} à venir, {{ amount(data.upcoming_amount) }}
+        </span>
+        <span v-if="upcomingIncome.length" :title="dueList(upcomingIncome)">
+          {{ upcomingIncome.length }} revenu{{ upcomingIncome.length > 1 ? 's' : '' }} à recevoir, {{ amount(data.upcoming_income_amount) }}
+        </span>
       </p>
       <router-link
         :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"
