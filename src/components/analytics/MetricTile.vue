@@ -61,7 +61,7 @@ const display = computed(() => {
     case 'points':
       return `${n.toFixed(1)} pts`
     case 'count':
-      return n.toFixed(1)
+      return formatReading(n, 'decimal')
     default:
       return n.toFixed(2)
   }

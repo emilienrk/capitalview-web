@@ -7,6 +7,7 @@
  * includes zero, and a zero line appears when the values straddle it.
  */
 import { computed } from 'vue'
+import { useFormatters } from '@/composables/useFormatters'
 import { useReadingFormat } from '@/composables/useReadingFormat'
 import type { ReadingFormat } from '@/types'
 
@@ -16,6 +17,9 @@ const props = defineProps<{
 }>()
 
 const { formatReading } = useReadingFormat()
+// Two decimals for bare ratios: two variation coefficients of 0,96 and 1,04
+// would both print 1,0 and look identical.
+const { formatNumber } = useFormatters()
 
 const rows = computed(() => {
   const present = props.items
@@ -23,16 +27,20 @@ const rows = computed(() => {
     .filter((item) => Number.isFinite(item.n))
   if (!present.length) return { straddles: false, zero: 0, bars: [] }
 
-  const low = Math.min(0, ...present.map((item) => item.n))
-  const high = Math.max(0, ...present.map((item) => item.n))
+  // All at or below zero (a drawdown): drawn as magnitudes from the left, so a
+  // longer bar still reads as "further", instead of bars hanging off the right edge.
+  const allNegative = present.every((item) => item.n <= 0)
+  const values = present.map((item) => (allNegative ? -item.n : item.n))
+  const low = Math.min(0, ...values)
+  const high = Math.max(0, ...values)
   const span = high - low || 1
   return {
     straddles: low < 0 && high > 0,
     zero: (-low / span) * 100,
-    bars: present.map((item) => ({
+    bars: present.map((item, index) => ({
       ...item,
-      left: ((Math.min(item.n, 0) - low) / span) * 100,
-      width: (Math.abs(item.n) / span) * 100,
+      left: ((Math.min(values[index]!, 0) - low) / span) * 100,
+      width: (Math.abs(values[index]!) / span) * 100,
     })),
   }
 })
@@ -77,7 +85,7 @@ const rows = computed(() => {
             : 'text-text-muted dark:text-text-dark-muted',
         ]"
       >
-        {{ formatReading(bar.value, format) }}
+        {{ format === 'decimal' ? formatNumber(bar.n, 2) : formatReading(bar.value, format) }}
       </span>
     </div>
   </div>

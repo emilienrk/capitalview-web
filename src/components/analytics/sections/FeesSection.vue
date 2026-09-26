@@ -61,7 +61,7 @@ function eur(value: number | string | null): string {
         </li>
         <li>{{ fees.ter_note }}</li>
       </template>
-      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <MetricTile
           label="Coût annuel"
           :metric="fees.annual_bps"

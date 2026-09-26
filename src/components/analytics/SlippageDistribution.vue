@@ -6,6 +6,7 @@ import { BoxplotChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useReadingFormat } from '@/composables/useReadingFormat'
 import type { SlippageDistributionOut } from '@/types'
 
 use([CanvasRenderer, BoxplotChart, GridComponent, TooltipComponent])
@@ -14,6 +15,7 @@ const props = defineProps<{ distribution: SlippageDistributionOut; isDark?: bool
 
 const { chartRef, containerRef, canRenderChart } = useChartResize()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series'] }
+const { formatReading } = useReadingFormat()
 
 /** ECharts boxplot order: min, Q1, median, Q3, max. */
 const box = computed<[number, number, number, number, number]>(() => [
@@ -24,9 +26,9 @@ const box = computed<[number, number, number, number, number]>(() => [
   Number(props.distribution.maximum),
 ])
 
+/** Basis points drawn as a percentage, like every other figure on the page. */
 function formatBps(value: number): string {
-  const rounded = Math.round(value)
-  return `${rounded > 0 ? '+' : ''}${rounded} bps`
+  return `${value > 0 ? '+' : ''}${formatReading(value, 'bps', true)}`
 }
 
 const option = computed(() => {
