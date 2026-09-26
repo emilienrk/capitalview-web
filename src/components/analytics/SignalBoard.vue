@@ -64,14 +64,21 @@ function goTo(block: string) {
       <li v-for="signal in signals" :key="`${signal.block}-${signal.label}`">
         <button
           type="button"
-          class="grid w-full grid-cols-[auto_minmax(0,9rem)_1fr_auto] items-center gap-x-3 rounded-md px-2 py-2 text-left hover:bg-surface-hover dark:hover:bg-surface-dark-hover sm:grid-cols-[auto_12rem_1fr_auto]"
+          class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 rounded-md px-2 py-2 text-left hover:bg-surface-hover dark:hover:bg-surface-dark-hover sm:grid-cols-[auto_12rem_1fr_auto]"
           @click="goTo(signal.block)"
         >
           <span :class="['h-2.5 w-2.5 rounded-full', dot[signal.tone]]" />
           <span class="truncate text-sm text-text-main dark:text-text-dark-main">
             {{ signal.label }}
           </span>
-          <span class="h-1.5 rounded-full bg-background-subtle dark:bg-background-dark-subtle">
+          <!-- On a phone the bar drops under the label: squeezed between label
+               and figure it truncated the one and varied in width row to row. -->
+          <span
+            :class="[
+              'order-last col-span-2 col-start-2 mt-1.5 h-1.5 rounded-full bg-background-subtle dark:bg-background-dark-subtle sm:order-none sm:col-span-1 sm:col-start-auto sm:mt-0',
+              barWidth(signal) ? '' : 'hidden sm:block',
+            ]"
+          >
             <span
               v-if="barWidth(signal)"
               :class="['block h-full rounded-full', dot[signal.tone]]"
