@@ -123,9 +123,25 @@ input:is(:-webkit-autofill, :autofill) {
   grid-template-rows: 1fr;
 }
 
+/* Inline details that show up as a form is filled (a fee, a conversion)
+   settle into place instead of popping in. */
+.cv-reveal-enter-active {
+  transition: opacity 200ms var(--cv-ease-out), transform 200ms var(--cv-ease-out);
+}
+.cv-reveal-leave-active {
+  transition: opacity 150ms var(--cv-ease-out), transform 150ms var(--cv-ease-out);
+}
+.cv-reveal-enter-from,
+.cv-reveal-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cv-pop-enter-from,
-  .cv-pop-leave-to {
+  .cv-pop-leave-to,
+  .cv-reveal-enter-from,
+  .cv-reveal-leave-to {
     transform: none;
   }
   .cv-expand-enter-from,
