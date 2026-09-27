@@ -77,7 +77,7 @@ function finish() {
             type="email"
             required
             placeholder="email@exemple.com"
-            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
+            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
           />
         </div>
 
@@ -88,7 +88,7 @@ function finish() {
             type="text"
             required
             placeholder="XXXX-XXXX-XXXX-XXXX"
-            class="w-full px-4 py-3 font-mono tracking-wide bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
+            class="w-full px-4 py-3 font-mono tracking-wide bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
           />
         </div>
 
@@ -99,7 +99,7 @@ function finish() {
             type="password"
             required
             placeholder="••••••••"
-            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
+            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
           />
         </div>
 
@@ -110,7 +110,7 @@ function finish() {
             type="password"
             required
             placeholder="••••••••"
-            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
+            class="w-full px-4 py-3 bg-background/50 dark:bg-background-dark-subtle border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
             :class="confirmPassword && !passwordsMatch ? 'border-danger' : 'border-surface-border dark:border-surface-dark-border'"
           />
           <p v-if="confirmPassword && !passwordsMatch" class="text-xs text-danger ml-1">Les mots de passe ne correspondent pas.</p>
@@ -126,7 +126,7 @@ function finish() {
             inputmode="numeric"
             autocomplete="one-time-code"
             placeholder="123456"
-            class="w-full px-4 py-3 font-mono tracking-wide bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
+            class="w-full px-4 py-3 font-mono tracking-wide bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
           />
         </div>
 
@@ -140,7 +140,7 @@ function finish() {
         <button
           type="submit"
           :disabled="isLoading || !canSubmit"
-          class="group relative w-full bg-primary hover:bg-primary-hover active:bg-primary-active text-primary-content font-bold py-3.5 rounded-button transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="group relative w-full bg-primary hover:bg-primary-hover active:bg-primary-active text-primary-content font-bold py-3.5 rounded-button transition shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="isLoading" class="flex items-center justify-center gap-2">
             <LoaderCircle class="animate-spin h-5 w-5 text-current" />
