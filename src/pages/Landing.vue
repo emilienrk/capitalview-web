@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ArrowRight, ChevronDown } from 'lucide-vue-next'
 
-import { defineAsyncComponent } from 'vue'
+import { defineAsyncComponent, ref } from 'vue'
 import { BaseTerm } from '@/components'
+import { useSeenOnce } from '@/composables/useSeenOnce'
 import PublicFooter from '@/components/public/PublicFooter.vue'
 import PublicNav from '@/components/public/PublicNav.vue'
 import { focusRing, primaryButton, textLink } from '@/components/public/publicStyles'
@@ -10,6 +11,10 @@ import { contactEmail, owner, sourceRepos } from '@/components/public/siteInfo'
 
 // Charts are heavy and sit below the fold.
 const LandingDemo = defineAsyncComponent(() => import('@/components/public/LandingDemo.vue'))
+
+// On a phone the specimen sits below the fold: its reveal waits until it is seen.
+const specimenList = ref<HTMLElement | null>(null)
+const specimenSeen = useSeenOnce(specimenList)
 
 // Column names are the real ones from the API models.
 const specimen = [
@@ -65,7 +70,7 @@ const buys = [
           <span class="font-display text-lg font-semibold text-text-main dark:text-text-dark-main">Un compte, deux lectures</span>
           <span class="text-sm text-text-muted dark:text-text-dark-muted">exemple</span>
         </figcaption>
-        <dl>
+        <dl ref="specimenList" :class="specimenSeen && 'is-seen'">
           <div class="hidden sm:grid grid-cols-[6rem_1fr_1fr] gap-x-6 py-2.5 border-b border-surface-border dark:border-surface-dark-border text-xs font-semibold text-text-muted dark:text-text-dark-muted" aria-hidden="true">
             <span></span>
             <span>Ce que vous voyez</span>
@@ -332,8 +337,11 @@ const buys = [
 /* The page's one moment: the stored form writes itself out next to the plain value. */
 @media (prefers-reduced-motion: no-preference) {
   .cipher-reveal {
-    animation: cipher-reveal 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: cipher-reveal 900ms cubic-bezier(0.16, 1, 0.3, 1) both paused;
     animation-delay: calc(250ms + var(--i) * 110ms);
+  }
+  .is-seen .cipher-reveal {
+    animation-play-state: running;
   }
 }
 @keyframes cipher-reveal {

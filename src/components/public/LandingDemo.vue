@@ -3,15 +3,21 @@
  * The landing's picture of the product: the real dashboard charts, fed with
  * made-up figures. Loaded async so the charting library stays off the first paint.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import NetWorthHistoryChart from '@/components/charts/NetWorthHistoryChart.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useFormatters } from '@/composables/useFormatters'
+import { useSeenOnce } from '@/composables/useSeenOnce'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 
 const { isDark } = useDarkMode()
 const { formatCurrency, formatPercent } = useFormatters()
+
+// The charts first draw below the fold, where nobody sees their entrance:
+// remounting them once in view replays it without changing the layout.
+const figure = ref<HTMLElement | null>(null)
+const seen = useSeenOnce(figure)
 
 // Twelve month-ends of an ordinary household: savings creep up, the stock
 // market mostly helps, crypto ends the year lower.
@@ -51,7 +57,7 @@ const segments = computed(() => [
 </script>
 
 <template>
-  <figure class="border border-surface-border dark:border-surface-dark-border rounded-card bg-surface dark:bg-surface-dark">
+  <figure ref="figure" class="border border-surface-border dark:border-surface-dark-border rounded-card bg-surface dark:bg-surface-dark">
     <figcaption class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 sm:px-7 py-4 border-b border-surface-border dark:border-surface-dark-border">
       <span class="font-semibold text-text-main dark:text-text-dark-main">Tableau de bord</span>
       <span class="text-sm text-text-muted dark:text-text-dark-muted">Exemple, chiffres fictifs</span>
@@ -68,12 +74,12 @@ const segments = computed(() => [
           ({{ formatPercent(changePercent) }}) sur 12 mois
         </p>
         <div class="mt-6">
-          <NetWorthHistoryChart :history="history" :is-dark="isDark" bank-enabled wealth-enabled granularity="monthly" />
+          <NetWorthHistoryChart :key="String(seen)" :history="history" :is-dark="isDark" bank-enabled wealth-enabled granularity="monthly" />
         </div>
       </div>
       <div class="px-5 sm:px-7 py-6 border-t lg:border-t-0 border-surface-border dark:border-surface-dark-border min-w-0">
         <p class="text-sm text-text-muted dark:text-text-dark-muted">Répartition</p>
-        <AllocationDonutChart :segments="segments" :is-dark="isDark" />
+        <AllocationDonutChart :key="String(seen)" :segments="segments" :is-dark="isDark" />
       </div>
     </div>
   </figure>
