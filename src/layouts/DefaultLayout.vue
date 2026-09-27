@@ -7,6 +7,7 @@ import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, Microsc
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useSwipe } from '@/composables/useSwipe'
+import CvLogo from '@/components/CvLogo.vue'
 import { useSettingsStore } from '@/stores/settings'
 
 const auth = useAuthStore()
@@ -165,7 +166,7 @@ onMounted(async () => {
     >
       <!-- Brand -->
       <router-link to="/dashboard" class="flex items-center gap-3 px-6 h-16 border-b border-sidebar-border dark:border-sidebar-dark-border shrink-0 cursor-pointer" @click="sidebarOpen = false">
-        <img src="/capitalview.svg" alt="CapitalView Logo" class="w-8 h-8" />
+        <CvLogo class="w-8 h-8 text-primary" />
         <span class="font-bold text-lg text-text-main dark:text-text-dark-main tracking-tight">CapitalView</span>
       </router-link>
 
