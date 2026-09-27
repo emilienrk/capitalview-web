@@ -31,10 +31,22 @@ export const useAuthStore = defineStore('auth', () => {
     apiClient.setToken(token)
   }
 
+  // A bare flag, no secret: index.html reads it to boot the landing and the
+  // sign-in pages in the user's look, since the router sends them on to the app.
+  function rememberSignedIn(signedIn: boolean): void {
+    try {
+      if (signedIn) localStorage.setItem('signed-in', '1')
+      else localStorage.removeItem('signed-in')
+    } catch {
+      // Private mode: those pages just boot in the public look.
+    }
+  }
+
   function clearSession() {
     accessToken.value = null
     user.value = null
     isAuthenticated.value = false
+    rememberSignedIn(false)
     apiClient.setToken(null)
     // Wipe caches and data stores so nothing from this session leaks into
     // the next one (logout or session expiry, same tab, no reload).
@@ -61,6 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = await apiClient.get<User>('/auth/me')
     error.value = null
     isAuthenticated.value = true
+    rememberSignedIn(true)
   }
 
   async function login(credentials: LoginRequest): Promise<LoginOutcome> {
@@ -133,6 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
       setToken(response.access_token)
 
       isAuthenticated.value = true
+      rememberSignedIn(true)
 
       // Loaded off the critical path so the app paints immediately;
       // failures are logged instead of silently swallowed.

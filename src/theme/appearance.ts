@@ -3,8 +3,9 @@ import { withoutTransitions } from './withoutTransitions'
 
 /**
  * Per-user look: a style (type, corners, depth) and a palette (colors), each
- * mapped to a data attribute on <html> that theme.css keys off. 'current' is
- * the original look and sets no attribute.
+ * mapped to a data attribute on <html> that theme.css keys off. The default
+ * style is the base :root look; the 'current' palette is the original one and
+ * sets no attribute.
  *
  * The server-side user settings are the source of truth (synced by the
  * settings store via applyServerAppearance). localStorage is only a boot cache,
@@ -25,11 +26,14 @@ export interface PaletteOption {
 }
 
 export const STYLE_OPTIONS: StyleOption[] = [
-  { id: 'current', label: 'Classique', description: 'Le style d\'origine' },
+  { id: 'soft', label: 'Doux', description: 'Police très lisible, coins arrondis' },
   { id: 'editorial', label: 'Éditorial', description: 'Titres en serif, filets fins, sans ombre' },
   { id: 'swiss', label: 'Suisse', description: 'Une seule police, angles droits' },
-  { id: 'soft', label: 'Doux', description: 'Police très lisible, coins arrondis' },
+  { id: 'precise', label: 'Précis', description: 'Police nette, montants à chasse fixe' },
 ]
+
+/** Also what the server's 'current' (the retired original style) now means. */
+const DEFAULT_STYLE = 'soft'
 
 export const PALETTE_OPTIONS: PaletteOption[] = [
   { id: 'current', label: 'Classique', swatches: ['#f9fafb', '#111827', '#4f46e5'] },
@@ -41,28 +45,33 @@ export const PALETTE_OPTIONS: PaletteOption[] = [
 
 const STORAGE_KEY = 'appearance'
 
-export const activeStyle = ref('current')
+export const activeStyle = ref(DEFAULT_STYLE)
 export const activePalette = ref('current')
 // Bumped on every switch so chart options recompute from the new tokens.
 export const appearanceRevision = ref(0)
 
+// While a public page pins its look, the user's choice is kept but not shown.
+let pinned = false
+
 function findStyle(id: string | null | undefined): StyleOption {
-  return STYLE_OPTIONS.find(s => s.id === id) ?? STYLE_OPTIONS[0]!
+  return STYLE_OPTIONS.find(s => s.id === id) ?? STYLE_OPTIONS.find(s => s.id === DEFAULT_STYLE)!
 }
 
 function findPalette(id: string | null | undefined): PaletteOption {
   return PALETTE_OPTIONS.find(p => p.id === id) ?? PALETTE_OPTIONS[0]!
 }
 
-function setAttribute(name: string, value: string): void {
-  if (value === 'current') document.documentElement.removeAttribute(name)
-  else document.documentElement.setAttribute(name, value)
-}
-
-function applyToDocument(): void {
+/** Put a look on <html>, in one frame, only if it is not already there. */
+function show(style: string, palette: string): void {
+  const root = document.documentElement
+  const nextStyle = style === DEFAULT_STYLE ? null : style
+  const nextPalette = palette === 'current' ? null : palette
+  if (root.getAttribute('data-style') === nextStyle && root.getAttribute('data-palette') === nextPalette) return
   withoutTransitions(() => {
-    setAttribute('data-style', activeStyle.value)
-    setAttribute('data-palette', activePalette.value)
+    if (nextStyle) root.setAttribute('data-style', nextStyle)
+    else root.removeAttribute('data-style')
+    if (nextPalette) root.setAttribute('data-palette', nextPalette)
+    else root.removeAttribute('data-palette')
   })
   appearanceRevision.value++
   // Fonts arrive after the attribute flips; charts measure text, so redraw once they land.
@@ -78,20 +87,23 @@ export function setAppearance(style: string, palette: string): void {
   } catch {
     // Private mode: the boot cache just won't survive a reload.
   }
-  applyToDocument()
+  if (!pinned) show(activeStyle.value, activePalette.value)
 }
 
 /**
  * Show a fixed look on a public page, whatever the boot cache holds (it
  * survives logout, so a visitor would otherwise inherit the last user's look).
- * The user's choice is left untouched; call the returned function to restore it.
+ * The user's choice is left untouched until releaseAppearance.
  */
-export function pinAppearance(style: string, palette: string): () => void {
-  withoutTransitions(() => {
-    setAttribute('data-style', findStyle(style).id)
-    setAttribute('data-palette', findPalette(palette).id)
-  })
-  return applyToDocument
+export function pinAppearance(style: string, palette: string): void {
+  pinned = true
+  show(findStyle(style).id, findPalette(palette).id)
+}
+
+/** Back in the app: show the user's look again, wherever the page booted. */
+export function releaseAppearance(): void {
+  pinned = false
+  show(activeStyle.value, activePalette.value)
 }
 
 /** Align the local look with the server value (server wins). */
@@ -113,7 +125,7 @@ export function initAppearance(): void {
     activeStyle.value = findStyle(saved?.style).id
     activePalette.value = findPalette(saved?.palette).id
   } catch {
-    // Corrupt cache: start from the original look until /settings answers.
+    // Corrupt cache: start from the default look until /settings answers.
   }
   // Charts measure text: redraw once the typeface has landed.
   document.fonts?.ready.then(() => { appearanceRevision.value++ })

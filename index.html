@@ -19,7 +19,7 @@
          never waits on a stylesheet; a face only downloads once it is used. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Brygada+1918:wght@400..700&family=Schibsted+Grotesk:wght@400..800&family=Archivo:wght@300..800&family=Atkinson+Hyperlegible+Next:wght@300..800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Brygada+1918:wght@400..700&family=Schibsted+Grotesk:wght@400..800&family=Archivo:wght@300..800&family=Atkinson+Hyperlegible+Next:wght@300..800&display=swap">
 
     <!-- Favicons -->
     <link rel="icon" href="/capitalview.svg" type="image/svg+xml">
@@ -44,14 +44,20 @@
         document.documentElement.classList.remove('dark')
       }
       // Style and palette too (theme/appearance.ts): public pages share one
-      // look, the app wears the user's cached one. Kept in step with the
-      // router by src/__tests__/bootAppearance.spec.ts.
+      // look, the app wears the user's cached one. Signed in, the landing and
+      // the sign-in pages redirect to the app, so they boot in the user's look.
+      // Kept in step with the router by src/__tests__/bootAppearance.spec.ts.
       try {
+        var path = location.pathname.replace(/\/+$/, '') || '/'
         var publicPaths = ['/', '/login', '/register', '/recover', '/mentions-legales', '/confidentialite']
-        var look = publicPaths.indexOf(location.pathname.replace(/\/+$/, '') || '/') >= 0
+        var signedInRedirects = ['/', '/login', '/register', '/recover']
+        var pinned = publicPaths.indexOf(path) >= 0
+          && !(localStorage.getItem('signed-in') && signedInRedirects.indexOf(path) >= 0)
+        var look = pinned
           ? { style: 'editorial', palette: 'prune' }
           : JSON.parse(localStorage.getItem('appearance') || 'null') || {}
-        if (look.style && look.style !== 'current') document.documentElement.setAttribute('data-style', look.style)
+        var defaultStyle = 'soft'
+        if (look.style && look.style !== 'current' && look.style !== defaultStyle) document.documentElement.setAttribute('data-style', look.style)
         if (look.palette && look.palette !== 'current') document.documentElement.setAttribute('data-palette', look.palette)
       } catch (e) {}
     </script>

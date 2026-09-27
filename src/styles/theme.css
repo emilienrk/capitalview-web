@@ -1,42 +1,44 @@
 /* Design tokens behind the Tailwind theme (tailwind.config.js reads them).
-   :root holds the original look. [data-style] swaps type, corners and depth;
+   :root holds the default style (Doux). [data-style] swaps type, corners and depth;
    [data-palette] swaps colors. Both sit on <html> (see theme/appearance.ts)
    and combine freely. Style selectors are not tied to :root so a settings
    preview can render one style inside a page that uses another. */
 
+/* Doux, the default: a humanist face built for legibility, moderate corners,
+   a whisper of depth. */
 :root,
-[data-style='current'] {
+[data-style='soft'] {
   /* ── Type ─────────────────────────────────────── */
-  --cv-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-sans: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, sans-serif;
   --cv-font-display: var(--cv-font-sans);
   --cv-font-figure: var(--cv-font-sans);
   --cv-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  --cv-display-tracking: normal;
+  --cv-display-tracking: -0.005em;
 
   /* ── Corners ──────────────────────────────────── */
-  --cv-radius-primary: 1rem;
+  --cv-radius-primary: 0.75rem;
   --cv-radius-secondary: 0.5rem;
-  --cv-radius-card: 1.5rem;
-  --cv-radius-button: 0.75rem;
-  --cv-radius-input: 0.75rem;
+  --cv-radius-card: 1rem;
+  --cv-radius-button: 0.625rem;
+  --cv-radius-input: 0.625rem;
   --cv-radius-badge: 0.375rem;
   --cv-radius-sm: 0.25rem;
   --cv-radius-md: 0.375rem;
   --cv-radius-lg: 0.5rem;
-  --cv-radius-xl: 1rem;
-  --cv-radius-2xl: 1.5rem;
-  --cv-radius-3xl: 2rem;
+  --cv-radius-xl: 0.75rem;
+  --cv-radius-2xl: 1rem;
+  --cv-radius-3xl: 1.25rem;
 
   /* ── Depth ────────────────────────────────────── */
-  --cv-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --cv-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --cv-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --cv-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --cv-shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --cv-shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-  --cv-shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --cv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --cv-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  --cv-shadow-md: 0 4px 10px -4px rgb(0 0 0 / 0.08);
+  --cv-shadow-lg: 0 12px 24px -12px rgb(0 0 0 / 0.14);
+  --cv-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04);
+  --cv-shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.05);
+  --cv-shadow-modal: 0 24px 48px -16px rgb(0 0 0 / 0.22);
 
-  --cv-chart-bar-radius: 6;
+  --cv-chart-bar-radius: 4;
 }
 
 /* Motion is shared by every style. */
@@ -214,33 +216,37 @@
   --cv-chart-bar-radius: 0;
 }
 
-/* Doux: a humanist face built for legibility, moderate corners, a whisper
-   of depth. */
-[data-style='soft'] {
-  --cv-font-sans: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, sans-serif;
+/* Précis: a neutral product grotesque with a monospaced voice for amounts,
+   so digits line up from one figure to the next; small corners, hairline depth. */
+[data-style='precise'] {
+  --cv-font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --cv-font-display: var(--cv-font-sans);
-  --cv-font-figure: var(--cv-font-sans);
-  --cv-display-tracking: -0.005em;
+  --cv-font-figure: 'Geist Mono', ui-monospace, monospace;
+  --cv-font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --cv-display-tracking: -0.02em;
 
-  --cv-radius-primary: 0.75rem;
-  --cv-radius-secondary: 0.5rem;
-  --cv-radius-card: 1rem;
-  --cv-radius-button: 0.625rem;
-  --cv-radius-input: 0.625rem;
-  --cv-radius-badge: 0.375rem;
-  --cv-radius-xl: 0.75rem;
-  --cv-radius-2xl: 1rem;
-  --cv-radius-3xl: 1.25rem;
+  --cv-radius-primary: 0.5rem;
+  --cv-radius-secondary: 0.375rem;
+  --cv-radius-card: 0.75rem;
+  --cv-radius-button: 0.5rem;
+  --cv-radius-input: 0.5rem;
+  --cv-radius-badge: 0.25rem;
+  --cv-radius-sm: 0.125rem;
+  --cv-radius-md: 0.25rem;
+  --cv-radius-lg: 0.375rem;
+  --cv-radius-xl: 0.5rem;
+  --cv-radius-2xl: 0.75rem;
+  --cv-radius-3xl: 1rem;
 
-  --cv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
-  --cv-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-  --cv-shadow-md: 0 4px 10px -4px rgb(0 0 0 / 0.08);
-  --cv-shadow-lg: 0 12px 24px -12px rgb(0 0 0 / 0.14);
+  --cv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --cv-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  --cv-shadow-md: 0 4px 8px -4px rgb(0 0 0 / 0.1);
+  --cv-shadow-lg: 0 12px 24px -12px rgb(0 0 0 / 0.18);
   --cv-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04);
-  --cv-shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.05);
-  --cv-shadow-modal: 0 24px 48px -16px rgb(0 0 0 / 0.22);
+  --cv-shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --cv-shadow-modal: 0 16px 40px -12px rgb(0 0 0 / 0.25);
 
-  --cv-chart-bar-radius: 4;
+  --cv-chart-bar-radius: 2;
 }
 
 /* ════════════════ Palettes ════════════════

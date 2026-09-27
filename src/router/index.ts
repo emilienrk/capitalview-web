@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { pinAppearance } from '@/theme/appearance'
+import { useSettingsStore } from '@/stores/settings'
+import { pinAppearance, releaseAppearance } from '@/theme/appearance'
 
 import Landing from '@/pages/Landing.vue'
 import Login from '@/pages/Login.vue'
@@ -161,7 +162,7 @@ const router = createRouter({
   },
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore()
 
   if (!auth.isInitialized) {
@@ -179,6 +180,14 @@ router.beforeEach(async (to) => {
   if ((to.name === 'login' || to.name === 'register' || to.name === 'recover') && auth.isAuthenticated) {
     return { name: 'dashboard' }
   }
+
+  // Entering the app from a sign-in, sign-up or recovery page: load the
+  // account's settings first, so the app opens in its look rather than in
+  // the cached one, which may be none (a new device) or another account's.
+  if (to.meta.requiresAuth && from.meta.requiresAuth === false && auth.isAuthenticated) {
+    const settings = useSettingsStore()
+    if (!settings.settings) await settings.fetchSettings()
+  }
 })
 
 /** Logged-out pages are reading pages: they keep pinch-zoom, which the app blocks. */
@@ -192,16 +201,11 @@ const publicViewport = appViewport.replace(/,\s*(maximum-scale|user-scalable)=[^
 
 // Logged-out pages share one fixed look, so the landing and the sign-up form
 // match and never inherit a previous user's style (see pinAppearance).
-let restoreAppearance: (() => void) | null = null
 router.afterEach((to) => {
   const isPublic = to.meta.requiresAuth === false
   if (viewport) viewport.content = isPublic ? publicViewport : appViewport
-  if (isPublic) {
-    restoreAppearance ??= pinAppearance('editorial', 'prune')
-  } else if (restoreAppearance) {
-    restoreAppearance()
-    restoreAppearance = null
-  }
+  if (isPublic) pinAppearance('editorial', 'prune')
+  else releaseAppearance()
 })
 
 export default router
