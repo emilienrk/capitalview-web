@@ -72,8 +72,14 @@ const isExpanded = ref(false)
       </span>
     </button>
 
-    <div v-if="isExpanded" class="mt-4">
-      <slot />
-    </div>
+    <Transition name="cv-expand">
+      <div v-if="isExpanded">
+        <div>
+          <div class="pt-4">
+            <slot />
+          </div>
+        </div>
+      </div>
+    </Transition>
   </BaseCard>
 </template>

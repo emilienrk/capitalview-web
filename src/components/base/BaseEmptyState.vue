@@ -33,7 +33,7 @@ const emit = defineEmits<{
       <button
         v-if="props.actionLabel"
         @click="emit('action')"
-        class="px-5 py-2.5 rounded-button bg-primary hover:bg-primary-hover text-primary-content text-sm font-semibold transition-colors"
+        class="px-5 py-2.5 rounded-button bg-primary hover:bg-primary-hover text-primary-content text-sm font-semibold transition-[background-color,scale] duration-150 ease-out active:scale-[0.97]"
       >
         {{ props.actionLabel }}
       </button>

@@ -229,109 +229,111 @@ watch(
         />
       </button>
 
-      <div
-        v-if="isOpen"
-        class="absolute z-30 mt-1 w-full overflow-hidden rounded-card border border-surface-border bg-surface shadow-lg dark:border-surface-dark-border dark:bg-surface-dark"
-      >
-        <div class="border-b border-surface-border p-2 dark:border-surface-dark-border">
-          <div class="relative">
-            <Search
-              class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-text-muted dark:text-text-dark-muted"
-              stroke-width="2"
-            />
-            <input
-              ref="searchRef"
-              v-model="query"
-              type="text"
-              role="combobox"
-              placeholder="Nom, ticker ou ISIN…"
-              autocomplete="off"
-              aria-autocomplete="list"
-              :aria-controls="listboxId"
-              :aria-expanded="isOpen"
-              :aria-activedescendant="matches.length ? optionId(activeIndex) : undefined"
-              aria-label="Rechercher une ligne par nom, ticker ou ISIN"
-              class="w-full rounded-input border border-surface-border bg-background-subtle py-2 pl-8 pr-2 text-sm text-text-main focus:border-primary focus:outline-none dark:border-surface-dark-border dark:bg-background-dark-subtle dark:text-text-dark-main"
-              @keydown="onKeydown"
-            />
-          </div>
-        </div>
-
-        <ul
-          v-if="matches.length"
-          :id="listboxId"
-          ref="listRef"
-          role="listbox"
-          class="max-h-64 overflow-y-auto py-1"
+      <Transition name="cv-pop">
+        <div
+          v-if="isOpen"
+          class="absolute z-30 mt-1 w-full origin-top overflow-hidden rounded-card border border-surface-border bg-surface shadow-lg dark:border-surface-dark-border dark:bg-surface-dark"
         >
-          <li
-            v-for="(asset, index) in matches"
-            :id="optionId(index)"
-            :key="asset.asset_key"
-            role="option"
-            :aria-selected="asset.asset_key.toUpperCase() === modelValue.toUpperCase()"
-          >
-            <button
-              type="button"
-              tabindex="-1"
-              :class="[
-                'flex w-full items-center gap-2 px-3 py-2 text-left transition-colors',
-                index === activeIndex
-                  ? 'bg-surface-active dark:bg-surface-dark-hover'
-                  : 'hover:bg-surface-active dark:hover:bg-surface-dark-hover',
-              ]"
-              @click="choose(asset.asset_key)"
-              @mousemove="activeIndex = index"
-            >
-              <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-1.5">
-                  <span class="truncate text-sm text-text-main dark:text-text-dark-main">
-                    {{ asset.name }}
-                  </span>
-                  <!-- A line sold to zero stays offered: a plan may name what is
-                       being wound down. It just says so. -->
-                  <span
-                    v-if="!asset.held"
-                    class="shrink-0 rounded-full bg-background-subtle px-1.5 py-0.5 text-[10px] text-text-muted dark:bg-background-dark-subtle dark:text-text-dark-muted"
-                  >
-                    vendue
-                  </span>
-                </span>
-                <span
-                  class="mt-0.5 block truncate font-mono text-[11px] text-text-muted dark:text-text-dark-muted"
-                >
-                  {{ asset.symbol }} · {{ asset.asset_key }}
-                </span>
-              </span>
-              <Check
-                v-if="asset.asset_key.toUpperCase() === modelValue.toUpperCase()"
-                class="h-4 w-4 shrink-0 text-primary"
+          <div class="border-b border-surface-border p-2 dark:border-surface-dark-border">
+            <div class="relative">
+              <Search
+                class="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-text-muted dark:text-text-dark-muted"
                 stroke-width="2"
               />
-            </button>
-          </li>
-        </ul>
+              <input
+                ref="searchRef"
+                v-model="query"
+                type="text"
+                role="combobox"
+                placeholder="Nom, ticker ou ISIN…"
+                autocomplete="off"
+                aria-autocomplete="list"
+                :aria-controls="listboxId"
+                :aria-expanded="isOpen"
+                :aria-activedescendant="matches.length ? optionId(activeIndex) : undefined"
+                aria-label="Rechercher une ligne par nom, ticker ou ISIN"
+                class="w-full rounded-input border border-surface-border bg-background-subtle py-2 pl-8 pr-2 text-sm text-text-main focus:border-primary focus:outline-none dark:border-surface-dark-border dark:bg-background-dark-subtle dark:text-text-dark-main"
+                @keydown="onKeydown"
+              />
+            </div>
+          </div>
 
-        <p v-else class="px-3 py-4 text-center text-xs text-text-muted dark:text-text-dark-muted">
-          {{ assets.length ? 'Aucune ligne ne correspond.' : "Tu n'as encore acheté aucune ligne." }}
-        </p>
-
-        <div class="border-t border-surface-border p-2 dark:border-surface-dark-border">
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 rounded-button px-2 py-1.5 text-left text-xs text-text-muted transition-colors hover:bg-surface-active hover:text-text-main dark:text-text-dark-muted dark:hover:bg-surface-dark-hover dark:hover:text-text-dark-main"
-            @click="
-              () => {
-                isFreeEntry = true
-                isOpen = false
-              }
-            "
+          <ul
+            v-if="matches.length"
+            :id="listboxId"
+            ref="listRef"
+            role="listbox"
+            class="max-h-64 overflow-y-auto py-1"
           >
-            <X class="h-3.5 w-3.5 shrink-0" stroke-width="2" />
-            Saisir un ISIN que je ne détiens pas encore
-          </button>
+            <li
+              v-for="(asset, index) in matches"
+              :id="optionId(index)"
+              :key="asset.asset_key"
+              role="option"
+              :aria-selected="asset.asset_key.toUpperCase() === modelValue.toUpperCase()"
+            >
+              <button
+                type="button"
+                tabindex="-1"
+                :class="[
+                  'flex w-full items-center gap-2 px-3 py-2 text-left transition-colors',
+                  index === activeIndex
+                    ? 'bg-surface-active dark:bg-surface-dark-hover'
+                    : 'hover:bg-surface-active dark:hover:bg-surface-dark-hover',
+                ]"
+                @click="choose(asset.asset_key)"
+                @mousemove="activeIndex = index"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center gap-1.5">
+                    <span class="truncate text-sm text-text-main dark:text-text-dark-main">
+                      {{ asset.name }}
+                    </span>
+                    <!-- A line sold to zero stays offered: a plan may name what is
+                         being wound down. It just says so. -->
+                    <span
+                      v-if="!asset.held"
+                      class="shrink-0 rounded-full bg-background-subtle px-1.5 py-0.5 text-[10px] text-text-muted dark:bg-background-dark-subtle dark:text-text-dark-muted"
+                    >
+                      vendue
+                    </span>
+                  </span>
+                  <span
+                    class="mt-0.5 block truncate font-mono text-[11px] text-text-muted dark:text-text-dark-muted"
+                  >
+                    {{ asset.symbol }} · {{ asset.asset_key }}
+                  </span>
+                </span>
+                <Check
+                  v-if="asset.asset_key.toUpperCase() === modelValue.toUpperCase()"
+                  class="h-4 w-4 shrink-0 text-primary"
+                  stroke-width="2"
+                />
+              </button>
+            </li>
+          </ul>
+
+          <p v-else class="px-3 py-4 text-center text-xs text-text-muted dark:text-text-dark-muted">
+            {{ assets.length ? 'Aucune ligne ne correspond.' : "Tu n'as encore acheté aucune ligne." }}
+          </p>
+
+          <div class="border-t border-surface-border p-2 dark:border-surface-dark-border">
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 rounded-button px-2 py-1.5 text-left text-xs text-text-muted transition-colors hover:bg-surface-active hover:text-text-main dark:text-text-dark-muted dark:hover:bg-surface-dark-hover dark:hover:text-text-dark-main"
+              @click="
+                () => {
+                  isFreeEntry = true
+                  isOpen = false
+                }
+              "
+            >
+              <X class="h-3.5 w-3.5 shrink-0" stroke-width="2" />
+              Saisir un ISIN que je ne détiens pas encore
+            </button>
+          </div>
         </div>
-      </div>
+      </Transition>
     </template>
   </div>
 </template>

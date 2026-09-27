@@ -81,3 +81,55 @@ input:is(:-webkit-autofill, :autofill) {
 @keyframes cv-fade-in {
   from { opacity: 0; }
 }
+
+/* Menus and pickers grow from their trigger (set a transform-origin on the
+   panel); reduced motion keeps the fade. */
+.cv-pop-enter-active {
+  transition: opacity 180ms var(--cv-ease-out), transform 180ms var(--cv-ease-out);
+}
+.cv-pop-leave-active {
+  transition: opacity 120ms var(--cv-ease-out), transform 120ms var(--cv-ease-out);
+}
+.cv-pop-enter-from,
+.cv-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+/* Collapsible bodies open to their height: a grid row interpolates from 0fr
+   to 1fr where height cannot reach auto. The transitioned element holds a
+   single wrapper, and that wrapper carries no padding, or the row cannot
+   shrink below it. */
+.cv-expand-enter-active,
+.cv-expand-leave-active {
+  display: grid;
+  transition: grid-template-rows 200ms var(--cv-ease-out), opacity 200ms var(--cv-ease-out);
+}
+.cv-expand-leave-active {
+  transition-duration: 150ms;
+}
+.cv-expand-enter-active > *,
+.cv-expand-leave-active > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.cv-expand-enter-from,
+.cv-expand-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.cv-expand-enter-to,
+.cv-expand-leave-from {
+  grid-template-rows: 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-pop-enter-from,
+  .cv-pop-leave-to {
+    transform: none;
+  }
+  .cv-expand-enter-from,
+  .cv-expand-leave-to {
+    grid-template-rows: 1fr;
+  }
+}

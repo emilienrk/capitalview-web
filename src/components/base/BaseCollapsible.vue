@@ -55,8 +55,14 @@ watch(() => props.defaultOpen, (open) => {
         ]"
       />
     </button>
-    <div v-if="isOpen" class="px-4 pb-4 pt-1">
-      <slot />
-    </div>
+    <Transition name="cv-expand">
+      <div v-if="isOpen">
+        <div>
+          <div class="px-4 pb-4 pt-1">
+            <slot />
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

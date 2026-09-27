@@ -47,24 +47,26 @@ function choose(key: string): void {
     <div v-if="open" class="fixed inset-0 z-40" @click="open = false" />
 
     <!-- Dropdown menu -->
-    <div
-      v-if="open"
-      class="absolute right-0 top-full mt-1 z-50 bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-primary shadow-card min-w-45 overflow-hidden"
-    >
-      <button
-        v-for="item in props.items"
-        :key="item.key"
-        class="w-full flex items-start gap-2.5 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
-        @click.stop="choose(item.key)"
+    <Transition name="cv-pop">
+      <div
+        v-if="open"
+        class="absolute right-0 top-full mt-1 z-50 origin-top-right bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border rounded-primary shadow-card min-w-45 overflow-hidden"
       >
-        <component :is="item.icon" class="w-4 h-4 mt-0.5 text-text-muted dark:text-text-dark-muted shrink-0" />
-        <span class="min-w-0">
-          <span class="block">{{ item.label }}</span>
-          <span v-if="item.description" class="block text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
-            {{ item.description }}
+        <button
+          v-for="item in props.items"
+          :key="item.key"
+          class="w-full flex items-start gap-2.5 text-left px-4 py-2.5 text-sm text-text-body dark:text-text-dark-body hover:bg-background-subtle dark:hover:bg-background-dark-subtle transition-colors"
+          @click.stop="choose(item.key)"
+        >
+          <component :is="item.icon" class="w-4 h-4 mt-0.5 text-text-muted dark:text-text-dark-muted shrink-0" />
+          <span class="min-w-0">
+            <span class="block">{{ item.label }}</span>
+            <span v-if="item.description" class="block text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
+              {{ item.description }}
+            </span>
           </span>
-        </span>
-      </button>
-    </div>
+        </button>
+      </div>
+    </Transition>
   </div>
 </template>

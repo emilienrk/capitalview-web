@@ -33,26 +33,34 @@ const variantIcons: Record<AlertVariant, typeof AlertCircle> = {
 </script>
 
 <template>
-  <div
-    :class="[
-      'flex items-start gap-3 p-4 rounded-input border text-sm',
-      variantClasses[props.variant],
-    ]"
-    role="alert"
+  <!-- Only a dismissible alert comes and goes with what the user does, so only
+       it eases in; standing notices stay put on every page load. -->
+  <Transition
+    :appear="props.dismissible"
+    appear-active-class="transition-[opacity,translate] duration-200 ease-out"
+    appear-from-class="opacity-0 -translate-y-1 motion-reduce:translate-y-0"
   >
-    <component :is="variantIcons[props.variant]" class="w-5 h-5 shrink-0 mt-0.5" />
-    <!-- min-w-0: a flex child defaults to min-width:auto and refuses to shrink
-         below its content, so an unbreakable token (a hash, a URL) pushes past
-         the alert's edge instead of wrapping inside it. -->
-    <div class="flex-1 min-w-0 break-words">
-      <slot />
-    </div>
-    <button
-      v-if="props.dismissible"
-      @click="emit('dismiss')"
-      class="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity"
+    <div
+      :class="[
+        'flex items-start gap-3 p-4 rounded-input border text-sm',
+        variantClasses[props.variant],
+      ]"
+      role="alert"
     >
-      <X class="w-4 h-4" />
-    </button>
-  </div>
+      <component :is="variantIcons[props.variant]" class="w-5 h-5 shrink-0 mt-0.5" />
+      <!-- min-w-0: a flex child defaults to min-width:auto and refuses to shrink
+           below its content, so an unbreakable token (a hash, a URL) pushes past
+           the alert's edge instead of wrapping inside it. -->
+      <div class="flex-1 min-w-0 break-words">
+        <slot />
+      </div>
+      <button
+        v-if="props.dismissible"
+        @click="emit('dismiss')"
+        class="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity"
+      >
+        <X class="w-4 h-4" />
+      </button>
+    </div>
+  </Transition>
 </template>
