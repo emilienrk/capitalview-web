@@ -201,12 +201,10 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
 
     <!-- Position Selection -->
     <Transition
-      enter-active-class="transition-all duration-300 overflow-hidden"
-      enter-from-class="opacity-0 max-h-0"
-      enter-to-class="opacity-100 max-h-[200rem]"
-      leave-active-class="transition-all duration-300 overflow-hidden"
-      leave-from-class="opacity-100 max-h-[200rem]"
-      leave-to-class="opacity-0 max-h-0"
+      enter-active-class="transition-opacity duration-200 ease-out"
+      enter-from-class="opacity-0"
+      leave-active-class="transition-opacity duration-150 ease-out"
+      leave-to-class="opacity-0"
     >
       <SettingsSection
         v-if="communityActive"
