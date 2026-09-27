@@ -149,14 +149,7 @@ function onBackdropClick(): void {
 
 <template>
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
+    <Transition name="modal">
       <div
         v-if="props.open"
         class="fixed inset-0 flex items-center justify-center p-4"
@@ -177,7 +170,7 @@ function onBackdropClick(): void {
           :aria-labelledby="props.title ? titleId : undefined"
           tabindex="-1"
           :class="[
-            'relative w-full bg-surface dark:bg-surface-dark rounded-card shadow-modal border border-surface-border dark:border-surface-dark-border animate-slide-up flex flex-col max-h-[90dvh] outline-none',
+            'modal-panel relative w-full bg-surface dark:bg-surface-dark rounded-card shadow-modal border border-surface-border dark:border-surface-dark-border flex flex-col max-h-[90dvh] outline-none',
             sizeClasses[props.size],
           ]"
         >
@@ -242,3 +235,35 @@ function onBackdropClick(): void {
     </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+/* The wrapper fades the backdrop and panel together; the panel also scales
+   on the same beat so the two never drift apart. */
+.modal-enter-active {
+  transition: opacity 200ms var(--cv-ease-out);
+}
+.modal-enter-active .modal-panel {
+  transition: transform 200ms var(--cv-ease-out);
+}
+.modal-leave-active {
+  transition: opacity 150ms var(--cv-ease-out);
+}
+.modal-leave-active .modal-panel {
+  transition: transform 150ms var(--cv-ease-out);
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-enter-from .modal-panel,
+  .modal-leave-to .modal-panel {
+    transform: none;
+  }
+}
+</style>
