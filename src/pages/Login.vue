@@ -221,19 +221,12 @@ function backToCredentials() {
         </button>
       </form>
 
-      <!-- Footer Branding -->
       <div v-if="step === 'credentials'" class="mt-6 text-center">
         <p class="text-sm text-text-muted dark:text-text-dark-muted">
           Pas encore de compte ?
           <router-link to="/register" class="text-primary hover:text-primary-hover font-semibold transition-colors">
             Créer un compte
           </router-link>
-        </p>
-      </div>
-
-      <div class="mt-4 text-center">
-        <p class="text-xs text-text-muted dark:text-text-dark-muted">
-          CapitalView &copy; 2026 — Sécurisé & Privé
         </p>
       </div>
     </div>
