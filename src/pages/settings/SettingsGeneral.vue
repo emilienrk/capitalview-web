@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Palette, User, Sun, Moon, Monitor, Globe } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
@@ -12,7 +12,6 @@ import {
   activeStyle,
   activePalette,
   setAppearance,
-  loadStyleFonts,
 } from '@/theme/appearance'
 import { useFormatters } from '@/composables/useFormatters'
 import { useDisplayTimezone, utcOffsetLabel } from '@/composables/useDisplayTimezone'
@@ -52,9 +51,6 @@ async function selectTheme(theme: ThemePreference): Promise<void> {
 }
 
 // ── Style & palette ─────────────────────────────────────────────────────────
-
-// The style cards preview their own typeface, so every face must be loaded.
-onMounted(() => STYLE_OPTIONS.forEach(loadStyleFonts))
 
 async function selectAppearance(style: string, palette: string): Promise<void> {
   appearanceError.value = null

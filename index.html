@@ -14,10 +14,12 @@
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
     <meta name="description" content="Comptes bancaires, bourse, crypto, assurance vie et biens réunis dans une seule vue, chiffrés avec une clé que le serveur ne conserve pas.">
     
-    <!-- Fonts: preconnect so the request starts in parallel with the app CSS -->
+    <!-- Fonts: preconnect so the request starts in parallel with the app CSS.
+         Every style's faces are declared here, so switching or booting in one
+         never waits on a stylesheet; a face only downloads once it is used. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Brygada+1918:wght@400..700&family=Schibsted+Grotesk:wght@400..800&family=Archivo:wght@300..800&family=Atkinson+Hyperlegible+Next:wght@300..800&display=swap">
 
     <!-- Favicons -->
     <link rel="icon" href="/capitalview.svg" type="image/svg+xml">
@@ -41,6 +43,17 @@
       } else {
         document.documentElement.classList.remove('dark')
       }
+      // Style and palette too (theme/appearance.ts): public pages share one
+      // look, the app wears the user's cached one. Kept in step with the
+      // router by src/__tests__/bootAppearance.spec.ts.
+      try {
+        var publicPaths = ['/', '/login', '/register', '/recover', '/mentions-legales', '/confidentialite']
+        var look = publicPaths.indexOf(location.pathname.replace(/\/+$/, '') || '/') >= 0
+          ? { style: 'editorial', palette: 'prune' }
+          : JSON.parse(localStorage.getItem('appearance') || 'null') || {}
+        if (look.style && look.style !== 'current') document.documentElement.setAttribute('data-style', look.style)
+        if (look.palette && look.palette !== 'current') document.documentElement.setAttribute('data-palette', look.palette)
+      } catch (e) {}
     </script>
   </head>
   <body class="bg-background dark:bg-background-dark text-text-main dark:text-text-dark-main transition-colors duration-300">

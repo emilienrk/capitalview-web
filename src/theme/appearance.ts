@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { withoutTransitions } from './withoutTransitions'
 
 /**
  * Per-user look: a style (type, corners, depth) and a palette (colors), each
@@ -6,15 +7,15 @@ import { ref } from 'vue'
  * the original look and sets no attribute.
  *
  * The server-side user settings are the source of truth (synced by the
- * settings store via applyServerAppearance). localStorage is only a boot cache
- * so the first render uses the right look before /settings loads.
+ * settings store via applyServerAppearance). localStorage is only a boot cache,
+ * which index.html's inline script puts on <html> before the first paint.
+ * Every style's typeface is declared in index.html too, so none arrives late.
  */
 
 export interface StyleOption {
   id: string
   label: string
   description: string
-  fontsHref?: string
 }
 
 export interface PaletteOption {
@@ -25,24 +26,9 @@ export interface PaletteOption {
 
 export const STYLE_OPTIONS: StyleOption[] = [
   { id: 'current', label: 'Classique', description: 'Le style d\'origine' },
-  {
-    id: 'editorial',
-    label: 'Éditorial',
-    description: 'Titres en serif, filets fins, sans ombre',
-    fontsHref: 'https://fonts.googleapis.com/css2?family=Brygada+1918:wght@400..700&family=Schibsted+Grotesk:wght@400..800&display=swap',
-  },
-  {
-    id: 'swiss',
-    label: 'Suisse',
-    description: 'Une seule police, angles droits',
-    fontsHref: 'https://fonts.googleapis.com/css2?family=Archivo:wght@300..800&display=swap',
-  },
-  {
-    id: 'soft',
-    label: 'Doux',
-    description: 'Police très lisible, coins arrondis',
-    fontsHref: 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@300..800&display=swap',
-  },
+  { id: 'editorial', label: 'Éditorial', description: 'Titres en serif, filets fins, sans ombre' },
+  { id: 'swiss', label: 'Suisse', description: 'Une seule police, angles droits' },
+  { id: 'soft', label: 'Doux', description: 'Police très lisible, coins arrondis' },
 ]
 
 export const PALETTE_OPTIONS: PaletteOption[] = [
@@ -68,26 +54,16 @@ function findPalette(id: string | null | undefined): PaletteOption {
   return PALETTE_OPTIONS.find(p => p.id === id) ?? PALETTE_OPTIONS[0]!
 }
 
-export function loadStyleFonts(style: StyleOption): void {
-  if (!style.fontsHref) return
-  const id = `fonts-${style.id}`
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = style.fontsHref
-  document.head.appendChild(link)
-}
-
 function setAttribute(name: string, value: string): void {
   if (value === 'current') document.documentElement.removeAttribute(name)
   else document.documentElement.setAttribute(name, value)
 }
 
 function applyToDocument(): void {
-  loadStyleFonts(findStyle(activeStyle.value))
-  setAttribute('data-style', activeStyle.value)
-  setAttribute('data-palette', activePalette.value)
+  withoutTransitions(() => {
+    setAttribute('data-style', activeStyle.value)
+    setAttribute('data-palette', activePalette.value)
+  })
   appearanceRevision.value++
   // Fonts arrive after the attribute flips; charts measure text, so redraw once they land.
   document.fonts?.ready.then(() => { appearanceRevision.value++ })
@@ -111,10 +87,10 @@ export function setAppearance(style: string, palette: string): void {
  * The user's choice is left untouched; call the returned function to restore it.
  */
 export function pinAppearance(style: string, palette: string): () => void {
-  const pinned = findStyle(style)
-  loadStyleFonts(pinned)
-  setAttribute('data-style', pinned.id)
-  setAttribute('data-palette', findPalette(palette).id)
+  withoutTransitions(() => {
+    setAttribute('data-style', findStyle(style).id)
+    setAttribute('data-palette', findPalette(palette).id)
+  })
   return applyToDocument
 }
 
@@ -126,6 +102,11 @@ export function applyServerAppearance(style: string | null | undefined, palette:
   setAppearance(nextStyle, nextPalette)
 }
 
+/**
+ * Read the boot cache without touching <html>: the inline script already put
+ * the look there, and on a public page it put the public one, which applying
+ * the cache here would flash over until the router pins it back.
+ */
 export function initAppearance(): void {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
@@ -134,5 +115,6 @@ export function initAppearance(): void {
   } catch {
     // Corrupt cache: start from the original look until /settings answers.
   }
-  applyToDocument()
+  // Charts measure text: redraw once the typeface has landed.
+  document.fonts?.ready.then(() => { appearanceRevision.value++ })
 }
