@@ -6,6 +6,7 @@ import { SankeyChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, SankeyChart, TooltipComponent])
 
@@ -24,6 +25,7 @@ const props = defineProps<{
 }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth, syncChartVisibilityAndSize } = useChartResize()
+const chartTheme = useChartTheme()
 const isCompact = computed(() => containerWidth.value > 0 && containerWidth.value < 768)
 
 const nodes = computed(() => {
@@ -44,14 +46,12 @@ function getNodeGroup(nodeId: string): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#cbd5e1' : '#334155'
-  const tooltipBg = props.isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'
-  const tooltipBorder = props.isDark ? '#334155' : '#e2e8f0'
-  const tooltipText = props.isDark ? '#f8fafc' : '#0f172a'
+  const theme = chartTheme.value
+  const textColor = theme.label
   const lineOpacity = props.isDark ? 0.38 : 0.3
   
-  const savingsColor = '#10b981' // emerald-500
-  const externalFundingColor = '#f59e0b' // amber-500
+  const savingsColor = theme.positive
+  const externalFundingColor = theme.warning
   
   const hiddenLabels = new Set(props.hideNodeLabels ?? [])
 
@@ -91,8 +91,9 @@ const option = computed(() => {
     } else {
        // Cold: Cyan (180) -> Azure (200) -> Blue (220) -> Indigo (240)
        const hue = 180 + (60 * ratio)
-       const s = 65 + (30 * ratio) 
-       const l = props.isDark ? 65 - (15 * ratio) : 60 - (10 * ratio)
+       // Muted so the largest source doesn't turn pure royal blue next to any palette.
+       const s = 45 + (15 * ratio)
+       const l = props.isDark ? 65 - (10 * ratio) : 60 - (10 * ratio)
        return `hsl(${hue}, ${s}%, ${l}%)`
     }
   }
@@ -102,7 +103,7 @@ const option = computed(() => {
     const group = getNodeGroup(node.name)
 
     if (group === 'hub:revenus') {
-      nodeColorByName.set(node.name, props.isDark ? '#3b82f6' : '#2563eb')
+      nodeColorByName.set(node.name, theme.categorical[0]!)
       continue
     }
     if (group === 'hub:epargne') {
@@ -121,7 +122,7 @@ const option = computed(() => {
       nodeColorByName.set(node.name, getIntensityColor(group, true))
       continue
     }
-    nodeColorByName.set(node.name, props.isDark ? '#64748b' : '#94a3b8')
+    nodeColorByName.set(node.name, theme.neutral)
   }
 
   const sankeyNodes = nodes.value.map((node) => ({
@@ -135,7 +136,7 @@ const option = computed(() => {
   const sankeyLinks = props.links.map((link) => {
     const sourceGroup = getNodeGroup(link.source)
     const targetGroup = getNodeGroup(link.target)
-    let color = props.isDark ? 'rgba(148, 163, 184, 0.5)' : 'rgba(148, 163, 184, 0.4)'
+    let color = mixColor(theme.neutral, 'transparent', 45)
 
     if (targetGroup.startsWith('outflow:')) {
       color = getIntensityColor(targetGroup, true)
@@ -158,14 +159,15 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     animationDuration: 500,
     animationDurationUpdate: 350,
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: any) => {
         // Hub node ids — we never want to display them in tooltips
         const hubIds = new Set(['hub:revenus', 'hub:epargne', 'hub:external'])

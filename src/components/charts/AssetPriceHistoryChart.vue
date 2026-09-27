@@ -13,6 +13,7 @@ import {
 import VChart from 'vue-echarts'
 import type { AssetPriceTimelineResponse, AssetTimelineEvent } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 import {
   MAX_MARKER_SIZE,
   SMALL_SCREEN_MAX_MARKER_SIZE,
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 const { formatNumber, formatPercent } = useFormatters()
 const { maskValue } = usePrivacyMode()
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 
 /**
  * Every component below carries a stable id, so a replaceMerge update is matched
@@ -52,20 +54,15 @@ const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResiz
 const updateOptions = { replaceMerge: ['legend', 'xAxis', 'series', 'dataZoom'] }
 
 /**
- * Both sets were validated with the dataviz palette checker against their own
- * surface rather than flipped from one another: on the dark surface the red and
- * the violet each move a step, while the green holds in both. The cost-basis
- * line is the same slate in both — one step darker read as absent on a phone.
+ * The trade markers keep their own validated sets whatever the palette: buy and
+ * sell read like gains and losses. Both sets were checked with the dataviz
+ * palette checker against their own surface rather than flipped from one
+ * another: on the dark surface the red and the violet each move a step, while
+ * the green holds in both.
  */
-const PALETTE = {
-  light: {
-    price: '#3b82f6', buy: '#059669', sell: '#dc2626', income: '#7c3aed',
-    costBasis: '#94a3b8', ring: '#ffffff', selection: '#0f172a',
-  },
-  dark: {
-    price: '#3b82f6', buy: '#059669', sell: '#ef4444', income: '#8b5cf6',
-    costBasis: '#94a3b8', ring: '#0f172a', selection: '#e2e8f0',
-  },
+const MARKERS = {
+  light: { buy: '#059669', sell: '#dc2626', income: '#7c3aed' },
+  dark: { buy: '#059669', sell: '#ef4444', income: '#8b5cf6' },
 }
 
 const EVENT_LABELS: Record<AssetTimelineEvent['type'], string> = {
@@ -86,7 +83,16 @@ const EVENT_SYMBOLS: Record<AssetTimelineEvent['type'], string> = {
 const TAP_RADIUS_TOUCH = 28
 const TAP_RADIUS_POINTER = 16
 
-const colors = computed(() => (props.isDark ? PALETTE.dark : PALETTE.light))
+const colors = computed(() => {
+  const theme = chartTheme.value
+  return {
+    ...(props.isDark ? MARKERS.dark : MARKERS.light),
+    price: theme.categorical[0]!,
+    costBasis: theme.reference,
+    ring: theme.surface,
+    selection: theme.tooltipText,
+  }
+})
 const isSmall = computed(() => containerWidth.value < 640)
 
 const events = computed(() => props.timeline.events ?? [])
@@ -240,8 +246,9 @@ function resetZoom(): void {
 
 const option = computed(() => {
   const palette = colors.value
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
   const axisDates = dates.value
 
   const scatterSeries = (['BUY', 'SELL', 'INCOME'] as const)
@@ -339,6 +346,7 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     legend: {
       id: 'legend',
       show: true,
@@ -395,9 +403,9 @@ const option = computed(() => {
       trigger: 'axis',
       confine: true,
       axisPointer: { type: 'line' },
-      backgroundColor: props.isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.92)',
-      borderColor: props.isDark ? '#334155' : '#e2e8f0',
-      textStyle: { color: props.isDark ? '#e2e8f0' : '#1e293b', fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: formatTooltip,
     },
     // Zoom in place rather than a range slider: the whole point of this chart is

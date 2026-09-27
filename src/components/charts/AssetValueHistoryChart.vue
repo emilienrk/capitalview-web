@@ -6,18 +6,17 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { AssetHistorySnapshotResponse } from '@/types'
-import { useDarkMode } from '@/composables/useDarkMode'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
-
-const { isDark } = useDarkMode()
 
 const props = defineProps<{
   history: AssetHistorySnapshotResponse[]
 }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 
 const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
   return [...props.history].sort((a, b) =>
@@ -26,9 +25,10 @@ const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
 })
 
 const option = computed(() => {
-  const textColor = isDark.value ? '#94a3b8' : '#6b7280'
-  const gridColor = isDark.value ? '#1e293b' : '#f3f4f6'
-  const lineColor = '#0ea5e9'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
+  const lineColor = theme.categorical[0]
 
   const dates = sortedHistory.value.map((row) => row.snapshot_date)
   const values = sortedHistory.value.map((row) => Number(row.total_value))
@@ -39,6 +39,7 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: {
       top: 14,
       left: isSmall ? 32 : 38,
@@ -79,9 +80,9 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      backgroundColor: isDark.value ? '#0f172a' : '#ffffff',
-      borderColor: isDark.value ? '#334155' : '#e5e7eb',
-      textStyle: { color: isDark.value ? '#f1f5f9' : '#111827', fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: Array<{ axisValue: string; value: number }>) => {
         const p = params[0]
         if (!p) return ''

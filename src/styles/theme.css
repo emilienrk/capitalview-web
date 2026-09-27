@@ -97,6 +97,16 @@
   --cv-chart-zoom-track: rgba(209, 213, 219, 0.7);
   --cv-chart-zoom-fill: rgba(99, 102, 241, 0.3);
   --cv-chart-zoom-handle: #6366f1;
+  --cv-chart-label: #334155;
+  --cv-chart-accent: #6366f1;
+  --cv-chart-neutral: #94a3b8;
+  /* Reference lines (cost basis, a random day) stay this light in dark mode too:
+     one step darker read as absent on a phone. */
+  --cv-chart-reference: #94a3b8;
+  /* Gains, losses and alerts: palettes map them to the shared semantic tokens. */
+  --cv-chart-positive: #10b981;
+  --cv-chart-negative: #ef4444;
+  --cv-chart-warning: #f59e0b;
   --cv-chart-total: #4f46e5;
   --cv-chart-bank: #3b82f6;
   --cv-chart-stock: #059669;
@@ -122,6 +132,8 @@
   --cv-chart-surface: #0f172a;
   --cv-chart-zoom-track: rgba(51, 65, 85, 0.5);
   --cv-chart-zoom-fill: rgba(59, 130, 246, 0.45);
+  --cv-chart-label: #cbd5e1;
+  --cv-chart-neutral: #475569;
 }
 
 /* ════════════════ Styles ════════════════ */
@@ -274,6 +286,13 @@
   --cv-chart-zoom-track: var(--p-canvas-2);
   --cv-chart-zoom-fill: color-mix(in oklab, var(--p-accent) 22%, transparent);
   --cv-chart-zoom-handle: var(--p-accent);
+  --cv-chart-label: var(--p-ink-2);
+  --cv-chart-accent: var(--p-accent);
+  --cv-chart-neutral: color-mix(in oklab, var(--p-ink-3) 60%, var(--p-paper));
+  --cv-chart-reference: var(--cv-chart-neutral);
+  --cv-chart-positive: var(--cv-success);
+  --cv-chart-negative: var(--cv-danger);
+  --cv-chart-warning: var(--cv-warning);
 
   /* Muted categorical set shared by the palettes; only the lead hue follows
      the accent, so the headline series always carries the palette. */
@@ -315,6 +334,10 @@
   --cv-chart-zoom-track: var(--p-d-paper-hover);
   --cv-chart-zoom-fill: color-mix(in oklab, var(--p-d-accent) 30%, transparent);
   --cv-chart-zoom-handle: var(--p-d-accent);
+  --cv-chart-label: var(--p-d-ink-2);
+  --cv-chart-accent: var(--p-d-accent);
+  --cv-chart-neutral: var(--p-d-ink-3);
+  --cv-chart-reference: var(--p-d-ink-3);
   --cv-chart-1: var(--p-d-accent);
   --cv-chart-total: var(--p-d-accent);
 }

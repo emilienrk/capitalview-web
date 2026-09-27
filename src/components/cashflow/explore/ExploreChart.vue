@@ -12,6 +12,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import VChart from 'vue-echarts'
 
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { OTHERS, monthLabel, type TimeSeries } from '@/utils/ledger'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent])
@@ -26,15 +27,9 @@ const props = defineProps<{
 const emit = defineEmits<{ 'select-month': [period: string] }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series', 'legend'] }
 
-const TYPE_COLORS: Record<string, string> = {
-  INCOME: '#10b981',
-  EXPENSE: '#ef4444',
-  SAVING: '#6366f1',
-  INVESTMENT: '#0ea5e9',
-}
-const GROUP_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9']
 
 function bucketLabel(bucket: string, granularity: 'week' | 'month'): string {
   if (granularity === 'month') return monthLabel(bucket).replace('.', '')
@@ -43,11 +38,23 @@ function bucketLabel(bucket: string, granularity: 'week' | 'month'): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
+  const typeColors: Record<string, string> = {
+    INCOME: theme.positive,
+    EXPENSE: theme.negative,
+    SAVING: theme.accent,
+    // The blue of the set: the teal next to it reads as the income green.
+    INVESTMENT: theme.roles.bank,
+  }
+  // Counterparts are not gains or losses: they take the categorical set, past
+  // the lead hue that SAVING already holds.
+  const groupColors = theme.categorical.slice(1)
   const isSmall = containerWidth.value < 640
   const base = {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     legend: { top: 0, type: 'scroll', textStyle: { color: textColor, fontSize: 11 }, icon: 'roundRect', itemWidth: 10, itemHeight: 6 },
     grid: { top: 36, left: isSmall ? 48 : 72, right: 8, bottom: 8, containLabel: false },
     yAxis: {
@@ -58,9 +65,9 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      backgroundColor: props.isDark ? '#0f172a' : '#ffffff',
-      borderColor: props.isDark ? '#334155' : '#e5e7eb',
-      textStyle: { color: props.isDark ? '#f1f5f9' : '#111827', fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       valueFormatter: (value: number) => props.format(Number(value)),
     },
   }
@@ -73,7 +80,7 @@ const option = computed(() => {
       series: [
         // itemStyle colours the legend, lineStyle only the line.
         { name: 'Un an avant', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: textColor }, lineStyle: { type: 'dashed', width: 2, color: textColor }, data: props.cumulative.lastYear },
-        { name: 'Période', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: '#6366f1' }, lineStyle: { width: 3, color: '#6366f1' }, areaStyle: { color: 'rgba(99,102,241,0.12)' }, data: props.cumulative.current },
+        { name: 'Période', type: 'line', smooth: true, showSymbol: false, itemStyle: { color: theme.accent }, lineStyle: { width: 3, color: theme.accent }, areaStyle: { color: mixColor(theme.accent, 'transparent', 12) }, data: props.cumulative.current },
       ],
     }
   }
@@ -96,7 +103,7 @@ const option = computed(() => {
       stack: 'total',
       barMaxWidth: 28,
       itemStyle: {
-        color: TYPE_COLORS[s.key] ?? (s.key === OTHERS ? (props.isDark ? '#475569' : '#cbd5e1') : GROUP_COLORS[groupIndex++ % GROUP_COLORS.length]),
+        color: typeColors[s.key] ?? (s.key === OTHERS ? theme.neutral : groupColors[groupIndex++ % groupColors.length]),
       },
       emphasis: { focus: 'series' },
       data: s.values.map((value) => Math.round(value * 100) / 100),

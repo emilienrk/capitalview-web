@@ -12,6 +12,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
@@ -24,6 +25,7 @@ const props = defineProps<{ data: RealCashflowCurrent; isDark?: boolean }>()
 const { formatCurrency } = useFormatters()
 const { maskValue, privacyMode } = usePrivacyMode()
 const { chartRef, containerRef, canRenderChart } = useChartResize()
+const chartTheme = useChartTheme()
 
 // An API older than recurring payments, or income, sends no due dates: nothing to come, not a crash.
 const upcoming = computed(() => props.data.upcoming ?? [])
@@ -43,11 +45,13 @@ const gap = computed(() =>
 )
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
   const format = (value: number) => (privacyMode.value ? '•••' : formatCurrency(value, props.data.currency))
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 12, left: 8, right: 8, bottom: 20, containLabel: false },
     xAxis: {
       type: 'category',
@@ -60,9 +64,9 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      backgroundColor: props.isDark ? '#0f172a' : '#ffffff',
-      borderColor: props.isDark ? '#334155' : '#e5e7eb',
-      textStyle: { color: props.isDark ? '#f1f5f9' : '#111827', fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: Array<{ dataIndex: number }>) => {
         const point = props.data.curve[params[0]?.dataIndex ?? -1]
         if (!point) return ''
@@ -78,7 +82,7 @@ const option = computed(() => {
         showSymbol: false,
         smooth: true,
         lineStyle: { width: 1.5, type: 'dashed', color: textColor },
-        areaStyle: { color: props.isDark ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.12)' },
+        areaStyle: { color: mixColor(theme.neutral, 'transparent', 12) },
         data: props.data.curve.map((point) => (point.median === null ? null : Number(point.median))),
       },
       {
@@ -86,7 +90,7 @@ const option = computed(() => {
         type: 'line',
         showSymbol: false,
         smooth: true,
-        lineStyle: { width: 2.5, color: '#ef4444' },
+        lineStyle: { width: 2.5, color: theme.negative },
         data: props.data.curve.map((point) => (point.spent === null ? null : Number(point.spent))),
       },
     ],

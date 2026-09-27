@@ -14,6 +14,13 @@ export interface ChartTheme {
   zoomTrack: string
   zoomFill: string
   zoomHandle: string
+  label: string
+  accent: string
+  neutral: string
+  reference: string
+  positive: string
+  negative: string
+  warning: string
   roles: {
     total: string
     bank: string
@@ -44,6 +51,11 @@ function resolveColor(value: string): string {
   return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${(a! / 255).toFixed(3)})`
 }
 
+/** `weight`% of `color` over `base`, for tints and ramps drawn from a theme color. */
+export function mixColor(color: string, base: string, weight: number): string {
+  return resolveColor(`color-mix(in oklab, ${color} ${weight}%, ${base})`)
+}
+
 function readTheme(): ChartTheme {
   const styles = getComputedStyle(document.documentElement)
   const raw = (name: string) => styles.getPropertyValue(name).trim()
@@ -61,6 +73,13 @@ function readTheme(): ChartTheme {
     zoomTrack: color('--cv-chart-zoom-track'),
     zoomFill: color('--cv-chart-zoom-fill'),
     zoomHandle: color('--cv-chart-zoom-handle'),
+    label: color('--cv-chart-label'),
+    accent: color('--cv-chart-accent'),
+    neutral: color('--cv-chart-neutral'),
+    reference: color('--cv-chart-reference'),
+    positive: color('--cv-chart-positive'),
+    negative: color('--cv-chart-negative'),
+    warning: color('--cv-chart-warning'),
     roles: {
       total: color('--cv-chart-total'),
       bank: color('--cv-chart-bank'),

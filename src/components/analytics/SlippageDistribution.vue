@@ -6,6 +6,7 @@ import { BoxplotChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useReadingFormat } from '@/composables/useReadingFormat'
 import type { SlippageDistributionOut } from '@/types'
 
@@ -14,6 +15,7 @@ use([CanvasRenderer, BoxplotChart, GridComponent, TooltipComponent])
 const props = defineProps<{ distribution: SlippageDistributionOut; isDark?: boolean }>()
 
 const { chartRef, containerRef, canRenderChart } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series'] }
 const { formatReading } = useReadingFormat()
 
@@ -32,14 +34,13 @@ function formatBps(value: number): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 16, left: 64, right: 16, bottom: 28 },
     xAxis: {
       type: 'value',
@@ -59,9 +60,9 @@ const option = computed(() => {
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: () => {
         const [min, q1, median, q3, max] = box.value
         return [
@@ -80,8 +81,8 @@ const option = computed(() => {
         data: [box.value],
         boxWidth: [20, 48],
         itemStyle: {
-          color: props.isDark ? '#1e293b' : '#eef2ff',
-          borderColor: '#6366f1',
+          color: mixColor(theme.accent, theme.surface, 12),
+          borderColor: theme.accent,
         },
       },
     ],

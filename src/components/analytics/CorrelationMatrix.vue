@@ -11,6 +11,7 @@ import { HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 import type { CorrelationOut } from '@/types'
 
 use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent])
@@ -18,6 +19,7 @@ use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapCom
 const props = defineProps<{ correlations: CorrelationOut[]; isDark?: boolean }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series', 'visualMap'] }
 
 const keys = computed(() =>
@@ -83,13 +85,14 @@ const cells = computed(() => {
 })
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  // ECharts' default stripes show through gaps and missing months, near-white in dark mode.
+  const splitArea = { show: true, areaStyle: { color: [mixColor(theme.grid, 'transparent', 50)] } }
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     // The gutter tracks the truncation: ~6px a character at fontSize 10, and the
     // rotated x labels need roughly their own length again below the plot.
     grid: {
@@ -104,7 +107,7 @@ const option = computed(() => {
       axisLabel: { color: textColor, fontSize: 10, rotate: 35 },
       axisLine: { show: false },
       axisTick: { show: false },
-      splitArea: { show: true },
+      splitArea,
     },
     yAxis: {
       type: 'category',
@@ -112,7 +115,7 @@ const option = computed(() => {
       axisLabel: { color: textColor, fontSize: 10 },
       axisLine: { show: false },
       axisTick: { show: false },
-      splitArea: { show: true },
+      splitArea,
     },
     visualMap: {
       min: -1,
@@ -124,14 +127,14 @@ const option = computed(() => {
       itemWidth: 10,
       itemHeight: 60,
       textStyle: { color: textColor, fontSize: 10 },
-      inRange: { color: ['#22c55e', '#f3f4f6', '#ef4444'] },
+      inRange: { color: [theme.positive, theme.grid, theme.negative] },
     },
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: { data: [number, number, number] }) => {
         const [x, y, value] = params.data
         const left = describe(keys.value[x] ?? '')

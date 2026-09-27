@@ -7,6 +7,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
@@ -20,6 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [period: string] }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series'] }
 
 function monthLabel(period: string): string {
@@ -28,15 +30,16 @@ function monthLabel(period: string): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
+  // Capped: the default style's 6px rounds these narrow bars off.
+  const barRadius = [Math.min(theme.barRadius, 4), Math.min(theme.barRadius, 4), 0, 0]
   const isSmall = containerWidth.value < 640
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     legend: {
       top: 0,
       textStyle: { color: textColor, fontSize: 11 },
@@ -63,15 +66,15 @@ const option = computed(() => {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: Array<{ dataIndex: number }>) => {
         const month = props.months[params[0]?.dataIndex ?? -1]
         if (!month) return ''
         return `<div style="font-weight:600;margin-bottom:6px;text-transform:capitalize">${monthLabel(month.period)} ${month.period.slice(0, 4)}</div>
 <div>Entrées : <strong>${props.format(month.income)}</strong></div>
-<div>Dépenses : <strong>${props.format(month.expenses)}</strong></div>${month.atypical ? '<div style="margin-top:4px;color:#f59e0b">Mois inhabituel</div>' : ''}`
+<div>Dépenses : <strong>${props.format(month.expenses)}</strong></div>${month.atypical ? '<div style="margin-top:4px;color:${theme.warning}">Mois inhabituel</div>' : ''}`
       },
     },
     series: [
@@ -79,17 +82,17 @@ const option = computed(() => {
         name: 'Entrées',
         type: 'bar',
         barMaxWidth: 18,
-        itemStyle: { color: '#10b981', borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: theme.positive, borderRadius: barRadius },
         data: props.months.map((m) => Number(m.income)),
       },
       {
         name: 'Dépenses',
         type: 'bar',
         barMaxWidth: 18,
-        itemStyle: { color: '#ef4444', borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: theme.negative, borderRadius: barRadius },
         // An unusual month stands out in amber, the tooltip says why.
         data: props.months.map((m) => (m.atypical
-          ? { value: Number(m.expenses), itemStyle: { color: '#f59e0b' } }
+          ? { value: Number(m.expenses), itemStyle: { color: theme.warning } }
           : Number(m.expenses))),
       },
     ],

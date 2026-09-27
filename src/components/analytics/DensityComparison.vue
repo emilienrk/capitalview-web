@@ -13,6 +13,7 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 import type { DensityBinOut } from '@/types'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent])
@@ -20,6 +21,7 @@ use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, Toolti
 const props = defineProps<{ density: DensityBinOut[]; isDark?: boolean }>()
 
 const { chartRef, containerRef, canRenderChart } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series'] }
 
 const labels = computed(() =>
@@ -27,14 +29,13 @@ const labels = computed(() =>
 )
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 32, left: 48, right: 16, bottom: 40 },
     legend: {
       top: 0,
@@ -64,16 +65,16 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
     },
     series: [
       {
         name: 'Tes euros',
         type: 'bar',
         data: props.density.map((bin) => Number(bin.purchase_share)),
-        itemStyle: { color: '#6366f1' },
+        itemStyle: { color: theme.accent },
       },
       {
         name: "Un jour au hasard",
@@ -81,7 +82,8 @@ const option = computed(() => {
         smooth: true,
         symbol: 'none',
         data: props.density.map((bin) => Number(bin.session_share)),
-        lineStyle: { color: '#94a3b8', width: 2 },
+        itemStyle: { color: theme.reference },
+        lineStyle: { color: theme.reference, width: 2 },
       },
     ],
   }

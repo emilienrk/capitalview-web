@@ -6,6 +6,7 @@ import { HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { MonthlyAmountOut } from '@/types'
@@ -15,6 +16,7 @@ use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapCom
 const props = defineProps<{ monthly: MonthlyAmountOut[]; isDark?: boolean }>()
 
 const { chartRef, containerRef, canRenderChart } = useChartResize()
+const chartTheme = useChartTheme()
 const { formatCurrency } = useFormatters()
 const { maskValue } = usePrivacyMode()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series', 'visualMap'] }
@@ -37,14 +39,23 @@ const maxAmount = computed(() =>
 )
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
-  const emptyCell = props.isDark ? '#1e293b' : '#f3f4f6'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const emptyCell = theme.grid
+  // ECharts' default stripes show through gaps and missing months, near-white in dark mode.
+  const splitArea = { show: true, areaStyle: { color: [mixColor(theme.grid, 'transparent', 50)] } }
+  // Pale to deep in the accent's hue; "deep" leans toward the ink, so it darkens
+  // in light mode and brightens in dark mode.
+  const ramp = [
+    emptyCell,
+    mixColor(theme.accent, theme.surface, 35),
+    theme.accent,
+    mixColor(theme.accent, theme.tooltipText, 70),
+  ]
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 8, left: 48, right: 12, bottom: 48 },
     xAxis: {
       type: 'category',
@@ -52,7 +63,7 @@ const option = computed(() => {
       axisLabel: { color: textColor, fontSize: 10 },
       axisLine: { show: false },
       axisTick: { show: false },
-      splitArea: { show: true },
+      splitArea,
     },
     yAxis: {
       type: 'category',
@@ -60,7 +71,7 @@ const option = computed(() => {
       axisLabel: { color: textColor, fontSize: 11 },
       axisLine: { show: false },
       axisTick: { show: false },
-      splitArea: { show: true },
+      splitArea,
     },
     visualMap: {
       min: 0,
@@ -72,14 +83,14 @@ const option = computed(() => {
       itemWidth: 10,
       itemHeight: 60,
       textStyle: { color: textColor, fontSize: 10 },
-      inRange: { color: [emptyCell, '#c7d2fe', '#6366f1', '#4338ca'] },
+      inRange: { color: ramp },
     },
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: { data: [number, number, number] }) => {
         const [monthIndex, yearIndex, amount] = params.data
         const label = `${MONTH_LABELS[monthIndex]} ${years.value[yearIndex]}`

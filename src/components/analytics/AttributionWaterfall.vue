@@ -6,6 +6,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 import type { CounterfactualResponse } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
@@ -13,6 +14,7 @@ use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 const props = defineProps<{ bridge: CounterfactualResponse; isDark?: boolean }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 const updateOptions = { replaceMerge: ['xAxis', 'yAxis', 'series'] }
 
 interface Bar {
@@ -70,16 +72,15 @@ function formatEur(value: number): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
-  const neutral = props.isDark ? '#475569' : '#94a3b8'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
+  const neutral = theme.neutral
   const isSmall = containerWidth.value < 640
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 16, left: isSmall ? 46 : 60, right: 12, bottom: isSmall ? 76 : 60 },
     xAxis: {
       type: 'category',
@@ -106,9 +107,9 @@ const option = computed(() => {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: any[]) => {
         const index = params?.[0]?.dataIndex ?? 0
         const bar = bars.value[index]
@@ -131,12 +132,13 @@ const option = computed(() => {
         stack: 'bridge',
         barMaxWidth: 44,
         itemStyle: {
-          borderRadius: [3, 3, 0, 0],
+          // Capped: the default style's 6px rounds these narrow bars off.
+          borderRadius: [Math.min(theme.barRadius, 3), Math.min(theme.barRadius, 3), 0, 0],
           color: (params: any) => {
             const bar = bars.value[params.dataIndex]
             if (!bar) return neutral
             if (bar.isTotal) return neutral
-            return bar.total >= 0 ? '#16a34a' : '#dc2626'
+            return bar.total >= 0 ? theme.positive : theme.negative
           },
         },
         data: bars.value.map((b) => b.delta),
