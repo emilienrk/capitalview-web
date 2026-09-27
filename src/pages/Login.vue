@@ -131,7 +131,7 @@ function backToCredentials() {
       </p>
     </form>
 
-    <form v-else class="space-y-6" @submit.prevent="handle2fa">
+    <form v-else class="space-y-6 animate-[cv-fade-in_200ms_var(--cv-ease-out)]" @submit.prevent="handle2fa">
       <div class="space-y-2">
         <label for="twofa" :class="fieldLabel">Code</label>
         <input
