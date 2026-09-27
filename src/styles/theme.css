@@ -158,7 +158,7 @@
 
 /* Suisse: one grotesque does every job; right angles, rules, no depth. */
 :root[data-style='swiss'] {
-  --cv-font-sans: 'Mona Sans', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
   --cv-font-display: var(--cv-font-sans);
   --cv-font-figure: var(--cv-font-sans);
   --cv-display-tracking: -0.02em;

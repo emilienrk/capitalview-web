@@ -27,8 +27,8 @@ export const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'swiss',
     label: 'Suisse',
-    hint: 'Mona Sans seule, angles droits',
-    fontsHref: 'https://fonts.googleapis.com/css2?family=Mona+Sans:wght@300..800&display=swap',
+    hint: 'Archivo seule, angles droits',
+    fontsHref: 'https://fonts.googleapis.com/css2?family=Archivo:wght@300..800&display=swap',
   },
   {
     id: 'soft',
