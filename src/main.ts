@@ -3,14 +3,16 @@ import { createPinia } from 'pinia'
 
 import './style.css'
 
-import router from './router'
+import router, { isPublicRoute } from './router'
 import App from './App.vue'
 import { initAppearance } from './theme/appearance'
 
-// Prevent pinch-zoom on iOS (native app feel)
-document.addEventListener('gesturestart', (e) => e.preventDefault())
+// Prevent pinch-zoom on iOS (native app feel), inside the app only
+document.addEventListener('gesturestart', (e) => {
+  if (!isPublicRoute()) e.preventDefault()
+})
 document.addEventListener('touchmove', (e: TouchEvent) => {
-  if (e.touches.length > 1) e.preventDefault()
+  if (e.touches.length > 1 && !isPublicRoute()) e.preventDefault()
 }, { passive: false })
 
 // Umami analytics: production builds only, so dev sessions and self-hosted

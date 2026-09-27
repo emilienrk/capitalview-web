@@ -138,6 +138,11 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+  // Without this, a new page opens at the previous page's scroll offset.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.path !== from.path) return { top: 0 }
+  },
 })
 
 router.beforeEach(async (to) => {
@@ -160,11 +165,22 @@ router.beforeEach(async (to) => {
   }
 })
 
+/** Logged-out pages are reading pages: they keep pinch-zoom, which the app blocks. */
+export function isPublicRoute(): boolean {
+  return router.currentRoute.value.meta.requiresAuth === false
+}
+
+const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
+const appViewport = viewport?.content ?? ''
+const publicViewport = appViewport.replace(/,\s*(maximum-scale|user-scalable)=[^,]*/g, '')
+
 // Logged-out pages share one fixed look, so the landing and the sign-up form
 // match and never inherit a previous user's style (see pinAppearance).
 let restoreAppearance: (() => void) | null = null
 router.afterEach((to) => {
-  if (to.meta.requiresAuth === false) {
+  const isPublic = to.meta.requiresAuth === false
+  if (viewport) viewport.content = isPublic ? publicViewport : appViewport
+  if (isPublic) {
     restoreAppearance ??= pinAppearance('editorial', 'prune')
   } else if (restoreAppearance) {
     restoreAppearance()

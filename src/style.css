@@ -32,9 +32,28 @@ html, body {
 }
 
 /* Re-enable text selection for actual content areas */
-p, span, h1, h2, h3, h4, h5, h6, li, td, th, .selectable,
+p, span, h1, h2, h3, h4, h5, h6, li, td, th, dt, dd, figcaption, strong, label, .selectable,
 input, textarea {
   user-select: text;
+}
+
+/* Browser autofill paints its own blue; keep the field in the palette. */
+input:is(:-webkit-autofill, :autofill) {
+  -webkit-text-fill-color: var(--cv-text-main);
+  caret-color: var(--cv-text-main);
+  transition: background-color 0s 600000s, color 0s 600000s;
+}
+.dark input:is(:-webkit-autofill, :autofill) {
+  -webkit-text-fill-color: var(--cv-text-dark-main);
+  caret-color: var(--cv-text-dark-main);
+}
+
+.cv-public ::selection {
+  background: var(--cv-primary-light);
+  color: var(--cv-text-main);
+}
+.dark .cv-public ::selection {
+  color: var(--cv-text-dark-main);
 }
 /* Horizontal pill rows (chart ranges, mobile settings nav) scroll but must not
    show a bar — the row itself is the affordance. */

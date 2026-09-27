@@ -46,6 +46,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   /* ── Colors ───────────────────────────────────── */
   --cv-primary: oklch(51.1% 0.262 276.966);
   --cv-primary-hover: oklch(45.7% 0.24 277.023);
@@ -130,6 +132,8 @@
 }
 
 :root.dark {
+  /* Native scrollbars, autofill and form controls follow the app's toggle, not the OS. */
+  color-scheme: dark;
   --cv-chart-text: #94a3b8;
   --cv-chart-grid: #1e293b;
   --cv-chart-tooltip-bg: #0f172a;
