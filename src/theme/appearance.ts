@@ -105,6 +105,19 @@ export function setAppearance(style: string, palette: string): void {
   applyToDocument()
 }
 
+/**
+ * Show a fixed look on a public page, whatever the boot cache holds (it
+ * survives logout, so a visitor would otherwise inherit the last user's look).
+ * The user's choice is left untouched; call the returned function to restore it.
+ */
+export function pinAppearance(style: string, palette: string): () => void {
+  const pinned = findStyle(style)
+  loadStyleFonts(pinned)
+  setAttribute('data-style', pinned.id)
+  setAttribute('data-palette', findPalette(palette).id)
+  return applyToDocument
+}
+
 /** Align the local look with the server value (server wins). */
 export function applyServerAppearance(style: string | null | undefined, palette: string | null | undefined): void {
   const nextStyle = findStyle(style).id

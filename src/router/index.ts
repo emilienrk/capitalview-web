@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { pinAppearance } from '@/theme/appearance'
 
 import Landing from '@/pages/Landing.vue'
 import Login from '@/pages/Login.vue'
@@ -156,6 +157,18 @@ router.beforeEach(async (to) => {
 
   if ((to.name === 'login' || to.name === 'register' || to.name === 'recover') && auth.isAuthenticated) {
     return { name: 'dashboard' }
+  }
+})
+
+// Logged-out pages share one fixed look, so the landing and the sign-up form
+// match and never inherit a previous user's style (see pinAppearance).
+let restoreAppearance: (() => void) | null = null
+router.afterEach((to) => {
+  if (to.meta.requiresAuth === false) {
+    restoreAppearance ??= pinAppearance('editorial', 'prune')
+  } else if (restoreAppearance) {
+    restoreAppearance()
+    restoreAppearance = null
   }
 })
 
