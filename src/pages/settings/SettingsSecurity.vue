@@ -358,6 +358,9 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
             :disabled="isSavingPassword"
             required
           />
+          <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+            16 caractères ou plus, une phrase suffit. Sinon 8 au moins, avec une majuscule, une minuscule, un chiffre et un caractère spécial.
+          </p>
           <BaseInput
             v-model="confirmPassword"
             type="password"

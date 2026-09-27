@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { AlertCircle, Check, Circle, LoaderCircle } from 'lucide-vue-next'
+import { AlertCircle, LoaderCircle } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/components/public/AuthLayout.vue'
 import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
 import { fieldHint, fieldInput, fieldLabel, primaryButton, textLink } from '@/components/public/publicStyles'
-import { passwordRules } from '@/components/public/passwordRules'
+import PasswordRules from '@/components/public/PasswordRules.vue'
+import { passwordAccepted } from '@/components/public/passwordRules'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -24,7 +25,6 @@ const isLoading = ref(false)
 const revealOpen = ref(false)
 const newRecoveryKey = ref('')
 
-const rules = computed(() => passwordRules(newPassword.value))
 const passwordsMatch = computed(() => newPassword.value === confirmPassword.value)
 const showMismatch = computed(() =>
   confirmPassword.value.length > 0 && !passwordsMatch.value
@@ -32,8 +32,8 @@ const showMismatch = computed(() =>
 )
 
 async function handleRecover() {
-  if (!rules.value.every(rule => rule.met)) {
-    error.value = 'Le nouveau mot de passe ne respecte pas encore toutes les règles.'
+  if (!passwordAccepted(newPassword.value)) {
+    error.value = 'Nouveau mot de passe trop court ou trop simple : voyez les règles sous le champ.'
     return
   }
   if (!passwordsMatch.value) {
@@ -105,18 +105,7 @@ function finish() {
           :class="fieldInput"
           @input="error = ''"
         />
-        <ul id="recover-rules" class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <li
-            v-for="rule in rules"
-            :key="rule.label"
-            class="flex items-center gap-1.5"
-            :class="rule.met ? 'text-text-main dark:text-text-dark-main' : 'text-text-muted dark:text-text-dark-muted'"
-          >
-            <Check v-if="rule.met" class="w-3.5 h-3.5 shrink-0 text-primary" />
-            <Circle v-else class="w-3.5 h-3.5 shrink-0" />
-            <span>{{ rule.label }}<span class="sr-only">{{ rule.met ? ' : respecté' : ' : manquant' }}</span></span>
-          </li>
-        </ul>
+        <PasswordRules id="recover-rules" :password="newPassword" />
       </div>
 
       <div class="space-y-2">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, Check, Circle, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
+import { AlertCircle, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
 
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
@@ -7,7 +7,8 @@ import { useRouter } from 'vue-router'
 import AuthLayout from '@/components/public/AuthLayout.vue'
 import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
 import { fieldHint, fieldInput, fieldLabel, focusRing, primaryButton, textLink } from '@/components/public/publicStyles'
-import { passwordRules } from '@/components/public/passwordRules'
+import PasswordRules from '@/components/public/PasswordRules.vue'
+import { passwordAccepted } from '@/components/public/passwordRules'
 
 const username = ref('')
 const email = ref('')
@@ -25,7 +26,6 @@ const recoveryFailed = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 
-const rules = computed(() => passwordRules(password.value))
 
 const usernameInvalid = computed(() => username.value.length > 0 && !/^[a-zA-Z0-9_-]+$/.test(username.value))
 const passwordsMatch = computed(() => password.value === confirmPassword.value)
@@ -40,8 +40,8 @@ async function handleRegister() {
     error.value = 'Le nom d\'utilisateur doit faire au moins 3 caractères : lettres, chiffres, _ et - uniquement.'
     return
   }
-  if (!rules.value.every(rule => rule.met)) {
-    error.value = 'Le mot de passe ne respecte pas encore toutes les règles ci-dessus.'
+  if (!passwordAccepted(password.value)) {
+    error.value = 'Mot de passe trop court ou trop simple : voyez les règles sous le champ.'
     return
   }
   if (!passwordsMatch.value) {
@@ -167,18 +167,7 @@ function finish() {
             <Eye v-else class="w-5 h-5" />
           </button>
         </div>
-        <ul id="password-rules" class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <li
-            v-for="rule in rules"
-            :key="rule.label"
-            class="flex items-center gap-1.5"
-            :class="rule.met ? 'text-text-main dark:text-text-dark-main' : 'text-text-muted dark:text-text-dark-muted'"
-          >
-            <Check v-if="rule.met" class="w-3.5 h-3.5 shrink-0 text-primary" />
-            <Circle v-else class="w-3.5 h-3.5 shrink-0" />
-            <span>{{ rule.label }}<span class="sr-only">{{ rule.met ? ' : respecté' : ' : manquant' }}</span></span>
-          </li>
-        </ul>
+        <PasswordRules id="password-rules" :password="password" />
       </div>
 
       <div class="space-y-2">
@@ -227,7 +216,7 @@ function finish() {
         <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Votre mot de passe est la serrure</h2>
         <p class="mt-2 leading-relaxed text-pretty">
           Il n'est pas conservé, seulement son empreinte. Il déverrouille la clé qui chiffre vos soldes, vos libellés et vos notes&nbsp;:
-          une copie de la base ne révèle rien tant qu'il est solide. Plus il est long, mieux il résiste.
+          une copie de la base ne révèle rien tant qu'il est solide. Plus il est long, mieux il résiste&nbsp;: quatre ou cinq mots au hasard valent mieux qu'un mot de passe court et compliqué.
         </p>
       </div>
       <div class="py-6 border-t border-surface-border dark:border-surface-dark-border">
