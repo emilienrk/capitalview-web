@@ -131,10 +131,13 @@ export default {
       spacing: {
         'sidebar': '16rem',
       },
+      transitionTimingFunction: {
+        'out': 'var(--cv-ease-out)',
+      },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-out',
-        'slide-up': 'slideUp 0.4s ease-out',
-        'slide-in-left': 'slideInLeft 0.3s ease-out',
+        'fade-in': 'fadeIn 0.3s var(--cv-ease-out)',
+        'slide-up': 'slideUp 0.3s var(--cv-ease-out)',
+        'slide-in-left': 'slideInLeft 0.3s var(--cv-ease-out)',
         'spin-slow': 'spin 1.5s linear infinite',
       },
       keyframes: {
