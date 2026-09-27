@@ -133,6 +133,7 @@ export default {
       },
       transitionTimingFunction: {
         'out': 'var(--cv-ease-out)',
+        'drawer': 'var(--cv-ease-drawer)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s var(--cv-ease-out)',
