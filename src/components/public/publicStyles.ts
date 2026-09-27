@@ -2,7 +2,7 @@
 
 export const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
-export const primaryButton = `min-h-12 inline-flex items-center justify-center gap-2 px-6 rounded-button bg-primary hover:bg-primary-hover text-primary-content font-semibold transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98] disabled:cursor-not-allowed ${focusRing}`
+export const primaryButton = `min-h-12 inline-flex items-center justify-center gap-2 px-6 rounded-button bg-primary hover:bg-primary-hover text-primary-content font-semibold transition-[background-color,scale] duration-150 ease-out not-disabled:active:scale-[0.98] disabled:cursor-not-allowed ${focusRing}`
 
 export const textLink = `rounded-button font-semibold text-primary underline-offset-4 hover:underline ${focusRing}`
 
