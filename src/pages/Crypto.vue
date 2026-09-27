@@ -2556,7 +2556,7 @@ onMounted(async () => {
                         :class="[
                           'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
                           feeInputMode === 'eur'
-                            ? 'bg-primary text-primary-content shadow-sm scale-105'
+                            ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
                         ]"
                       >EUR</button>
@@ -2566,7 +2566,7 @@ onMounted(async () => {
                         :class="[
                           'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
                           feeInputMode === 'percent'
-                            ? 'bg-primary text-primary-content shadow-sm scale-105'
+                            ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
                         ]"
                       >%</button>
@@ -2819,7 +2819,7 @@ onMounted(async () => {
                         :class="[
                           'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
                           feeInputMode === 'eur'
-                            ? 'bg-primary text-primary-content shadow-sm scale-105'
+                            ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
                         ]"
                       >EUR</button>
@@ -2829,7 +2829,7 @@ onMounted(async () => {
                         :class="[
                           'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
                           feeInputMode === 'percent'
-                            ? 'bg-primary text-primary-content shadow-sm scale-105'
+                            ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
                         ]"
                       >%</button>
