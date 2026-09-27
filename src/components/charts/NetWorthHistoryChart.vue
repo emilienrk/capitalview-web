@@ -504,7 +504,7 @@ watch(visiblePerformance, (newVal) => {
           :key="opt.label"
           type="button"
           :class="[
-            'px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-150 select-none',
+            'px-2.5 py-1 text-xs font-medium rounded-full transition duration-150 select-none',
             selectedRangeMonths === opt.months
               ? 'bg-primary text-primary-content shadow-sm'
               : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40',

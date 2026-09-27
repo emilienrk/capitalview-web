@@ -175,7 +175,7 @@ watch(
         placeholder="IE00B4L5Y983"
         autocomplete="off"
         spellcheck="false"
-        class="w-full rounded-input border border-surface-border bg-surface px-4 py-2.5 font-mono text-sm uppercase text-text-main transition-all duration-150 placeholder:font-sans placeholder:normal-case placeholder:text-text-muted/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-surface-dark-border dark:bg-surface-dark dark:text-text-dark-main"
+        class="w-full rounded-input border border-surface-border bg-surface px-4 py-2.5 font-mono text-sm uppercase text-text-main transition duration-150 placeholder:font-sans placeholder:normal-case placeholder:text-text-muted/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-surface-dark-border dark:bg-surface-dark dark:text-text-dark-main"
         @input="onFreeEntry"
       />
       <button
@@ -198,7 +198,7 @@ watch(
         :aria-expanded="isOpen"
         :aria-controls="isOpen ? listboxId : undefined"
         :aria-label="selected ? `Ligne : ${selected.name}` : 'Choisir une ligne'"
-        class="flex w-full items-center gap-2 rounded-input border border-surface-border bg-surface px-4 py-2.5 text-left transition-all duration-150 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-surface-dark-border dark:bg-surface-dark"
+        class="flex w-full items-center gap-2 rounded-input border border-surface-border bg-surface px-4 py-2.5 text-left transition duration-150 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 dark:border-surface-dark-border dark:bg-surface-dark"
         @click="isOpen ? (isOpen = false) : open()"
       >
         <span class="min-w-0 flex-1">

@@ -1744,12 +1744,12 @@ onMounted(async () => {
             <!-- Right: stats -->
             <div class="flex items-center gap-2 shrink-0">
               <div v-if="chartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
-                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
+                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
                   {{ formatEur(cryptoDailyPnlAverage) }}
                 </span>
                 <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
-                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
+                <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
                   {{ formatEur(cryptoLatestDailyPnl) }}
                 </span>
@@ -1993,7 +1993,7 @@ onMounted(async () => {
           v-for="account in crypto.accounts"
           :key="account.id"
           :class="[
-            'transition-all duration-150',
+            'transition duration-150',
             selectedAccountId === account.id ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark' : '',
           ]"
         >
@@ -2124,7 +2124,7 @@ onMounted(async () => {
           <h2 class="text-lg font-semibold text-text-main dark:text-text-dark-main">
             {{ editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction' }}
           </h2>
-          <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100">
+          <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100">
             <p v-if="!editingTxId && txForm.type" class="text-xs text-text-muted dark:text-text-dark-muted truncate">
               {{ txTypeOptions.find(o => o.value === txForm.type)?.label }}
             </p>
@@ -2157,7 +2157,7 @@ onMounted(async () => {
           <template v-for="s in wizardVisibleSteps" :key="s">
             <div
               :class="[
-                'rounded-full transition-all duration-300',
+                'rounded-full transition-[width,height,background-color,box-shadow] duration-300',
                 s < currentVisibleStep
                   ? 'w-2 h-2 bg-primary/60'
                   : s === currentVisibleStep
@@ -2185,7 +2185,7 @@ onMounted(async () => {
           <div class="space-y-2">
             <BaseSelect v-model="txForm.type" label="Type de transaction" :options="txTypeOptions" required />
             <Transition
-              enter-active-class="transition-all duration-200"
+              enter-active-class="transition duration-200"
               enter-from-class="opacity-0 -translate-y-1"
               enter-to-class="opacity-100 translate-y-0"
             >
@@ -2462,7 +2462,7 @@ onMounted(async () => {
           </template>
 
           <Transition
-            enter-active-class="transition-all duration-300"
+            enter-active-class="transition duration-300"
             enter-from-class="opacity-0 scale-95"
             enter-to-class="opacity-100 scale-100"
           >
@@ -2491,7 +2491,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'none'; clearFeeLeg()"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'none'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2501,7 +2501,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'included'; txForm.fee_included = true; txForm.fee_eur = undefined; txForm.fee_percentage = undefined"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'included'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2511,7 +2511,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'separate'; txForm.fee_included = false; txForm.fee_percentage = undefined"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'separate'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2545,7 +2545,7 @@ onMounted(async () => {
                     inputmode="decimal"
                     required
                     :placeholder="feeInputMode === 'eur' ? '0.00' : '0.00'"
-                    class="w-full pl-4 pr-26 py-3 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-lg font-semibold tabular-nums text-text-main dark:text-text-dark-main placeholder:text-text-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
+                    class="w-full pl-4 pr-26 py-3 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-lg font-semibold tabular-nums text-text-main dark:text-text-dark-main placeholder:text-text-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition duration-150"
                   />
                   <!-- Embedded unit toggle pill -->
                   <div class="absolute inset-y-0 right-2 flex items-center">
@@ -2554,7 +2554,7 @@ onMounted(async () => {
                         type="button"
                         @click="feeInputMode = 'eur'"
                         :class="[
-                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
+                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition duration-200',
                           feeInputMode === 'eur'
                             ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2564,7 +2564,7 @@ onMounted(async () => {
                         type="button"
                         @click="feeInputMode = 'percent'"
                         :class="[
-                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
+                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition duration-200',
                           feeInputMode === 'percent'
                             ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2576,10 +2576,10 @@ onMounted(async () => {
 
                 <!-- Live conversion display -->
                 <Transition
-                  enter-active-class="transition-all duration-300 ease-out"
+                  enter-active-class="transition duration-300 ease-out"
                   enter-from-class="opacity-0 -translate-y-1"
                   enter-to-class="opacity-100 translate-y-0"
-                  leave-active-class="transition-all duration-150 ease-out"
+                  leave-active-class="transition duration-150 ease-out"
                   leave-from-class="opacity-100 translate-y-0"
                   leave-to-class="opacity-0 -translate-y-1"
                 >
@@ -2594,7 +2594,7 @@ onMounted(async () => {
                 </Transition>
               </div>
 
-              <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+              <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_eur && Number(txForm.fee_eur) > 0"
                   class="rounded-card bg-linear-to-br from-warning/5 to-warning/10 dark:from-warning/10 dark:to-warning/20 border border-warning/20 px-5 py-3.5"
@@ -2607,7 +2607,7 @@ onMounted(async () => {
               </Transition>
             </template>
 
-            <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+            <Transition enter-active-class="transition duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
               <div
                 v-if="previewPru"
                 class="rounded-card bg-linear-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border border-primary/20 px-5 py-4"
@@ -2644,7 +2644,7 @@ onMounted(async () => {
                   min="0"
                 />
               </div>
-              <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+              <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                   class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
@@ -2663,7 +2663,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'none'; clearFeeLeg()"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'none'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2673,7 +2673,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'token'; txForm.fee_included = false; txForm.fee_eur = undefined; txForm.fee_percentage = undefined"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'token'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2706,7 +2706,7 @@ onMounted(async () => {
                     required
                   />
                 </div>
-                <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+                <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                   <div
                     v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                     class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
@@ -2726,7 +2726,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'none'; clearFeeLeg()"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'none'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2736,7 +2736,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'included'; txForm.fee_included = true; txForm.fee_eur = undefined; txForm.fee_percentage = undefined"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'included'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2746,7 +2746,7 @@ onMounted(async () => {
                 type="button"
                 @click="feeMode = 'separate'; txForm.fee_included = false; txForm.fee_eur = undefined; txForm.fee_percentage = undefined"
                 :class="[
-                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition-all',
+                  'px-3 py-1.5 text-sm font-medium rounded-secondary transition',
                   feeMode === 'separate'
                     ? 'bg-primary text-primary-content shadow-sm'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2780,7 +2780,7 @@ onMounted(async () => {
                   required
                 />
               </div>
-              <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+              <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_asset_key && txForm.fee_amount && Number(txForm.fee_amount) > 0"
                   class="rounded-secondary bg-info/10 border border-info/20 px-3 py-2 flex items-center gap-2"
@@ -2808,7 +2808,7 @@ onMounted(async () => {
                     inputmode="decimal"
                     required
                     :placeholder="feeInputMode === 'eur' ? '0.00' : '0.00'"
-                    class="w-full pl-4 pr-26 py-3 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-lg font-semibold tabular-nums text-text-main dark:text-text-dark-main placeholder:text-text-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-150"
+                    class="w-full pl-4 pr-26 py-3 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-lg font-semibold tabular-nums text-text-main dark:text-text-dark-main placeholder:text-text-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition duration-150"
                   />
                   <!-- Embedded unit toggle pill -->
                   <div class="absolute inset-y-0 right-2 flex items-center">
@@ -2817,7 +2817,7 @@ onMounted(async () => {
                         type="button"
                         @click="feeInputMode = 'eur'"
                         :class="[
-                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
+                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition duration-200',
                           feeInputMode === 'eur'
                             ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2827,7 +2827,7 @@ onMounted(async () => {
                         type="button"
                         @click="feeInputMode = 'percent'"
                         :class="[
-                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition-all duration-200',
+                          'relative z-10 px-3 py-1 text-xs font-bold rounded-secondary transition duration-200',
                           feeInputMode === 'percent'
                             ? 'bg-primary text-primary-content shadow-sm'
                             : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -2839,10 +2839,10 @@ onMounted(async () => {
 
                 <!-- Live conversion display -->
                 <Transition
-                  enter-active-class="transition-all duration-300 ease-out"
+                  enter-active-class="transition duration-300 ease-out"
                   enter-from-class="opacity-0 -translate-y-1"
                   enter-to-class="opacity-100 translate-y-0"
-                  leave-active-class="transition-all duration-150 ease-out"
+                  leave-active-class="transition duration-150 ease-out"
                   leave-from-class="opacity-100 translate-y-0"
                   leave-to-class="opacity-0 -translate-y-1"
                 >
@@ -2874,7 +2874,7 @@ onMounted(async () => {
                 />
               </div>
 
-              <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
+              <Transition enter-active-class="transition duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_eur && Number(txForm.fee_eur) > 0"
                   class="rounded-card bg-linear-to-br from-warning/5 to-warning/10 dark:from-warning/10 dark:to-warning/20 border border-warning/20 px-5 py-4 space-y-3"

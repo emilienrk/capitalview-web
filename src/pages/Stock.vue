@@ -1374,12 +1374,12 @@ onMounted(async () => {
         <!-- Right: stats -->
         <div class="flex items-center gap-2 shrink-0">
           <div v-if="stockChartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
-            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
+            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockDailyPnlAverage)]">
               {{ formatCurrency(stockDailyPnlAverage) }}
             </span>
             <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
-            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition-all duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
+            <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockLatestPortfolioDailyPnl)]">
               {{ formatCurrency(stockLatestPortfolioDailyPnl) }}
             </span>
@@ -1496,7 +1496,7 @@ onMounted(async () => {
           :key="tab.key"
           @click="activeFilter = tab.key"
           :class="[
-            'pb-3 text-sm font-medium transition-all duration-150 border-b-2',
+            'pb-3 text-sm font-medium transition duration-150 border-b-2',
             activeFilter === tab.key
               ? 'border-primary text-primary'
               : 'border-transparent text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:border-surface-border dark:hover:border-surface-dark-border',
@@ -1513,7 +1513,7 @@ onMounted(async () => {
         v-for="account in filteredAccounts"
         :key="account.id"
         :class="[
-          'transition-all duration-150',
+          'transition duration-150',
           selectedAccountId === account.id ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark' : '',
         ]"
       >
@@ -1959,7 +1959,7 @@ onMounted(async () => {
                 type="button"
                 @click="dividendMode = 'cash'"
                 :class="[
-                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
+                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition duration-200',
                   dividendMode === 'cash'
                     ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
@@ -1969,7 +1969,7 @@ onMounted(async () => {
                 type="button"
                 @click="dividendMode = 'shares'"
                 :class="[
-                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
+                  'flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition duration-200',
                   dividendMode === 'shares'
                     ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                     : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',

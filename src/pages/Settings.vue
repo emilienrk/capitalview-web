@@ -97,7 +97,7 @@ onMounted(async () => {
             :key="tab.id"
             @click="setTab(tab.id)"
             :class="[
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-left transition-all duration-150',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-left transition duration-150',
               activeTab === tab.id
                 ? 'bg-primary-light text-primary dark:bg-primary/20 dark:text-primary font-semibold'
                 : 'text-text-muted dark:text-text-dark-muted hover:bg-background-subtle dark:hover:bg-background-dark-subtle hover:text-text-main dark:hover:text-text-dark-main',

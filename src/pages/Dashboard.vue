@@ -442,7 +442,7 @@ onMounted(() => {
                 v-for="(slide, index) in breakdownSlides"
                 :key="slide.key"
                 type="button"
-                class="h-2 rounded-full transition-all"
+                class="h-2 rounded-full transition-[width,background-color]"
                 :class="index === activeBreakdownSlide
                   ? 'w-6 bg-primary'
                   : 'w-2 bg-surface-border dark:bg-surface-dark-border hover:bg-text-muted dark:hover:bg-text-dark-muted'"
@@ -519,7 +519,7 @@ onMounted(() => {
                 v-for="(slide, index) in projectionSlides"
                 :key="slide.key"
                 type="button"
-                class="h-2 rounded-full transition-all"
+                class="h-2 rounded-full transition-[width,background-color]"
                 :class="index === activeProjectionSlide
                   ? 'w-6 bg-primary'
                   : 'w-2 bg-surface-border dark:bg-surface-dark-border hover:bg-text-muted dark:hover:bg-text-dark-muted'"

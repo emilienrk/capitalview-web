@@ -407,7 +407,7 @@ onMounted(async () => {
           v-for="tab in filterTabs"
           :key="tab.key"
           :class="[
-            'pb-3 text-sm font-medium whitespace-nowrap transition-all duration-150 border-b-2',
+            'pb-3 text-sm font-medium whitespace-nowrap transition duration-150 border-b-2',
             activeFilter === tab.key
               ? 'border-primary text-primary'
               : 'border-transparent text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:border-surface-border dark:hover:border-surface-dark-border',
@@ -425,7 +425,7 @@ onMounted(async () => {
         v-for="placement in filteredPlacements"
         :key="placement.id"
         :class="[
-          'transition-all duration-150',
+          'transition duration-150',
           selectedId === placement.id ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark' : '',
         ]"
       >

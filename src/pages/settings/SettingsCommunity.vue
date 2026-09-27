@@ -134,10 +134,10 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
 
           <!-- Privacy toggle (shown when active) -->
           <Transition
-            enter-active-class="transition-all duration-200 overflow-hidden"
+            enter-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
             enter-from-class="opacity-0 max-h-0"
             enter-to-class="opacity-100 max-h-24"
-            leave-active-class="transition-all duration-200 overflow-hidden"
+            leave-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
             leave-from-class="opacity-100 max-h-24"
             leave-to-class="opacity-0 max-h-0"
           >
@@ -157,10 +157,10 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
 
           <!-- Profile fields (shown when active) -->
           <Transition
-            enter-active-class="transition-all duration-200 overflow-hidden"
+            enter-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
             enter-from-class="opacity-0 max-h-0"
             enter-to-class="opacity-100 max-h-96"
-            leave-active-class="transition-all duration-200 overflow-hidden"
+            leave-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
             leave-from-class="opacity-100 max-h-96"
             leave-to-class="opacity-0 max-h-0"
           >

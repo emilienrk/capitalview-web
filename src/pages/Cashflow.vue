@@ -628,7 +628,7 @@ onMounted(async () => {
               :key="tab.key"
               @click="activeTab = tab.key"
               :class="[
-                'px-4 py-2 text-sm font-medium rounded-button transition-all duration-150',
+                'px-4 py-2 text-sm font-medium rounded-button transition duration-150',
                 activeTab === tab.key
                   ? 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm'
                   : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
