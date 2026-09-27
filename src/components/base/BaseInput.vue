@@ -113,7 +113,7 @@ function onBlur(event: FocusEvent): void {
         @input="onInput"
         @blur="onBlur"
         :class="[
-          'w-full px-4 py-2.5 rounded-input border bg-surface dark:bg-surface-dark transition-all duration-150',
+          'w-full px-4 py-2.5 rounded-input border bg-surface dark:bg-surface-dark transition duration-150',
           'text-text-main dark:text-text-dark-main placeholder:text-text-muted/50',
           'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
           'disabled:opacity-50 disabled:cursor-not-allowed',

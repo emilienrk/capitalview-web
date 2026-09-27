@@ -70,7 +70,7 @@ function getOptionValue(option: SegmentedControlOption): string | number {
       type="button"
       @click="selectValue(getOptionValue(option))"
       :class="[
-        'border border-transparent rounded-button font-medium transition-all duration-200',
+        'border border-transparent rounded-button font-medium transition duration-200',
         sizeClasses[props.size],
         props.fullWidth ? 'flex-1 min-w-0' : '',
         isActive(getOptionValue(option)) ? variantClasses[props.variant].active : variantClasses[props.variant].inactive,

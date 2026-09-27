@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div
     :class="[
-      'flex flex-col rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-150',
+      'flex flex-col rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border shadow-card transition duration-150',
       hoverable ? 'hover:shadow-lg hover:border-primary/30 cursor-pointer' : '',
     ]"
   >
