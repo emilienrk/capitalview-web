@@ -62,13 +62,13 @@ const paddingClasses = computed(() => {
     :type="props.type"
     :disabled="props.disabled || props.loading"
     :class="[
-      'inline-flex items-center justify-center gap-2 font-semibold rounded-button border-2 border-transparent transition duration-150',
+      'inline-flex items-center justify-center gap-2 font-semibold rounded-button border-2 border-transparent transition duration-150 ease-out',
       'focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1',
       'disabled:opacity-50 disabled:cursor-not-allowed',
       variantClasses[props.variant],
       sizeClasses[props.size],
       paddingClasses,
-      props.block ? 'w-full' : '',
+      props.block ? 'w-full enabled:active:scale-[0.98]' : 'enabled:active:scale-[0.97]',
     ]"
   >
     <slot />
