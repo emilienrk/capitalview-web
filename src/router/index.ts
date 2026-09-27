@@ -154,9 +154,10 @@ const router = createRouter({
   routes,
   // Without this, a new page opens at the previous page's scroll offset.
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) return savedPosition
-    if (to.hash) return { el: to.hash }
-    if (to.path !== from.path) return { top: 0 }
+    // Instant on arrival: public pages glide only between anchors of the same page.
+    if (savedPosition) return { ...savedPosition, behavior: 'instant' }
+    if (to.hash) return { el: to.hash, behavior: to.path === from.path ? 'smooth' : 'instant' }
+    if (to.path !== from.path) return { top: 0, behavior: 'instant' }
   },
 })
 

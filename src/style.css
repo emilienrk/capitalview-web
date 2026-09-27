@@ -65,6 +65,13 @@ input:is(:-webkit-autofill, :autofill) {
   display: none;
 }
 
+/* The landing's anchors jump several screens: glide there so the reader keeps their place. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.cv-public) {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Reduced motion keeps the fade that says something appeared, not the travel. */
 @media (prefers-reduced-motion: reduce) {
   .animate-slide-up {
