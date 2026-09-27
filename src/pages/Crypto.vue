@@ -2468,7 +2468,7 @@ onMounted(async () => {
           >
             <div
               v-if="calculatedPricePerUnit"
-              class="rounded-card bg-linear-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border border-primary/20 px-5 py-4"
+              class="rounded-card bg-primary/8 dark:bg-primary/15 border border-primary/20 px-5 py-4"
             >
               <p class="text-[10px] font-semibold uppercase tracking-wider text-primary/70 mb-1.5">Prix unitaire calculé</p>
               <p class="text-2xl font-bold text-text-main dark:text-text-dark-main tabular-nums">
@@ -2597,7 +2597,7 @@ onMounted(async () => {
               <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_eur && Number(txForm.fee_eur) > 0"
-                  class="rounded-card bg-linear-to-br from-warning/5 to-warning/10 dark:from-warning/10 dark:to-warning/20 border border-warning/20 px-5 py-3.5"
+                  class="rounded-card bg-warning/8 dark:bg-warning/15 border border-warning/20 px-5 py-3.5"
                 >
                   <p class="text-[10px] font-semibold uppercase tracking-wider text-warning/70 mb-1">Coût total</p>
                   <p class="text-xl font-bold text-text-main dark:text-text-dark-main tabular-nums">
@@ -2610,7 +2610,7 @@ onMounted(async () => {
             <Transition enter-active-class="transition duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
               <div
                 v-if="previewPru"
-                class="rounded-card bg-linear-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 border border-primary/20 px-5 py-4"
+                class="rounded-card bg-primary/8 dark:bg-primary/15 border border-primary/20 px-5 py-4"
               >
                 <div class="flex items-center justify-between mb-1.5">
                   <p class="text-[10px] font-semibold uppercase tracking-wider text-primary/70">PRU prévisionnel</p>
@@ -2877,7 +2877,7 @@ onMounted(async () => {
               <Transition enter-active-class="transition duration-300" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100">
                 <div
                   v-if="txForm.fee_eur && Number(txForm.fee_eur) > 0"
-                  class="rounded-card bg-linear-to-br from-warning/5 to-warning/10 dark:from-warning/10 dark:to-warning/20 border border-warning/20 px-5 py-4 space-y-3"
+                  class="rounded-card bg-warning/8 dark:bg-warning/15 border border-warning/20 px-5 py-4 space-y-3"
                 >
                   <div>
                     <p class="text-[10px] font-semibold uppercase tracking-wider text-warning/70 mb-1">Coût total</p>

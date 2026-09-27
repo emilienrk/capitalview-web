@@ -63,13 +63,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isVisible && !isLoading && !fetchError && insightBody" class="mb-6 relative">
-    <div class="absolute inset-0 bg-gradient-to-r from-primary/10 via-info/10 to-primary/10 opacity-50 dark:opacity-20 rounded-card pointer-events-none"></div>
-    <BaseCard class="border-primary/20 dark:border-primary/30 shadow-sm relative overflow-hidden backdrop-blur-sm">
+  <div v-if="isVisible && !isLoading && !fetchError && insightBody" class="mb-6">
+    <BaseCard class="border-primary/20 dark:border-primary/30 shadow-sm relative overflow-hidden">
       <template #header>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 text-primary">
-            <Sparkles class="w-5 h-5 animate-pulse" />
+            <Sparkles class="w-5 h-5" />
             <h3 class="font-semibold text-lg text-text-main dark:text-text-dark-main">
               {{ insightTitle }}
             </h3>
