@@ -1,58 +1,52 @@
 <script setup lang="ts">
-import { AlertCircle, ArrowRight, Circle, Eye, EyeOff, LoaderCircle, Lock, Mail, ShieldCheck, User } from 'lucide-vue-next'
+import { AlertCircle, Check, Circle, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
 
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import AuthLayout from '@/components/public/AuthLayout.vue'
+import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
+import { fieldHint, fieldInput, fieldLabel, focusRing, primaryButton, textLink } from '@/components/public/publicStyles'
+import { passwordRules } from '@/components/public/passwordRules'
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const confirmTouched = ref(false)
 const error = ref('')
 const isLoading = ref(false)
 const showPassword = ref(false)
 
+const recoveryKey = ref('')
+const revealOpen = ref(false)
+const recoveryFailed = ref(false)
+
 const auth = useAuthStore()
 const router = useRouter()
 
-// Password strength validation
-const passwordChecks = computed(() => ({
-  minLength: password.value.length >= 8,
-  hasUpper: /[A-Z]/.test(password.value),
-  hasLower: /[a-z]/.test(password.value),
-  hasDigit: /\d/.test(password.value),
-  hasSpecial: /[^A-Za-z0-9]/.test(password.value),
-}))
+const rules = computed(() => passwordRules(password.value))
 
-const passwordStrength = computed(() => {
-  const checks = Object.values(passwordChecks.value)
-  const passed = checks.filter(Boolean).length
-  if (passed <= 2) return { label: 'Faible', color: 'bg-danger', width: 'w-1/4' }
-  if (passed <= 3) return { label: 'Moyen', color: 'bg-warning', width: 'w-2/4' }
-  if (passed <= 4) return { label: 'Bon', color: 'bg-info', width: 'w-3/4' }
-  return { label: 'Fort', color: 'bg-success', width: 'w-full' }
-})
-
+const usernameInvalid = computed(() => username.value.length > 0 && !/^[a-zA-Z0-9_-]+$/.test(username.value))
 const passwordsMatch = computed(() => password.value === confirmPassword.value)
-const isFormValid = computed(() =>
-  username.value.length >= 3 &&
-  /^[a-zA-Z0-9_-]+$/.test(username.value) &&
-  email.value.includes('@') &&
-  Object.values(passwordChecks.value).every(Boolean) &&
-  passwordsMatch.value
+// Only flag a mismatch once the user has finished typing the confirmation.
+const showMismatch = computed(() =>
+  confirmPassword.value.length > 0 && !passwordsMatch.value
+  && (confirmTouched.value || confirmPassword.value.length >= password.value.length),
 )
 
 async function handleRegister() {
-  error.value = ''
-
-  if (!passwordsMatch.value) {
-    error.value = 'Les mots de passe ne correspondent pas'
+  if (username.value.length < 3 || usernameInvalid.value) {
+    error.value = 'Le nom d\'utilisateur doit faire au moins 3 caractères : lettres, chiffres, _ et - uniquement.'
     return
   }
-
-  if (!Object.values(passwordChecks.value).every(Boolean)) {
-    error.value = 'Le mot de passe ne respecte pas les critères de sécurité'
+  if (!rules.value.every(rule => rule.met)) {
+    error.value = 'Le mot de passe ne respecte pas encore toutes les règles ci-dessus.'
+    return
+  }
+  if (!passwordsMatch.value) {
+    confirmTouched.value = true
+    error.value = 'Les deux mots de passe ne correspondent pas.'
     return
   }
 
@@ -63,202 +57,191 @@ async function handleRegister() {
       email: email.value,
       password: password.value,
     })
-    if (success) {
-      // Auto-login after registration
-      const loginSuccess = await auth.login({
-        email: email.value,
-        password: password.value,
-      })
-      if (loginSuccess) {
-        router.push('/dashboard')
-      } else {
-        router.push('/login')
-      }
-    } else {
+    if (!success) {
       error.value = auth.error || 'Erreur lors de l\'inscription'
+      return
     }
-  } catch (err) {
+    // The password is still in memory: the one moment the recovery key can be
+    // made without asking for it again.
+    try {
+      recoveryKey.value = await auth.generateRecoveryKey(password.value)
+      revealOpen.value = true
+    } catch {
+      recoveryFailed.value = true
+    }
+  } catch {
     error.value = 'Une erreur est survenue lors de l\'inscription'
   } finally {
     isLoading.value = false
   }
 }
+
+function finish() {
+  revealOpen.value = false
+  router.push('/dashboard')
+}
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col items-center justify-center animate-fade-in px-4 py-12">
-    <!-- Register Card -->
-    <div class="w-full max-w-md bg-surface dark:bg-surface-dark p-8 rounded-card shadow-card border border-surface-border dark:border-surface-dark-border animate-slide-up">
+  <AuthLayout title="Créer un compte">
+    <template #intro>
+      Vos données seront chiffrées avec une clé que seul votre mot de passe déverrouille.
+    </template>
 
-      <!-- Header Section -->
-      <div class="text-center mb-8">
-        <img src="/capitalview.svg" alt="CapitalView Logo" class="w-16 h-16 mx-auto mb-4" />
-        <h1 class="text-3xl font-bold text-text-main dark:text-text-dark-main tracking-tight">Créer un compte</h1>
-        <p class="text-text-muted dark:text-text-dark-muted mt-2">Rejoignez CapitalView pour gérer votre patrimoine</p>
-      </div>
+    <div v-if="recoveryFailed" class="space-y-6">
+      <p role="alert" class="flex items-start gap-2.5 p-3.5 bg-danger/10 text-danger text-sm rounded-input">
+        <AlertCircle class="w-4 h-4 mt-0.5 shrink-0" />
+        Votre compte est créé, mais la clé de récupération n'a pas pu être générée.
+      </p>
+      <p class="leading-relaxed">
+        Générez-la dès maintenant dans Réglages › Sécurité&nbsp;: sans elle, un mot de passe oublié rend vos données illisibles pour de bon.
+      </p>
+      <router-link :to="{ name: 'settings', query: { tab: 'securite' } }" :class="primaryButton">
+        Ouvrir Réglages › Sécurité
+      </router-link>
+    </div>
 
-      <!-- Register Form -->
-      <form @submit.prevent="handleRegister" class="space-y-5">
-        <!-- Username -->
-        <div class="space-y-2">
-          <label for="username" class="text-sm font-semibold text-text-main dark:text-text-dark-main ml-1">
-            Nom d'utilisateur
-          </label>
-          <div class="relative group">
-            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-text-muted group-focus-within:text-primary transition-colors">
-              <User class="w-5 h-5" />
-            </span>
-            <input
-              id="username"
-              v-model="username"
-              type="text"
-              required
-              minlength="3"
-              maxlength="50"
-              placeholder="Pseudo"
-              autocomplete="username"
-              class="w-full pl-11 pr-4 py-3.5 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
-            />
-          </div>
-          <p v-if="username.length > 0 && !/^[a-zA-Z0-9_-]+$/.test(username)" class="text-xs text-danger ml-1">
-            Lettres, chiffres, _ et - uniquement (pas de point ni d'espace)
-          </p>
-        </div>
-
-        <!-- Email -->
-        <div class="space-y-2">
-          <label for="email" class="text-sm font-semibold text-text-main dark:text-text-dark-main ml-1">
-            Adresse email
-          </label>
-          <div class="relative group">
-            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-text-muted group-focus-within:text-primary transition-colors">
-              <Mail class="w-5 h-5" />
-            </span>
-            <input
-              id="email"
-              v-model="email"
-              type="email"
-              required
-              placeholder="email@exemple.com"
-              autocomplete="email"
-              class="w-full pl-11 pr-4 py-3.5 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
-            />
-          </div>
-        </div>
-
-        <!-- Password -->
-        <div class="space-y-2">
-          <label for="password" class="text-sm font-semibold text-text-main dark:text-text-dark-main ml-1">
-            Mot de passe
-          </label>
-          <div class="relative group">
-            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-text-muted group-focus-within:text-primary transition-colors">
-              <Lock class="w-5 h-5" />
-            </span>
-            <input
-              id="password"
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              required
-              minlength="8"
-              maxlength="100"
-              placeholder="••••••••"
-              autocomplete="new-password"
-              class="w-full pl-11 pr-12 py-3.5 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
-            />
-            <button
-              type="button"
-              @click="showPassword = !showPassword"
-              class="absolute inset-y-0 right-0 pr-4 flex items-center text-text-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
-            >
-              <EyeOff v-if="showPassword" class="w-5 h-5" />
-              <Eye v-else class="w-5 h-5" />
-            </button>
-          </div>
-
-          <!-- Password strength indicator -->
-          <div v-if="password.length > 0" class="space-y-2 mt-2">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-1.5 bg-surface-border dark:bg-surface-dark-border rounded-full overflow-hidden">
-                <div :class="[passwordStrength.color, passwordStrength.width, 'h-full rounded-full transition-all duration-300']" />
-              </div>
-              <span class="text-xs font-medium text-text-muted dark:text-text-dark-muted">{{ passwordStrength.label }}</span>
-            </div>
-            <ul class="space-y-1 text-xs">
-              <li v-for="(check, key) in { 'Au moins 8 caractères': passwordChecks.minLength, 'Une majuscule': passwordChecks.hasUpper, 'Une minuscule': passwordChecks.hasLower, 'Un chiffre': passwordChecks.hasDigit, 'Un caractère spécial': passwordChecks.hasSpecial }" :key="key" class="flex items-center gap-1.5">
-                <Circle v-if="check" class="w-3.5 h-3.5 text-success shrink-0" />
-                <Circle v-else class="w-3.5 h-3.5 text-text-muted/40 dark:text-text-dark-muted/40 shrink-0" />
-                <span :class="check ? 'text-success' : 'text-text-muted dark:text-text-dark-muted'">{{ key }}</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="space-y-2">
-          <label for="confirmPassword" class="text-sm font-semibold text-text-main dark:text-text-dark-main ml-1">
-            Confirmer le mot de passe
-          </label>
-          <div class="relative group">
-            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-text-muted group-focus-within:text-primary transition-colors">
-              <ShieldCheck class="w-5 h-5" />
-            </span>
-            <input
-              id="confirmPassword"
-              v-model="confirmPassword"
-              type="password"
-              required
-              placeholder="••••••••"
-              autocomplete="new-password"
-              class="w-full pl-11 pr-4 py-3.5 bg-background/50 dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border rounded-input focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-text-main dark:text-text-dark-main placeholder:text-text-muted/50"
-              :class="{ 'border-danger focus:ring-danger/20 focus:border-danger': confirmPassword.length > 0 && !passwordsMatch }"
-            />
-          </div>
-          <p v-if="confirmPassword.length > 0 && !passwordsMatch" class="text-xs text-danger ml-1">
-            Les mots de passe ne correspondent pas
-          </p>
-        </div>
-
-        <!-- Error message -->
-        <transition enter-active-class="animate-fade-in" leave-active-class="opacity-0 transition-opacity">
-          <div v-if="error" class="flex items-center gap-3 p-4 bg-danger/10 border border-danger/20 text-danger text-sm rounded-input">
-            <AlertCircle class="w-5 h-5 shrink-0" />
-            {{ error }}
-          </div>
-        </transition>
-
-        <!-- Submit -->
-        <button
-          type="submit"
-          :disabled="isLoading || !isFormValid"
-          class="group relative w-full bg-primary hover:bg-primary-hover active:bg-primary-active text-primary-content font-bold py-4 rounded-button transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-        >
-          <span v-if="isLoading" class="flex items-center justify-center gap-2">
-            <LoaderCircle class="animate-spin h-5 w-5 text-current" />
-            Création en cours...
-          </span>
-          <span v-else class="flex items-center justify-center gap-2">
-            Créer mon compte
-            <ArrowRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </button>
-      </form>
-
-      <!-- Link to login -->
-      <div class="mt-6 text-center">
-        <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Déjà un compte ?
-          <router-link to="/login" class="text-primary hover:text-primary-hover font-semibold transition-colors">
-            Se connecter
-          </router-link>
+    <form v-else class="space-y-6" @submit.prevent="handleRegister">
+      <div class="space-y-2">
+        <label for="username" :class="fieldLabel">Nom d'utilisateur</label>
+        <input
+          id="username"
+          v-model="username"
+          type="text"
+          required
+          minlength="3"
+          maxlength="50"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          aria-describedby="username-hint"
+          :aria-invalid="usernameInvalid"
+          :class="[fieldInput, usernameInvalid && 'border-danger focus:border-danger focus:ring-danger']"
+          @input="error = ''"
+        />
+        <p id="username-hint" :class="usernameInvalid ? 'text-sm text-danger' : fieldHint">
+          Lettres, chiffres, _ et - (pas de point ni d'espace). Visible des autres membres si vous activez la Communauté, modifiable une seule fois.
         </p>
       </div>
-    </div>
 
-    <!-- Background Decoration -->
-    <div class="fixed top-0 left-0 w-full h-full -z-10 overflow-hidden pointer-events-none opacity-20 dark:opacity-10">
-      <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary blur-[120px]"></div>
-      <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-400 blur-[120px]"></div>
-    </div>
-  </div>
+      <div class="space-y-2">
+        <label for="email" :class="fieldLabel">Adresse e-mail</label>
+        <input
+          id="email"
+          v-model="email"
+          type="email"
+          required
+          autocomplete="email"
+          aria-describedby="email-hint"
+          :class="fieldInput"
+          @input="error = ''"
+        />
+        <p id="email-hint" :class="fieldHint">
+          Elle sert à vous connecter. Aucun e-mail ne vous sera envoyé, et elle ne permet pas de récupérer un mot de passe.
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <label for="password" :class="fieldLabel">Mot de passe</label>
+        <div class="relative">
+          <input
+            id="password"
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            required
+            minlength="8"
+            maxlength="100"
+            autocomplete="new-password"
+            aria-describedby="password-rules"
+            :class="[fieldInput, 'pr-12']"
+            @input="error = ''"
+          />
+          <button
+            type="button"
+            :aria-label="showPassword ? 'Masquer les mots de passe' : 'Afficher les mots de passe'"
+            :aria-pressed="showPassword"
+            :class="['absolute inset-y-0 right-0 w-12 flex items-center justify-center rounded-button text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main', focusRing]"
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" class="w-5 h-5" />
+            <Eye v-else class="w-5 h-5" />
+          </button>
+        </div>
+        <ul id="password-rules" class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <li
+            v-for="rule in rules"
+            :key="rule.label"
+            class="flex items-center gap-1.5"
+            :class="rule.met ? 'text-text-main dark:text-text-dark-main' : 'text-text-muted dark:text-text-dark-muted'"
+          >
+            <Check v-if="rule.met" class="w-3.5 h-3.5 shrink-0 text-primary" />
+            <Circle v-else class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ rule.label }}<span class="sr-only">{{ rule.met ? ' : respecté' : ' : manquant' }}</span></span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="space-y-2">
+        <label for="confirmPassword" :class="fieldLabel">Confirmer le mot de passe</label>
+        <input
+          id="confirmPassword"
+          v-model="confirmPassword"
+          :type="showPassword ? 'text' : 'password'"
+          required
+          autocomplete="new-password"
+          :aria-invalid="showMismatch"
+          :class="[fieldInput, showMismatch && 'border-danger focus:border-danger focus:ring-danger']"
+          @input="error = ''"
+          @blur="confirmTouched = true"
+        />
+        <p v-if="showMismatch" class="text-sm text-danger">Les deux mots de passe ne correspondent pas.</p>
+      </div>
+
+      <p class="py-4 border-y border-surface-border dark:border-surface-dark-border leading-relaxed text-pretty">
+        <strong class="font-semibold text-text-main dark:text-text-dark-main">Personne ne pourra réinitialiser ce mot de passe.</strong>
+        Juste après l'inscription, une clé de récupération vous sera remise&nbsp;: c'est la seule façon de rouvrir vos données si vous l'oubliez.
+      </p>
+
+      <p v-if="error" role="alert" class="flex items-start gap-2.5 p-3.5 bg-danger/10 text-danger text-sm rounded-input">
+        <AlertCircle class="w-4 h-4 mt-0.5 shrink-0" />
+        {{ error }}
+      </p>
+
+      <button type="submit" :disabled="isLoading" :aria-busy="isLoading" :class="['w-full', primaryButton]">
+        <LoaderCircle v-if="isLoading" class="animate-spin h-5 w-5" />
+        {{ isLoading ? 'Création du compte…' : 'Créer mon compte' }}
+      </button>
+
+      <p :class="fieldHint">
+        Déjà un compte&nbsp;?
+        <router-link to="/login" :class="textLink">Se connecter</router-link>
+      </p>
+    </form>
+
+    <template #aside>
+      <div class="py-6 border-t border-surface-border dark:border-surface-dark-border">
+        <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Votre mot de passe est la serrure</h2>
+        <p class="mt-2 leading-relaxed text-pretty">
+          Il n'est pas conservé, seulement son empreinte. Il déverrouille la clé qui chiffre vos soldes, vos libellés et vos notes&nbsp;:
+          une copie de la base ne révèle rien tant qu'il est solide. Plus il est long, mieux il résiste.
+        </p>
+      </div>
+      <div class="py-6 border-t border-surface-border dark:border-surface-dark-border">
+        <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Ensuite</h2>
+        <p class="mt-2 leading-relaxed text-pretty">
+          Ajoutez vos comptes à votre rythme&nbsp;: import CSV, saisie manuelle, ou connexion bancaire si vous l'activez.
+          Rien n'est relié à votre banque sans votre action.
+        </p>
+      </div>
+    </template>
+
+    <SecretRevealModal
+      :open="revealOpen"
+      title="Votre clé de récupération"
+      description="Conservez-la hors ligne : c'est la seule façon de rouvrir vos données si vous oubliez votre mot de passe. Elle n'est affichée qu'une fois."
+      :secrets="[recoveryKey]"
+      filename="capitalview-cle-recuperation.txt"
+      @close="finish"
+    />
+  </AuthLayout>
 </template>

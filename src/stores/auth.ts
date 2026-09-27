@@ -110,9 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await apiClient.post<TokenResponse>('/auth/register', data)
-      await resetAllSessionState()
-      setToken(response.access_token)
-      isAuthenticated.value = true
+      await _finishSession(response)
       return true
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Échec de l\'inscription'
