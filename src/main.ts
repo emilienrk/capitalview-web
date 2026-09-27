@@ -5,7 +5,7 @@ import './style.css'
 
 import router from './router'
 import App from './App.vue'
-import { initThemeLab } from './theme/themeLab'
+import { initAppearance } from './theme/appearance'
 
 // Prevent pinch-zoom on iOS (native app feel)
 document.addEventListener('gesturestart', (e) => e.preventDefault())
@@ -23,7 +23,7 @@ if (import.meta.env.PROD) {
   document.head.appendChild(analytics)
 }
 
-if (import.meta.env.DEV) initThemeLab()
+initAppearance()
 
 const app = createApp(App)
 const pinia = createPinia()

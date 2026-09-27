@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useDarkMode } from '@/composables/useDarkMode'
-import { themeRevision } from '@/theme/themeLab'
+import { appearanceRevision } from '@/theme/appearance'
 
 export interface ChartTheme {
   fontFamily: string
@@ -73,12 +73,12 @@ function readTheme(): ChartTheme {
   }
 }
 
-/** Chart colors and type from the active theme tokens, refreshed on dark-mode or theme switches. */
+/** Chart colors and type from the active theme tokens, refreshed on dark-mode or appearance switches. */
 export function useChartTheme() {
   const { isDark } = useDarkMode()
   return computed<ChartTheme>(() => {
     void isDark.value
-    void themeRevision.value
+    void appearanceRevision.value
     return readTheme()
   })
 }

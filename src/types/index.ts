@@ -1677,6 +1677,8 @@ export interface AIOptionsResponse {
 export interface UserSettingsUpdate {
   objectives?: string | null
   theme?: string
+  ui_style?: string
+  ui_palette?: string
   /** IANA timezone for date display. null = follow the browser. */
   display_timezone?: string | null
   /** BCP 47 locale for date/number formatting. null = app default (fr-FR). */
@@ -1709,6 +1711,8 @@ export interface UserSettingsUpdate {
 export interface UserSettingsResponse {
   objectives: string | null
   theme: string
+  ui_style: string
+  ui_palette: string
   /** IANA timezone for date display. null = follow the browser. */
   display_timezone: string | null
   /** BCP 47 locale for date/number formatting. null = app default (fr-FR). */

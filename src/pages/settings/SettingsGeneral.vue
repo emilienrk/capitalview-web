@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Palette, User, Sun, Moon, Monitor, Globe } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { useDarkMode, type ThemePreference } from '@/composables/useDarkMode'
+import {
+  STYLE_OPTIONS,
+  PALETTE_OPTIONS,
+  activeStyle,
+  activePalette,
+  setAppearance,
+  loadStyleFonts,
+} from '@/theme/appearance'
 import { useFormatters } from '@/composables/useFormatters'
 import { useDisplayTimezone, utcOffsetLabel } from '@/composables/useDisplayTimezone'
 import { useDisplayLocale, DEFAULT_DISPLAY_LOCALE, SUPPORTED_DISPLAY_LOCALES } from '@/composables/useDisplayLocale'
@@ -22,6 +30,7 @@ const { displayLocale, setDisplayLocale, effectiveLocale } = useDisplayLocale()
 
 const dateSettingsError = ref<string | null>(null)
 const themeError = ref<string | null>(null)
+const appearanceError = ref<string | null>(null)
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +48,22 @@ async function selectTheme(theme: ThemePreference): Promise<void> {
   if (!saved) {
     setTheme(previous)
     themeError.value = settingsStore.error ?? 'Impossible de sauvegarder le thème.'
+  }
+}
+
+// ── Style & palette ─────────────────────────────────────────────────────────
+
+// The style cards preview their own typeface, so every face must be loaded.
+onMounted(() => STYLE_OPTIONS.forEach(loadStyleFonts))
+
+async function selectAppearance(style: string, palette: string): Promise<void> {
+  appearanceError.value = null
+  const previous = { style: activeStyle.value, palette: activePalette.value }
+  setAppearance(style, palette)
+  const saved = await settingsStore.updateSettings({ ui_style: style, ui_palette: palette })
+  if (!saved) {
+    setAppearance(previous.style, previous.palette)
+    appearanceError.value = settingsStore.error ?? 'Impossible de sauvegarder l\'apparence.'
   }
 }
 
@@ -224,6 +249,74 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
           </button>
         </div>
         <p v-if="themeError" class="text-sm text-danger">{{ themeError }}</p>
+
+        <div class="pt-4 border-t border-surface-border dark:border-surface-dark-border">
+          <p class="font-medium text-text-main dark:text-text-dark-main">Style</p>
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Police, coins et ombres de l'application
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            v-for="style in STYLE_OPTIONS"
+            :key="style.id"
+            type="button"
+            :data-style="style.id"
+            :aria-pressed="activeStyle === style.id"
+            @click="selectAppearance(style.id, activePalette)"
+            :class="[
+              'flex flex-col items-start gap-1 p-4 text-left font-sans rounded-card border-2 transition-all',
+              activeStyle === style.id
+                ? 'border-primary bg-primary/5'
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50',
+            ]"
+          >
+            <span class="font-display text-2xl leading-none text-text-main dark:text-text-dark-main" aria-hidden="true">Aa</span>
+            <span class="cv-figure text-sm tabular-nums text-text-body dark:text-text-dark-body" aria-hidden="true">12 480,50 €</span>
+            <span
+              :class="[
+                'mt-2 text-sm font-medium',
+                activeStyle === style.id ? 'text-primary' : 'text-text-main dark:text-text-dark-main',
+              ]"
+            >{{ style.label }}</span>
+            <span class="text-xs text-text-muted dark:text-text-dark-muted">{{ style.description }}</span>
+          </button>
+        </div>
+
+        <div class="pt-4 border-t border-surface-border dark:border-surface-dark-border">
+          <p class="font-medium text-text-main dark:text-text-dark-main">Palette</p>
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Couleurs de fond, de texte et d'accent, en clair comme en sombre
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <button
+            v-for="palette in PALETTE_OPTIONS"
+            :key="palette.id"
+            type="button"
+            :aria-pressed="activePalette === palette.id"
+            @click="selectAppearance(activeStyle, palette.id)"
+            :class="[
+              'flex items-center gap-3 p-3 rounded-card border-2 transition-all',
+              activePalette === palette.id
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-main dark:text-text-dark-main',
+            ]"
+          >
+            <span class="flex shrink-0" aria-hidden="true">
+              <span
+                v-for="(swatch, index) in palette.swatches"
+                :key="index"
+                class="w-5 h-5 rounded-full border border-black/10 dark:border-white/15 -ml-1.5 first:ml-0"
+                :style="{ backgroundColor: swatch }"
+              />
+            </span>
+            <span class="text-sm font-medium">{{ palette.label }}</span>
+          </button>
+        </div>
+        <p v-if="appearanceError" class="text-sm text-danger">{{ appearanceError }}</p>
       </div>
     </SettingsSection>
 

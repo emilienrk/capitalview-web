@@ -4,6 +4,7 @@ import { apiClient } from '@/api/client'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import { useDisplayLocale } from '@/composables/useDisplayLocale'
 import { applyServerTheme } from '@/composables/useDarkMode'
+import { applyServerAppearance } from '@/theme/appearance'
 import type {
   BankConfigCheck,
   BankConnectionStatus,
@@ -31,6 +32,7 @@ export const useSettingsStore = defineStore('settings', () => {
       applyServerTimezone(settings.value.display_timezone)
       applyServerLocale(settings.value.display_locale)
       applyServerTheme(settings.value.theme)
+      applyServerAppearance(settings.value.ui_style, settings.value.ui_palette)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de charger les paramètres'
     } finally {
@@ -46,6 +48,7 @@ export const useSettingsStore = defineStore('settings', () => {
       applyServerTimezone(settings.value.display_timezone)
       applyServerLocale(settings.value.display_locale)
       applyServerTheme(settings.value.theme)
+      applyServerAppearance(settings.value.ui_style, settings.value.ui_palette)
       return true
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Impossible de sauvegarder'
