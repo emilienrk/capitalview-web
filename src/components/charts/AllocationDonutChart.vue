@@ -9,7 +9,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -49,6 +49,7 @@ const option = computed(() => {
   const textColor = theme.text
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     tooltip: {

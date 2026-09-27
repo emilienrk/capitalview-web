@@ -10,7 +10,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
@@ -67,6 +67,7 @@ const option = computed(() => {
   const isSmall = containerWidth.value < 640
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     legend: {

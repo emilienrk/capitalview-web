@@ -6,7 +6,7 @@ import { BoxplotChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { mixColor, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useReadingFormat } from '@/composables/useReadingFormat'
 import type { SlippageDistributionOut } from '@/types'
 
@@ -39,6 +39,7 @@ const option = computed(() => {
   const gridColor = theme.grid
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 16, left: 64, right: 16, bottom: 28 },

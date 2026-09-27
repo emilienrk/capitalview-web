@@ -12,7 +12,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import VChart from 'vue-echarts'
 
 import { useChartResize } from '@/composables/useChartResize'
-import { mixColor, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { OTHERS, monthLabel, type TimeSeries } from '@/utils/ledger'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent])
@@ -53,6 +53,7 @@ const option = computed(() => {
   const groupColors = theme.categorical.slice(1)
   const isSmall = containerWidth.value < 640
   const base = {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     legend: { top: 0, type: 'scroll', textStyle: { color: textColor, fontSize: 11 }, icon: 'roundRect', itemWidth: 10, itemHeight: 6 },

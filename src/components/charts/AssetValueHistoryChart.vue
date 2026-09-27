@@ -7,7 +7,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { AssetHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
@@ -38,6 +38,7 @@ const option = computed(() => {
   const xAxisInterval = dates.length <= (isSmall ? 15 : 40) ? 0 : Math.max(0, Math.floor(dates.length / labelDivisor) - 1)
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: {

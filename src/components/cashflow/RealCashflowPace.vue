@@ -12,7 +12,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 
 import { useChartResize } from '@/composables/useChartResize'
-import { mixColor, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { exploreLink } from '@/utils/ledger'
@@ -50,6 +50,7 @@ const option = computed(() => {
   const gridColor = theme.grid
   const format = (value: number) => (privacyMode.value ? '•••' : formatCurrency(value, props.data.currency))
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 12, left: 8, right: 8, bottom: 20, containLabel: false },

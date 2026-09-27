@@ -10,7 +10,7 @@ import { ScatterChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { MarketPointOut } from '@/types'
@@ -44,6 +44,7 @@ const option = computed(() => {
   const gridColor = theme.grid
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 16, left: 56, right: 16, bottom: 32 },

@@ -6,7 +6,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import type { CounterfactualResponse } from '@/types'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
@@ -79,6 +79,7 @@ const option = computed(() => {
   const isSmall = containerWidth.value < 640
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 16, left: isSmall ? 46 : 60, right: 12, bottom: isSmall ? 76 : 60 },

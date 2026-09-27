@@ -6,7 +6,7 @@ import { HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { mixColor, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { MonthlyAmountOut } from '@/types'
@@ -54,6 +54,7 @@ const option = computed(() => {
   ]
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 8, left: 48, right: 12, bottom: 48 },

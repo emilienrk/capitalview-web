@@ -11,7 +11,7 @@ import { HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { mixColor, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import type { CorrelationOut } from '@/types'
 
 use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent])
@@ -91,6 +91,7 @@ const option = computed(() => {
   const splitArea = { show: true, areaStyle: { color: [mixColor(theme.grid, 'transparent', 50)] } }
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     // The gutter tracks the truncation: ~6px a character at fontSize 10, and the

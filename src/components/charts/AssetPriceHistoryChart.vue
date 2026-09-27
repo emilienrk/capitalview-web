@@ -13,7 +13,7 @@ import {
 import VChart from 'vue-echarts'
 import type { AssetPriceTimelineResponse, AssetTimelineEvent } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import {
   MAX_MARKER_SIZE,
   SMALL_SCREEN_MAX_MARKER_SIZE,
@@ -345,6 +345,7 @@ const option = computed(() => {
   }
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     legend: {

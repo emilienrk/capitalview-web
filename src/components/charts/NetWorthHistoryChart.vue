@@ -12,7 +12,7 @@ import {
 import VChart from 'vue-echarts'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -320,6 +320,7 @@ const option = computed(() => {
   }
 
   return {
+    ...chartAnimation(),
     backgroundColor: bgColor,
     textStyle: { fontFamily: theme.fontFamily },
     legend: {

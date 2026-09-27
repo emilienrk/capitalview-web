@@ -13,7 +13,7 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import type { DensityBinOut } from '@/types'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent])
@@ -34,6 +34,7 @@ const option = computed(() => {
   const gridColor = theme.grid
 
   return {
+    ...chartAnimation(),
     backgroundColor: 'transparent',
     textStyle: { fontFamily: theme.fontFamily },
     grid: { top: 32, left: 48, right: 16, bottom: 40 },

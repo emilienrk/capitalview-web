@@ -101,3 +101,14 @@ export function useChartTheme() {
     return readTheme()
   })
 }
+
+/**
+ * Entrance shared by every chart. ECharts' default is a one-second draw that
+ * replays on each mount, and these charts are opened daily to read a figure.
+ */
+export function chartAnimation() {
+  const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  return reduce
+    ? { animation: false }
+    : { animationDuration: 300, animationEasing: 'cubicOut' as const }
+}
