@@ -237,10 +237,10 @@ const buys = [
           </p>
         </div>
 
-        <details class="group mt-10 border-t-2 border-text-main dark:border-text-dark-main">
+        <details class="tech-details group mt-10 border-t-2 border-text-main dark:border-text-dark-main">
           <summary :class="['flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden', focusRing]">
             <span class="font-display text-xl font-semibold text-text-main dark:text-text-dark-main">Détails techniques</span>
-            <ChevronDown class="w-5 h-5 shrink-0 text-text-muted dark:text-text-dark-muted transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group-open:rotate-180 group-hover:text-text-main dark:group-hover:text-text-dark-main" />
+            <ChevronDown class="w-5 h-5 shrink-0 text-text-muted dark:text-text-dark-muted transition-transform duration-200 ease-out group-open:rotate-180 group-hover:text-text-main dark:group-hover:text-text-dark-main" />
           </summary>
           <ol class="pb-4 max-w-3xl">
             <li class="grid sm:grid-cols-[11rem_1fr] gap-x-8 gap-y-1 py-5 border-t border-text-main/15 dark:border-text-dark-main/15">
@@ -342,6 +342,19 @@ const buys = [
   }
   .is-seen .cipher-reveal {
     animation-play-state: running;
+  }
+
+  /* Opens to its height where the browser can animate to auto; snaps elsewhere. */
+  .tech-details {
+    interpolate-size: allow-keywords;
+  }
+  .tech-details::details-content {
+    height: 0;
+    overflow: clip;
+    transition: height 300ms var(--cv-ease-out), content-visibility 300ms allow-discrete;
+  }
+  .tech-details[open]::details-content {
+    height: auto;
   }
 }
 @keyframes cipher-reveal {
