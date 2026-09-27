@@ -26,7 +26,11 @@ import { contactEmail, owner, sourceRepos } from '@/components/public/siteInfo'
     </LegalSection>
 
     <LegalSection heading="Code source">
-      <p>Le code de l'application est public&nbsp;: vous pouvez vérifier qu'il fait ce que ces pages décrivent.</p>
+      <p>
+        Le code de l'application est open source, sous licence
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html">GNU AGPL 3.0</a>&nbsp;:
+        vous pouvez vérifier qu'il fait ce que ces pages décrivent.
+      </p>
       <ul>
         <li v-for="repo in sourceRepos" :key="repo.url">
           {{ repo.label }}&nbsp;: <a :href="repo.url">{{ repo.url.replace('https://', '') }}</a>

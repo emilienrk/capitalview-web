@@ -304,7 +304,7 @@ const buys = [
         <div class="lg:col-span-7 lg:col-start-6">
           <p class="text-lg leading-relaxed text-pretty">
             CapitalView est fait par {{ owner }}, en France, qui l'héberge sur son propre serveur.
-            Le code est public&nbsp;: vous pouvez vérifier que l'application fait ce que cette page annonce.
+            Le code est open source (licence AGPL 3.0)&nbsp;: vous pouvez vérifier que l'application fait ce que cette page annonce.
           </p>
           <ul class="mt-6 flex flex-wrap gap-x-8 gap-y-2">
             <li v-for="repo in sourceRepos" :key="repo.url">
