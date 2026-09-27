@@ -45,3 +45,13 @@ input, textarea {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Reduced motion keeps the fade that says something appeared, not the travel. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up {
+    animation-name: cv-fade-in;
+  }
+}
+@keyframes cv-fade-in {
+  from { opacity: 0; }
+}
