@@ -3,8 +3,10 @@ import { ArrowRight, ChevronDown } from 'lucide-vue-next'
 
 import { defineAsyncComponent } from 'vue'
 import { BaseTerm } from '@/components'
+import PublicFooter from '@/components/public/PublicFooter.vue'
 import PublicNav from '@/components/public/PublicNav.vue'
 import { focusRing, primaryButton, textLink } from '@/components/public/publicStyles'
+import { contactEmail, owner, sourceRepos } from '@/components/public/siteInfo'
 
 // Charts are heavy and sit below the fold.
 const LandingDemo = defineAsyncComponent(() => import('@/components/public/LandingDemo.vue'))
@@ -221,9 +223,12 @@ const buys = [
           </p>
           <p class="mt-3">
             <strong class="font-semibold text-text-main dark:text-text-dark-main">Ce qui sort du serveur.</strong>
+            Tout le trafic passe par Cloudflare, qui déchiffre la connexion HTTPS pour l'acheminer&nbsp;: il voit vos requêtes,
+            y compris le mot de passe saisi à la connexion et le cookie qui porte votre clé.
             Si vous activez l'IA, les données concernées partent chez le fournisseur que vous avez choisi, avec votre propre clé d'accès&nbsp;;
             si vous reliez une banque, c'est Enable Banking qui transmet vos opérations. Les polices de ces pages viennent de Google Fonts,
             et les visites sont comptées par une mesure d'audience sans cookie (Umami).
+            <router-link to="/confidentialite" :class="textLink">La liste complète</router-link>.
           </p>
         </div>
 
@@ -285,6 +290,29 @@ const buys = [
       </div>
     </section>
 
+    <!-- Who runs it -->
+    <section aria-labelledby="auteur" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 md:pt-20">
+      <div class="grid lg:grid-cols-12 gap-x-12 gap-y-6 pt-7 border-t-2 border-text-main dark:border-text-dark-main">
+        <h2 id="auteur" class="lg:col-span-4 text-3xl sm:text-4xl leading-tight font-semibold text-text-main dark:text-text-dark-main text-balance">
+          Qui est derrière
+        </h2>
+        <div class="lg:col-span-7 lg:col-start-6">
+          <p class="text-lg leading-relaxed text-pretty">
+            CapitalView est fait par {{ owner }}, en France, qui l'héberge sur son propre serveur.
+            Le code est public&nbsp;: vous pouvez vérifier que l'application fait ce que cette page annonce.
+          </p>
+          <ul class="mt-6 flex flex-wrap gap-x-8 gap-y-2">
+            <li v-for="repo in sourceRepos" :key="repo.url">
+              <a :href="repo.url" :class="['min-h-11 inline-flex items-center', textLink]">{{ repo.label }}</a>
+            </li>
+            <li>
+              <a :href="`mailto:${contactEmail}`" :class="['min-h-11 inline-flex items-center', textLink]">{{ contactEmail }}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <!-- Closing -->
     <section class="max-w-6xl mx-auto px-4 sm:px-6 py-16 md:py-20 flex flex-wrap items-center justify-between gap-6">
       <h2 class="text-2xl sm:text-3xl leading-tight font-semibold text-text-main dark:text-text-dark-main text-balance">
@@ -296,14 +324,7 @@ const buys = [
       </div>
     </section>
 
-    <footer class="border-t border-surface-border dark:border-surface-dark-border">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-sm text-text-muted dark:text-text-dark-muted">
-        <p>&copy; 2026 CapitalView</p>
-        <a href="#securite" :class="['min-h-11 inline-flex items-center rounded-button underline underline-offset-4 decoration-surface-border dark:decoration-surface-dark-border hover:text-text-main dark:hover:text-text-dark-main', focusRing]">
-          Comment vos données sont chiffrées
-        </a>
-      </div>
-    </footer>
+    <PublicFooter />
   </div>
 </template>
 

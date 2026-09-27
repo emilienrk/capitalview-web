@@ -216,6 +216,10 @@ function finish() {
         Déjà un compte&nbsp;?
         <router-link to="/login" :class="textLink">Se connecter</router-link>
       </p>
+      <p :class="fieldHint">
+        Ce que le serveur conserve et qui d'autre en voit une partie&nbsp;:
+        <router-link to="/confidentialite" :class="textLink">politique de confidentialité</router-link>.
+      </p>
     </form>
 
     <template #aside>

@@ -150,6 +150,10 @@ onMounted(async () => {
           <p class="text-xs text-text-muted dark:text-text-dark-muted">
             CapitalView v{{ appVersion }} — &copy; 2026
           </p>
+          <p class="mt-1 flex justify-center gap-x-4 text-xs text-text-muted dark:text-text-dark-muted">
+            <router-link to="/mentions-legales" class="inline-flex min-h-11 items-center underline-offset-4 hover:underline hover:text-text-main dark:hover:text-text-dark-main">Mentions légales</router-link>
+            <router-link to="/confidentialite" class="inline-flex min-h-11 items-center underline-offset-4 hover:underline hover:text-text-main dark:hover:text-text-dark-main">Confidentialité</router-link>
+          </p>
         </div>
       </main>
 

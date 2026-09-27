@@ -1,4 +1,4 @@
-<!-- public/capitalview.svg drawn in currentColor, so public pages can tint it from the palette. -->
+<!-- public/capitalview.svg drawn in currentColor, so it takes the palette's primary colour. -->
 <template>
   <svg viewBox="0 0 1200 1200" fill="currentColor" aria-hidden="true">
     <g transform="translate(0,1200) scale(0.1,-0.1)">

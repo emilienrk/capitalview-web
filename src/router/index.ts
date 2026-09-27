@@ -20,6 +20,8 @@ const Notes = () => import('@/pages/Notes.vue')
 const Settings = () => import('@/pages/Settings.vue')
 const Register = () => import('@/pages/Register.vue')
 const Recover = () => import('@/pages/Recover.vue')
+const LegalNotice = () => import('@/pages/LegalNotice.vue')
+const Privacy = () => import('@/pages/Privacy.vue')
 const Community = () => import('@/pages/Community.vue')
 const Analysis = () => import('@/pages/Analysis.vue')
 
@@ -57,6 +59,18 @@ const routes = [
     name: 'recover',
     component: Recover,
     meta: { requiresAuth: false, layout: 'blank' },
+  },
+  {
+    path: '/mentions-legales',
+    name: 'legal-notice',
+    component: LegalNotice,
+    meta: { requiresAuth: false, layout: 'blank', legal: true },
+  },
+  {
+    path: '/confidentialite',
+    name: 'privacy',
+    component: Privacy,
+    meta: { requiresAuth: false, layout: 'blank', legal: true },
   },
   {
     // One shell for the Banque section's tabs: its header and actions stay put
@@ -141,6 +155,7 @@ const router = createRouter({
   // Without this, a new page opens at the previous page's scroll offset.
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash }
     if (to.path !== from.path) return { top: 0 }
   },
 })
