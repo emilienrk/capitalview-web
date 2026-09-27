@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { MotionConfig, motion } from 'motion-v'
+import { computed, useId } from 'vue'
 
 type SegmentedControlVariant = 'primary' | 'surface'
 type SegmentedControlSize = 'sm' | 'md'
@@ -28,13 +29,15 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | number]
 }>()
 
-const variantClasses: Record<SegmentedControlVariant, { active: string; inactive: string }> = {
+const variantClasses: Record<SegmentedControlVariant, { active: string; inactive: string; indicator: string }> = {
   primary: {
-    active: 'bg-primary text-primary-content shadow-sm',
+    active: 'text-primary-content',
+    indicator: 'bg-primary shadow-sm',
     inactive: 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
   },
   surface: {
-    active: 'bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main shadow-sm ring-1 ring-black/5 dark:ring-white/10',
+    active: 'text-text-main dark:text-text-dark-main',
+    indicator: 'bg-surface dark:bg-surface-dark shadow-sm ring-1 ring-black/5 dark:ring-white/10',
     inactive: 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
   },
 }
@@ -48,6 +51,11 @@ const containerClasses = computed(() => [
   'inline-flex items-center gap-0.5 rounded-button border border-surface-border dark:border-surface-dark-border bg-background-subtle dark:bg-background-dark-subtle p-1',
   props.fullWidth ? 'w-full' : '',
 ])
+
+// One indicator per control slides to the chosen option instead of the
+// background jumping between buttons; the id keeps controls on a page apart.
+const indicatorId = `segmented-${useId()}`
+const INDICATOR_TRANSITION = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const
 
 function isActive(value: string | number): boolean {
   return props.modelValue === value
@@ -64,19 +72,27 @@ function getOptionValue(option: SegmentedControlOption): string | number {
 
 <template>
   <div :class="containerClasses">
-    <button
-      v-for="option in props.options"
-      :key="String(getOptionValue(option))"
-      type="button"
-      @click="selectValue(getOptionValue(option))"
-      :class="[
-        'border border-transparent rounded-button font-medium transition duration-200',
-        sizeClasses[props.size],
-        props.fullWidth ? 'flex-1 min-w-0' : '',
-        isActive(getOptionValue(option)) ? variantClasses[props.variant].active : variantClasses[props.variant].inactive,
-      ]"
-    >
-      {{ option.label }}
-    </button>
+    <MotionConfig reduced-motion="user">
+      <button
+        v-for="option in props.options"
+        :key="String(getOptionValue(option))"
+        type="button"
+        @click="selectValue(getOptionValue(option))"
+        :class="[
+          'relative border border-transparent rounded-button font-medium transition-colors duration-200',
+          sizeClasses[props.size],
+          props.fullWidth ? 'flex-1 min-w-0' : '',
+          isActive(getOptionValue(option)) ? variantClasses[props.variant].active : variantClasses[props.variant].inactive,
+        ]"
+      >
+        <motion.span
+          v-if="isActive(getOptionValue(option))"
+          :layout-id="indicatorId"
+          :transition="INDICATOR_TRANSITION"
+          :class="['absolute -inset-px rounded-button', variantClasses[props.variant].indicator]"
+        />
+        <span class="relative">{{ option.label }}</span>
+      </button>
+    </MotionConfig>
   </div>
 </template>
