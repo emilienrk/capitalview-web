@@ -1,5 +1,4 @@
 /** @type {import('tailwindcss').Config} */
-import colors from 'tailwindcss/colors'
 import typography from '@tailwindcss/typography'
 import forms from '@tailwindcss/forms'
 
@@ -22,103 +21,112 @@ export default {
     },
     extend: {
       colors: {
+        // Values live in src/styles/theme.css so styles and palettes can swap them.
         // ── Brand ─────────────────────────────────
         primary: {
-          DEFAULT: colors.indigo[600],
-          hover: colors.indigo[700],
-          active: colors.indigo[800],
-          light: colors.indigo[50],
-          content: '#ffffff',
+          DEFAULT: 'var(--cv-primary)',
+          hover: 'var(--cv-primary-hover)',
+          active: 'var(--cv-primary-active)',
+          light: 'var(--cv-primary-light)',
+          content: 'var(--cv-primary-content)',
         },
         secondary: {
-          DEFAULT: colors.slate[600],
-          hover: colors.slate[700],
-          light: colors.slate[100],
+          DEFAULT: 'var(--cv-secondary)',
+          hover: 'var(--cv-secondary-hover)',
+          light: 'var(--cv-secondary-light)',
           content: '#ffffff',
         },
 
         // ── Feedback ──────────────────────────────
         info: {
-          DEFAULT: colors.blue[500],
-          light: colors.blue[50],
+          DEFAULT: 'var(--cv-info)',
+          light: 'var(--cv-info-light)',
           content: '#ffffff',
         },
         success: {
-          DEFAULT: colors.emerald[600],
-          light: colors.emerald[50],
+          DEFAULT: 'var(--cv-success)',
+          light: 'var(--cv-success-light)',
           content: '#ffffff',
         },
         warning: {
-          DEFAULT: colors.amber[500],
-          light: colors.amber[50],
+          DEFAULT: 'var(--cv-warning)',
+          light: 'var(--cv-warning-light)',
           content: '#ffffff',
         },
         danger: {
-          DEFAULT: colors.red[600],
-          light: colors.red[50],
+          DEFAULT: 'var(--cv-danger)',
+          light: 'var(--cv-danger-light)',
           content: '#ffffff',
         },
 
         // ── Backgrounds ───────────────────────────
         background: {
-          DEFAULT: colors.gray[50],
-          subtle: colors.gray[100],
-          dark: colors.slate[950],
-          'dark-subtle': colors.slate[900],
+          DEFAULT: 'var(--cv-background)',
+          subtle: 'var(--cv-background-subtle)',
+          dark: 'var(--cv-background-dark)',
+          'dark-subtle': 'var(--cv-background-dark-subtle)',
         },
 
         // ── Surfaces (cards, panels, modals) ──────
         surface: {
-          DEFAULT: '#ffffff',
-          hover: colors.gray[50],
-          border: colors.gray[200],
-          active: colors.gray[100],
-          dark: colors.slate[900],
-          'dark-hover': colors.slate[800],
-          'dark-border': colors.slate[700],
+          DEFAULT: 'var(--cv-surface)',
+          hover: 'var(--cv-surface-hover)',
+          border: 'var(--cv-surface-border)',
+          active: 'var(--cv-surface-active)',
+          dark: 'var(--cv-surface-dark)',
+          'dark-hover': 'var(--cv-surface-dark-hover)',
+          'dark-border': 'var(--cv-surface-dark-border)',
         },
 
         // ── Typography ────────────────────────────
         text: {
-          main: colors.gray[900],
-          body: colors.gray[700],
-          muted: colors.gray[500],
+          main: 'var(--cv-text-main)',
+          body: 'var(--cv-text-body)',
+          muted: 'var(--cv-text-muted)',
           inverted: '#ffffff',
-          'dark-main': colors.slate[50],
-          'dark-body': colors.slate[300],
-          'dark-muted': colors.slate[500],
+          'dark-main': 'var(--cv-text-dark-main)',
+          'dark-body': 'var(--cv-text-dark-body)',
+          'dark-muted': 'var(--cv-text-dark-muted)',
         },
 
         // ── Sidebar ───────────────────────────────
         sidebar: {
-          DEFAULT: '#ffffff',
-          dark: colors.slate[900],
-          border: colors.gray[200],
-          'dark-border': colors.slate[800],
-          active: colors.indigo[50],
-          'dark-active': colors.indigo[950],
+          DEFAULT: 'var(--cv-sidebar)',
+          dark: 'var(--cv-sidebar-dark)',
+          border: 'var(--cv-sidebar-border)',
+          'dark-border': 'var(--cv-sidebar-dark-border)',
+          active: 'var(--cv-sidebar-active)',
+          'dark-active': 'var(--cv-sidebar-dark-active)',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['Fira Code', 'ui-monospace', 'monospace'],
+        sans: 'var(--cv-font-sans)',
+        display: 'var(--cv-font-display)',
+        mono: 'var(--cv-font-mono)',
       },
       borderRadius: {
-        'primary': '1rem',
-        'secondary': '0.5rem',
-        'card': '1.5rem',
-        'button': '0.75rem',
-        'input': '0.75rem',
-        'badge': '0.375rem',
-        'xl': '1rem',
-        '2xl': '1.5rem',
-        '3xl': '2rem',
+        'primary': 'var(--cv-radius-primary)',
+        'secondary': 'var(--cv-radius-secondary)',
+        'card': 'var(--cv-radius-card)',
+        'button': 'var(--cv-radius-button)',
+        'input': 'var(--cv-radius-input)',
+        'badge': 'var(--cv-radius-badge)',
+        'sm': 'var(--cv-radius-sm)',
+        'md': 'var(--cv-radius-md)',
+        'lg': 'var(--cv-radius-lg)',
+        'xl': 'var(--cv-radius-xl)',
+        '2xl': 'var(--cv-radius-2xl)',
+        '3xl': 'var(--cv-radius-3xl)',
         'full': '9999px',
       },
       boxShadow: {
-        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-        'card': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)',
-        'modal': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        'sm': 'var(--cv-shadow-sm)',
+        'DEFAULT': 'var(--cv-shadow)',
+        'md': 'var(--cv-shadow-md)',
+        'lg': 'var(--cv-shadow-lg)',
+        'soft': 'var(--cv-shadow-soft)',
+        'card': 'var(--cv-shadow-card)',
+        'modal': 'var(--cv-shadow-modal)',
       },
       spacing: {
         'sidebar': '16rem',

@@ -8,7 +8,9 @@ import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import BlankLayout from '@/layouts/BlankLayout.vue'
 import BaseConfirmDialog from '@/components/base/BaseConfirmDialog.vue'
 import NotificationBubble from '@/components/NotificationBubble.vue'
+import ThemeLab from '@/components/ThemeLab.vue'
 
+const isDev = import.meta.env.DEV
 const route = useRoute()
 const auth = useAuthStore()
 
@@ -33,4 +35,5 @@ const layout = computed(() => {
 
   <BaseConfirmDialog />
   <NotificationBubble />
+  <ThemeLab v-if="isDev" />
 </template>

@@ -9,6 +9,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -29,16 +30,7 @@ const updateOptions = {
   replaceMerge: ['legend', 'series'],
 }
 
-const COLORS = [
-  '#2563eb',
-  '#059669',
-  '#d97706',
-  '#db2777',
-  '#7c3aed',
-  '#0d9488',
-  '#ea580c',
-  '#4f46e5',
-]
+const chartTheme = useChartTheme()
 
 const sortedSegments = computed(() => {
   return [...props.segments].sort((a, b) => b.value - a.value)
@@ -53,19 +45,18 @@ watch(sortedSegments, (segments) => {
 }, { immediate: true })
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     tooltip: {
       trigger: 'item',
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: any) => {
         const value = Number(params.value || 0)
         const pct = Number(params.percent || 0)
@@ -95,7 +86,7 @@ const option = computed(() => {
         selectedOffset: 0,
         avoidLabelOverlap: true,
         itemStyle: {
-          borderColor: props.isDark ? '#0f172a' : '#ffffff',
+          borderColor: theme.surface,
           borderWidth: 2,
         },
         emphasis: {
@@ -108,7 +99,7 @@ const option = computed(() => {
         labelLine: {
           show: false,
         },
-        color: COLORS,
+        color: theme.categorical,
         data: sortedSegments.value,
       },
     ],

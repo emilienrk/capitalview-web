@@ -17,7 +17,7 @@ defineProps<Props>()
         <p class="text-sm font-medium text-text-muted dark:text-text-dark-muted truncate">
           {{ label }}
         </p>
-        <p class="mt-1.5 text-2xl font-bold text-text-main dark:text-text-dark-main truncate">
+        <p class="cv-figure mt-1.5 text-2xl font-bold text-text-main dark:text-text-dark-main truncate">
           {{ value }}
         </p>
         <p

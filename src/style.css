@@ -1,7 +1,21 @@
 /* Inter is loaded from index.html (<link rel="preconnect"> + stylesheet)
    so the font request starts in parallel instead of blocking on the CSS. */
 @import "tailwindcss";
+@import "./styles/theme.css";
 @config "../tailwind.config.js";
+
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--cv-font-display);
+    letter-spacing: var(--cv-display-tracking);
+  }
+
+  /* Headline amounts (stat cards) can take their own voice, e.g. the
+     editorial style sets them in the display serif. */
+  .cv-figure {
+    font-family: var(--cv-font-figure);
+  }
+}
 
 html, body {
   touch-action: manipulation;

@@ -10,6 +10,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
@@ -22,6 +23,7 @@ const props = defineProps<{
 }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
+const chartTheme = useChartTheme()
 const legendSelection = ref<Record<string, boolean>>({
   Investi: true,
   'Investi + P/L': true,
@@ -57,16 +59,16 @@ function formatCurrencyValue(value: number): string {
 }
 
 const option = computed(() => {
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280'
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6'
-  const tooltipBg = props.isDark ? '#0f172a' : '#ffffff'
-  const tooltipBorder = props.isDark ? '#334155' : '#e5e7eb'
-  const tooltipText = props.isDark ? '#f1f5f9' : '#111827'
+  const theme = chartTheme.value
+  const textColor = theme.text
+  const gridColor = theme.grid
+  const barRadius = [theme.barRadius, theme.barRadius, 0, 0]
 
   const isSmall = containerWidth.value < 640
 
   return {
     backgroundColor: 'transparent',
+    textStyle: { fontFamily: theme.fontFamily },
     legend: {
       top: 0,
       selectedMode: true,
@@ -108,9 +110,9 @@ const option = computed(() => {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       confine: true,
-      backgroundColor: tooltipBg,
-      borderColor: tooltipBorder,
-      textStyle: { color: tooltipText, fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: any[]) => {
         if (!Array.isArray(params) || params.length === 0) return ''
 
@@ -132,8 +134,8 @@ const option = computed(() => {
         type: 'bar',
         barMaxWidth: 32,
         itemStyle: {
-          color: '#4f46e5',
-          borderRadius: [6, 6, 0, 0],
+          color: theme.roles.total,
+          borderRadius: barRadius,
         },
         emphasis: { focus: 'series' },
         data: rows.value.map((row) => row.invested),
@@ -143,8 +145,8 @@ const option = computed(() => {
         type: 'bar',
         barMaxWidth: 32,
         itemStyle: {
-          color: '#10b981',
-          borderRadius: [6, 6, 0, 0],
+          color: theme.roles.stock,
+          borderRadius: barRadius,
         },
         emphasis: { focus: 'series' },
         data: rows.value.map((row) => row.investedWithPnl),

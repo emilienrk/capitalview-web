@@ -12,6 +12,7 @@ import {
 import VChart from 'vue-echarts'
 import type { AccountHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -71,6 +72,7 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
 }
 
 const { chartRef, containerRef, canRenderChart, containerWidth, syncChartVisibilityAndSize } = useChartResize()
+const chartTheme = useChartTheme()
 const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
@@ -162,25 +164,16 @@ watch(
 
 const isMobile = computed(() => containerWidth.value < 640)
 
-const SERIES_COLORS = [
-  '#3b82f6', // info
-  '#10b981', // success
-  '#f59e0b', // warning
-  '#6366f1', // primary-ish
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#84cc16', // lime
-  '#ec4899', // pink
-]
-
 const option = computed(() => {
   const dates = allDates.value
 
   const isDaily = props.granularity === 'daily'
   const showDailyPoints = false
 
-  const textColor = props.isDark ? '#94a3b8' : '#6b7280' // slate-400 / gray-500
-  const gridColor = props.isDark ? '#1e293b' : '#f3f4f6' // slate-800 / gray-100
+  const theme = chartTheme.value
+  const SERIES_COLORS = theme.categorical
+  const textColor = theme.text
+  const gridColor = theme.grid
   const bgColor = 'transparent'
 
   const series = props.series.map((line, index) => {
@@ -247,6 +240,7 @@ const option = computed(() => {
 
   return {
     backgroundColor: bgColor,
+    textStyle: { fontFamily: theme.fontFamily },
     legend: {
       // A single series is already named by the card it sits in; the legend
       // would only repeat it, and it costs a row of the plot.
@@ -310,9 +304,9 @@ const option = computed(() => {
     tooltip: {
       trigger: 'axis',
       confine: true,
-      backgroundColor: props.isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-      borderColor: props.isDark ? '#334155' : '#e2e8f0',
-      textStyle: { color: props.isDark ? '#e2e8f0' : '#1e293b', fontSize: 12 },
+      backgroundColor: theme.tooltipBg,
+      borderColor: theme.tooltipBorder,
+      textStyle: { color: theme.tooltipText, fontSize: 12, fontFamily: theme.fontFamily },
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0) return ''
 
@@ -343,8 +337,8 @@ const option = computed(() => {
             show: true,
             borderColor: 'transparent',
             borderRadius: 11,
-            backgroundColor: props.isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(209, 213, 219, 0.7)',
-            fillerColor: props.isDark ? 'rgba(59, 130, 246, 0.45)' : 'rgba(99, 102, 241, 0.3)',
+            backgroundColor: theme.zoomTrack,
+            fillerColor: theme.zoomFill,
             // No resize handles — just the move handle in the center
             handleSize: 0,
             handleStyle: { opacity: 0 },
@@ -354,11 +348,9 @@ const option = computed(() => {
             },
             moveHandleSize: 20,
             moveHandleStyle: {
-              color: props.isDark ? '#6366f1' : '#6366f1',
+              color: theme.zoomHandle,
               opacity: 0.85,
               borderWidth: 0,
-              shadowBlur: 4,
-              shadowColor: 'rgba(99,102,241,0.35)',
             },
             textStyle: { color: 'transparent', fontSize: 0 },
             startValue: zoomStartIndex.value,

@@ -1,0 +1,435 @@
+/* Design tokens behind the Tailwind theme (tailwind.config.js reads them).
+   :root holds the incumbent look. [data-style] swaps type, corners and
+   depth; [data-palette] swaps colors. Both attributes are optional and
+   combine freely, so every style can be judged in every palette. */
+
+:root {
+  /* ── Type ─────────────────────────────────────── */
+  --cv-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-display: var(--cv-font-sans);
+  --cv-font-figure: var(--cv-font-sans);
+  --cv-font-mono: 'Fira Code', ui-monospace, monospace;
+  --cv-display-tracking: normal;
+
+  /* ── Corners ──────────────────────────────────── */
+  --cv-radius-primary: 1rem;
+  --cv-radius-secondary: 0.5rem;
+  --cv-radius-card: 1.5rem;
+  --cv-radius-button: 0.75rem;
+  --cv-radius-input: 0.75rem;
+  --cv-radius-badge: 0.375rem;
+  --cv-radius-sm: 0.25rem;
+  --cv-radius-md: 0.375rem;
+  --cv-radius-lg: 0.5rem;
+  --cv-radius-xl: 1rem;
+  --cv-radius-2xl: 1.5rem;
+  --cv-radius-3xl: 2rem;
+
+  /* ── Depth ────────────────────────────────────── */
+  --cv-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --cv-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --cv-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --cv-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --cv-shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --cv-shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  --cv-shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* ── Colors ───────────────────────────────────── */
+  --cv-primary: oklch(51.1% 0.262 276.966);
+  --cv-primary-hover: oklch(45.7% 0.24 277.023);
+  --cv-primary-active: oklch(39.8% 0.195 277.366);
+  --cv-primary-light: oklch(96.2% 0.018 272.314);
+  --cv-primary-content: #ffffff;
+
+  --cv-secondary: oklch(44.6% 0.043 257.281);
+  --cv-secondary-hover: oklch(37.2% 0.044 257.287);
+  --cv-secondary-light: oklch(96.8% 0.007 247.896);
+
+  --cv-info: oklch(62.3% 0.214 259.815);
+  --cv-info-light: oklch(97% 0.014 254.604);
+  --cv-success: oklch(59.6% 0.145 163.225);
+  --cv-success-light: oklch(97.9% 0.021 166.113);
+  --cv-warning: oklch(76.9% 0.188 70.08);
+  --cv-warning-light: oklch(98.7% 0.022 95.277);
+  --cv-danger: oklch(57.7% 0.245 27.325);
+  --cv-danger-light: oklch(97.1% 0.013 17.38);
+
+  --cv-background: oklch(98.5% 0.002 247.839);
+  --cv-background-subtle: oklch(96.7% 0.003 264.542);
+  --cv-background-dark: oklch(12.9% 0.042 264.695);
+  --cv-background-dark-subtle: oklch(20.8% 0.042 265.755);
+
+  --cv-surface: #ffffff;
+  --cv-surface-hover: oklch(98.5% 0.002 247.839);
+  --cv-surface-border: oklch(92.8% 0.006 264.531);
+  --cv-surface-active: oklch(96.7% 0.003 264.542);
+  --cv-surface-dark: oklch(20.8% 0.042 265.755);
+  --cv-surface-dark-hover: oklch(27.9% 0.041 260.031);
+  --cv-surface-dark-border: oklch(37.2% 0.044 257.287);
+
+  --cv-text-main: oklch(21% 0.034 264.665);
+  --cv-text-body: oklch(37.3% 0.034 259.733);
+  --cv-text-muted: oklch(55.1% 0.027 264.364);
+  --cv-text-dark-main: oklch(98.4% 0.003 247.858);
+  --cv-text-dark-body: oklch(86.9% 0.022 252.894);
+  --cv-text-dark-muted: oklch(55.4% 0.046 257.417);
+
+  --cv-sidebar: #ffffff;
+  --cv-sidebar-dark: oklch(20.8% 0.042 265.755);
+  --cv-sidebar-border: oklch(92.8% 0.006 264.531);
+  --cv-sidebar-dark-border: oklch(27.9% 0.041 260.031);
+  --cv-sidebar-active: oklch(96.2% 0.018 272.314);
+  --cv-sidebar-dark-active: oklch(25.7% 0.09 281.288);
+
+  /* ── Charts (ECharts reads these through useChartTheme) ── */
+  --cv-chart-bar-radius: 6;
+  --cv-chart-text: #6b7280;
+  --cv-chart-grid: #f3f4f6;
+  --cv-chart-tooltip-bg: #ffffff;
+  --cv-chart-tooltip-border: #e5e7eb;
+  --cv-chart-tooltip-text: #111827;
+  --cv-chart-surface: #ffffff;
+  --cv-chart-zoom-track: rgba(209, 213, 219, 0.7);
+  --cv-chart-zoom-fill: rgba(99, 102, 241, 0.3);
+  --cv-chart-zoom-handle: #6366f1;
+  --cv-chart-total: #4f46e5;
+  --cv-chart-bank: #3b82f6;
+  --cv-chart-stock: #059669;
+  --cv-chart-crypto: #f59e0b;
+  --cv-chart-placements: #8b5cf6;
+  --cv-chart-assets: #475569;
+  --cv-chart-1: #2563eb;
+  --cv-chart-2: #059669;
+  --cv-chart-3: #d97706;
+  --cv-chart-4: #db2777;
+  --cv-chart-5: #7c3aed;
+  --cv-chart-6: #0d9488;
+  --cv-chart-7: #ea580c;
+  --cv-chart-8: #4f46e5;
+}
+
+:root.dark {
+  --cv-chart-text: #94a3b8;
+  --cv-chart-grid: #1e293b;
+  --cv-chart-tooltip-bg: #0f172a;
+  --cv-chart-tooltip-border: #334155;
+  --cv-chart-tooltip-text: #f1f5f9;
+  --cv-chart-surface: #0f172a;
+  --cv-chart-zoom-track: rgba(51, 65, 85, 0.5);
+  --cv-chart-zoom-fill: rgba(59, 130, 246, 0.45);
+}
+
+/* ════════════════ Styles ════════════════ */
+
+/* Shadow tokens never use `none`: Tailwind folds them into one box-shadow
+   list with the focus rings, and a bare `none` would void the whole list. */
+
+/* Éditorial: a serif voice for headings and headline figures over a
+   newspaper grotesque; hairlines instead of shadows, barely-there corners. */
+:root[data-style='editorial'] {
+  --cv-font-sans: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-display: 'Brygada 1918', Georgia, serif;
+  --cv-font-figure: 'Brygada 1918', Georgia, serif;
+  --cv-display-tracking: -0.01em;
+
+  --cv-radius-primary: 0.25rem;
+  --cv-radius-secondary: 0.125rem;
+  --cv-radius-card: 0.25rem;
+  --cv-radius-button: 0.25rem;
+  --cv-radius-input: 0.25rem;
+  --cv-radius-badge: 0.125rem;
+  --cv-radius-sm: 0.125rem;
+  --cv-radius-md: 0.1875rem;
+  --cv-radius-lg: 0.25rem;
+  --cv-radius-xl: 0.25rem;
+  --cv-radius-2xl: 0.375rem;
+  --cv-radius-3xl: 0.5rem;
+
+  --cv-shadow-sm: 0 0 #0000;
+  --cv-shadow: 0 0 #0000;
+  --cv-shadow-md: 0 0 #0000;
+  --cv-shadow-lg: 0 8px 24px -12px rgb(0 0 0 / 0.18);
+  --cv-shadow-soft: 0 0 #0000;
+  --cv-shadow-card: 0 0 #0000;
+  --cv-shadow-modal: 0 24px 48px -20px rgb(0 0 0 / 0.28);
+
+  --cv-chart-bar-radius: 1;
+}
+
+/* Suisse: one grotesque does every job; right angles, rules, no depth. */
+:root[data-style='swiss'] {
+  --cv-font-sans: 'Mona Sans', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-display: var(--cv-font-sans);
+  --cv-font-figure: var(--cv-font-sans);
+  --cv-display-tracking: -0.02em;
+
+  --cv-radius-primary: 0;
+  --cv-radius-secondary: 0;
+  --cv-radius-card: 0;
+  --cv-radius-button: 0;
+  --cv-radius-input: 0;
+  --cv-radius-badge: 0;
+  --cv-radius-sm: 0;
+  --cv-radius-md: 0;
+  --cv-radius-lg: 0;
+  --cv-radius-xl: 0;
+  --cv-radius-2xl: 0;
+  --cv-radius-3xl: 0;
+
+  --cv-shadow-sm: 0 0 #0000;
+  --cv-shadow: 0 0 #0000;
+  --cv-shadow-md: 0 0 #0000;
+  --cv-shadow-lg: 0 12px 28px -14px rgb(0 0 0 / 0.25);
+  --cv-shadow-soft: 0 0 #0000;
+  --cv-shadow-card: 0 0 #0000;
+  --cv-shadow-modal: 0 24px 48px -20px rgb(0 0 0 / 0.3);
+
+  --cv-chart-bar-radius: 0;
+}
+
+/* Doux: a humanist face built for legibility, moderate corners, a whisper
+   of depth. */
+:root[data-style='soft'] {
+  --cv-font-sans: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, sans-serif;
+  --cv-font-display: var(--cv-font-sans);
+  --cv-font-figure: var(--cv-font-sans);
+  --cv-display-tracking: -0.005em;
+
+  --cv-radius-primary: 0.75rem;
+  --cv-radius-secondary: 0.5rem;
+  --cv-radius-card: 1rem;
+  --cv-radius-button: 0.625rem;
+  --cv-radius-input: 0.625rem;
+  --cv-radius-badge: 0.375rem;
+  --cv-radius-xl: 0.75rem;
+  --cv-radius-2xl: 1rem;
+  --cv-radius-3xl: 1.25rem;
+
+  --cv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --cv-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  --cv-shadow-md: 0 4px 10px -4px rgb(0 0 0 / 0.08);
+  --cv-shadow-lg: 0 12px 24px -12px rgb(0 0 0 / 0.14);
+  --cv-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04);
+  --cv-shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.05);
+  --cv-shadow-modal: 0 24px 48px -16px rgb(0 0 0 / 0.22);
+
+  --cv-chart-bar-radius: 4;
+}
+
+/* ════════════════ Palettes ════════════════
+   A palette only sets primitives (--p-*); the mapping below turns them into
+   the semantic tokens, so every palette fills every role in both modes.
+   Semantic success / warning / danger / info stay shared: gains and losses
+   must read the same whatever the palette. */
+
+:root[data-palette] {
+  --cv-primary: var(--p-accent);
+  --cv-primary-hover: var(--p-accent-hover);
+  --cv-primary-active: var(--p-accent-active);
+  --cv-primary-light: var(--p-accent-tint);
+  --cv-primary-content: var(--p-accent-ink);
+
+  --cv-secondary: var(--p-ink-2);
+  --cv-secondary-hover: var(--p-ink);
+  --cv-secondary-light: var(--p-canvas-2);
+
+  --cv-background: var(--p-canvas);
+  --cv-background-subtle: var(--p-canvas-2);
+  --cv-background-dark: var(--p-d-canvas);
+  --cv-background-dark-subtle: var(--p-d-canvas-2);
+
+  --cv-surface: var(--p-paper);
+  --cv-surface-hover: var(--p-canvas);
+  --cv-surface-border: var(--p-rule);
+  --cv-surface-active: var(--p-canvas-2);
+  --cv-surface-dark: var(--p-d-paper);
+  --cv-surface-dark-hover: var(--p-d-paper-hover);
+  --cv-surface-dark-border: var(--p-d-rule);
+
+  --cv-text-main: var(--p-ink);
+  --cv-text-body: var(--p-ink-2);
+  --cv-text-muted: var(--p-ink-3);
+  --cv-text-dark-main: var(--p-d-ink);
+  --cv-text-dark-body: var(--p-d-ink-2);
+  --cv-text-dark-muted: var(--p-d-ink-3);
+
+  --cv-sidebar: var(--p-paper);
+  --cv-sidebar-dark: var(--p-d-paper);
+  --cv-sidebar-border: var(--p-rule);
+  --cv-sidebar-dark-border: var(--p-d-rule);
+  --cv-sidebar-active: var(--p-accent-tint);
+  --cv-sidebar-dark-active: var(--p-d-accent-tint);
+
+  --cv-chart-text: var(--p-ink-3);
+  --cv-chart-grid: var(--p-canvas-2);
+  --cv-chart-tooltip-bg: var(--p-paper);
+  --cv-chart-tooltip-border: var(--p-rule);
+  --cv-chart-tooltip-text: var(--p-ink);
+  --cv-chart-surface: var(--p-paper);
+  --cv-chart-zoom-track: var(--p-canvas-2);
+  --cv-chart-zoom-fill: color-mix(in oklab, var(--p-accent) 22%, transparent);
+  --cv-chart-zoom-handle: var(--p-accent);
+
+  /* Muted categorical set shared by the palettes; only the lead hue follows
+     the accent, so the headline series always carries the palette. */
+  --cv-chart-1: var(--p-accent);
+  --cv-chart-2: oklch(60% 0.09 170);
+  --cv-chart-3: oklch(70% 0.11 78);
+  --cv-chart-4: oklch(57% 0.1 28);
+  --cv-chart-5: oklch(55% 0.08 305);
+  --cv-chart-6: oklch(63% 0.07 220);
+  --cv-chart-7: oklch(62% 0.09 128);
+  --cv-chart-8: oklch(52% 0.02 260);
+  --cv-chart-total: var(--p-accent);
+  --cv-chart-bank: var(--cv-chart-6);
+  --cv-chart-stock: var(--cv-chart-2);
+  --cv-chart-crypto: var(--cv-chart-3);
+  --cv-chart-placements: var(--cv-chart-5);
+  --cv-chart-assets: var(--cv-chart-8);
+}
+
+/* In dark mode the accent flips to its light form, so text-primary stays
+   legible and filled buttons invert their label. */
+:root.dark[data-palette] {
+  --cv-primary: var(--p-d-accent);
+  --cv-primary-hover: var(--p-d-accent-hover);
+  --cv-primary-active: var(--p-d-accent-active);
+  --cv-primary-light: var(--p-d-accent-tint);
+  --cv-primary-content: var(--p-d-accent-ink);
+
+  --cv-secondary: var(--p-d-ink-2);
+  --cv-secondary-hover: var(--p-d-ink);
+  --cv-secondary-light: var(--p-d-canvas-2);
+
+  --cv-chart-text: var(--p-d-ink-3);
+  --cv-chart-grid: var(--p-d-paper-hover);
+  --cv-chart-tooltip-bg: var(--p-d-paper);
+  --cv-chart-tooltip-border: var(--p-d-rule);
+  --cv-chart-tooltip-text: var(--p-d-ink);
+  --cv-chart-surface: var(--p-d-paper);
+  --cv-chart-zoom-track: var(--p-d-paper-hover);
+  --cv-chart-zoom-fill: color-mix(in oklab, var(--p-d-accent) 30%, transparent);
+  --cv-chart-zoom-handle: var(--p-d-accent);
+  --cv-chart-1: var(--p-d-accent);
+  --cv-chart-total: var(--p-d-accent);
+}
+
+/* Encre: ink blue on cool paper. */
+:root[data-palette='encre'] {
+  --p-canvas: oklch(98.4% 0.003 255);
+  --p-canvas-2: oklch(96.2% 0.005 255);
+  --p-paper: oklch(100% 0 0);
+  --p-rule: oklch(91% 0.008 255);
+  --p-ink: oklch(22% 0.02 260);
+  --p-ink-2: oklch(38% 0.02 260);
+  --p-ink-3: oklch(51% 0.018 260);
+  --p-accent: oklch(44% 0.16 262);
+  --p-accent-hover: oklch(39% 0.15 262);
+  --p-accent-active: oklch(34% 0.13 262);
+  --p-accent-tint: oklch(95.5% 0.025 262);
+  --p-accent-ink: oklch(100% 0 0);
+
+  --p-d-canvas: oklch(15% 0.012 260);
+  --p-d-canvas-2: oklch(18.5% 0.014 260);
+  --p-d-paper: oklch(18.5% 0.014 260);
+  --p-d-paper-hover: oklch(23% 0.016 260);
+  --p-d-rule: oklch(29% 0.016 260);
+  --p-d-ink: oklch(96% 0.006 260);
+  --p-d-ink-2: oklch(82% 0.012 260);
+  --p-d-ink-3: oklch(67% 0.014 260);
+  --p-d-accent: oklch(76% 0.11 262);
+  --p-d-accent-hover: oklch(81% 0.1 262);
+  --p-d-accent-active: oklch(71% 0.11 262);
+  --p-d-accent-tint: oklch(26% 0.05 262);
+  --p-d-accent-ink: oklch(18% 0.03 262);
+}
+
+/* Graphite: no hue at all; the accent is the ink itself. */
+:root[data-palette='graphite'] {
+  --p-canvas: oklch(98.2% 0 0);
+  --p-canvas-2: oklch(95.8% 0 0);
+  --p-paper: oklch(100% 0 0);
+  --p-rule: oklch(90.5% 0 0);
+  --p-ink: oklch(19% 0 0);
+  --p-ink-2: oklch(36% 0 0);
+  --p-ink-3: oklch(51% 0 0);
+  --p-accent: oklch(21% 0 0);
+  --p-accent-hover: oklch(30% 0 0);
+  --p-accent-active: oklch(12% 0 0);
+  --p-accent-tint: oklch(94% 0 0);
+  --p-accent-ink: oklch(100% 0 0);
+
+  --p-d-canvas: oklch(14% 0 0);
+  --p-d-canvas-2: oklch(17.5% 0 0);
+  --p-d-paper: oklch(17.5% 0 0);
+  --p-d-paper-hover: oklch(22% 0 0);
+  --p-d-rule: oklch(28% 0 0);
+  --p-d-ink: oklch(96% 0 0);
+  --p-d-ink-2: oklch(82% 0 0);
+  --p-d-ink-3: oklch(66% 0 0);
+  --p-d-accent: oklch(95% 0 0);
+  --p-d-accent-hover: oklch(88% 0 0);
+  --p-d-accent-active: oklch(80% 0 0);
+  --p-d-accent-tint: oklch(26% 0 0);
+  --p-d-accent-ink: oklch(15% 0 0);
+}
+
+/* Pétrole: deep blue-teal, kept clear of the success green. */
+:root[data-palette='petrole'] {
+  --p-canvas: oklch(98.3% 0.004 205);
+  --p-canvas-2: oklch(96% 0.006 205);
+  --p-paper: oklch(100% 0 0);
+  --p-rule: oklch(90.8% 0.009 205);
+  --p-ink: oklch(22% 0.018 215);
+  --p-ink-2: oklch(38% 0.018 215);
+  --p-ink-3: oklch(51% 0.016 215);
+  --p-accent: oklch(45% 0.085 218);
+  --p-accent-hover: oklch(40% 0.08 218);
+  --p-accent-active: oklch(35% 0.07 218);
+  --p-accent-tint: oklch(95.5% 0.02 212);
+  --p-accent-ink: oklch(100% 0 0);
+
+  --p-d-canvas: oklch(15.5% 0.012 215);
+  --p-d-canvas-2: oklch(19% 0.014 215);
+  --p-d-paper: oklch(19% 0.014 215);
+  --p-d-paper-hover: oklch(23.5% 0.016 215);
+  --p-d-rule: oklch(29.5% 0.016 215);
+  --p-d-ink: oklch(96% 0.006 215);
+  --p-d-ink-2: oklch(82% 0.012 215);
+  --p-d-ink-3: oklch(67% 0.014 215);
+  --p-d-accent: oklch(77% 0.085 208);
+  --p-d-accent-hover: oklch(82% 0.075 208);
+  --p-d-accent-active: oklch(72% 0.085 208);
+  --p-d-accent-tint: oklch(27% 0.04 212);
+  --p-d-accent-ink: oklch(18% 0.025 215);
+}
+
+/* Prune: plum on warm-neutral paper. */
+:root[data-palette='prune'] {
+  --p-canvas: oklch(98.3% 0.003 70);
+  --p-canvas-2: oklch(96% 0.005 70);
+  --p-paper: oklch(100% 0 0);
+  --p-rule: oklch(90.5% 0.007 70);
+  --p-ink: oklch(21% 0.012 50);
+  --p-ink-2: oklch(37% 0.012 50);
+  --p-ink-3: oklch(51% 0.012 50);
+  --p-accent: oklch(43% 0.13 350);
+  --p-accent-hover: oklch(38% 0.12 350);
+  --p-accent-active: oklch(33% 0.1 350);
+  --p-accent-tint: oklch(95.5% 0.022 350);
+  --p-accent-ink: oklch(100% 0 0);
+
+  --p-d-canvas: oklch(15.5% 0.008 50);
+  --p-d-canvas-2: oklch(19% 0.009 50);
+  --p-d-paper: oklch(19% 0.009 50);
+  --p-d-paper-hover: oklch(23.5% 0.01 50);
+  --p-d-rule: oklch(29.5% 0.011 50);
+  --p-d-ink: oklch(96% 0.005 60);
+  --p-d-ink-2: oklch(82% 0.01 60);
+  --p-d-ink-3: oklch(67% 0.012 60);
+  --p-d-accent: oklch(78% 0.1 350);
+  --p-d-accent-hover: oklch(83% 0.09 350);
+  --p-d-accent-active: oklch(73% 0.1 350);
+  --p-d-accent-tint: oklch(27% 0.05 350);
+  --p-d-accent-ink: oklch(18% 0.03 350);
+}
