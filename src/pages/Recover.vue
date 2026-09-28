@@ -8,6 +8,7 @@ import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
 import { fieldHint, fieldInput, fieldLabel, primaryButton, textLink } from '@/components/public/publicStyles'
 import PasswordRules from '@/components/public/PasswordRules.vue'
 import { passwordAccepted } from '@/components/public/passwordRules'
+import { contactEmail } from '@/components/public/siteInfo'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -163,8 +164,35 @@ function finish() {
           Personne, administrateur compris, ne peut réinitialiser l'accès, et aucun e-mail ne peut le faire.
         </p>
         <p class="mt-3 leading-relaxed text-pretty">
-          Si le mot de passe vous revient, reconnectez-vous puis générez une clé dans Réglages › Sécurité.
+          Si le mot de passe vous revient, reconnectez-vous puis générez une clé dans Paramètres&nbsp;›&nbsp;Sécurité.
         </p>
+      </div>
+      <div id="supprimer" class="scroll-mt-20 py-6 border-t border-surface-border dark:border-surface-dark-border">
+        <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Faire supprimer le compte</h2>
+        <p class="mt-2 leading-relaxed text-pretty">
+          Écrivez à <a :href="`mailto:${contactEmail}`" :class="textLink">{{ contactEmail }}</a> depuis l'adresse du compte.
+          On vous répond pour vérifier que la demande vient bien de vous, puis le compte est supprimé.
+        </p>
+        <ul class="mt-3 space-y-2 pl-5 list-disc marker:text-text-muted leading-relaxed text-pretty">
+          <li>
+            <strong class="font-semibold text-text-main dark:text-text-dark-main">Supprimés&nbsp;:</strong>
+            le compte, ses sessions, ses jetons d'accès, ses notifications et ce que vous avez publié dans la Communauté.
+            L'adresse e-mail redevient libre pour un nouveau compte.
+          </li>
+          <li>
+            <strong class="font-semibold text-text-main dark:text-text-dark-main">Restent en base&nbsp;:</strong>
+            vos données et vos réglages, qu'on ne retrouve qu'avec votre clé. Plus aucune copie de cette clé n'existant,
+            personne ne peut lire les données chiffrées ni rattacher quoi que ce soit à vous.
+          </li>
+          <li>
+            <strong class="font-semibold text-text-main dark:text-text-dark-main">Banque reliée&nbsp;:</strong>
+            l'accès donné à Enable Banking ne peut pas être fermé sans votre clé&nbsp;; il expire à sa date.
+          </li>
+          <li>
+            <strong class="font-semibold text-text-main dark:text-text-dark-main">Définitif&nbsp;:</strong>
+            vos données ne pourront plus être rouvertes, même si le mot de passe vous revient ensuite.
+          </li>
+        </ul>
       </div>
     </template>
 

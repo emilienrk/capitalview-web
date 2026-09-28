@@ -103,6 +103,8 @@ import { contactEmail, owner } from '@/components/public/siteInfo'
         <li><strong>Tout effacer</strong> en supprimant votre compte.</li>
       </ul>
       <p>
+        Si vous avez perdu à la fois votre mot de passe et votre clé de récupération, le compte peut quand même être supprimé&nbsp;:
+        <router-link :to="{ path: '/recover', hash: '#supprimer' }">comment, et ce que cela efface</router-link>.
         Pour toute autre demande, écrivez à <a :href="`mailto:${contactEmail}`">{{ contactEmail }}</a>.
         Vous pouvez aussi adresser une réclamation à la <a href="https://www.cnil.fr/fr/plaintes">CNIL</a>.
       </p>
