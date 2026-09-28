@@ -75,6 +75,7 @@ export default {
           active: 'var(--cv-surface-active)',
           dark: 'var(--cv-surface-dark)',
           'dark-hover': 'var(--cv-surface-dark-hover)',
+          'dark-active': 'var(--cv-surface-dark-active)',
           'dark-border': 'var(--cv-surface-dark-border)',
         },
 

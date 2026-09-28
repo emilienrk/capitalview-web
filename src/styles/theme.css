@@ -196,6 +196,7 @@
   --cv-surface-active: var(--p-canvas-2);
   --cv-surface-dark: var(--p-d-paper);
   --cv-surface-dark-hover: var(--p-d-paper-hover);
+  --cv-surface-dark-active: var(--p-d-paper-hover);
   --cv-surface-dark-border: var(--p-d-rule);
 
   --cv-text-main: var(--p-ink);
