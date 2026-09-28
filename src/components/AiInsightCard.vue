@@ -33,18 +33,13 @@ async function fetchInsight() {
   isLoading.value = true
   fetchError.value = false
   try {
-    const response = await apiClient.get<any>('/dashboard/card')
-    if (response) {
-      if (response.title) {
-        insightTitle.value = response.title
-      }
-      if (response.text) {
-        insightBody.value = response.text
-      } else if (typeof response === 'string') {
-        insightBody.value = response
-      } else {
-        insightBody.value = JSON.stringify(response)
-      }
+    const response = await apiClient.get<{ title?: string; text?: string } | string>('/dashboard/card')
+    // Anything but text stays hidden: raw JSON is not an insight.
+    if (typeof response === 'string') {
+      insightBody.value = response
+    } else if (response?.text) {
+      insightBody.value = response.text
+      if (response.title) insightTitle.value = response.title
     }
   } catch (error) {
     console.error('Failed to fetch IA card data:', error)
@@ -63,13 +58,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isVisible && !isLoading && !fetchError && insightBody" class="mb-6">
+  <div v-if="isVisible && !isLoading && !fetchError && insightBody">
     <BaseCard class="border-primary/20 dark:border-primary/30 shadow-sm relative overflow-hidden">
       <template #header>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 text-primary">
-            <Sparkles class="w-5 h-5" />
-            <h3 class="font-semibold text-lg text-text-main dark:text-text-dark-main">
+            <Sparkles class="w-4 h-4" aria-hidden="true" />
+            <h3 class="font-semibold text-base text-text-main dark:text-text-dark-main">
               {{ insightTitle }}
             </h3>
           </div>
@@ -77,14 +72,15 @@ onMounted(() => {
             @click="closeCard"
             class="p-1 rounded-secondary text-text-muted hover:text-text-main hover:bg-surface-border dark:text-text-dark-muted dark:hover:text-text-dark-main dark:hover:bg-surface-dark-border transition-colors"
             title="Fermer pour aujourd'hui"
+            aria-label="Fermer l'aperçu pour aujourd'hui"
           >
             <X class="w-4 h-4" />
           </button>
         </div>
       </template>
 
-      <div class="min-h-[80px] p-2 leading-relaxed">
-        <div class="text-sm sm:text-base text-text-body dark:text-text-dark-muted whitespace-pre-wrap">
+      <div class="leading-relaxed">
+        <div class="text-sm text-text-body dark:text-text-dark-muted whitespace-pre-wrap">
           {{ insightBody }}
         </div>
       </div>

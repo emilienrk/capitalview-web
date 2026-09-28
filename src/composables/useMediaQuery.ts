@@ -13,7 +13,9 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
  * ```
  */
 export function useMediaQuery(query: string) {
-  const matches = ref(false)
+  // Read at once rather than on mount, so a layout chosen by it is right on the
+  // first render instead of drawing the other one for a frame.
+  const matches = ref(typeof window !== 'undefined' && !!window.matchMedia?.(query).matches)
   let media: MediaQueryList | null = null
 
   function sync(event: MediaQueryList | MediaQueryListEvent) {

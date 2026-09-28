@@ -56,6 +56,20 @@ export const useRealCashflowStore = defineStore('realCashflow', () => {
     }
   }
 
+  /**
+   * A year's figures for another page to quote, shared through the same cache
+   * but kept out of `year`: that one belongs to the cashflow page's own view.
+   */
+  async function fetchYearSummary(value: number, force = false): Promise<RealCashflowYear | null> {
+    try {
+      return await getOrFetchCached<RealCashflowYear>(
+        `${CACHE_PREFIX}year:${value}`, () => apiClient.get<RealCashflowYear>(`/banking/real-cashflow?year=${value}`), CACHE_TTL_MS, force,
+      )
+    } catch {
+      return null
+    }
+  }
+
   function reset(): void {
     year.value = null
     month.value = null
@@ -64,5 +78,5 @@ export const useRealCashflowStore = defineStore('realCashflow', () => {
     latest = ''
   }
 
-  return { year, month, current, loading, error, fetchYear, fetchMonth, fetchCurrent, reset }
+  return { year, month, current, loading, error, fetchYear, fetchMonth, fetchCurrent, fetchYearSummary, reset }
 })

@@ -20,7 +20,12 @@ import type { RealCashflowCurrent, RealCashflowUpcoming } from '@/types'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
-const props = defineProps<{ data: RealCashflowCurrent; isDark?: boolean }>()
+const props = defineProps<{
+  data: RealCashflowCurrent
+  isDark?: boolean
+  /** Figures above the curve at every width, for a narrow column. */
+  stacked?: boolean
+}>()
 
 const { formatCurrency } = useFormatters()
 const { maskValue, privacyMode } = usePrivacyMode()
@@ -100,8 +105,8 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
-    <div class="lg:col-span-2 space-y-2">
+  <div class="grid grid-cols-1 gap-4 items-center" :class="stacked ? '' : 'lg:grid-cols-5'">
+    <div class="space-y-2" :class="stacked ? '' : 'lg:col-span-2'">
       <p class="text-2xl font-bold tabular-nums text-text-main dark:text-text-dark-main">
         {{ amount(data.spent_to_date) }}
         <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
@@ -137,7 +142,7 @@ const option = computed(() => {
         Explorer ce mois
       </router-link>
     </div>
-    <div ref="containerRef" class="lg:col-span-3 h-36 w-full">
+    <div ref="containerRef" class="h-36 w-full" :class="stacked ? '' : 'lg:col-span-3'">
       <VChart v-if="canRenderChart" ref="chartRef" :option="option" autoresize class="w-full h-full" />
     </div>
   </div>

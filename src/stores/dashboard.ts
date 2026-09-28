@@ -4,7 +4,6 @@ import { apiClient } from '@/api/client'
 import type {
   PortfolioResponse,
   BankSummaryResponse,
-  CashflowBalanceResponse,
   DashboardStatisticsResponse,
   ProjectionParameters,
   ProjectionResponse,
@@ -14,21 +13,22 @@ import type {
 export const useDashboardStore = defineStore('dashboard', () => {
   const portfolio = ref<PortfolioResponse | null>(null)
   const bankAccounts = ref<BankSummaryResponse | null>(null)
-  const cashflowBalance = ref<CashflowBalanceResponse | null>(null)
   const statistics = ref<DashboardStatisticsResponse | null>(null)
   const projection = ref<ProjectionResponse | null>(null)
   const projectionLoading = ref(false)
   const projectionError = ref<string | null>(null)
   const isLoading = ref(false)
+  /** False while the figures still rest on the prices stored in the database. */
+  const pricesLive = ref(false)
   const error = ref<string | null>(null)
   const _liveFetchSeq = ref(0)
 
   async function fetchAll(settings?: UserSettingsResponse | null) {
     isLoading.value = true
     error.value = null
+    pricesLive.value = false
 
     const bankEnabled = settings?.bank_module_enabled ?? true
-    const cashflowEnabled = settings?.cashflow_module_enabled ?? true
 
     try {
       // First load: portfolio from DB (fast) + other endpoints in parallel
@@ -37,20 +37,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
         bankEnabled
           ? apiClient.get<BankSummaryResponse>('/bank/accounts')
           : Promise.resolve(null),
-        cashflowEnabled
-          ? apiClient.get<CashflowBalanceResponse>('/cashflow/me/balance')
-          : Promise.resolve(null),
         apiClient.get<DashboardStatisticsResponse>('/dashboard/statistics?db_only=true'),
       ]
 
-      const [portfolioData, bankData, cashflowData, statsData] = await Promise.all(fastRequests)
+      const [portfolioData, bankData, statsData] = await Promise.all(fastRequests)
 
       portfolio.value = portfolioData as PortfolioResponse
       bankAccounts.value = bankEnabled ? (bankData as BankSummaryResponse) : null
-      cashflowBalance.value = cashflowEnabled ? (cashflowData as CashflowBalanceResponse) : null
       statistics.value = statsData as DashboardStatisticsResponse
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load dashboard'
+      error.value = e instanceof Error ? e.message : 'Impossible de charger le tableau de bord.'
     } finally {
       isLoading.value = false
     }
@@ -65,6 +61,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         if (seq === _liveFetchSeq.value) {
           portfolio.value = portfolioData as PortfolioResponse
           statistics.value = statsData as DashboardStatisticsResponse
+          pricesLive.value = true
         }
       })
       .catch(() => { /* keep cached data on error */ })
@@ -89,7 +86,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   function reset() {
     portfolio.value = null
     bankAccounts.value = null
-    cashflowBalance.value = null
+    pricesLive.value = false
     statistics.value = null
     projection.value = null
     projectionLoading.value = false
@@ -100,7 +97,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   return {
     portfolio,
     bankAccounts,
-    cashflowBalance,
+    pricesLive,
     statistics,
     projection,
     projectionLoading,
