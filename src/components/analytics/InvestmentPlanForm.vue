@@ -314,176 +314,181 @@ async function clear(): Promise<void> {
           </template>
         </p>
       </div>
-      <BaseButton variant="secondary" size="sm" @click="isOpen = !isOpen">
+      <BaseButton variant="outline" size="sm" @click="isOpen = !isOpen">
         {{ isOpen ? 'Fermer' : hasPlan ? 'Modifier' : 'Déclarer un plan' }}
       </BaseButton>
     </div>
 
     <p v-if="error" class="mt-2 text-xs text-warning">{{ error }}</p>
 
-    <div v-if="isOpen" class="mt-5 flex flex-col gap-5">
-      <!-- The mode is a switch, not a link at the foot of the form. A plan that
-           changed is the common case for anyone whose income moved. -->
-      <div class="flex flex-col gap-2">
-        <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted">
-          Mon plan
-        </p>
-        <BaseSegmentedControl
-          :model-value="isSplit ? 'split' : 'fixed'"
-          :options="MODES"
-          size="sm"
-          @update:model-value="setMode"
-        />
-      </div>
-
-      <div
-        v-for="(period, pIndex) in periods"
-        :key="pIndex"
-        :class="
-          isSplit
-            ? 'rounded-card border border-surface-border p-4 dark:border-surface-dark-border'
-            : ''
-        "
-      >
-        <div v-if="isSplit" class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <div class="min-w-0">
-            <p class="text-xs font-semibold text-text-main dark:text-text-dark-main">
-              Période {{ pIndex + 1 }}
-            </p>
-            <!-- The range, spelled out: the analysis scores months, and two start
-                 dates are not a range until someone works it out. -->
-            <p class="text-[11px] text-text-muted dark:text-text-dark-muted">
-              {{ periodRange(pIndex) }}
-            </p>
-          </div>
-          <button
-            v-if="periods.length > 1"
-            type="button"
-            class="shrink-0 rounded-button p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50 dark:text-text-dark-muted"
-            :disabled="isSaving"
-            title="Retirer cette période"
-            @click="removePeriod(pIndex)"
-          >
-            <Trash2 class="h-4 w-4" stroke-width="2" />
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <BaseInput
-            :id="`plan-monthly-${pIndex}`"
-            v-model="period.monthly_target"
-            type="number"
-            label="Montant mensuel à investir (€)"
-            placeholder="500"
-            :disabled="isSaving"
-          />
-          <!-- A month picker rather than a format to obey: "AAAA-MM" typed by
-               hand was one more way to be silently wrong. -->
-          <BaseInput
-            :id="`plan-since-${pIndex}`"
-            v-model="period.since"
-            type="month"
-            :label="pIndex === 0 && !isSplit ? 'À partir de (optionnel)' : 'À partir de'"
-            :disabled="isSaving"
-          />
-        </div>
-
-        <div class="mt-4">
-          <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p
-              class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted"
-            >
-              Allocation cible
-            </p>
-            <span
-              v-if="period.lines.length"
-              :class="[
-                'text-xs tabular-nums',
-                isBalanced(period) ? 'text-text-muted dark:text-text-dark-muted' : 'text-warning',
-              ]"
-            >
-              Total : {{ allocationTotal(period) }} %
-              <button
-                v-if="!isBalanced(period)"
-                type="button"
-                class="ml-1 underline"
-                @click="balance(period)"
-              >
-                ajuster à 100
-              </button>
-            </span>
-          </div>
-
-          <!-- Stacked on a phone. Side by side, a 375px row leaves the picker
-               about 140px and the fund name — the only readable identifier —
-               truncates to "iShares C…", which defeats the whole point. -->
-          <div
-            v-for="(line, index) in period.lines"
-            :key="index"
-            class="mb-3 flex flex-col gap-2 sm:mb-2 sm:flex-row sm:items-center"
-          >
-            <div class="min-w-0 sm:flex-1">
-              <AssetKeyPicker
-                :id="`plan-asset-${pIndex}-${index}`"
-                v-model="line.asset_key"
-                :assets="assets"
-                :disabled="isSaving"
+    <Transition name="cv-expand">
+      <div v-if="isOpen">
+        <div>
+          <div class="pt-5 flex flex-col gap-5">
+            <!-- The mode is a switch, not a link at the foot of the form. A plan that
+                 changed is the common case for anyone whose income moved. -->
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-medium text-text-main dark:text-text-dark-main">
+                Mon plan
+              </p>
+              <BaseSegmentedControl
+                :model-value="isSplit ? 'split' : 'fixed'"
+                :options="MODES"
+                size="sm"
+                @update:model-value="setMode"
               />
             </div>
-            <div class="flex items-center gap-2">
-              <div class="w-24 shrink-0">
+
+            <div
+              v-for="(period, pIndex) in periods"
+              :key="pIndex"
+              :class="
+                isSplit
+                  ? 'rounded-card border border-surface-border p-4 dark:border-surface-dark-border'
+                  : ''
+              "
+            >
+              <div v-if="isSplit" class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold text-text-main dark:text-text-dark-main">
+                    Période {{ pIndex + 1 }}
+                  </p>
+                  <!-- The range, spelled out: the analysis scores months, and two start
+                       dates are not a range until someone works it out. -->
+                  <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                    {{ periodRange(pIndex) }}
+                  </p>
+                </div>
+                <button
+                  v-if="periods.length > 1"
+                  type="button"
+                  class="shrink-0 rounded-button p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50 dark:text-text-dark-muted"
+                  :disabled="isSaving"
+                  title="Retirer cette période"
+                  @click="removePeriod(pIndex)"
+                >
+                  <Trash2 class="h-4 w-4" stroke-width="2" />
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <BaseInput
-                  :id="`plan-share-${pIndex}-${index}`"
-                  v-model="line.share"
+                  :id="`plan-monthly-${pIndex}`"
+                  v-model="period.monthly_target"
                   type="number"
-                  placeholder="%"
+                  label="Montant mensuel à investir (€)"
+                  placeholder="500"
+                  :disabled="isSaving"
+                />
+                <!-- A month picker rather than a format to obey: "AAAA-MM" typed by
+                     hand was one more way to be silently wrong. -->
+                <BaseInput
+                  :id="`plan-since-${pIndex}`"
+                  v-model="period.since"
+                  type="month"
+                  :label="pIndex === 0 && !isSplit ? 'À partir de (optionnel)' : 'À partir de'"
                   :disabled="isSaving"
                 />
               </div>
-              <span class="text-sm text-text-muted dark:text-text-dark-muted sm:hidden">
-                % de l'allocation
-              </span>
-              <button
-                type="button"
-                class="ml-auto shrink-0 rounded-button p-2 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50 dark:text-text-dark-muted sm:ml-0"
-                :disabled="isSaving"
-                title="Retirer cette ligne"
-                @click="removeLine(period, index)"
-              >
-                <Trash2 class="h-4 w-4" stroke-width="2" />
-              </button>
+
+              <div class="mt-4">
+                <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <p class="text-sm font-medium text-text-main dark:text-text-dark-main">
+                    Allocation cible
+                  </p>
+                  <span
+                    v-if="period.lines.length"
+                    :class="[
+                      'text-xs tabular-nums',
+                      isBalanced(period) ? 'text-text-muted dark:text-text-dark-muted' : 'text-warning',
+                    ]"
+                  >
+                    Total : {{ allocationTotal(period) }} %
+                    <button
+                      v-if="!isBalanced(period)"
+                      type="button"
+                      class="ml-1 underline"
+                      @click="balance(period)"
+                    >
+                      ajuster à 100
+                    </button>
+                  </span>
+                </div>
+
+                <!-- Stacked on a phone. Side by side, a 375px row leaves the picker
+                     about 140px and the fund name — the only readable identifier —
+                     truncates to "iShares C…", which defeats the whole point. -->
+                <div
+                  v-for="(line, index) in period.lines"
+                  :key="index"
+                  class="mb-3 flex flex-col gap-2 sm:mb-2 sm:flex-row sm:items-center"
+                >
+                  <div class="min-w-0 sm:flex-1">
+                    <AssetKeyPicker
+                      :id="`plan-asset-${pIndex}-${index}`"
+                      v-model="line.asset_key"
+                      :assets="assets"
+                      :disabled="isSaving"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="w-24 shrink-0">
+                      <BaseInput
+                        :id="`plan-share-${pIndex}-${index}`"
+                        v-model="line.share"
+                        type="number"
+                        placeholder="%"
+                        :disabled="isSaving"
+                      />
+                    </div>
+                    <span class="text-sm text-text-muted dark:text-text-dark-muted sm:hidden">
+                      % de l'allocation
+                    </span>
+                    <button
+                      type="button"
+                      class="ml-auto shrink-0 rounded-button p-2 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50 dark:text-text-dark-muted sm:ml-0"
+                      :disabled="isSaving"
+                      title="Retirer cette ligne"
+                      @click="removeLine(period, index)"
+                    >
+                      <Trash2 class="h-4 w-4" stroke-width="2" />
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  class="mt-1 flex items-center gap-1.5 rounded-button px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/5 disabled:opacity-50 dark:hover:bg-primary/10"
+                  :disabled="isSaving"
+                  @click="addLine(period)"
+                >
+                  <Plus class="h-3.5 w-3.5" stroke-width="2.5" />
+                  Ajouter une ligne
+                </button>
+              </div>
+            </div>
+
+            <!-- self-start: inside a column flex it would otherwise stretch full width
+                 and outweigh Enregistrer, which is the primary action here. -->
+            <div v-if="isSplit" class="self-start">
+              <BaseButton variant="outline" size="sm" :disabled="isSaving" @click="addPeriod">
+                <Plus class="h-4 w-4" stroke-width="2.5" />
+                Ajouter une période
+              </BaseButton>
+            </div>
+
+            <p v-if="localError" class="text-xs text-danger">{{ localError }}</p>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <BaseButton :disabled="isSaving" :loading="isSaving" @click="save">Enregistrer</BaseButton>
+              <BaseButton v-if="hasPlan" variant="ghost" :disabled="isSaving" @click="clear">
+                <Trash2 class="h-4 w-4" />
+                Supprimer le plan
+              </BaseButton>
             </div>
           </div>
-
-          <button
-            type="button"
-            class="mt-1 flex items-center gap-1.5 rounded-button px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/5 disabled:opacity-50 dark:hover:bg-primary/10"
-            :disabled="isSaving"
-            @click="addLine(period)"
-          >
-            <Plus class="h-3.5 w-3.5" stroke-width="2.5" />
-            Ajouter une ligne
-          </button>
         </div>
       </div>
-
-      <!-- self-start: inside a column flex it would otherwise stretch full width
-           and outweigh Enregistrer, which is the primary action here. -->
-      <div v-if="isSplit" class="self-start">
-        <BaseButton variant="secondary" size="sm" :disabled="isSaving" @click="addPeriod">
-          <Plus class="h-4 w-4" stroke-width="2.5" />
-          Ajouter une période
-        </BaseButton>
-      </div>
-
-      <p v-if="localError" class="text-xs text-danger">{{ localError }}</p>
-
-      <div class="flex flex-wrap items-center gap-3">
-        <BaseButton :disabled="isSaving" :loading="isSaving" @click="save">Enregistrer</BaseButton>
-        <BaseButton v-if="hasPlan" variant="secondary" :disabled="isSaving" @click="clear">
-          Supprimer le plan
-        </BaseButton>
-      </div>
-    </div>
+    </Transition>
   </div>
 </template>

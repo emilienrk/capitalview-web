@@ -329,7 +329,7 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
 
     <!-- ── Password change ─────────────────────────────── -->
     <SettingsSection :icon="KeyRound" title="Mot de passe">
-      <template #header-action>
+      <template #help>
         <BaseHelpPopover>
           Vos données restent lisibles après un changement de mot de passe. Toutes vos autres
           sessions seront déconnectées.
@@ -426,7 +426,7 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
       title="Clé de récupération"
       subtitle="Votre seule porte de secours si vous oubliez votre mot de passe. Conservez-la hors ligne."
     >
-      <template #header-action>
+      <template #help>
         <BaseHelpPopover>
           Sans email de réinitialisation, cette clé est ce qui préserve l'accès à vos données
           chiffrées. Elle est à usage unique.

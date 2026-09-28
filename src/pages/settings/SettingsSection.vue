@@ -23,7 +23,11 @@ defineProps<Props>()
             <component :is="icon" class="w-4 h-4 text-primary" :stroke-width="2" />
           </div>
           <div class="min-w-0">
-            <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ title }}</h3>
+            <!-- The "?" sits by the title it explains, as it does by a field's label. -->
+            <div class="flex items-center gap-1">
+              <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">{{ title }}</h3>
+              <slot name="help" />
+            </div>
             <p v-if="subtitle" class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5">
               {{ subtitle }}
             </p>
