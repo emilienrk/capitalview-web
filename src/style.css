@@ -157,6 +157,16 @@ input:is(:-webkit-autofill, :autofill) {
   opacity: 0;
 }
 
+/* Work with no measurable progress (a long computation): a segment runs
+   across the track at a constant pace. Reduced motion holds it still. */
+.cv-indeterminate {
+  animation: cv-indeterminate 1.4s linear infinite;
+}
+@keyframes cv-indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
 /* An empty state reached by finishing the work, not found on arrival: it
    lands as a finish. Put `cv-done` on the empty state's root. */
 .cv-done > :first-child {
@@ -185,6 +195,11 @@ input:is(:-webkit-autofill, :autofill) {
   }
   .cv-row-move {
     transition: none;
+  }
+  .cv-indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
   }
   .cv-done > :first-child,
   .cv-done > :not(:first-child) {

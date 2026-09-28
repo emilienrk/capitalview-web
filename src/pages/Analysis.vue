@@ -9,7 +9,7 @@ import { Settings } from 'lucide-vue-next'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseAlert, BaseButton, BaseEmptyState, BaseSpinner } from '@/components'
+import { BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSkeleton } from '@/components'
 import SignalBoard from '@/components/analytics/SignalBoard.vue'
 import BehaviourSection from '@/components/analytics/sections/BehaviourSection.vue'
 import CostSection from '@/components/analytics/sections/CostSection.vue'
@@ -117,21 +117,42 @@ onMounted(async () => {
       description="Ce que tes données disent de ton comportement d'investisseur"
     >
       <template #actions>
-        <RouterLink
+        <BaseButton
           :to="{ path: '/settings', query: { tab: 'analyse' } }"
+          variant="outline"
+          size="sm"
           aria-label="Réglages de l'analyse : indice et plan cible"
           title="Réglages de l'analyse : indice et plan cible"
         >
-          <BaseButton variant="outline" size="sm">
-            <Settings class="h-4 w-4" stroke-width="2" />
-            <span class="hidden sm:inline">Indice et plan cible</span>
-          </BaseButton>
-        </RouterLink>
+          <Settings class="h-4 w-4" stroke-width="2" />
+          <span class="hidden sm:inline">Indice et plan cible</span>
+        </BaseButton>
       </template>
     </PageHeader>
 
-    <div v-if="analysis.isLoading && !analysis.data" class="flex justify-center py-20">
-      <BaseSpinner size="lg" label="Analyse en cours..." />
+    <!-- The first computation takes a while: say what is being worked out, and
+         hold the shape of the page rather than a bare spinner. No percentage:
+         the server reports none, and a made-up one would be a lie. -->
+    <div v-if="analysis.isLoading && !analysis.data" role="status">
+      <div
+        class="mb-8 rounded-card border border-surface-border bg-surface px-4 py-4 dark:border-surface-dark-border dark:bg-surface-dark"
+      >
+        <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Calcul de l'analyse…</p>
+        <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+          Votre historique est rejoué, et chaque test confronte vos achats à 5 000 tirages au hasard.
+        </p>
+        <div class="mt-3 h-1 overflow-hidden rounded-full bg-background-subtle dark:bg-background-dark-subtle">
+          <div class="cv-indeterminate h-full w-1/3 rounded-full bg-primary" />
+        </div>
+      </div>
+      <div aria-hidden="true">
+        <BaseCard v-for="i in 3" :key="i" class="mb-4">
+          <BaseSkeleton width="40%" />
+          <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <BaseSkeleton v-for="j in 3" :key="j" variant="rect" height="3.5rem" />
+          </div>
+        </BaseCard>
+      </div>
     </div>
 
     <BaseAlert v-else-if="analysis.error" variant="danger" class="mb-6">

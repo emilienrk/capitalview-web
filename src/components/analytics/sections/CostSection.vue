@@ -80,17 +80,11 @@ function eur(value: number | string): string {
     </CollapsibleBlock>
 
     <BaseCard v-if="bridge" id="analyse-counterfactual" class="mb-4 scroll-mt-20">
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold text-text-main dark:text-text-dark-main">
-          Le portefeuille contre un robot
-        </h3>
-        <!-- The close of the current day does not exist yet: these figures are
-             yesterday's, and a live statement will differ. -->
-        <div class="flex items-center gap-2">
-          <NoteChip :label="`au ${new Date(bridge.valued_at).toLocaleDateString('fr-FR')}`">
-            Valorisé à la clôture de la veille : un relevé consulté aujourd'hui affichera une
-            journée de marché de plus.
-          </NoteChip>
+      <div class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div class="flex items-center gap-1">
+          <h3 class="text-sm font-semibold text-text-main dark:text-text-dark-main">
+            Le portefeuille contre un robot
+          </h3>
           <BlockHelp>
             <li>
               Le robot part du <strong>même capital effectivement investi que toi</strong>, et se
@@ -105,6 +99,12 @@ function eur(value: number | string): string {
             </li>
           </BlockHelp>
         </div>
+        <!-- The close of the current day does not exist yet: these figures are
+             yesterday's, and a live statement will differ. -->
+        <NoteChip :label="`au ${new Date(bridge.valued_at).toLocaleDateString('fr-FR')}`">
+          Valorisé à la clôture de la veille : un relevé consulté aujourd'hui affichera une
+          journée de marché de plus.
+        </NoteChip>
       </div>
       <AttributionWaterfall :bridge="bridge" :is-dark="isDark" />
 

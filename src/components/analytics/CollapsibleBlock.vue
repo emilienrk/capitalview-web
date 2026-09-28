@@ -33,20 +33,20 @@ const isExpanded = ref(false)
 
 <template>
   <BaseCard v-if="measurable" class="mb-4">
-    <!-- Title and its "?" share one row: the method note belongs beside the
+    <!-- The "?" sits right after the title: the method note belongs beside the
          block it explains, not in a section at the foot of the page. -->
-    <div v-if="title || $slots.help" class="mb-3 flex items-start justify-between gap-2">
-      <div class="flex flex-wrap items-center gap-2">
+    <div v-if="title || $slots.help" class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <div class="flex items-center gap-1">
         <h3 v-if="title" class="text-sm font-semibold text-text-main dark:text-text-dark-main">
           {{ title }}
         </h3>
-        <!-- A reading condition or a test result, kept beside the title rather
-             than spelled out under the figures. -->
-        <slot name="badge" />
+        <BlockHelp v-if="$slots.help" class="shrink-0">
+          <slot name="help" />
+        </BlockHelp>
       </div>
-      <BlockHelp v-if="$slots.help" class="shrink-0">
-        <slot name="help" />
-      </BlockHelp>
+      <!-- A reading condition or a test result, kept beside the title rather
+           than spelled out under the figures. -->
+      <slot name="badge" />
     </div>
     <slot />
   </BaseCard>
