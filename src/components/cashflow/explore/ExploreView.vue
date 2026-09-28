@@ -225,7 +225,7 @@ async function copyLink(): Promise<void> {
     >
       <template #icon><Landmark class="w-8 h-8 text-text-muted dark:text-text-dark-muted" /></template>
       <template #action>
-        <router-link :to="{ name: 'bank' }"><BaseButton variant="outline">Aller à Banque</BaseButton></router-link>
+        <BaseButton :to="{ name: 'bank' }" variant="outline">Aller à Banque</BaseButton>
       </template>
     </BaseEmptyState>
 

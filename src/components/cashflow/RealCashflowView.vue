@@ -48,12 +48,8 @@ watch(() => bank.dataRevision, () => {
         <Landmark class="w-8 h-8 text-text-muted dark:text-text-dark-muted" />
       </template>
       <template #action>
-        <router-link v-if="bankEnabled" :to="{ name: 'bank-transactions' }">
-          <BaseButton variant="outline">Aller à Banque</BaseButton>
-        </router-link>
-        <router-link v-else :to="{ name: 'settings', query: { tab: 'modules' } }">
-          <BaseButton variant="outline">Réglages des modules</BaseButton>
-        </router-link>
+        <BaseButton v-if="bankEnabled" :to="{ name: 'bank-transactions' }" variant="outline">Aller à Banque</BaseButton>
+        <BaseButton v-else :to="{ name: 'settings', query: { tab: 'modules' } }" variant="outline">Réglages des modules</BaseButton>
       </template>
     </BaseEmptyState>
 

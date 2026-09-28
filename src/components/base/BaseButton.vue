@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { LoaderCircle } from 'lucide-vue-next'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
@@ -13,6 +14,9 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
   block?: boolean
   icon?: boolean
+  /** Renders a link styled as a button: a button wrapped in a link is invalid
+   *  and takes two tab stops. */
+  to?: RouteLocationRaw
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -58,9 +62,12 @@ const paddingClasses = computed(() => {
 </script>
 
 <template>
-  <button
-    :type="props.type"
-    :disabled="props.disabled || props.loading"
+  <!-- :enabled never matches a link, so a link takes the plain press scale. -->
+  <component
+    :is="props.to ? RouterLink : 'button'"
+    :to="props.to"
+    :type="props.to ? undefined : props.type"
+    :disabled="props.to ? undefined : props.disabled || props.loading"
     :class="[
       'inline-flex items-center justify-center gap-2 font-semibold rounded-button border-2 border-transparent transition duration-150 ease-out',
       'focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1',
@@ -68,9 +75,12 @@ const paddingClasses = computed(() => {
       variantClasses[props.variant],
       sizeClasses[props.size],
       paddingClasses,
-      props.block ? 'w-full enabled:active:scale-[0.98]' : 'enabled:active:scale-[0.97]',
+      props.block ? 'w-full' : '',
+      props.to
+        ? (props.block ? 'active:scale-[0.98]' : 'active:scale-[0.97]')
+        : (props.block ? 'enabled:active:scale-[0.98]' : 'enabled:active:scale-[0.97]'),
     ]"
   >
     <slot />
-  </button>
+  </component>
 </template>

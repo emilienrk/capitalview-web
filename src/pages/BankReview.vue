@@ -274,9 +274,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
         <CheckCircle2 class="w-8 h-8 text-success" />
       </template>
       <template #action>
-        <router-link :to="{ name: 'cashflow', query: { view: 'real' } }">
-          <BaseButton variant="outline">Voir le Réel</BaseButton>
-        </router-link>
+        <BaseButton :to="{ name: 'cashflow', query: { view: 'real' } }" variant="outline">Voir le Réel</BaseButton>
       </template>
     </BaseEmptyState>
 

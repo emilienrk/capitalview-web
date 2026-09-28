@@ -2,7 +2,6 @@
 import { Activity, Calendar, Check, ChevronRight, Heart, Info, Lock, Pencil, Search, Settings, ShieldCheck, Trash2, Users } from 'lucide-vue-next'
 
 import { onMounted, ref, watch, computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useCommunityStore } from '@/stores/community'
 import { useFormatters } from '@/composables/useFormatters'
 import { useAuthStore } from '@/stores/auth'
@@ -292,12 +291,10 @@ const profilePicks = computed(() => {
           <Activity class="w-4 h-4" stroke-width="2" />
           Activité
         </BaseButton>
-        <RouterLink :to="{ path: '/settings', query: { tab: 'communaute' } }">
-          <BaseButton variant="outline" size="sm">
-            <Settings class="w-4 h-4" stroke-width="2" />
-            <span class="hidden sm:inline">Configurer mon profil</span>
-          </BaseButton>
-        </RouterLink>
+        <BaseButton :to="{ path: '/settings', query: { tab: 'communaute' } }" variant="outline" size="sm" aria-label="Configurer mon profil">
+          <Settings class="w-4 h-4" stroke-width="2" />
+          <span class="hidden sm:inline">Configurer mon profil</span>
+        </BaseButton>
       </template>
     </PageHeader>
 
