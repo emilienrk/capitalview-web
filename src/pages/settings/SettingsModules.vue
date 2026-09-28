@@ -151,52 +151,49 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
           </div>
 
           <!-- Crypto sub-settings (only when enabled) -->
-          <Transition
-            enter-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-96"
-            leave-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            leave-from-class="opacity-100 max-h-96"
-            leave-to-class="opacity-0 max-h-0"
-          >
-            <div v-if="cryptoModuleEnabled" class="space-y-6 pt-3 border-t border-surface-border dark:border-surface-dark-border">
-              <div class="space-y-3">
-                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Mode de gestion</p>
-
-                <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'SINGLE' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
-                  <input type="radio" name="cryptoMode" value="SINGLE" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'SINGLE' })" />
-                  <div>
-                    <p class="font-medium text-text-main dark:text-text-dark-main">
-                      Patrimoine Global
-                      <span class="ml-2 text-xs font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-secondary">Recommandé</span>
-                    </p>
-                    <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Vue centralisée de toutes vos crypto-monnaies.</p>
+          <Transition name="cv-expand">
+            <div v-if="cryptoModuleEnabled">
+              <div>
+                <div class="space-y-6 pt-3 border-t border-surface-border dark:border-surface-dark-border">
+                  <div class="space-y-3">
+                    <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Mode de gestion</p>
+    
+                    <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'SINGLE' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
+                      <input type="radio" name="cryptoMode" value="SINGLE" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'SINGLE' })" />
+                      <div>
+                        <p class="font-medium text-text-main dark:text-text-dark-main">
+                          Patrimoine Global
+                          <span class="ml-2 text-xs font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-secondary">Recommandé</span>
+                        </p>
+                        <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Vue centralisée de toutes vos crypto-monnaies.</p>
+                      </div>
+                    </label>
+    
+                    <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'MULTI' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
+                      <input type="radio" name="cryptoMode" value="MULTI" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'MULTI' })" />
+                      <div>
+                        <p class="font-medium text-text-main dark:text-text-dark-main">
+                          Gestion Multi-Comptes
+                          <span class="ml-2 text-xs font-medium uppercase tracking-wide bg-surface-border dark:bg-surface-dark-border text-text-muted dark:text-text-dark-muted px-1.5 py-0.5 rounded-secondary">Avancé</span>
+                        </p>
+                        <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Séparez vos portefeuilles par exchange ou cold wallet.</p>
+                      </div>
+                    </label>
                   </div>
-                </label>
-
-                <label :class="['flex items-start gap-3 p-4 rounded-card border-2 cursor-pointer transition-colors', cryptoMode === 'MULTI' ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-surface-border dark:border-surface-dark-border hover:border-primary/40']">
-                  <input type="radio" name="cryptoMode" value="MULTI" v-model="cryptoMode" class="mt-0.5 accent-primary shrink-0" @change="save({ crypto_mode: 'MULTI' })" />
-                  <div>
-                    <p class="font-medium text-text-main dark:text-text-dark-main">
-                      Gestion Multi-Comptes
-                      <span class="ml-2 text-xs font-medium uppercase tracking-wide bg-surface-border dark:bg-surface-dark-border text-text-muted dark:text-text-dark-muted px-1.5 py-0.5 rounded-secondary">Avancé</span>
-                    </p>
-                    <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Séparez vos portefeuilles par exchange ou cold wallet.</p>
+    
+                  <div class="pt-4 border-t border-surface-border dark:border-surface-dark-border">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
+                        <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
+                      </div>
+                      <BaseToggle
+                        v-model="cryptoShowNegativePositions"
+                        aria-label="Afficher les positions négatives"
+                        @update:model-value="save({ crypto_show_negative_positions: $event })"
+                      />
+                    </div>
                   </div>
-                </label>
-              </div>
-
-              <div class="pt-4 border-t border-surface-border dark:border-surface-dark-border">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
-                    <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
-                  </div>
-                  <BaseToggle
-                    v-model="cryptoShowNegativePositions"
-                    aria-label="Afficher les positions négatives"
-                    @update:model-value="save({ crypto_show_negative_positions: $event })"
-                  />
                 </div>
               </div>
             </div>

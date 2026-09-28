@@ -4,7 +4,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
-import { BaseButton, BaseAlert, BaseInput, BaseSelect, BaseSkeleton, BaseSpinner, BaseToggle } from '@/components'
+import { BaseButton, BaseAlert, BaseBadge, BaseInput, BaseSelect, BaseSkeleton, BaseSpinner, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig, AIModelsResponse } from '@/types'
 import { AUTO_MODEL, callsAModelThatReadsImages, modelSelectOptions } from '@/utils/aiModels'
@@ -283,7 +283,7 @@ const allProviders = computed(() => {
       <SettingsSection
         :icon="KeyRound"
         title="Clés API & Modèles"
-        subtitle="Vos clés sont chiffrées de bout en bout avec votre Master Key avant d'être stockées."
+        subtitle="Vos clés sont chiffrées avec votre clé maître avant d'être stockées."
       >
 
         <template v-if="isLoadingOptions">
@@ -302,16 +302,9 @@ const allProviders = computed(() => {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-sm text-text-main dark:text-text-dark-main">{{ p.label }}</span>
-                <span
-                  :class="[
-                    'text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-secondary',
-                    configuredProviders[p.provider]?.has_key
-                      ? 'bg-success/10 text-success'
-                      : 'bg-surface-border dark:bg-surface-dark-border text-text-muted dark:text-text-dark-muted'
-                  ]"
-                >
+                <BaseBadge :variant="configuredProviders[p.provider]?.has_key ? 'success' : 'secondary'">
                   {{ configuredProviders[p.provider]?.has_key ? 'Configuré' : 'Non configuré' }}
-                </span>
+                </BaseBadge>
               </div>
               <button
                 v-if="configuredProviders[p.provider]?.has_key"

@@ -523,7 +523,7 @@ onMounted(async () => {
                      which drops the whole authorization and its consent. -->
                 <button
                   type="button"
-                  class="text-text-muted dark:text-text-dark-muted hover:text-danger underline"
+                  class="py-2 -my-2 text-text-muted dark:text-text-dark-muted hover:text-danger underline"
                   :disabled="disconnectingUuid !== null"
                   @click="askUnlink(a)"
                 >
@@ -570,19 +570,12 @@ onMounted(async () => {
     <SettingsSection
       :icon="KeyRound"
       title="Application Enable Banking"
-      subtitle="Les trois valeurs à faire correspondre avec votre application dans le portail. Votre clé privée est chiffrée avec votre Master Key avant stockage, et n'est jamais réaffichée."
+      subtitle="Les trois valeurs à faire correspondre avec votre application dans le portail. Votre clé privée est chiffrée avec votre clé maître avant stockage, et n'est jamais réaffichée."
     >
       <template #header-action>
-        <span
-          :class="[
-            'text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-secondary shrink-0',
-            hasCredentials
-              ? 'bg-success/10 text-success'
-              : 'bg-surface-border dark:bg-surface-dark-border text-text-muted dark:text-text-dark-muted',
-          ]"
-        >
+        <BaseBadge :variant="hasCredentials ? 'success' : 'secondary'" class="shrink-0">
           {{ hasCredentials ? 'Configuré' : 'Non configuré' }}
-        </span>
+        </BaseBadge>
       </template>
 
       <div v-if="isLoading" class="space-y-4">

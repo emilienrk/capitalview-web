@@ -49,6 +49,8 @@ const mobileNav = ref<HTMLElement | null>(null)
 // The selected pill can sit off-screen in the scroller — on load with a ?tab=,
 // or after picking one at the far end of the row.
 function revealActivePill(behavior: ScrollBehavior = 'smooth'): void {
+  // A JS scroll ignores the reduced-motion preference unless asked.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'auto'
   nextTick(() => {
     mobileNav.value
       ?.querySelector(`[data-tab="${activeTab.value}"]`)
@@ -95,9 +97,10 @@ onMounted(async () => {
           <button
             v-for="tab in tabs"
             :key="tab.id"
+            :aria-current="activeTab === tab.id ? 'true' : undefined"
             @click="setTab(tab.id)"
             :class="[
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-left transition duration-150',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-left transition duration-150 ease-out active:scale-[0.98]',
               activeTab === tab.id
                 ? 'bg-primary-light text-primary dark:bg-primary/20 dark:text-primary font-semibold'
                 : 'text-text-muted dark:text-text-dark-muted hover:bg-background-subtle dark:hover:bg-background-dark-subtle hover:text-text-main dark:hover:text-text-dark-main',
@@ -114,15 +117,16 @@ onMounted(async () => {
              of the viewport before any setting showed. -->
         <nav
           ref="mobileNav"
-          class="lg:hidden -mx-4 px-4 flex gap-1.5 overflow-x-auto hide-scrollbar snap-x"
+          class="lg:hidden -mx-4 px-4 flex gap-1.5 overflow-x-auto hide-scrollbar"
         >
           <button
             v-for="tab in tabs"
             :key="tab.id"
             :data-tab="tab.id"
+            :aria-current="activeTab === tab.id ? 'true' : undefined"
             @click="setTab(tab.id)"
             :class="[
-              'snap-start shrink-0 flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
+              'shrink-0 flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition duration-150 ease-out active:scale-[0.97]',
               activeTab === tab.id
                 ? 'bg-primary text-primary-content'
                 : 'bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border text-text-muted dark:text-text-dark-muted',

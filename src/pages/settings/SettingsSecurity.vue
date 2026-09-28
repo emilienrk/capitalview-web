@@ -232,11 +232,10 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
     <!-- ── Profile (username / email) ──────────────────── -->
     <SettingsSection :icon="Lock" title="Sécurité & Profil">
       <div class="space-y-8">
-        <!-- Encryption status -->
-        <div class="flex items-center gap-2 pb-6 border-b border-surface-border dark:border-surface-dark-border">
-          <div class="w-2 h-2 rounded-full bg-success shrink-0" />
-          <span class="text-sm text-text-body dark:text-text-dark-body">Chiffrement des données actif — vos informations sensibles sont protégées</span>
-        </div>
+        <!-- A fact about how data is stored, not an always-green status light. -->
+        <p class="pb-6 border-b border-surface-border dark:border-surface-dark-border text-sm text-text-muted dark:text-text-dark-muted">
+          Vos montants sont chiffrés avant d'être enregistrés, avec une clé que le serveur ne garde pas.
+        </p>
 
         <!-- Username change form -->
         <div class="space-y-4">

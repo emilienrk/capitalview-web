@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { List, Lock, User } from 'lucide-vue-next'
 
-import { onMounted, ref, computed } from 'vue'
+import { nextTick, onMounted, ref, computed } from 'vue'
 import { useCommunityStore } from '@/stores/community'
 import { useAuthStore } from '@/stores/auth'
 import { BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
@@ -26,6 +26,24 @@ const saveSuccess = ref(false)
 
 const isLoading = computed(() => communityStore.isLoadingSettings || communityStore.isLoadingPositions)
 
+// Unlike the other tabs, this one saves on demand: flag what the button would
+// send, so leaving the tab with a toggle flipped doesn't look like it stuck.
+function formSnapshot(): string {
+  return JSON.stringify([
+    communityActive.value,
+    isPrivate.value,
+    displayName.value.trim(),
+    bio.value.trim(),
+    [...selectedStockIsins.value].sort(),
+    [...selectedCryptoSymbols.value].sort(),
+  ])
+}
+const savedSnapshot = ref<string | null>(null)
+// The stored values land after the first render; revealing them is not something
+// the user did, so the profile blocks only animate once they are in place.
+const animateReveal = ref(false)
+const isDirty = computed(() => savedSnapshot.value !== null && formSnapshot() !== savedSnapshot.value)
+
 onMounted(async () => {
   // Load settings and available positions in parallel
   await Promise.all([
@@ -41,6 +59,9 @@ onMounted(async () => {
     selectedStockIsins.value = new Set(communityStore.settings.shared_stock_asset_keys)
     selectedCryptoSymbols.value = new Set(communityStore.settings.shared_crypto_asset_keys)
   }
+  savedSnapshot.value = formSnapshot()
+  await nextTick()
+  animateReveal.value = true
 })
 
 function toggleStock(asset_key: string): void {
@@ -93,6 +114,7 @@ async function save(): Promise<void> {
   })
   isSaving.value = false
   if (success) {
+    savedSnapshot.value = formSnapshot()
     saveSuccess.value = true
     setTimeout(() => { saveSuccess.value = false }, 2000)
   }
@@ -132,67 +154,56 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
             <BaseToggle v-model="communityActive" aria-label="Rejoindre la communauté" />
           </div>
 
-          <!-- Privacy toggle (shown when active) -->
-          <Transition
-            enter-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-24"
-            leave-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            leave-from-class="opacity-100 max-h-24"
-            leave-to-class="opacity-0 max-h-0"
-          >
-            <div v-if="communityActive" class="flex items-center justify-between pt-2">
+          <!-- Profile details, shown once the profile is active. -->
+          <Transition name="cv-expand" :css="animateReveal">
+            <div v-if="communityActive">
               <div>
-                <p class="font-medium text-text-main dark:text-text-dark-main flex items-center gap-2">
-                  <Lock class="w-4 h-4" stroke-width="2" />
-                  Compte privé
-                </p>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted">
-                  Votre profil n'apparaîtra que si on recherche votre pseudo exact. Vos positions ne seront visibles qu'aux abonnés mutuels.
-                </p>
-              </div>
-              <BaseToggle v-model="isPrivate" aria-label="Profil privé" />
-            </div>
-          </Transition>
+                <div class="space-y-5">
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <p class="font-medium text-text-main dark:text-text-dark-main flex items-center gap-2">
+                        <Lock class="w-4 h-4" stroke-width="2" />
+                        Compte privé
+                      </p>
+                      <p class="text-sm text-text-muted dark:text-text-dark-muted">
+                        Votre profil n'apparaîtra que si on recherche votre pseudo exact. Vos positions ne seront visibles qu'aux abonnés mutuels.
+                      </p>
+                    </div>
+                    <BaseToggle v-model="isPrivate" aria-label="Profil privé" />
+                  </div>
 
-          <!-- Profile fields (shown when active) -->
-          <Transition
-            enter-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-96"
-            leave-active-class="transition-[max-height,opacity] duration-200 overflow-hidden"
-            leave-from-class="opacity-100 max-h-96"
-            leave-to-class="opacity-0 max-h-0"
-          >
-            <div v-if="communityActive" class="space-y-4 pt-4 border-t border-surface-border dark:border-surface-dark-border">
-              <!-- Preview avatar + username -->
-              <div class="flex items-center gap-3 p-3 rounded-card bg-background-subtle dark:bg-surface-dark">
-                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <span class="text-primary text-lg font-bold">
-                    {{ (displayName || auth.user?.username || '?').charAt(0).toUpperCase() }}
-                  </span>
-                </div>
-                <div>
-                  <p class="font-medium text-text-main dark:text-text-dark-main">
-                    {{ displayName || auth.user?.username }}
-                  </p>
-                  <p v-if="bio" class="text-sm text-text-muted dark:text-text-dark-muted line-clamp-1">{{ bio }}</p>
+                  <div class="space-y-4 pt-4 border-t border-surface-border dark:border-surface-dark-border">
+                    <!-- Preview avatar + username -->
+                    <div class="flex items-center gap-3 p-3 rounded-card bg-background-subtle dark:bg-surface-dark">
+                      <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <span class="text-primary text-lg font-bold">
+                          {{ (displayName || auth.user?.username || '?').charAt(0).toUpperCase() }}
+                        </span>
+                      </div>
+                      <div>
+                        <p class="font-medium text-text-main dark:text-text-dark-main">
+                          {{ displayName || auth.user?.username }}
+                        </p>
+                        <p v-if="bio" class="text-sm text-text-muted dark:text-text-dark-muted line-clamp-1">{{ bio }}</p>
+                      </div>
+                    </div>
+
+                    <BaseInput
+                      v-model="displayName"
+                      label="Nom d'affichage (optionnel)"
+                      placeholder="Par défaut : votre nom d'utilisateur"
+                      maxlength="100"
+                    />
+                    <BaseTextarea
+                      v-model="bio"
+                      label="Bio (optionnel)"
+                      :rows="3"
+                      placeholder="Présentez-vous en quelques mots..."
+                      maxlength="500"
+                    />
+                  </div>
                 </div>
               </div>
-
-              <BaseInput
-                v-model="displayName"
-                label="Nom d'affichage (optionnel)"
-                placeholder="Par défaut : votre nom d'utilisateur"
-                maxlength="100"
-              />
-              <BaseTextarea
-                v-model="bio"
-                label="Bio (optionnel)"
-                :rows="3"
-                placeholder="Présentez-vous en quelques mots..."
-                maxlength="500"
-              />
             </div>
           </Transition>
         </div>
@@ -201,6 +212,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
 
     <!-- Position Selection -->
     <Transition
+      :css="animateReveal"
       enter-active-class="transition-opacity duration-200 ease-out"
       enter-from-class="opacity-0"
       leave-active-class="transition-opacity duration-150 ease-out"
@@ -246,7 +258,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                 <button
                   type="button"
                   @click="selectAllStocks"
-                  class="text-primary hover:underline"
+                  class="py-2.5 -my-2.5 text-primary hover:underline"
                 >
                   Tout cocher
                 </button>
@@ -254,7 +266,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                 <button
                   type="button"
                   @click="deselectAllStocks"
-                  class="text-text-muted dark:text-text-dark-muted hover:text-danger"
+                  class="py-2.5 -my-2.5 text-text-muted dark:text-text-dark-muted hover:text-danger"
                 >
                   Tout décocher
                 </button>
@@ -296,7 +308,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                 <button
                   type="button"
                   @click="selectAllCrypto"
-                  class="text-primary hover:underline"
+                  class="py-2.5 -my-2.5 text-primary hover:underline"
                 >
                   Tout cocher
                 </button>
@@ -304,7 +316,7 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
                 <button
                   type="button"
                   @click="deselectAllCrypto"
-                  class="text-text-muted dark:text-text-dark-muted hover:text-danger"
+                  class="py-2.5 -my-2.5 text-text-muted dark:text-text-dark-muted hover:text-danger"
                 >
                   Tout décocher
                 </button>
@@ -336,18 +348,17 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
     </Transition>
 
     <!-- Save button -->
-    <div class="flex items-center justify-between">
-      <BaseAlert v-if="saveSuccess" variant="success" class="flex-1 mr-4 py-1.5!">
-        Paramètres communautaires sauvegardés.
-      </BaseAlert>
-      <BaseAlert v-if="communityStore.error" variant="danger" class="flex-1 mr-4 py-1.5!">
+    <div class="flex items-center justify-end gap-4">
+      <BaseAlert v-if="communityStore.error" variant="danger" class="flex-1 py-1.5!">
         {{ communityStore.error }}
       </BaseAlert>
-      <div class="ml-auto">
-        <BaseButton @click="save" :loading="isSaving" size="sm">
-          Enregistrer
-        </BaseButton>
-      </div>
+      <BaseAlert v-else-if="saveSuccess" variant="success" class="flex-1 py-1.5!">
+        Paramètres communautaires sauvegardés.
+      </BaseAlert>
+      <p v-else-if="isDirty" class="text-sm text-warning">Modifications non enregistrées</p>
+      <BaseButton @click="save" :loading="isSaving" :disabled="!isDirty" size="sm" class="shrink-0">
+        Enregistrer
+      </BaseButton>
     </div>
   </div>
 </template>

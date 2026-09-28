@@ -231,10 +231,11 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
           <button
             v-for="option in THEME_OPTIONS"
             :key="option.value"
+            type="button"
             :aria-pressed="themePreference === option.value"
             @click="selectTheme(option.value)"
             :class="[
-              'flex flex-col items-center gap-2 p-4 rounded-card border-2 transition',
+              'flex flex-col items-center gap-2 p-4 rounded-card border-2 transition duration-150 ease-out active:scale-[0.98]',
               themePreference === option.value
                 ? 'border-primary bg-primary/5 text-primary'
                 : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-muted dark:text-text-dark-muted',
@@ -262,7 +263,7 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
             :aria-pressed="activeStyle === style.id"
             @click="selectAppearance(style.id, activePalette)"
             :class="[
-              'flex flex-col items-start gap-1 p-4 text-left font-sans rounded-card border-2 transition',
+              'flex flex-col items-start gap-1 p-4 text-left font-sans rounded-card border-2 transition duration-150 ease-out active:scale-[0.98]',
               activeStyle === style.id
                 ? 'border-primary bg-primary/5'
                 : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50',
@@ -295,7 +296,7 @@ const displayPreview = computed(() => `${formatDateTime(new Date().toISOString()
             :aria-pressed="activePalette === palette.id"
             @click="selectAppearance(activeStyle, palette.id)"
             :class="[
-              'flex items-center gap-3 p-3 rounded-card border-2 transition',
+              'flex items-center gap-3 p-3 rounded-card border-2 transition duration-150 ease-out active:scale-[0.98]',
               activePalette === palette.id
                 ? 'border-primary bg-primary/5 text-primary'
                 : 'border-surface-border dark:border-surface-dark-border hover:border-primary/50 text-text-main dark:text-text-dark-main',
