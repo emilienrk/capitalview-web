@@ -61,7 +61,7 @@ function tone(value: number): string {
 </script>
 
 <template>
-  <section aria-labelledby="net-worth-title">
+  <section aria-labelledby="net-worth-title" class="flex flex-1 flex-col">
     <h2 id="net-worth-title" class="text-sm font-medium text-text-muted dark:text-text-dark-muted">
       Patrimoine net
     </h2>
@@ -107,8 +107,9 @@ function tone(value: number): string {
         Cours enregistrés, mise à jour en cours…
       </p>
 
+      <!-- Pinned to the bottom when the card is stretched taller than its content. -->
       <CompositionBar
-        class="mt-6"
+        class="mt-auto pt-6"
         :segments="composition"
         :columns="layout === 'desktop' ? 2 : 1"
       />

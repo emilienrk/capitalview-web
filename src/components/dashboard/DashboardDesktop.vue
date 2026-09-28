@@ -36,7 +36,9 @@ const showMonth = computed(() => props.overview.bankEnabled && props.overview.mo
 
 <template>
   <div class="grid grid-cols-12 gap-6">
-    <BaseCard :class="showMonth ? 'col-span-7 xl:col-span-8' : 'col-span-12'">
+    <!-- The row takes the month card's height: the hero fills it rather than
+         leaving a blank band under its legend. -->
+    <BaseCard :class="showMonth ? 'col-span-7 xl:col-span-8' : 'col-span-12'" body-class="flex flex-1 flex-col">
       <NetWorthHero
         :total="overview.total"
         :changes="overview.changes"
@@ -69,14 +71,16 @@ const showMonth = computed(() => props.overview.bankEnabled && props.overview.mo
       />
     </div>
 
-    <div class="col-span-4 space-y-4">
+    <!-- The tiles share the curve's height, so the column ends where the card does. -->
+    <div class="col-span-4 flex flex-col gap-4">
       <template v-if="overview.isLoading && !tiles.length">
-        <DashboardTile v-for="i in 3" :key="i" label="" value="" loading />
+        <DashboardTile v-for="i in 3" :key="i" class="flex-1" label="" value="" loading />
       </template>
       <DashboardTile
         v-for="tile in tiles"
         v-else
         :key="tile.key"
+        class="flex-1"
         :label="tile.label"
         :value="tile.value"
         :detail="tile.detail"
