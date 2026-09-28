@@ -205,128 +205,134 @@ function today(): string {
       <span class="text-warning font-medium">C'est un {{ income ? 'revenu' : 'paiement' }} récurrent ?</span>
       <button
         type="button" :disabled="busy"
-        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
         @click="decide('confirm')"
       >
         Oui
       </button>
       <button
         type="button" :disabled="busy"
-        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
         @click="decide('refuse')"
       >
         Non
       </button>
     </div>
 
-    <div v-if="open" class="mt-3 space-y-3 text-xs text-text-muted dark:text-text-dark-muted">
-      <p>
-        {{ item.since_at_least ? 'Au moins depuis' : 'Depuis' }} le {{ formatDate(item.first_date) }} ·
-        {{ item.occurrence_count }} échéance{{ item.occurrence_count > 1 ? 's' : '' }}<template v-if="item.extra_count">
-          et {{ item.extra_count }} hors échéance</template> ·
-        {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an
-      </p>
-      <p v-if="item.price_changes.length">
-        {{ income ? 'Montant' : 'Prix' }} :
-        <template v-for="(change, index) in item.price_changes" :key="change.date">
-          {{ index ? ', ' : '' }}{{ money(change.before) }} → {{ money(change.after) }} le {{ formatDate(change.date) }}
-        </template>
-      </p>
-      <p v-if="item.episodes.length > 1">
-        Interrompu {{ item.episodes.length - 1 }} fois :
-        <template v-for="(episode, index) in item.episodes" :key="episode.start">
-          {{ index ? ', ' : '' }}{{ formatDate(episode.start) }} → {{ formatDate(episode.end) }}
-        </template>
-      </p>
-      <p v-if="item.renamed.length">
-        Anciens noms : {{ item.renamed.map((rename) => rename.before).join(', ') }}
-      </p>
-      <p v-if="item.refunds.items.length">
-        {{ money(item.refunds.total) }} {{ income ? 'repris' : 'remboursés' }}
-        ({{ item.refunds.items.length }} {{ income ? 'débit' : 'crédit' }}{{ item.refunds.items.length > 1 ? 's' : '' }})
-      </p>
+    <Transition name="cv-expand">
+      <div v-if="open">
+        <div>
+          <div class="pt-3 space-y-3 text-xs text-text-muted dark:text-text-dark-muted">
+            <p>
+              {{ item.since_at_least ? 'Au moins depuis' : 'Depuis' }} le {{ formatDate(item.first_date) }} ·
+              {{ item.occurrence_count }} échéance{{ item.occurrence_count > 1 ? 's' : '' }}<template v-if="item.extra_count">
+                et {{ item.extra_count }} hors échéance</template> ·
+              {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an
+            </p>
+            <p v-if="item.price_changes.length">
+              {{ income ? 'Montant' : 'Prix' }} :
+              <template v-for="(change, index) in item.price_changes" :key="change.date">
+                {{ index ? ', ' : '' }}{{ money(change.before) }} → {{ money(change.after) }} le {{ formatDate(change.date) }}
+              </template>
+            </p>
+            <p v-if="item.episodes.length > 1">
+              Interrompu {{ item.episodes.length - 1 }} fois :
+              <template v-for="(episode, index) in item.episodes" :key="episode.start">
+                {{ index ? ', ' : '' }}{{ formatDate(episode.start) }} → {{ formatDate(episode.end) }}
+              </template>
+            </p>
+            <p v-if="item.renamed.length">
+              Anciens noms : {{ item.renamed.map((rename) => rename.before).join(', ') }}
+            </p>
+            <p v-if="item.refunds.items.length">
+              {{ money(item.refunds.total) }} {{ income ? 'repris' : 'remboursés' }}
+              ({{ item.refunds.items.length }} {{ income ? 'débit' : 'crédit' }}{{ item.refunds.items.length > 1 ? 's' : '' }})
+            </p>
 
-      <ul class="max-h-72 overflow-y-auto rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border">
-        <template v-if="operations">
-          <li v-for="operation in operations" :key="operation.id" class="group flex items-baseline gap-2 px-2.5 py-1.5">
-            <span class="shrink-0 tabular-nums">{{ formatDate(operation.operation_date) }}</span>
-            <span class="truncate" :title="operation.label ?? undefined">{{ operation.label }}</span>
-            <span
-              v-if="operation.recurring && roleNote(operation.recurring.role, item.direction)"
-              class="shrink-0 text-text-muted/80 dark:text-text-dark-muted/80"
-            >
-              {{ roleNote(operation.recurring.role, item.direction) }}
-            </span>
-            <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
-              {{ signed(operation) }}
-            </span>
-            <button
-              v-if="item.state !== 'refused'"
-              type="button"
-              :disabled="busy"
-              class="shrink-0 self-center rounded p-0.5 hover:text-danger disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-              :aria-label="`Retirer cette opération de ${item.name}`"
-              :title="`N'en fait pas partie : ${income ? 'ce revenu' : 'ce paiement'} ne la reprendra plus.`"
-              @click="detach(operation)"
-            >
-              <X class="w-3.5 h-3.5" />
-            </button>
-          </li>
-        </template>
-        <li v-else-if="loadFailed" class="px-2.5 py-1.5 text-danger">Impossible de charger ces opérations.</li>
-        <li v-for="n in 3" v-else :key="n" class="px-2.5 py-1.5"><BaseSkeleton variant="text" width="100%" /></li>
-      </ul>
+            <ul class="max-h-72 overflow-y-auto rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border">
+              <template v-if="operations">
+                <li v-for="operation in operations" :key="operation.id" class="group flex items-baseline gap-2 px-2.5 py-1.5">
+                  <span class="shrink-0 tabular-nums">{{ formatDate(operation.operation_date) }}</span>
+                  <span class="truncate" :title="operation.label ?? undefined">{{ operation.label }}</span>
+                  <span
+                    v-if="operation.recurring && roleNote(operation.recurring.role, item.direction)"
+                    class="shrink-0 text-text-muted/80 dark:text-text-dark-muted/80"
+                  >
+                    {{ roleNote(operation.recurring.role, item.direction) }}
+                  </span>
+                  <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
+                    {{ signed(operation) }}
+                  </span>
+                  <button
+                    v-if="item.state !== 'refused'"
+                    type="button"
+                    :disabled="busy"
+                    class="shrink-0 self-center rounded p-0.5 hover:text-danger disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                    :aria-label="`Retirer cette opération de ${item.name}`"
+                    :title="`N'en fait pas partie : ${income ? 'ce revenu' : 'ce paiement'} ne la reprendra plus.`"
+                    @click="detach(operation)"
+                  >
+                    <X class="w-3.5 h-3.5" />
+                  </button>
+                </li>
+              </template>
+              <li v-else-if="loadFailed" class="px-2.5 py-1.5 text-danger">Impossible de charger ces opérations.</li>
+              <li v-for="n in 3" v-else :key="n" class="px-2.5 py-1.5"><BaseSkeleton variant="text" width="100%" /></li>
+            </ul>
 
-      <form v-if="renaming" class="flex items-center gap-2" @submit.prevent="saveName">
-        <div class="flex-1"><BaseInput v-model="name" :aria-label="income ? 'Nom du revenu récurrent' : 'Nom du paiement récurrent'" /></div>
-        <BaseButton size="sm" type="submit" :loading="busy">Enregistrer</BaseButton>
-        <BaseButton size="sm" variant="ghost" @click="renaming = false">Annuler</BaseButton>
-      </form>
-      <div v-else class="flex flex-wrap items-center gap-2">
-        <div v-if="item.state !== 'refused'" class="w-40">
-          <BaseSelect
-            :model-value="natureChoice"
-            :options="natureOptions"
-            placeholder="À classer"
-            :disabled="busy"
-            :aria-label="income ? 'Ce revenu vient de' : 'Ce paiement sert à'"
-            @update:model-value="setNature"
-          />
+            <form v-if="renaming" class="flex items-center gap-2" @submit.prevent="saveName">
+              <div class="flex-1"><BaseInput v-model="name" :aria-label="income ? 'Nom du revenu récurrent' : 'Nom du paiement récurrent'" /></div>
+              <BaseButton size="sm" type="submit" :loading="busy">Enregistrer</BaseButton>
+              <BaseButton size="sm" variant="ghost" @click="renaming = false">Annuler</BaseButton>
+            </form>
+            <div v-else class="flex flex-wrap items-center gap-2">
+              <div v-if="item.state !== 'refused'" class="w-40">
+                <BaseSelect
+                  :model-value="natureChoice"
+                  :options="natureOptions"
+                  placeholder="À classer"
+                  :disabled="busy"
+                  :aria-label="income ? 'Ce revenu vient de' : 'Ce paiement sert à'"
+                  @update:model-value="setNature"
+                />
+              </div>
+              <BaseButton v-if="item.state !== 'refused'" size="sm" variant="outline" :disabled="busy" @click="startRename">
+                Renommer
+              </BaseButton>
+              <template v-if="counted">
+                <BaseButton v-if="item.ended_on" size="sm" variant="outline" :disabled="busy" @click="setEnded(null)">
+                  {{ income ? 'Pas terminé' : 'Pas résilié' }}
+                </BaseButton>
+                <BaseButton v-else-if="!ended" size="sm" variant="outline" :disabled="busy" @click="setEnded(today())">
+                  {{ income ? "Il s'est arrêté" : "Je l'ai résilié" }}
+                </BaseButton>
+                <BaseButton size="sm" variant="ghost" :disabled="busy" @click="decide('refuse')">
+                  {{ income ? "Ce n'est pas un revenu récurrent" : "Ce n'est pas récurrent" }}
+                </BaseButton>
+              </template>
+              <!-- A contract that changed hands, an allowance paid by another office:
+                   one series, which the detection saw as two. -->
+              <div v-if="item.state !== 'refused' && mergeOptions.length" class="w-48">
+                <BaseSelect
+                  :model-value="undefined"
+                  :options="mergeOptions"
+                  placeholder="Fusionner avec…"
+                  :disabled="busy"
+                  :aria-label="`Fusionner ${item.name} avec un autre ${income ? 'revenu' : 'paiement'} récurrent`"
+                  @update:model-value="mergeWith"
+                />
+              </div>
+              <BaseButton
+                v-if="item.state === 'refused' && item.id"
+                size="sm" variant="outline" :disabled="busy"
+                @click="act(() => store.remove(item.id!))"
+              >
+                Annuler le refus
+              </BaseButton>
+            </div>
+          </div>
         </div>
-        <BaseButton v-if="item.state !== 'refused'" size="sm" variant="outline" :disabled="busy" @click="startRename">
-          Renommer
-        </BaseButton>
-        <template v-if="counted">
-          <BaseButton v-if="item.ended_on" size="sm" variant="outline" :disabled="busy" @click="setEnded(null)">
-            {{ income ? 'Pas terminé' : 'Pas résilié' }}
-          </BaseButton>
-          <BaseButton v-else-if="!ended" size="sm" variant="outline" :disabled="busy" @click="setEnded(today())">
-            {{ income ? "Il s'est arrêté" : "Je l'ai résilié" }}
-          </BaseButton>
-          <BaseButton size="sm" variant="ghost" :disabled="busy" @click="decide('refuse')">
-            {{ income ? "Ce n'est pas un revenu récurrent" : "Ce n'est pas récurrent" }}
-          </BaseButton>
-        </template>
-        <!-- A contract that changed hands, an allowance paid by another office:
-             one series, which the detection saw as two. -->
-        <div v-if="item.state !== 'refused' && mergeOptions.length" class="w-48">
-          <BaseSelect
-            :model-value="undefined"
-            :options="mergeOptions"
-            placeholder="Fusionner avec…"
-            :disabled="busy"
-            :aria-label="`Fusionner ${item.name} avec un autre ${income ? 'revenu' : 'paiement'} récurrent`"
-            @update:model-value="mergeWith"
-          />
-        </div>
-        <BaseButton
-          v-if="item.state === 'refused' && item.id"
-          size="sm" variant="outline" :disabled="busy"
-          @click="act(() => store.remove(item.id!))"
-        >
-          Annuler le refus
-        </BaseButton>
       </div>
-    </div>
+    </Transition>
   </li>
 </template>

@@ -175,7 +175,7 @@ const paymentMeans = computed(() =>
           type="button"
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('answer', choice)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
@@ -209,7 +209,7 @@ const paymentMeans = computed(() =>
           type="button"
           :disabled="busy"
           :title="`Compté dans les ${incomeQuestion ? 'revenus' : 'paiements'} récurrents, et ses prochaines échéances avec lui.`"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('subscribe', 'confirm')"
         >
           Oui
@@ -220,7 +220,7 @@ const paymentMeans = computed(() =>
           :title="incomeQuestion
             ? 'Pas un revenu récurrent : il ne sera plus proposé.'
             : 'Ce n\'est pas récurrent : il ne sera plus proposé.'"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('subscribe', 'refuse')"
         >
           Non

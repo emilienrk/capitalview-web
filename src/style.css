@@ -137,6 +137,41 @@ input:is(:-webkit-autofill, :autofill) {
   transform: translateY(-4px);
 }
 
+/* Rows answered out of a list (TransitionGroup): they fade where they stood
+   while the rest close the gap, so one answer that settles several rows still
+   reads. Short on purpose: the next answer must not wait. The list needs
+   `position: relative`. */
+.cv-row-move {
+  transition: transform 200ms var(--cv-ease-out);
+}
+.cv-row-enter-active {
+  transition: opacity 150ms var(--cv-ease-out);
+}
+.cv-row-leave-active {
+  position: absolute;
+  inset-inline: 0;
+  transition: opacity 150ms var(--cv-ease-out);
+}
+.cv-row-enter-from,
+.cv-row-leave-to {
+  opacity: 0;
+}
+
+/* An empty state reached by finishing the work, not found on arrival: it
+   lands as a finish. Put `cv-done` on the empty state's root. */
+.cv-done > :first-child {
+  animation: cv-done-pop 300ms var(--cv-ease-out) both;
+}
+.cv-done > :not(:first-child) {
+  animation: cv-done-rise 300ms var(--cv-ease-out) 60ms both;
+}
+@keyframes cv-done-pop {
+  from { opacity: 0; transform: scale(0.9); }
+}
+@keyframes cv-done-rise {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cv-pop-enter-from,
   .cv-pop-leave-to,
@@ -147,5 +182,12 @@ input:is(:-webkit-autofill, :autofill) {
   .cv-expand-enter-from,
   .cv-expand-leave-to {
     grid-template-rows: 1fr;
+  }
+  .cv-row-move {
+    transition: none;
+  }
+  .cv-done > :first-child,
+  .cv-done > :not(:first-child) {
+    animation-name: cv-fade-in;
   }
 }

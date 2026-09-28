@@ -44,6 +44,12 @@ const queue = computed(() => (types.queueYear === year.value ? types.queue : nul
 // zeros above it. A year left empty among others keeps the card, for its chips.
 const allSorted = computed(() => queue.value?.total_count === 0 && !types.queue?.years.length)
 const failed = ref(false)
+// Emptied by the answers given here, not opened empty: only then does the
+// empty state arrive as a finish.
+const clearedHere = ref(false)
+watch(() => queue.value?.questions.length, (count, previous) => {
+  clearedHere.value = count === 0 && !!previous
+})
 
 // Totals add questions up in the operations' own currency, the main one in practice.
 const currency = computed(() => types.queue?.questions[0]?.transaction.currency ?? 'EUR')
@@ -234,7 +240,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     </BaseCard>
 
     <BaseCard v-else-if="queue.questions.length" :padding="false" class="overflow-hidden">
-      <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
+      <TransitionGroup tag="ul" name="cv-row" class="relative divide-y divide-surface-border dark:divide-surface-dark-border">
         <BankTransactionRow
           v-for="item in queue.questions"
           :key="item.transaction.id"
@@ -253,11 +259,12 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           @retype="retyping = item.transaction"
           @subscribe="(decision) => subscribe(item.transaction, decision)"
         />
-      </ul>
+      </TransitionGroup>
     </BaseCard>
 
     <BaseEmptyState
       v-else
+      :class="{ 'cv-done': clearedHere }"
       title="Tout est trié"
       :description="year === null
         ? 'Chaque opération compte là où elle doit : le Réel est à jour.'

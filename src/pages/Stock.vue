@@ -2046,13 +2046,15 @@ onMounted(async () => {
           </div>
 
           <!-- Place de marché optionnelle -->
-          <div v-if="showExchange">
-            <BaseInput
-              v-model="txForm.exchange!"
-              label="Place de marché"
-              placeholder="Ex : XPAR, XNAS…"
-            />
-          </div>
+          <Transition name="cv-reveal">
+            <div v-if="showExchange">
+              <BaseInput
+                v-model="txForm.exchange!"
+                label="Place de marché"
+                placeholder="Ex : XPAR, XNAS…"
+              />
+            </div>
+          </Transition>
           <button
             v-if="!showExchange"
             type="button"

@@ -81,37 +81,42 @@ function day(value: string | null): string {
       <ChevronDown :class="['w-3 h-3 transition-transform', open ? 'rotate-180' : '']" />
     </button>
 
-    <ul
-      v-if="open"
-      class="rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border"
-    >
-      <template v-if="operations">
-        <li
-          v-for="operation in operations"
-          :key="operation.id"
-          class="px-2.5 py-1.5 text-text-muted dark:text-text-dark-muted"
-        >
-          <div class="flex items-baseline gap-2">
-            <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
-            <span class="shrink-0">{{ operation.account_name }}</span>
-            <!-- The references and dates a bank writes into its labels differ from
-                 one operation to the next; the words they share are what groups them. -->
-            <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
-              {{ operation.label }}
-            </span>
-            <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
-              {{ signed(operation) }}
-            </span>
-          </div>
-          <p v-if="hint(operation)" class="text-info">{{ hint(operation) }}</p>
-        </li>
-      </template>
-      <li v-else-if="failed" class="px-2.5 py-1.5 text-danger">
-        Impossible de charger ces opérations.
-      </li>
-      <li v-for="n in placeholders" v-else :key="n" class="px-2.5 py-1.5">
-        <BaseSkeleton variant="text" width="100%" />
-      </li>
-    </ul>
+    <Transition name="cv-expand">
+      <div v-if="open">
+        <div>
+          <ul
+            class="rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border"
+          >
+            <template v-if="operations">
+              <li
+                v-for="operation in operations"
+                :key="operation.id"
+                class="px-2.5 py-1.5 text-text-muted dark:text-text-dark-muted"
+              >
+                <div class="flex items-baseline gap-2">
+                  <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
+                  <span class="shrink-0">{{ operation.account_name }}</span>
+                  <!-- The references and dates a bank writes into its labels differ from
+                       one operation to the next; the words they share are what groups them. -->
+                  <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
+                    {{ operation.label }}
+                  </span>
+                  <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
+                    {{ signed(operation) }}
+                  </span>
+                </div>
+                <p v-if="hint(operation)" class="text-info">{{ hint(operation) }}</p>
+              </li>
+            </template>
+            <li v-else-if="failed" class="px-2.5 py-1.5 text-danger">
+              Impossible de charger ces opérations.
+            </li>
+            <li v-for="n in placeholders" v-else :key="n" class="px-2.5 py-1.5">
+              <BaseSkeleton variant="text" width="100%" />
+            </li>
+          </ul>
+        </div>
+      </div>
+    </Transition>
   </span>
 </template>

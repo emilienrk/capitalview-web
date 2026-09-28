@@ -165,54 +165,60 @@ function removeTypeRow(i: number) { typeRows.value.splice(i, 1) }
         Options avancées
       </button>
 
-      <div v-if="showAdvanced" class="mt-4 space-y-4">
-        <div class="grid sm:grid-cols-3 gap-4">
-          <div class="space-y-1.5">
-            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Délimiteur</label>
-            <select v-model="delimiter" :class="selectClass">
-              <option value="">Auto</option>
-              <option value=",">Virgule ( , )</option>
-              <option value=";">Point-virgule ( ; )</option>
-              <option value="&#9;">Tabulation</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Décimales</label>
-            <select v-model="decimalSeparator" :class="selectClass">
-              <option value="">Auto</option>
-              <option value=".">Point ( . )</option>
-              <option value=",">Virgule ( , )</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Format de date</label>
-            <input v-model="dateFormat" type="text" placeholder="ex : %d/%m/%Y" :class="selectClass" />
-          </div>
-        </div>
+      <Transition name="cv-expand">
+        <div v-if="showAdvanced">
+          <div>
+            <div class="pt-4 space-y-4">
+              <div class="grid sm:grid-cols-3 gap-4">
+                <div class="space-y-1.5">
+                  <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Délimiteur</label>
+                  <select v-model="delimiter" :class="selectClass">
+                    <option value="">Auto</option>
+                    <option value=",">Virgule ( , )</option>
+                    <option value=";">Point-virgule ( ; )</option>
+                    <option value="&#9;">Tabulation</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Décimales</label>
+                  <select v-model="decimalSeparator" :class="selectClass">
+                    <option value="">Auto</option>
+                    <option value=".">Point ( . )</option>
+                    <option value=",">Virgule ( , )</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Format de date</label>
+                  <input v-model="dateFormat" type="text" placeholder="ex : %d/%m/%Y" :class="selectClass" />
+                </div>
+              </div>
 
-        <!-- Type mapping (transactions only) -->
-        <div v-if="!isBank" class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Correspondance des types</label>
-            <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover" @click="addTypeRow">
-              <Plus class="w-3.5 h-3.5" /> Ajouter
-            </button>
-          </div>
-          <p class="text-xs text-text-muted dark:text-text-dark-muted">
-            Traduisez les libellés de votre fichier (ex : « Achat ») vers un type reconnu.
-          </p>
-          <div v-for="(row, i) in typeRows" :key="i" class="flex items-center gap-2">
-            <input v-model="row.from" type="text" placeholder="Libellé du fichier" :class="selectClass" />
-            <span class="text-text-muted">→</span>
-            <select v-model="row.to" :class="selectClass">
-              <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
-            </select>
-            <button type="button" class="p-2 text-text-muted hover:text-danger transition-colors" @click="removeTypeRow(i)">
-              <Trash2 class="w-4 h-4" />
-            </button>
+              <!-- Type mapping (transactions only) -->
+              <div v-if="!isBank" class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Correspondance des types</label>
+                  <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover" @click="addTypeRow">
+                    <Plus class="w-3.5 h-3.5" /> Ajouter
+                  </button>
+                </div>
+                <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                  Traduisez les libellés de votre fichier (ex : « Achat ») vers un type reconnu.
+                </p>
+                <div v-for="(row, i) in typeRows" :key="i" class="flex items-center gap-2">
+                  <input v-model="row.from" type="text" placeholder="Libellé du fichier" :class="selectClass" />
+                  <span class="text-text-muted">→</span>
+                  <select v-model="row.to" :class="selectClass">
+                    <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+                  </select>
+                  <button type="button" class="p-2 text-text-muted hover:text-danger transition-colors" @click="removeTypeRow(i)">
+                    <Trash2 class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </div>
   </div>
 </template>
