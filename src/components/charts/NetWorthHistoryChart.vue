@@ -13,6 +13,7 @@ import VChart from 'vue-echarts'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -74,6 +75,7 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const chartTheme = useChartTheme()
+const { privacyMode } = usePrivacyMode()
 const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
@@ -171,6 +173,9 @@ watch(
 const isMobile = computed(() => containerWidth.value < 640)
 
 const option = computed(() => {
+  // Read here, not only inside the formatters: ECharts calls those later, so
+  // toggling privacy would otherwise leave the drawn axis unmasked.
+  const hidden = privacyMode.value
   const dates = allDates.value
   const isDaily = props.granularity === 'daily'
   const showDailyPoints = false
@@ -362,8 +367,9 @@ const option = computed(() => {
       axisLabel: {
         color: textColor,
         fontSize: 11,
+        // The curve's shape stays readable in privacy mode; its scale does not.
         formatter: (val: number) =>
-          val >= 1000 ? `${(val / 1000).toFixed(0)}k €` : `${val} €`,
+          hidden ? '' : val >= 1000 ? `${(val / 1000).toFixed(0)}k €` : `${val} €`,
       },
       splitLine: { lineStyle: { color: gridColor } },
       axisLine: { show: false },
@@ -385,7 +391,7 @@ const option = computed(() => {
             })
             return `<div style="display:flex;justify-content:space-between;gap:16px">
               <span style="color:${p.color}">● ${p.seriesName}</span>
-              <span style="font-weight:600">${val} €</span>
+              <span style="font-weight:600">${hidden ? '•••' : `${val} €`}</span>
             </div>`
           })
           .join('')
@@ -504,7 +510,7 @@ watch(visiblePerformance, (newVal) => {
           :key="opt.label"
           type="button"
           :class="[
-            'px-2.5 py-1 text-xs font-medium rounded-full transition duration-150 select-none',
+            'px-2.5 py-1 text-xs font-medium whitespace-nowrap rounded-full transition duration-150 select-none',
             selectedRangeMonths === opt.months
               ? 'bg-primary text-primary-content shadow-sm'
               : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40',
@@ -516,7 +522,8 @@ watch(visiblePerformance, (newVal) => {
       </div>
     </div>
 
-    <div ref="containerRef" class="w-full h-72" style="touch-action: none;">
+    <!-- pan-y: a vertical swipe starting on the curve still scrolls the page. -->
+    <div ref="containerRef" class="w-full h-72" style="touch-action: pan-y;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"

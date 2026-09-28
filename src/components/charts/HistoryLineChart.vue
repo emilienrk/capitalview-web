@@ -13,6 +13,7 @@ import VChart from 'vue-echarts'
 import type { AccountHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -73,6 +74,7 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
 
 const { chartRef, containerRef, canRenderChart, containerWidth, syncChartVisibilityAndSize } = useChartResize()
 const chartTheme = useChartTheme()
+const { privacyMode } = usePrivacyMode()
 const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
@@ -165,6 +167,9 @@ watch(
 const isMobile = computed(() => containerWidth.value < 640)
 
 const option = computed(() => {
+  // Read here, not only inside the formatters: ECharts calls those later, so
+  // toggling privacy would otherwise leave the drawn axis unmasked.
+  const hidden = privacyMode.value
   const dates = allDates.value
 
   const isDaily = props.granularity === 'daily'
@@ -295,7 +300,7 @@ const option = computed(() => {
         // collapsed neighbouring ticks onto the same text: a portfolio moving
         // between 11.9k and 12.4k drew "12k€" twice and read like a broken axis.
         formatter: (val: number) =>
-          Math.abs(val) >= 1000
+          hidden ? '' : Math.abs(val) >= 1000
             ? `${(val / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k€`
             : `${Math.round(val)}€`,
       },
@@ -318,7 +323,7 @@ const option = computed(() => {
           if (param.seriesName && param.value != null) {
             const value = param.value
             const color = param.color || '#000'
-            tooltip += `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:3px"><span style="color:${color}">● ${param.seriesName}</span><strong>${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</strong></div>`
+            tooltip += `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:3px"><span style="color:${color}">● ${param.seriesName}</span><strong>${hidden ? '•••' : `${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`}</strong></div>`
           }
         }
 

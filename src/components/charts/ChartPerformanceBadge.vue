@@ -24,10 +24,9 @@ const isPositive = computed(() => diffValue.value >= 0)
         isPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger',
       ]"
     >
-      {{ isPositive ? '▲' : '▼' }}
-      {{ percentValue.toFixed(2) }}%
+      <span aria-hidden="true">{{ isPositive ? '▲' : '▼' }}</span>
+      {{ isPositive ? '+' : '−' }}{{ Math.abs(percentValue).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} %
     </span>
-    <!-- Not hidden on mobile anymore! -->
     <span :class="['text-[11px] sm:text-xs font-semibold', isPositive ? 'text-success' : 'text-danger']">
       {{ isPositive ? '+' : '' }}{{ maskValue(formatCurrency(diffValue)) }}
     </span>

@@ -10,6 +10,7 @@ import {
 import VChart from 'vue-echarts'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -31,6 +32,7 @@ const updateOptions = {
 }
 
 const chartTheme = useChartTheme()
+const { privacyMode } = usePrivacyMode()
 
 const sortedSegments = computed(() => {
   return [...props.segments].sort((a, b) => b.value - a.value)
@@ -45,6 +47,9 @@ watch(sortedSegments, (segments) => {
 }, { immediate: true })
 
 const option = computed(() => {
+  // Read here, not only inside the formatters: ECharts calls those later, so
+  // toggling privacy would otherwise leave the drawn axis unmasked.
+  const hidden = privacyMode.value
   const theme = chartTheme.value
   const textColor = theme.text
 
@@ -62,7 +67,7 @@ const option = computed(() => {
         const value = Number(params.value || 0)
         const pct = Number(params.percent || 0)
         return `<div style="font-weight:600;margin-bottom:4px">${params.name}</div>
-<div>${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} € (${pct.toFixed(1)}%)</div>`
+<div>${hidden ? '•••' : `${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €`} (${pct.toFixed(1)}%)</div>`
       },
     },
     legend: {
