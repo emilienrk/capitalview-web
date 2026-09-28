@@ -1,7 +1,7 @@
 /* Design tokens behind the Tailwind theme (tailwind.config.js reads them).
-   :root holds the default style (Doux). [data-style] swaps type, corners and depth;
-   [data-palette] swaps colors. Both sit on <html> (see theme/appearance.ts)
-   and combine freely. Style selectors are not tied to :root so a settings
+   :root holds the default style (Doux) and palette (Prune). [data-style]
+   swaps type, corners and depth; [data-palette] swaps colors. Both sit on
+   <html> (see theme/appearance.ts) and combine freely. Style selectors are not tied to :root so a settings
    preview can render one style inside a page that uses another. */
 
 /* Doux, the default: a humanist face built for legibility, moderate corners,
@@ -50,17 +50,7 @@
 :root {
   color-scheme: light;
 
-  /* ── Colors ───────────────────────────────────── */
-  --cv-primary: oklch(51.1% 0.262 276.966);
-  --cv-primary-hover: oklch(45.7% 0.24 277.023);
-  --cv-primary-active: oklch(39.8% 0.195 277.366);
-  --cv-primary-light: oklch(96.2% 0.018 272.314);
-  --cv-primary-content: #ffffff;
-
-  --cv-secondary: oklch(44.6% 0.043 257.281);
-  --cv-secondary-hover: oklch(37.2% 0.044 257.287);
-  --cv-secondary-light: oklch(96.8% 0.007 247.896);
-
+  /* ── Semantic colors, shared by every palette ─── */
   --cv-info: oklch(62.3% 0.214 259.815);
   --cv-info-light: oklch(97% 0.014 254.604);
   --cv-success: oklch(59.6% 0.145 163.225);
@@ -69,83 +59,11 @@
   --cv-warning-light: oklch(98.7% 0.022 95.277);
   --cv-danger: oklch(57.7% 0.245 27.325);
   --cv-danger-light: oklch(97.1% 0.013 17.38);
-
-  --cv-background: oklch(98.5% 0.002 247.839);
-  --cv-background-subtle: oklch(96.7% 0.003 264.542);
-  --cv-background-dark: oklch(12.9% 0.042 264.695);
-  --cv-background-dark-subtle: oklch(20.8% 0.042 265.755);
-
-  --cv-surface: #ffffff;
-  --cv-surface-hover: oklch(98.5% 0.002 247.839);
-  --cv-surface-border: oklch(92.8% 0.006 264.531);
-  --cv-surface-active: oklch(96.7% 0.003 264.542);
-  --cv-surface-dark: oklch(20.8% 0.042 265.755);
-  --cv-surface-dark-hover: oklch(27.9% 0.041 260.031);
-  --cv-surface-dark-border: oklch(37.2% 0.044 257.287);
-
-  --cv-text-main: oklch(21% 0.034 264.665);
-  --cv-text-body: oklch(37.3% 0.034 259.733);
-  --cv-text-muted: oklch(55.1% 0.027 264.364);
-  --cv-text-dark-main: oklch(98.4% 0.003 247.858);
-  --cv-text-dark-body: oklch(86.9% 0.022 252.894);
-  --cv-text-dark-muted: oklch(55.4% 0.046 257.417);
-
-  --cv-sidebar: #ffffff;
-  --cv-sidebar-dark: oklch(20.8% 0.042 265.755);
-  --cv-sidebar-border: oklch(92.8% 0.006 264.531);
-  --cv-sidebar-dark-border: oklch(27.9% 0.041 260.031);
-  --cv-sidebar-active: oklch(96.2% 0.018 272.314);
-  --cv-sidebar-dark-active: oklch(25.7% 0.09 281.288);
-
-  /* ── Charts (ECharts reads these through useChartTheme) ── */
-  --cv-chart-text: #6b7280;
-  --cv-chart-grid: #f3f4f6;
-  --cv-chart-tooltip-bg: #ffffff;
-  --cv-chart-tooltip-border: #e5e7eb;
-  --cv-chart-tooltip-text: #111827;
-  --cv-chart-surface: #ffffff;
-  --cv-chart-zoom-track: rgba(209, 213, 219, 0.7);
-  --cv-chart-zoom-fill: rgba(99, 102, 241, 0.3);
-  --cv-chart-zoom-handle: #6366f1;
-  --cv-chart-label: #334155;
-  --cv-chart-accent: #6366f1;
-  --cv-chart-neutral: #94a3b8;
-  /* Reference lines (cost basis, a random day) stay this light in dark mode too:
-     one step darker read as absent on a phone. */
-  --cv-chart-reference: #94a3b8;
-  /* Gains, losses and alerts: palettes map them to the shared semantic tokens. */
-  --cv-chart-positive: #10b981;
-  --cv-chart-negative: #ef4444;
-  --cv-chart-warning: #f59e0b;
-  --cv-chart-total: #4f46e5;
-  --cv-chart-bank: #3b82f6;
-  --cv-chart-stock: #059669;
-  --cv-chart-crypto: #f59e0b;
-  --cv-chart-placements: #8b5cf6;
-  --cv-chart-assets: #475569;
-  --cv-chart-1: #2563eb;
-  --cv-chart-2: #059669;
-  --cv-chart-3: #d97706;
-  --cv-chart-4: #db2777;
-  --cv-chart-5: #7c3aed;
-  --cv-chart-6: #0d9488;
-  --cv-chart-7: #ea580c;
-  --cv-chart-8: #4f46e5;
 }
 
 :root.dark {
   /* Native scrollbars, autofill and form controls follow the app's toggle, not the OS. */
   color-scheme: dark;
-  --cv-chart-text: #94a3b8;
-  --cv-chart-grid: #1e293b;
-  --cv-chart-tooltip-bg: #0f172a;
-  --cv-chart-tooltip-border: #334155;
-  --cv-chart-tooltip-text: #f1f5f9;
-  --cv-chart-surface: #0f172a;
-  --cv-chart-zoom-track: rgba(51, 65, 85, 0.5);
-  --cv-chart-zoom-fill: rgba(59, 130, 246, 0.45);
-  --cv-chart-label: #cbd5e1;
-  --cv-chart-neutral: #475569;
 }
 
 /* ════════════════ Styles ════════════════ */
@@ -252,10 +170,11 @@
 /* ════════════════ Palettes ════════════════
    A palette only sets primitives (--p-*); the mapping below turns them into
    the semantic tokens, so every palette fills every role in both modes.
+   Prune, the default, fills :root; [data-palette] swaps in another.
    Semantic success / warning / danger / info stay shared: gains and losses
    must read the same whatever the palette. */
 
-:root[data-palette] {
+:root {
   --cv-primary: var(--p-accent);
   --cv-primary-hover: var(--p-accent-hover);
   --cv-primary-active: var(--p-accent-active);
@@ -330,7 +249,7 @@
 
 /* In dark mode the accent flips to its light form, so text-primary stays
    legible and filled buttons invert their label. */
-:root.dark[data-palette] {
+:root.dark {
   --cv-primary: var(--p-d-accent);
   --cv-primary-hover: var(--p-d-accent-hover);
   --cv-primary-active: var(--p-d-accent-active);
@@ -448,7 +367,8 @@
   --p-d-accent-ink: oklch(18% 0.025 215);
 }
 
-/* Prune: plum on warm-neutral paper. */
+/* Prune, the default: plum on warm-neutral paper. */
+:root,
 :root[data-palette='prune'] {
   --p-canvas: oklch(98.3% 0.003 70);
   --p-canvas-2: oklch(96% 0.005 70);

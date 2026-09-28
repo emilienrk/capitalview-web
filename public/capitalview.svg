@@ -5,8 +5,9 @@
  width="1200.000000pt" height="1200.000000pt" viewBox="0 0 1200.000000 1200.000000"
  preserveAspectRatio="xMidYMid meet">
 
+<style>@media (prefers-color-scheme: dark) { g { fill: #e89dc0; } }</style>
 <g transform="translate(0.000000,1200.000000) scale(0.100000,-0.100000)"
-fill="#6366f1" stroke="none">
+fill="#812a5a" stroke="none">
 <path d="M5068 10804 c-3 -3 5 -40 18 -82 14 -42 63 -201 110 -352 47 -151
 114 -365 149 -475 34 -110 91 -290 125 -400 34 -110 86 -274 115 -365 30 -91
 81 -255 115 -365 33 -110 65 -211 70 -225 12 -33 129 -403 175 -555 20 -66 59

@@ -3,9 +3,10 @@ import { withoutTransitions } from './withoutTransitions'
 
 /**
  * Per-user look: a style (type, corners, depth) and a palette (colors), each
- * mapped to a data attribute on <html> that theme.css keys off. The default
- * style is the base :root look; the 'current' palette is the original one and
- * sets no attribute.
+ * mapped to a data attribute on <html> that theme.css keys off. The defaults
+ * are the base :root look and set no attribute. 'current', which the server
+ * still answers for accounts that never chose, meant the retired original
+ * style and palette; it now reads as the defaults.
  *
  * The server-side user settings are the source of truth (synced by the
  * settings store via applyServerAppearance). localStorage is only a boot cache,
@@ -32,21 +33,21 @@ export const STYLE_OPTIONS: StyleOption[] = [
   { id: 'precise', label: 'Précis', description: 'Police nette, montants à chasse fixe' },
 ]
 
-/** Also what the server's 'current' (the retired original style) now means. */
 const DEFAULT_STYLE = 'soft'
 
 export const PALETTE_OPTIONS: PaletteOption[] = [
-  { id: 'current', label: 'Classique', swatches: ['#f9fafb', '#111827', '#4f46e5'] },
+  { id: 'prune', label: 'Prune', swatches: ['#fbf9f7', '#1d1713', '#812a5a'] },
   { id: 'encre', label: 'Encre', swatches: ['#f8fafc', '#151b24', '#1b4ba9'] },
   { id: 'graphite', label: 'Graphite', swatches: ['#f9f9f9', '#141414', '#181818'] },
   { id: 'petrole', label: 'Pétrole', swatches: ['#f6fafb', '#111d20', '#006074'] },
-  { id: 'prune', label: 'Prune', swatches: ['#fbf9f7', '#1d1713', '#812a5a'] },
 ]
+
+const DEFAULT_PALETTE = 'prune'
 
 const STORAGE_KEY = 'appearance'
 
 export const activeStyle = ref(DEFAULT_STYLE)
-export const activePalette = ref('current')
+export const activePalette = ref(DEFAULT_PALETTE)
 // Bumped on every switch so chart options recompute from the new tokens.
 export const appearanceRevision = ref(0)
 
@@ -58,14 +59,14 @@ function findStyle(id: string | null | undefined): StyleOption {
 }
 
 function findPalette(id: string | null | undefined): PaletteOption {
-  return PALETTE_OPTIONS.find(p => p.id === id) ?? PALETTE_OPTIONS[0]!
+  return PALETTE_OPTIONS.find(p => p.id === id) ?? PALETTE_OPTIONS.find(p => p.id === DEFAULT_PALETTE)!
 }
 
 /** Put a look on <html>, in one frame, only if it is not already there. */
 function show(style: string, palette: string): void {
   const root = document.documentElement
   const nextStyle = style === DEFAULT_STYLE ? null : style
-  const nextPalette = palette === 'current' ? null : palette
+  const nextPalette = palette === DEFAULT_PALETTE ? null : palette
   if (root.getAttribute('data-style') === nextStyle && root.getAttribute('data-palette') === nextPalette) return
   withoutTransitions(() => {
     if (nextStyle) root.setAttribute('data-style', nextStyle)

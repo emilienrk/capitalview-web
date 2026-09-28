@@ -10,8 +10,8 @@
     <!-- Color scheme hint for scrollbars, form controls, etc. -->
     <meta name="color-scheme" content="light dark">
     <!-- Status bar / browser chrome color (light & dark mode) -->
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#fbf9f7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f0b09" media="(prefers-color-scheme: dark)">
     <meta name="description" content="Comptes bancaires, bourse, crypto, assurance vie et biens réunis dans une seule vue, chiffrés avec une clé que le serveur ne conserve pas.">
     
     <!-- Fonts: preconnect so the request starts in parallel with the app CSS.
@@ -22,20 +22,23 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Brygada+1918:wght@400..700&family=Schibsted+Grotesk:wght@400..800&family=Archivo:wght@300..800&family=Atkinson+Hyperlegible+Next:wght@300..800&display=swap">
 
     <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
     <link rel="icon" href="/capitalview.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="apple-touch-icon" sizes="180x180" href="/capitalview.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     
     <!-- Open Graph / Social Media Meta Tags -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="CapitalView, suivi de patrimoine chiffré">
     <meta property="og:description" content="Comptes bancaires, bourse, crypto, assurance vie et biens réunis dans une seule vue, chiffrés avec une clé que le serveur ne conserve pas.">
-    <meta property="og:image" content="/capitalview.svg">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image" content="https://capitalview.fr/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CapitalView, suivi de patrimoine chiffré">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="CapitalView, suivi de patrimoine chiffré">
     <meta name="twitter:description" content="Comptes bancaires, bourse, crypto, assurance vie et biens réunis dans une seule vue, chiffrés avec une clé que le serveur ne conserve pas.">
-    <meta name="twitter:image" content="/capitalview.svg">
+    <meta name="twitter:image" content="https://capitalview.fr/og-image.png">
     <title>CapitalView</title>
     <script>
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -57,8 +60,9 @@
           ? { style: 'editorial', palette: 'prune' }
           : JSON.parse(localStorage.getItem('appearance') || 'null') || {}
         var defaultStyle = 'soft'
+        var defaultPalette = 'prune'
         if (look.style && look.style !== 'current' && look.style !== defaultStyle) document.documentElement.setAttribute('data-style', look.style)
-        if (look.palette && look.palette !== 'current') document.documentElement.setAttribute('data-palette', look.palette)
+        if (look.palette && look.palette !== 'current' && look.palette !== defaultPalette) document.documentElement.setAttribute('data-palette', look.palette)
       } catch (e) {}
     </script>
   </head>

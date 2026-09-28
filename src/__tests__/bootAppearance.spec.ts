@@ -44,10 +44,13 @@ describe('boot appearance', () => {
     expect(bootRedirected.sort()).toEqual([...redirected].sort())
   })
 
-  it('leaves the default style to the base tokens', () => {
+  it('leaves the default style and palette to the base tokens', () => {
     const defaultStyle = appearanceSource.match(/const DEFAULT_STYLE = '([^']*)'/)?.[1]
+    const defaultPalette = appearanceSource.match(/const DEFAULT_PALETTE = '([^']*)'/)?.[1]
     expect(defaultStyle).toBeTruthy()
+    expect(defaultPalette).toBeTruthy()
     expect(bootScript).toContain(`var defaultStyle = '${defaultStyle}'`)
+    expect(bootScript).toContain(`var defaultPalette = '${defaultPalette}'`)
   })
 
   it('pins public pages to the look the router pins them to', () => {
@@ -73,8 +76,8 @@ describe('boot appearance', () => {
     const cached = { appearance: JSON.stringify({ style: 'swiss', palette: 'encre' }) }
 
     it('shows the public look on public pages when signed out', () => {
-      expect(boot('/', cached)).toEqual({ 'data-style': 'editorial', 'data-palette': 'prune' })
-      expect(boot('/login/', cached)).toEqual({ 'data-style': 'editorial', 'data-palette': 'prune' })
+      expect(boot('/', cached)).toEqual({ 'data-style': 'editorial' })
+      expect(boot('/login/', cached)).toEqual({ 'data-style': 'editorial' })
     })
 
     it('shows the cached look in the app', () => {
@@ -84,12 +87,13 @@ describe('boot appearance', () => {
     it('shows the cached look where a signed-in user gets redirected to the app', () => {
       const signedIn = { ...cached, 'signed-in': '1' }
       expect(boot('/', signedIn)).toEqual({ 'data-style': 'swiss', 'data-palette': 'encre' })
-      expect(boot('/mentions-legales', signedIn)).toEqual({ 'data-style': 'editorial', 'data-palette': 'prune' })
+      expect(boot('/mentions-legales', signedIn)).toEqual({ 'data-style': 'editorial' })
     })
 
-    it('leaves the default style and the retired one to the base tokens', () => {
-      expect(boot('/dashboard', { appearance: JSON.stringify({ style: 'soft', palette: 'current' }) })).toEqual({})
-      expect(boot('/dashboard', { appearance: JSON.stringify({ style: 'current', palette: 'prune' }) })).toEqual({ 'data-palette': 'prune' })
+    it('leaves the defaults and the retired originals to the base tokens', () => {
+      expect(boot('/dashboard', { appearance: JSON.stringify({ style: 'soft', palette: 'prune' }) })).toEqual({})
+      expect(boot('/dashboard', { appearance: JSON.stringify({ style: 'current', palette: 'current' }) })).toEqual({})
+      expect(boot('/dashboard', { appearance: JSON.stringify({ style: 'current', palette: 'encre' }) })).toEqual({ 'data-palette': 'encre' })
       expect(boot('/dashboard', {})).toEqual({})
     })
   })

@@ -37,25 +37,26 @@ describe('appearance', () => {
     appearance.initAppearance()
 
     appearance.pinAppearance('editorial', 'prune')
-    expect(attributes).toEqual({ 'data-style': 'editorial', 'data-palette': 'prune' })
+    expect(attributes).toEqual({ 'data-style': 'editorial' })
 
     // The account's settings land while still on the sign-in page.
     appearance.applyServerAppearance('precise', 'petrole')
-    expect(attributes).toEqual({ 'data-style': 'editorial', 'data-palette': 'prune' })
+    expect(attributes).toEqual({ 'data-style': 'editorial' })
 
     appearance.releaseAppearance()
     expect(attributes).toEqual({ 'data-style': 'precise', 'data-palette': 'petrole' })
   })
 
-  it('reads the retired original style as the default one', async () => {
+  it('reads the retired original style and palette as the defaults', async () => {
     const attributes = stubDocument()
     stubStorage({})
     const appearance = await import('../appearance')
     appearance.initAppearance()
 
-    appearance.applyServerAppearance('swiss', 'current')
-    appearance.applyServerAppearance('current', 'prune')
-    expect(appearance.activeStyle.value).toBe('soft')
-    expect(attributes).toEqual({ 'data-palette': 'prune' })
+    appearance.applyServerAppearance('swiss', 'encre')
+    expect(attributes).toEqual({ 'data-style': 'swiss', 'data-palette': 'encre' })
+    appearance.applyServerAppearance('current', 'current')
+    expect([appearance.activeStyle.value, appearance.activePalette.value]).toEqual(['soft', 'prune'])
+    expect(attributes).toEqual({})
   })
 })
