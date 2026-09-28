@@ -19,6 +19,7 @@ export const ANALYSIS_SECTIONS: AnalysisSection[] = [
   { key: 'fees', label: 'Frais et sorties', description: 'Frais de courtage et ce que deviennent les sorties' },
   { key: 'plan', label: 'Adhérence au plan cible', description: 'Écart entre le plan déclaré et les versements réels' },
   { key: 'method', label: 'Notes de méthode', description: 'Comment chaque chiffre est calculé' },
+  { key: 'projection', label: 'Projection à 10 ans', description: 'Valeur future au rythme mesuré, hypothèses modifiables' },
 ]
 
 export function isSectionVisible(hidden: string[] | undefined, key: string): boolean {

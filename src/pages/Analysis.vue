@@ -17,6 +17,7 @@ import FeesSection from '@/components/analytics/sections/FeesSection.vue'
 import HoldingsSection from '@/components/analytics/sections/HoldingsSection.vue'
 import PlanSection from '@/components/analytics/sections/PlanSection.vue'
 import MethodNotes from '@/components/analytics/sections/MethodNotes.vue'
+import ProjectionSection from '@/components/analytics/sections/ProjectionSection.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { isSectionVisible } from '@/utils/analysisSections'
 
@@ -186,6 +187,9 @@ onMounted(async () => {
 
         <MethodNotes v-if="shows('method')" :bridge="bridge" />
       </template>
+
+      <!-- Needs no behavioural history: it stands on the current positions alone. -->
+      <ProjectionSection v-if="shows('projection')" :is-dark="isDark" />
     </template>
   </div>
 </template>
