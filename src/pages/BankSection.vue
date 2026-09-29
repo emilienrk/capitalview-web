@@ -123,10 +123,11 @@ onMounted(async () => {
         <BaseButton
           v-if="openBankingEnabled && bank.linkedAccounts.length"
           variant="outline"
+          size="sm"
           :loading="bank.isSyncing"
           @click="syncNow"
         >
-          <RefreshCw class="w-4 h-4 mr-1.5" />
+          <RefreshCw class="w-4 h-4" />
           Synchroniser
         </BaseButton>
         <!-- Only for someone who already opted in: this page is not where the
@@ -134,17 +135,19 @@ onMounted(async () => {
         <BaseButton
           v-else-if="openBankingEnabled"
           variant="outline"
+          size="sm"
           @click="router.push({ name: 'settings', query: { tab: 'banque' } })"
         >
-          <Landmark class="w-4 h-4 mr-1.5" />
+          <Landmark class="w-4 h-4" />
           Connecter une banque
         </BaseButton>
         <ImportMenu
+          size="sm"
           :items="importMenuItems"
           :disabled="!bank.summary?.accounts?.length"
           @select="onImportMenuSelect"
         />
-        <BaseAddButton @click="accountForm?.openCreate()">Nouveau compte</BaseAddButton>
+        <BaseAddButton size="sm" @click="accountForm?.openCreate()">Nouveau compte</BaseAddButton>
       </template>
     </PageHeader>
 

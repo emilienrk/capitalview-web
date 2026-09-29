@@ -75,7 +75,7 @@ onMounted(() => {
   <div>
     <PageHeader title="Notes" description="Stratégies, idées d'investissement et notes personnelles">
       <template #actions>
-        <BaseAddButton @click="openCreate">Nouvelle note</BaseAddButton>
+        <BaseAddButton size="sm" @click="openCreate">Nouvelle note</BaseAddButton>
       </template>
     </PageHeader>
 
