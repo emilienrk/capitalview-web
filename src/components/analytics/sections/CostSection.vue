@@ -41,15 +41,15 @@ function eur(value: number | string): string {
       v-if="gap"
       id="analyse-investor_gap"
       class="scroll-mt-20"
-      title="Tes euros contre ta stratégie"
+      title="Vos euros contre votre stratégie"
       :measurable="gap.gap.value !== null"
       :summary="gap.gap.caveat"
     >
       <template #help>
         <li>
           <strong>Stratégie</strong> : la performance pondérée par le temps (TWR), qui ignore le
-          moment où l'argent entre. <strong>Tes euros</strong> : la performance pondérée par les
-          flux (MWR), celle que ton argent a réellement obtenue. L'écart entre les deux ne vient
+          moment où l'argent entre. <strong>Vos euros</strong> : la performance pondérée par les
+          flux (MWR), celle que votre argent a réellement obtenue. L'écart entre les deux ne vient
           que du moment des versements.
         </li>
         <li>
@@ -67,7 +67,7 @@ function eur(value: number | string): string {
         :items="[
           { label: 'Stratégie', value: gap.twr_annualised.value },
           { label: 'Indice', value: gap.benchmark_annualised.value },
-          { label: 'Tes euros', value: gap.mwr.value, emphasis: true },
+          { label: 'Vos euros', value: gap.mwr.value, emphasis: true },
         ]"
       />
       <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -87,14 +87,14 @@ function eur(value: number | string): string {
           </h3>
           <BlockHelp>
             <li>
-              Le robot part du <strong>même capital effectivement investi que toi</strong>, et se
+              Le robot part du <strong>même capital effectivement investi que vous</strong>, et se
               voit attribuer les mêmes liquidités non investies. Sans ça, un gros dépôt laissé
               dormant se lirait comme du talent d'investisseur.
             </li>
             <li>
               Le pont est <strong>dépendant du chemin</strong> : l'ordre des substitutions est un
               choix, et le réordonner déplacerait quelques euros entre termes voisins. La somme des
-              termes réconcilie exactement avec ton portefeuille ; tout reliquat apparaît comme
+              termes réconcilie exactement avec votre portefeuille ; tout reliquat apparaît comme
               « non expliqué ».
             </li>
           </BlockHelp>
@@ -145,8 +145,8 @@ function eur(value: number | string): string {
           horodatage de décision qui n'est pas collecté — il n'est ni calculé ni prétendu.
         </li>
         <li>
-          Les tests de permutation re-tirent tes achats au hasard (5 000 fois) en gelant tout le
-          reste, à graine fixe. Au-delà de p = 0,10, la page dit « hasard » — jamais « tu es bon ».
+          Les tests de permutation re-tirent vos achats au hasard (5 000 fois) en gelant tout le
+          reste, à graine fixe. Au-delà de p = 0,10, la page dit « hasard » — jamais « vous êtes bon ».
         </li>
       </template>
       <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

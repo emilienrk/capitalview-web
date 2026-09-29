@@ -114,7 +114,7 @@ onMounted(async () => {
   <div>
     <PageHeader
       title="Analyse"
-      description="Ce que tes données disent de ton comportement d'investisseur"
+      description="Ce que vos données disent de votre comportement d'investisseur"
     >
       <template #actions>
         <BaseButton
@@ -170,7 +170,7 @@ onMounted(async () => {
         <SignalBoard v-if="shows('verdict') && signals.length" :signals="signals" />
 
         <BaseAlert v-if="planError && shows('plan')" variant="warning" class="mb-6">
-          Ton plan cible n'est pas évalué : {{ planError }}
+          Votre plan cible n'est pas évalué : {{ planError }}
           <RouterLink
             :to="{ path: '/settings', query: { tab: 'analyse' } }"
             class="font-medium underline underline-offset-2"

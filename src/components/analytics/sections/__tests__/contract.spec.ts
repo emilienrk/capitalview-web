@@ -257,7 +257,7 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
       p90_days: metric(3),
       never_invested_eur: '40',
       reading: { value: '1', format: 'days', active: 0, tone: 'good', bands: [] },
-      verdict: 'La moitié de tes euros est investie en 1 jour(s) ou moins.',
+      verdict: 'La moitié de vos euros est investie en 1 jour(s) ou moins.',
     }
     const html = await render('BehaviourSection', {
       regularity: null,

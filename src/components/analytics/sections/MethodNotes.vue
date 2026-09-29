@@ -26,11 +26,11 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         vide est plus honnête qu'un graphe faux.
       </li>
       <li v-if="bridge?.truncated">
-        L'indice de référence n'a pas d'historique sur toute ta période : la comparaison démarre au
+        L'indice de référence n'a pas d'historique sur toute votre période : la comparaison démarre au
         {{ bridge.covered_from }}, sur {{ bridge.covered_days }} jours.
       </li>
       <li>
-        Le pont contrefactuel substitue tes décisions dans cet ordre :
+        Le pont contrefactuel substitue vos décisions dans cet ordre :
         {{ bridge?.order.join(' → ') }}.
       </li>
     </ul>
@@ -63,12 +63,12 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
       </li>
       <li>
         <strong>L'implementation shortfall (Perold, 1988).</strong> Il exige l'horodatage du moment
-        où tu as décidé, que l'app ne collecte pas. Il n'est ni calculé ni prétendu.
+        où vous avez décidé, que l'app ne collecte pas. Il n'est ni calculé ni prétendu.
       </li>
       <li>
-        <strong>La composition réelle de tes ETF (look-through).</strong> Elle demanderait une
-        source externe. Sans elle, impossible de dire « tu détiens Apple deux fois » — seulement à
-        quel point tes lignes bougent ensemble.
+        <strong>La composition réelle de vos ETF (look-through).</strong> Elle demanderait une
+        source externe. Sans elle, impossible de dire « vous détenez Apple deux fois » — seulement à
+        quel point vos lignes bougent ensemble.
       </li>
     </ul>
   </details>

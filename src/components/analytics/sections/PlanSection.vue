@@ -81,9 +81,9 @@ const DRIFT_THRESHOLD_POINTS = 10
     >
       <template #help>
         <li>
-          Le <strong>plan cible</strong> n'est évalué qu'à partir du mois que tu déclares, et sur
+          Le <strong>plan cible</strong> n'est évalué qu'à partir du mois que vous déclarez, et sur
           les mois complets uniquement. Appliqué rétroactivement, il produirait un verdict sur des
-          mois où tu n'avais rien promis ; en comptant le mois en cours, il montrerait un
+          mois où vous n'aviez rien promis ; en comptant le mois en cours, il montrerait un
           sous-investissement à chaque ouverture de la page.
         </li>
         <li>
@@ -93,14 +93,14 @@ const DRIFT_THRESHOLD_POINTS = 10
         </li>
         <li>
           <strong>Deux dérives, deux questions.</strong> La dérive d'allocation compare le
-          portefeuille <em>tel qu'il est aujourd'hui</em> à ta cible actuelle : elle dit combien
+          portefeuille <em>tel qu'il est aujourd'hui</em> à votre cible actuelle : elle dit combien
           rééquilibrer. La dérive par période compare les <em>euros versés pendant la période</em>
-          à la répartition que tu avais déclarée pour elle : elle seule peut juger une période
+          à la répartition que vous aviez déclarée pour elle : elle seule peut juger une période
           terminée, puisque le marché a depuis déformé les poids du portefeuille.
         </li>
         <li>
-          <strong>Comment la lire.</strong> L'adhérence est ce que tu as investi divisé par ce
-          que tu avais promis, sur les mois complets depuis ta date de départ. La dérive
+          <strong>Comment la lire.</strong> L'adhérence est ce que vous avez investi divisé par ce
+          que vous aviez promis, sur les mois complets depuis votre date de départ. La dérive
           d'allocation est signalée au-delà de 10 points.
         </li>
       </template>

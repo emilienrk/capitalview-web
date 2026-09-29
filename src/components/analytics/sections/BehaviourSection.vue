@@ -59,7 +59,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
 <template>
   <section v-if="regularity || depositLag || conditioning" class="mt-8">
     <h2 class="mb-3 text-base font-semibold text-text-main dark:text-text-dark-main">
-      Ce que tu fais vraiment
+      Ce que vous faites vraiment
     </h2>
 
     <!-- ── 2.1 · purchase rhythm ─────────────────────────────────── -->
@@ -73,7 +73,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
     >
       <template v-if="regularity.cadence_label" #badge>
         <NoteChip :label="regularity.cadence_label">
-          Cadence lue sur tes ordres — soit un jour du mois, soit un intervalle médian — jamais
+          Cadence lue sur vos ordres — soit un jour du mois, soit un intervalle médian — jamais
           déclarée.
         </NoteChip>
       </template>
@@ -94,7 +94,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
         </li>
         <li>
           Les <strong>mois « pleins » équivalents</strong> sont l'inverse d'un indice de
-          concentration (HHI) porté sur l'axe du temps : combien d'achats mensuels égaux ta
+          concentration (HHI) porté sur l'axe du temps : combien d'achats mensuels égaux votre
           répartition représente.
         </li>
       </template>
@@ -155,7 +155,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
       <template #help>
         <li>
           <strong>Comment le lire.</strong> Chaque euro déposé est suivi jusqu'à l'achat qui le
-          consomme (FIFO sur les liquidités), et le délai médian est celui de la moitié de tes
+          consomme (FIFO sur les liquidités), et le délai médian est celui de la moitié de vos
           euros.
         </li>
         <li>
@@ -164,7 +164,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
           le coût moyen pondéré. Ce n'est pas une incohérence.
         </li>
         <li>
-          <strong>Déposé, jamais investi</strong> : dépôts moins achats, le chiffre que ton relevé
+          <strong>Déposé, jamais investi</strong> : dépôts moins achats, le chiffre que votre relevé
           confirme.
           <template
             v-if="Number(depositLag.unpaired_deposits_eur) > Number(depositLag.never_invested_eur)"
@@ -240,8 +240,8 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
           un jour dont l'année glissante précédente n'est pas complète est écarté.
         </li>
         <li>
-          Les tests de permutation re-tirent tes achats au hasard (5 000 fois) en gelant tout le
-          reste, à graine fixe. Au-delà de p = 0,10, la page dit « hasard » — jamais « tu es bon ».
+          Les tests de permutation re-tirent vos achats au hasard (5 000 fois) en gelant tout le
+          reste, à graine fixe. Au-delà de p = 0,10, la page dit « hasard » — jamais « vous êtes bon ».
         </li>
         <li>Le découpage par année est une tendance, pas une preuve : 12 mois par période.</li>
       </template>
@@ -259,7 +259,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
           <ComparisonBars
             format="pct"
             :items="[
-              { label: 'Tes achats', value: conditioning.weighted_drawdown.value, emphasis: true },
+              { label: 'Vos achats', value: conditioning.weighted_drawdown.value, emphasis: true },
               { label: 'Un jour au hasard', value: conditioning.unconditional_drawdown.value },
             ]"
           />
@@ -273,7 +273,7 @@ function lagIsSettled(lag: DepositLagResponse): boolean {
           <ComparisonBars
             format="pct"
             :items="[
-              { label: 'Tes achats', value: conditioning.weighted_momentum.value, emphasis: true },
+              { label: 'Vos achats', value: conditioning.weighted_momentum.value, emphasis: true },
               { label: 'Un jour au hasard', value: conditioning.unconditional_momentum.value },
             ]"
           />

@@ -41,7 +41,7 @@ const option = computed(() => {
     legend: {
       top: 0,
       textStyle: { color: textColor, fontSize: 11 },
-      data: ['Tes euros', "Un jour au hasard"],
+      data: ['Vos euros', "Un jour au hasard"],
     },
     xAxis: {
       type: 'category',
@@ -72,7 +72,7 @@ const option = computed(() => {
     },
     series: [
       {
-        name: 'Tes euros',
+        name: 'Vos euros',
         type: 'bar',
         data: props.density.map((bin) => Number(bin.purchase_share)),
         itemStyle: { color: theme.accent },

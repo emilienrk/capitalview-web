@@ -13,7 +13,7 @@ export interface AnalysisSection {
 
 export const ANALYSIS_SECTIONS: AnalysisSection[] = [
   { key: 'verdict', label: 'Signaux', description: 'Ce qui va et ce qui coince, bloc par bloc, en tête de page' },
-  { key: 'behaviour', label: 'Ce que tu fais vraiment', description: 'Rythme des achats, délai virement→investissement, conditionnement au marché' },
+  { key: 'behaviour', label: 'Ce que vous faites vraiment', description: 'Rythme des achats, délai virement→investissement, conditionnement au marché' },
   { key: 'cost', label: 'Ce que ça coûte', description: 'Écart investisseur, pont contrefactuel, prix payé sur chaque achat' },
   { key: 'holdings', label: 'Ce qui est réellement détenu', description: 'Concentration, paris indépendants et rotation du portefeuille' },
   { key: 'fees', label: 'Frais et sorties', description: 'Frais de courtage et ce que deviennent les sorties' },

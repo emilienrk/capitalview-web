@@ -314,7 +314,7 @@ watch(
           </ul>
 
           <p v-else class="px-3 py-4 text-center text-xs text-text-muted dark:text-text-dark-muted">
-            {{ assets.length ? 'Aucune ligne ne correspond.' : "Tu n'as encore acheté aucune ligne." }}
+            {{ assets.length ? 'Aucune ligne ne correspond.' : "Vous n'avez encore acheté aucune ligne." }}
           </p>
 
           <div class="border-t border-surface-border p-2 dark:border-surface-dark-border">

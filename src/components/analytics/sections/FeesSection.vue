@@ -46,12 +46,12 @@ function eur(value: number | string | null): string {
       </template>
       <template #help>
         <li>
-          <strong>Coût annuel</strong> : tes frais rapportés au capital déployé, ramenés à l'année.
+          <strong>Coût annuel</strong> : vos frais rapportés au capital déployé, ramenés à l'année.
           La ligne est à 0,25 % : c'est elle qui dit si les frais pèsent, pas le nombre d'ordres
           sous le seuil.
         </li>
         <li>
-          <strong>Ordre minimum rentable</strong> : la taille d'ordre sous laquelle ta commission
+          <strong>Ordre minimum rentable</strong> : la taille d'ordre sous laquelle votre commission
           moyenne dépasse 0,25 % du montant. C'est un calibrage : chez un courtier à moins d'un
           euro l'ordre, tous les ordres peuvent passer dessous alors que la charge totale reste
           dérisoire. Sous une commission proportionnelle, il n'existe pas — seul le tarif compte.
@@ -110,9 +110,9 @@ function eur(value: number | string | null): string {
       </template>
       <template #help>
         <li>
-          <strong>Gains vendus / pertes vendues</strong> compare la facilité avec laquelle tu
-          réalises un gain à celle avec laquelle tu réalises une perte. Au-dessus de 1, tu vends ce
-          qui monte et gardes ce qui baisse — l'effet de disposition (Odean, 1998).
+          <strong>Gains vendus / pertes vendues</strong> compare la facilité avec laquelle vous
+          réalisez un gain à celle avec laquelle vous réalisez une perte. Au-dessus de 1, vous vendez ce
+          qui monte et gardez ce qui baisse — l'effet de disposition (Odean, 1998).
         </li>
         <li>
           <strong>Ce que vendre a coûté</strong> compare la ligne vendue à l'indice sur
