@@ -4,7 +4,7 @@
  * before, where the money went, the months side by side, the savings rate and
  * the safety net, and who it came from and went to.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowDown, ArrowUp, PiggyBank, Scale, ShieldCheck, Sparkles, TrendingUp } from 'lucide-vue-next'
 
 import { BaseCard, BaseSegmentedControl, BaseSelect } from '@/components'
@@ -111,9 +111,10 @@ function detail(key: AmountKey): string {
 function comparison(key: keyof RealCashflowTotals): string | null {
   const previous = props.data.previous_year_to_date
   if (!previous) return null
-  const label = isCurrentYear.value ? `vs ${props.data.year - 1} à date` : `vs ${props.data.year - 1}`
+  const label = `vs ${props.data.year - 1}`
   if (key === 'cashflow') {
-    const change = Number(props.data.totals.cashflow) - Number(previous.cashflow)
+    // Both totals span the same months: over their count, the change is a month's.
+    const change = (Number(props.data.totals.cashflow) - Number(previous.cashflow)) / Math.max(1, props.data.covered_months)
     return `${change >= 0 ? '+' : '−'}${amount(Math.abs(change))} ${label}`
   }
   const change = changePercent(Number(props.data.totals[key]), Number(previous[key]))
@@ -140,10 +141,24 @@ const net = computed(() => props.data.safety_net)
 const basis = computed(() => {
   const months = props.data.covered_months
   const what = props.statistic === 'median' ? 'Médiane' : 'Moyenne'
-  return `${what} sur ${months} mois terminé${months > 1 ? 's' : ''}${isCurrentYear.value ? ', mois en cours exclu' : ''}`
+  const base = `${what} sur ${months} mois terminé${months > 1 ? 's' : ''}${isCurrentYear.value ? ', mois en cours exclu' : ''}`
+  // Said once here rather than on each tile, where it pushed the line onto two.
+  return isCurrentYear.value && props.data.previous_year_to_date
+    ? `${base}. Comparé à ${props.data.year - 1} sur les mêmes mois`
+    : base
 })
 
-/** The year's money from its main sources to what it became. */
+type SankeyScale = 'month' | 'year'
+const sankeyScale = ref<SankeyScale>('month')
+const sankeyScaleOptions = [
+  { label: 'Par mois', value: 'month' },
+  { label: "Sur l'année", value: 'year' },
+]
+
+/**
+ * The year's money from its main sources to what it became, as the mean month
+ * or the whole year. Always the mean: medians taken apart would not add up.
+ */
 const sankey = computed(() => {
   const links: Array<{ source: string; target: string; value: number }> = []
   const nodeLabels: Record<string, string> = {
@@ -193,7 +208,12 @@ const sankey = computed(() => {
   links.push({ source: 'hub:revenus', target: 'outflow:investment', value: Number(totals.investment) })
   if (Number(totals.net) > 0) links.push({ source: 'hub:revenus', target: 'outflow:rest', value: Number(totals.net) })
   else if (Number(totals.net) < 0) links.push({ source: 'hub:external', target: 'hub:revenus', value: -Number(totals.net) })
-  return { links: links.filter((link) => link.value > 0), nodeLabels, nodeGroups }
+  const divisor = sankeyScale.value === 'month' ? Math.max(1, props.data.covered_months) : 1
+  return {
+    links: links.filter((link) => link.value > 0).map((link) => ({ ...link, value: link.value / divisor })),
+    nodeLabels,
+    nodeGroups,
+  }
 })
 
 function monthName(period: string): string {
@@ -252,7 +272,7 @@ function monthName(period: string): string {
             <p class="mt-2 text-2xl font-bold tabular-nums whitespace-nowrap text-text-main dark:text-text-dark-main">
               {{ amount(monthly[card.key]) }}
             </p>
-            <p class="mt-1 text-xs tabular-nums text-text-muted dark:text-text-dark-muted">
+            <p class="mt-1 truncate text-xs tabular-nums text-text-muted dark:text-text-dark-muted">
               par mois<template v-if="comparison(card.key)"> · <span class="font-medium">{{ comparison(card.key) }}</span></template>
             </p>
           </router-link>
@@ -269,7 +289,18 @@ function monthName(period: string): string {
         </p>
       </div>
 
-      <BaseCard v-if="!privacyMode && sankey.links.length" title="Ce que sont devenues les entrées" :subtitle="`${data.year}, mois terminés`">
+      <BaseCard v-if="!privacyMode && sankey.links.length">
+        <template #header>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Ce que sont devenues les entrées</h3>
+              <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">
+                {{ sankeyScale === 'month' ? `${data.year}, un mois moyen` : `${data.year}, mois terminés` }}
+              </p>
+            </div>
+            <BaseSegmentedControl v-model="sankeyScale" :options="sankeyScaleOptions" size="sm" />
+          </div>
+        </template>
         <CashflowSankeyChart
           :links="sankey.links"
           :node-labels="sankey.nodeLabels"

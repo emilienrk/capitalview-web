@@ -50,10 +50,18 @@ function link(line: RealCashflowCounterpart) {
 </script>
 
 <template>
-  <BaseCard title="Contreparties" subtitle="Sans rien trier : lues sur les libellés" :padding="false">
-    <div class="px-4 sm:px-6 pb-3 overflow-x-auto">
-      <BaseSegmentedControl v-model="tab" :options="tabs" size="sm" />
-    </div>
+  <BaseCard :padding="false">
+    <template #header>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold text-text-main dark:text-text-dark-main">Contreparties</h3>
+          <p class="text-sm text-text-muted dark:text-text-dark-muted mt-0.5">Sans rien trier : lues sur les libellés</p>
+        </div>
+        <div class="max-w-full overflow-x-auto">
+          <BaseSegmentedControl v-model="tab" :options="tabs" size="sm" />
+        </div>
+      </div>
+    </template>
 
     <ul v-if="tab !== 'expenses' && lines.length" class="divide-y divide-surface-border dark:divide-surface-dark-border">
       <li v-for="line in lines" :key="line.group_key">
@@ -91,6 +99,6 @@ function link(line: RealCashflowCounterpart) {
       </li>
     </ul>
 
-    <p v-else class="px-4 sm:px-6 pb-4 text-sm text-text-muted dark:text-text-dark-muted">Rien sur cette période.</p>
+    <p v-else class="px-4 sm:px-6 py-4 text-sm text-text-muted dark:text-text-dark-muted">Rien sur cette période.</p>
   </BaseCard>
 </template>
