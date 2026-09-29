@@ -4,6 +4,7 @@ import { ArrowRight, ChevronDown } from 'lucide-vue-next'
 import { defineAsyncComponent, ref } from 'vue'
 import { BaseTerm } from '@/components'
 import { useSeenOnce } from '@/composables/useSeenOnce'
+import LandingKeyPath from '@/components/public/LandingKeyPath.vue'
 import PublicFooter from '@/components/public/PublicFooter.vue'
 import PublicNav from '@/components/public/PublicNav.vue'
 import { focusRing, primaryButton, textLink } from '@/components/public/publicStyles'
@@ -186,6 +187,8 @@ const buys = [
         <p class="mt-4 max-w-2xl text-lg leading-relaxed text-pretty">
           Voici exactement ce qui est protégé, comment, et ce qui ne l'est pas.
         </p>
+
+        <LandingKeyPath class="mt-12" />
 
         <div class="mt-14 grid md:grid-cols-2 gap-x-12">
           <div class="py-7 border-t border-text-main/15 dark:border-text-dark-main/15">
