@@ -10,7 +10,7 @@ const stops = [
     place: 'Votre navigateur',
     items: [
       { label: 'Votre mot de passe', text: 'saisi à la connexion' },
-      { label: 'Un cookie HttpOnly', text: 'porte la clé maître, 7 jours au plus' },
+      { label: 'Un cookie', text: 'porte la clé maître, hors de portée du JavaScript de la page, 7 jours au plus' },
     ],
     hop: 'le cookie accompagne chaque requête',
   },

@@ -199,25 +199,11 @@ const buys = [
             </p>
           </div>
           <div class="py-7 border-t border-text-main/15 dark:border-text-dark-main/15">
-            <h3 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Vos montants sont chiffrés en base</h3>
+            <h3 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Chiffré au repos, pas de bout en bout</h3>
             <p class="mt-3 leading-relaxed text-pretty">
-              Soldes, libellés, numéros de compte, notes&nbsp;: chaque valeur est chiffrée avec une clé propre à votre compte avant d'être écrite.
-              Une copie volée de la base ne révèle aucun montant, tant que votre mot de passe est solide.
-            </p>
-          </div>
-          <div class="py-7 border-t border-text-main/15 dark:border-text-dark-main/15">
-            <h3 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Rien dans la base ne les relie à vous</h3>
-            <p class="mt-3 leading-relaxed text-pretty">
-              Vos comptes, soldes et notes ne portent pas votre identifiant, mais une empreinte calculée avec votre clé.
-              Sans elle, impossible de les rattacher à votre profil.
-            </p>
-          </div>
-          <div class="py-7 border-t border-text-main/15 dark:border-text-dark-main/15">
-            <h3 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Votre clé n'est jamais écrite en base</h3>
-            <p class="mt-3 leading-relaxed text-pretty">
-              Pour calculer vos plus-values, le serveur doit lire vos données pendant la requête.
-              La clé l'accompagne donc, dans un cookie inaccessible au JavaScript de la page, et le serveur ne la conserve pas entre deux requêtes.
-              Ce n'est pas du chiffrement de bout en bout&nbsp;: c'est un chiffrement au repos dont le serveur n'a pas la clé.
+              Soldes, libellés, numéros de compte, notes&nbsp;: tout est chiffré avant d'être écrit, et une copie volée de la base
+              ne révèle aucun montant, tant que votre mot de passe est solide. Mais pour calculer vos plus-values, le serveur
+              lit vos données le temps de la requête&nbsp;: c'est un chiffrement au repos dont le serveur ne garde pas la clé.
             </p>
           </div>
         </div>
