@@ -114,7 +114,7 @@ const navItems = computed<NavItem[]>(() => {
   if (s?.wealth_module_enabled ?? true) items.push(byPath('/wealth'))
 
   items.push(byPath('/community'))
-  items.push(byPath('/notes'))
+  if (s?.notes_module_enabled) items.push(byPath('/notes'))
   items.push(byPath('/settings'))
 
   return items

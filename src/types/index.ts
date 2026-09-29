@@ -1694,6 +1694,7 @@ export interface UserSettingsUpdate {
   bank_auto_sync_enabled?: boolean
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
+  notes_module_enabled?: boolean
   ai_feature_enabled?: boolean
   open_banking_enabled?: boolean
   ai_vision_provider?: string | null
@@ -1728,6 +1729,7 @@ export interface UserSettingsResponse {
   bank_auto_sync_enabled: boolean
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
+  notes_module_enabled: boolean
   ai_feature_enabled: boolean
   open_banking_enabled: boolean
   ai_vision_provider: string | null

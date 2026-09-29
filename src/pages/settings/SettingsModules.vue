@@ -14,6 +14,7 @@ const bankModuleEnabled = ref(true)
 const bankAutoSyncEnabled = ref(true)
 const cashflowModuleEnabled = ref(true)
 const wealthModuleEnabled = ref(true)
+const notesModuleEnabled = ref(false)
 
 // Crypto settings
 const cryptoModuleEnabled = ref(false)
@@ -29,6 +30,7 @@ function syncFromStore(): void {
   bankAutoSyncEnabled.value = settings.bank_auto_sync_enabled ?? false
   cashflowModuleEnabled.value = settings.cashflow_module_enabled ?? true
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
+  notesModuleEnabled.value = settings.notes_module_enabled ?? false
   cryptoModuleEnabled.value = settings.crypto_module_enabled
   cryptoShowNegativePositions.value = settings.crypto_show_negative_positions ?? false
   cryptoMode.value = settings.crypto_mode
@@ -61,7 +63,7 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
     >
       <template v-if="settingsStore.isLoading && !settingsStore.settings">
         <div class="space-y-4">
-          <BaseSkeleton v-for="i in 3" :key="i" variant="rect" height="2.5rem" />
+          <BaseSkeleton v-for="i in 4" :key="i" variant="rect" height="2.5rem" />
         </div>
       </template>
       <template v-else>
@@ -118,6 +120,19 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
               v-model="wealthModuleEnabled"
               aria-label="Activer le module Patrimoine"
               @update:model-value="save({ wealth_module_enabled: $event })"
+            />
+          </div>
+
+          <!-- Notes -->
+          <div class="flex items-center justify-between pt-4 border-t border-surface-border dark:border-surface-dark-border">
+            <div>
+              <p class="font-medium text-text-main dark:text-text-dark-main">Notes</p>
+              <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche un bloc-notes chiffré pour vos mémos</p>
+            </div>
+            <BaseToggle
+              v-model="notesModuleEnabled"
+              aria-label="Activer le module Notes"
+              @update:model-value="save({ notes_module_enabled: $event })"
             />
           </div>
         </div>
