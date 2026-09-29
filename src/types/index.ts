@@ -1618,7 +1618,18 @@ export interface AccountSummaryResponse {
   profit_loss_percentage: number | null
   realized_profit_loss: number | null
   total_profit_loss: number | null
+  /** Only on a single account's summary. */
+  order_fees?: OrderFeesResponse | null
   positions: PositionResponse[]
+}
+
+export interface OrderFeesResponse {
+  /** Fees keyed in on buys and sells. */
+  recorded: number
+  /** The whole bill once unrecorded buy fees are extrapolated; null when there is nothing to extrapolate. */
+  estimated: number | null
+  buy_orders: number
+  buy_orders_with_fee: number
 }
 
 export interface PortfolioResponse {

@@ -12,7 +12,6 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
-import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
@@ -28,6 +27,7 @@ import PhotoImportModal from '@/components/modals/PhotoImportModal.vue'
 import AssetPriceModal from '@/components/modals/AssetPriceModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
+import { accountHeadline, fiveYearMark, readDepositCeiling, STOCK_TX_TYPE_LABELS, type AccountHeadline } from '@/utils/stockAccount'
 import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
 
 
@@ -35,7 +35,6 @@ const stocks = useStocksStore()
 const bank = useBankStore()
 const { formatCurrency, formatPercent, formatNumber, formatDate, formatDateShort, profitLossClass } = useFormatters()
 const { effectiveTimezoneLabel } = useDisplayTimezone()
-const { displayCurrency, usdToEurRate, fetchRate } = useCurrencyToggle('stock')
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
@@ -288,53 +287,6 @@ async function handleSelectUnifiedAsset(asset: AssetOption): Promise<void> {
   }
 }
 
-/** Show currency toggle only if current account has at least one non-EUR position */
-const canToggleCurrency = computed(() =>
-  selectedAccountSummary.value?.positions?.some(p => p.currency && p.currency !== 'EUR') ?? false
-)
-
-// ── Currency helpers ─────────────────────────────────────────
-/** Convert a position value to EUR using the live rate (assumes non-EUR = USD) */
-function posToEur(value: number | string | null | undefined, currency: string): number | null {
-  if (value == null) return null
-  const n = Number(value)
-  if (isNaN(n)) return null
-  if (currency && currency !== 'EUR') return n * usdToEurRate.value
-  return n
-}
-
-/** Format a market price in the active display currency */
-function formatPosPrice(value: number | string | null | undefined, currency: string): string {
-  const c = currency || 'EUR'
-  if (c !== 'EUR' && displayCurrency.value === 'EUR') {
-    return formatCurrency(posToEur(value, c), 'EUR')
-  }
-  return formatCurrency(value, c)
-}
-
-/** Format PRU: always entered in EUR, convert to native in USD mode */
-function formatPru(avgBuyPrice: number | string, currency: string): string {
-  const c = currency || 'EUR'
-  if (c !== 'EUR' && displayCurrency.value === 'USD') {
-    const rate = usdToEurRate.value
-    return formatCurrency(rate > 0 ? Number(avgBuyPrice) / rate : Number(avgBuyPrice), c)
-  }
-  return formatCurrency(avgBuyPrice, 'EUR')
-}
-
-/** P&L in EUR (total_invested is always EUR as entered by user) */
-function posProfitLossEur(pos: PositionResponse): number | null {
-  if (pos.current_value == null) return null
-  return posToEur(pos.current_value, pos.currency) as number - Number(pos.total_invested)
-}
-
-function posProfitLossPctEur(pos: PositionResponse): number | null {
-  const pl = posProfitLossEur(pos)
-  if (pl == null) return null
-  const inv = Number(pos.total_invested)
-  return inv > 0 ? (pl / inv) * 100 : 0
-}
-
 /** Transactions sorted from most recent to oldest. */
 const sortedTransactions = computed(() => {
   return [...accountTransactions.value].sort(
@@ -372,9 +324,45 @@ const selectedStockDailyPnl = computed<number | null>(() => {
   return latestDailyPnlFromHistory(selectedAccountHistory.value)
 })
 
-const selectedStockOpenedAt = computed<string | null>(() => {
-  return selectedStockAccountMeta.value?.opened_at ?? selectedStockAccountMeta.value?.created_at ?? null
+const todayIso = nowDatetimeLocal().slice(0, 10)
+
+/**
+ * Each account's figures: the open one reads the summary its cards show, so the
+ * two never disagree once live prices land; the others read their latest snapshot.
+ */
+const accountHeadlines = computed<Record<string, AccountHeadline | null>>(() => {
+  const summary = selectedAccountSummary.value
+  return Object.fromEntries(
+    stocks.accounts.map((account) => {
+      if (account.id === selectedAccountId.value && summary && summary.current_value != null) {
+        return [account.id, {
+          value: Number(summary.current_value) + Number(summary.cash_balance ?? 0),
+          profitLoss: summary.profit_loss != null ? Number(summary.profit_loss) : null,
+          profitLossPct: summary.profit_loss_percentage != null ? Number(summary.profit_loss_percentage) : null,
+        }]
+      }
+      return [account.id, accountHeadline(stocks.accountHistoryById[account.id] ?? [])]
+    }),
+  )
 })
+
+/** Total deposited in the other plan of the PEA / PEA-PME pair, which share a ceiling. */
+function sisterPlanDeposits(accountType: string): number {
+  const sisterType = accountType === 'PEA' ? 'PEA_PME' : accountType === 'PEA_PME' ? 'PEA' : null
+  const sister = sisterType ? stocks.accounts.find((account) => account.account_type === sisterType) : null
+  if (!sister) return 0
+  const history = stocks.accountHistoryById[sister.id] ?? []
+  return Number(history[history.length - 1]?.total_deposits ?? 0)
+}
+
+const positionsValue = computed(() =>
+  sortedPositions.value.reduce((sum, pos) => sum + Number(pos.current_value ?? 0), 0),
+)
+
+function positionWeight(pos: PositionResponse): number | null {
+  if (pos.current_value == null || positionsValue.value <= 0) return null
+  return (Number(pos.current_value) / positionsValue.value) * 100
+}
 
 const PNL_VIEWS = ['latent', 'realized', 'total'] as const
 const pnlView = ref<(typeof PNL_VIEWS)[number]>('latent')
@@ -384,9 +372,9 @@ function cyclePnlView(): void {
 }
 
 // Card set is curated per account type: a PEA/PEA-PME has a legal deposit ceiling,
-// so "déposé" and the opening date (5-year tax clock) matter more than cost basis;
-// a CTO has no ceiling, so "investi" (PRU) is the relevant anchor. Zero-valued cards
-// (dividends, cash, withdrawals) are dropped to keep the grid meaningful.
+// so its deposits read against it and matter more than cost basis; a CTO has no
+// ceiling, so "investi" (PRU) is the relevant anchor. Zero-valued cards
+// (dividends, cash, withdrawals, fees) are dropped to keep the grid meaningful.
 const stockSummaryStats = computed<SummaryStatItem[]>(() => {
   const summary = selectedAccountSummary.value
   if (!summary) return []
@@ -458,25 +446,45 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
       label: 'Liquidités',
       value: maskValue(formatCurrency(summary.cash_balance ?? 0)),
     },
-    opened_at: {
-      key: 'opened_at',
-      label: "Date d'ouverture",
-      value: selectedStockOpenedAt.value ? formatDate(selectedStockOpenedAt.value) : '—',
-    },
+    order_fees: orderFeesCard(summary),
+  }
+
+  const ceiling = readDepositCeiling(
+    accountType,
+    Number(summary.total_deposits),
+    Number(summary.cash_balance ?? 0),
+    sisterPlanDeposits(accountType),
+  )
+  if (ceiling) {
+    const deposits = Number(summary.total_deposits)
+    const money = (n: number) => maskValue(formatCurrency(n))
+    card.total_deposits = {
+      key: 'total_deposits',
+      label: 'Versements',
+      prefix: ceiling.atLeast != null ? 'au moins' : undefined,
+      value: money(deposits + Math.max(-Number(summary.cash_balance ?? 0), 0)),
+      gauge: { filled: ceiling.recordedShare, hatched: ceiling.missingShare },
+      note: ceiling.atLeast != null
+        ? `${money(deposits)} saisis : les liquidités négatives prouvent qu'il manque des versements`
+        : accountType === 'PEA_PME'
+          ? `avec le PEA : ${money(ceiling.counted)} sur ${money(ceiling.ceiling)}`
+          : `sur ${money(ceiling.ceiling)}, reste ${money(ceiling.remaining)}`,
+    }
   }
 
   // Order matters: most relevant first (first page = the 4 that fit above the fold).
   const order = isPea
     ? ['current_value', 'total_deposits', 'profit_loss', 'performance',
-       'dividends', 'cash_balance', 'opened_at', 'daily_pnl']
+       'dividends', 'cash_balance', 'order_fees', 'daily_pnl']
     : ['invested', 'current_value', 'profit_loss', 'performance',
-       'dividends', 'cash_balance', 'total_deposits', 'total_withdrawals', 'daily_pnl']
+       'dividends', 'cash_balance', 'total_deposits', 'total_withdrawals', 'order_fees', 'daily_pnl']
 
   const hasValue = (n: number | null | undefined) => n != null && Number(n) !== 0
   const dropIfZero: Record<string, boolean> = {
     dividends: !hasValue(summary.total_dividends),
     cash_balance: !hasValue(summary.cash_balance),
     total_withdrawals: !hasValue(summary.total_withdrawals),
+    order_fees: !hasValue(summary.order_fees?.recorded),
     daily_pnl: !hasValue(selectedStockDailyPnl.value),
   }
 
@@ -484,6 +492,25 @@ const stockSummaryStats = computed<SummaryStatItem[]>(() => {
     .filter((key) => !dropIfZero[key])
     .map((key) => card[key]!)
 })
+
+/**
+ * Brokerage paid on the account. When fees were left blank on some buys, the
+ * API extrapolates them like Analyse › Frais does, and the card says so.
+ */
+function orderFeesCard(summary: AccountSummaryResponse): SummaryStatItem {
+  const fees = summary.order_fees
+  const card: SummaryStatItem = {
+    key: 'order_fees',
+    label: 'Frais de courtage',
+    value: maskValue(formatCurrency(fees?.recorded ?? 0)),
+  }
+  if (!fees || fees.buy_orders_with_fee >= fees.buy_orders) return card
+  const share = `${fees.buy_orders_with_fee} achat${fees.buy_orders_with_fee > 1 ? 's' : ''} sur ${fees.buy_orders}`
+  if (fees.estimated != null) {
+    return { ...card, prefix: '≈', value: maskValue(formatCurrency(fees.estimated)), note: `estimé, frais saisis sur ${share}` }
+  }
+  return fees.buy_orders_with_fee > 0 ? { ...card, note: `saisis sur ${share} seulement` } : card
+}
 
 const {
   page: stockSummaryStatsPage,
@@ -1320,7 +1347,6 @@ async function handleAssetInput(value: string): Promise<void> {
 // ── Lifecycle ────────────────────────────────────────────────
 onMounted(async () => {
   // Independent of the account list — start immediately in parallel
-  fetchRate()
   stocks.fetchTransactions()
 
   await stocks.fetchAccounts()
@@ -1376,12 +1402,12 @@ onMounted(async () => {
           <div v-if="stockChartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
             <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockDailyPnlAverage)]">
-              {{ formatCurrency(stockDailyPnlAverage) }}
+              {{ maskValue(formatCurrency(stockDailyPnlAverage)) }}
             </span>
             <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
             <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
             <span :class="['text-xs font-semibold', profitLossClass(stockLatestPortfolioDailyPnl)]">
-              {{ formatCurrency(stockLatestPortfolioDailyPnl) }}
+              {{ maskValue(formatCurrency(stockLatestPortfolioDailyPnl)) }}
             </span>
           </div>
           
@@ -1453,7 +1479,7 @@ onMounted(async () => {
         <BaseEmptyState
           v-else
           title="Pas de P/L journalier disponible"
-          description="Le graphique apparaitra des que des donnees quotidiennes seront disponibles"
+          description="Le graphique apparaîtra dès que des données quotidiennes seront disponibles"
         />
       </template>
 
@@ -1477,7 +1503,7 @@ onMounted(async () => {
         <BaseEmptyState
           v-else
           title="Pas de P/L cumulé disponible"
-          description="Le graphique apparaitra des que des donnees quotidiennes seront disponibles"
+          description="Le graphique apparaîtra dès que des données quotidiennes seront disponibles"
         />
       </template>
       </div>
@@ -1528,16 +1554,35 @@ onMounted(async () => {
                 {{ accountTypeLabels[account.account_type] || account.account_type }}
               </BaseBadge>
             </div>
-            <div class="flex items-center gap-3 mt-1">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
               <span v-if="account.institution_name" class="text-xs text-text-muted dark:text-text-dark-muted">{{ account.institution_name }}</span>
-              <span class="text-xs text-text-muted dark:text-text-dark-muted">Créé le {{ formatDate(account.created_at) }}</span>
+              <span v-if="account.opened_at" class="text-xs text-text-muted dark:text-text-dark-muted">Ouvert le {{ formatDate(account.opened_at) }}</span>
+              <span
+                v-if="(account.account_type === 'PEA' || account.account_type === 'PEA_PME') && fiveYearMark(account.opened_at, todayIso)"
+                class="px-2 py-0.5 rounded-badge text-[11px] font-medium bg-surface-active dark:bg-surface-dark-active text-text-muted dark:text-text-dark-muted"
+              >5 ans le {{ formatDate(fiveYearMark(account.opened_at, todayIso)) }}</span>
             </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0 self-start">
+          <div class="flex items-center justify-between gap-4 shrink-0">
+            <div
+              v-if="accountHeadlines[account.id]"
+              class="cursor-pointer sm:text-right tabular-nums"
+              @click="selectAccount(account.id)"
+            >
+              <p class="font-bold text-text-main dark:text-text-dark-main">{{ maskValue(formatCurrency(accountHeadlines[account.id]!.value)) }}</p>
+              <p
+                v-if="accountHeadlines[account.id]!.profitLoss != null"
+                :class="['text-xs font-semibold', profitLossClass(accountHeadlines[account.id]!.profitLoss)]"
+              >
+                {{ maskValue(formatCurrency(accountHeadlines[account.id]!.profitLoss)) }} ({{ formatPercent(accountHeadlines[account.id]!.profitLossPct) }})
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
               <BaseAddButton variant="ghost" size="sm" @click.stop="openAddTransaction(account.id)">Transaction</BaseAddButton>
-            <BaseButton size="sm" variant="ghost" :aria-label="`Modifier le compte ${account.name}`" @click.stop="openEditAccount(account)">
-              <Pencil class="w-4 h-4" />
-            </BaseButton>
+              <BaseButton size="sm" variant="ghost" :aria-label="`Modifier le compte ${account.name}`" @click.stop="openEditAccount(account)">
+                <Pencil class="w-4 h-4" />
+              </BaseButton>
+            </div>
           </div>
         </div>
 
@@ -1560,8 +1605,13 @@ onMounted(async () => {
               >
                 <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">{{ stat.label }}</p>
                 <p :class="['text-lg font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
-                  {{ stat.value }}
+                  <span v-if="stat.prefix" class="mr-1 text-xs font-semibold text-text-muted dark:text-text-dark-muted">{{ stat.prefix }}</span>{{ stat.value }}
                 </p>
+                <div v-if="stat.gauge" class="mt-2 flex h-1.5 overflow-hidden rounded-full bg-surface-border dark:bg-surface-dark-border" aria-hidden="true">
+                  <div class="bg-primary" :style="{ width: `${stat.gauge.filled * 100}%` }" />
+                  <div v-if="stat.gauge.hatched" class="bg-primary/35" :style="{ width: `${stat.gauge.hatched * 100}%` }" />
+                </div>
+                <p v-if="stat.note" class="mt-1.5 text-[11px] leading-snug text-text-muted dark:text-text-dark-muted">{{ stat.note }}</p>
               </component>
             </div>
 
@@ -1583,15 +1633,6 @@ onMounted(async () => {
             <BaseSegmentedControl v-model="activeDetailTab" :options="[{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]" variant="surface" size="md" />
           </div>
 
-          <!-- Currency display toggle (only when account has non-EUR positions) -->
-          <div v-if="canToggleCurrency && activeDetailTab === 'positions'" class="mb-5 flex items-center gap-2">
-            <span class="text-xs text-text-muted dark:text-text-dark-muted">Affichage cours :</span>
-            <BaseSegmentedControl v-model="displayCurrency" :options="[{ key: 'EUR', label: '€ EUR' }, { key: 'USD', label: '$ Devise native' }]" variant="surface" size="sm" />
-            <span v-if="displayCurrency === 'USD'" class="text-xs text-info italic">
-              P/L calculé en €
-            </span>
-          </div>
-
           <!-- Positions table -->
           <div v-if="activeDetailTab === 'positions'">
             <template v-if="sortedPositions.length">
@@ -1606,6 +1647,7 @@ onMounted(async () => {
                     <th class="px-4 py-2 text-right">Investi (€)</th>
                     <th class="px-4 py-2 text-right">Cours</th>
                     <th class="px-4 py-2 text-right">Valeur</th>
+                    <th class="px-4 py-2 text-right">Poids</th>
                     <th class="px-4 py-2 text-right">P/L (€)</th>
                   </tr>
                 </thead>
@@ -1626,16 +1668,24 @@ onMounted(async () => {
                       <span v-if="pos.exchange" class="ml-1 text-xs text-text-muted dark:text-text-dark-muted">({{ pos.exchange }})</span>
                     </td>
                     <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatNumber(pos.total_amount, 4) }}</td>
-                    <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatPru(pos.average_buy_price, pos.currency) }}</td>
+                    <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.average_buy_price) }}</td>
                     <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ maskValue(formatCurrency(pos.total_invested)) }}</td>
-                    <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatPosPrice(pos.current_price, pos.currency) }}</td>
-                    <td class="px-4 py-2.5 text-right font-medium text-text-main dark:text-text-dark-main">{{ maskValue(formatPosPrice(pos.current_value, pos.currency)) }}</td>
+                    <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.current_price) }}</td>
+                    <td class="px-4 py-2.5 text-right font-medium text-text-main dark:text-text-dark-main">{{ maskValue(formatCurrency(pos.current_value)) }}</td>
+                    <td class="px-4 py-2.5 text-right text-text-body dark:text-text-dark-body whitespace-nowrap">
+                      <template v-if="positionWeight(pos) != null">
+                        <span class="inline-block w-10 h-1 mr-2 align-middle rounded-full bg-surface-border dark:bg-surface-dark-border overflow-hidden" aria-hidden="true">
+                          <span class="block h-full bg-primary" :style="{ width: `${positionWeight(pos)}%` }" />
+                        </span>{{ formatNumber(positionWeight(pos), 1) }} %
+                      </template>
+                      <template v-else>—</template>
+                    </td>
                     <td class="px-4 py-2.5 text-right">
-                      <span :class="['font-medium', profitLossClass(posProfitLossEur(pos))]">
-                        {{ maskValue(formatCurrency(posProfitLossEur(pos))) }}
+                      <span :class="['font-medium', profitLossClass(pos.profit_loss)]">
+                        {{ maskValue(formatCurrency(pos.profit_loss)) }}
                       </span>
-                      <span :class="['block text-xs', profitLossClass(posProfitLossPctEur(pos))]">
-                        {{ formatPercent(posProfitLossPctEur(pos)) }}
+                      <span :class="['block text-xs', profitLossClass(pos.profit_loss_percentage)]">
+                        {{ formatPercent(pos.profit_loss_percentage) }}
                       </span>
                     </td>
                   </tr>
@@ -1659,13 +1709,14 @@ onMounted(async () => {
                   <div class="min-w-0">
                     <p class="font-semibold text-text-main dark:text-text-dark-main truncate">{{ pos.name || (pos.asset_key ?? pos.symbol) }}</p>
                     <p v-if="pos.exchange" class="text-xs text-text-muted dark:text-text-dark-muted">{{ pos.exchange }}</p>
+                    <p v-if="positionWeight(pos) != null" class="text-xs text-text-muted dark:text-text-dark-muted">{{ formatNumber(positionWeight(pos), 1) }} % du compte</p>
                   </div>
                   <div class="text-right whitespace-nowrap">
-                    <p :class="['text-sm font-semibold', profitLossClass(posProfitLossEur(pos))]">
-                      {{ maskValue(formatCurrency(posProfitLossEur(pos))) }}
+                    <p :class="['text-sm font-semibold', profitLossClass(pos.profit_loss)]">
+                      {{ maskValue(formatCurrency(pos.profit_loss)) }}
                     </p>
-                    <p :class="['text-xs', profitLossClass(posProfitLossPctEur(pos))]">
-                      {{ formatPercent(posProfitLossPctEur(pos)) }}
+                    <p :class="['text-xs', profitLossClass(pos.profit_loss_percentage)]">
+                      {{ formatPercent(pos.profit_loss_percentage) }}
                     </p>
                   </div>
                 </div>
@@ -1676,15 +1727,15 @@ onMounted(async () => {
                   </div>
                   <div class="text-right">
                     <p class="text-text-muted dark:text-text-dark-muted">Valeur</p>
-                    <p class="font-semibold text-text-main dark:text-text-dark-main">{{ maskValue(formatPosPrice(pos.current_value, pos.currency)) }}</p>
+                    <p class="font-semibold text-text-main dark:text-text-dark-main">{{ maskValue(formatCurrency(pos.current_value)) }}</p>
                   </div>
                   <div>
                     <p class="text-text-muted dark:text-text-dark-muted">PRU</p>
-                    <p class="text-text-body dark:text-text-dark-body">{{ formatPru(pos.average_buy_price, pos.currency) }}</p>
+                    <p class="text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.average_buy_price) }}</p>
                   </div>
                   <div class="text-right">
                     <p class="text-text-muted dark:text-text-dark-muted">Cours</p>
-                    <p class="text-text-body dark:text-text-dark-body">{{ formatPosPrice(pos.current_price, pos.currency) }}</p>
+                    <p class="text-text-body dark:text-text-dark-body">{{ formatCurrency(pos.current_price) }}</p>
                   </div>
                 </div>
               </div>
@@ -1705,9 +1756,10 @@ onMounted(async () => {
                   <tr class="text-left text-xs text-text-muted dark:text-text-dark-muted uppercase tracking-wider border-b border-surface-border dark:border-surface-dark-border">
                     <th class="px-4 py-2">Date</th>
                     <th class="px-4 py-2">Type</th>
-                    <th class="px-4 py-2">ISIN</th>
+                    <th class="px-4 py-2">Titre</th>
                     <th class="px-4 py-2 text-right">Quantité</th>
                     <th class="px-4 py-2 text-right">Prix</th>
+                    <th class="px-4 py-2 text-right">Frais</th>
                     <th class="px-4 py-2 text-right">Total</th>
                     <th class="px-4 py-2 text-right">Actions</th>
                   </tr>
@@ -1718,12 +1770,19 @@ onMounted(async () => {
                     <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted">{{ formatDateShort(tx.executed_at) }}</td>
                     <td class="px-4 py-2.5">
                       <BaseBadge :variant="tx.asset_key === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
-                        {{ tx.type }}
+                        {{ STOCK_TX_TYPE_LABELS[tx.type] ?? tx.type }}
                       </BaseBadge>
                     </td>
-                    <td class="px-4 py-2.5 text-text-muted dark:text-text-dark-muted text-xs">{{ tx.asset_key === 'EUR' ? '—' : (tx.asset_key || '-') }}</td>
+                    <td class="px-4 py-2.5">
+                      <span v-if="tx.asset_key === 'EUR'" class="text-text-muted dark:text-text-dark-muted">—</span>
+                      <template v-else>
+                        <span v-if="tx.name" class="block font-medium text-text-main dark:text-text-dark-main">{{ tx.name }}</span>
+                        <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ tx.asset_key }}</span>
+                      </template>
+                    </td>
                     <td class="px-4 py-2.5 text-right font-mono">{{ tx.asset_key === 'EUR' ? '—' : formatNumber(tx.amount, 4) }}</td>
                     <td class="px-4 py-2.5 text-right">{{ tx.asset_key === 'EUR' ? '—' : formatCurrency(tx.price_per_unit) }}</td>
+                    <td class="px-4 py-2.5 text-right text-text-muted dark:text-text-dark-muted">{{ maskValue(formatCurrency(tx.fees)) }}</td>
                     <td class="px-4 py-2.5 text-right font-medium">{{ maskValue(formatCurrency(transactionDisplayedTotal(tx))) }}</td>
                     <td class="px-4 py-2.5 text-right">
                       <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
@@ -1755,10 +1814,10 @@ onMounted(async () => {
                 <div class="flex items-center justify-between gap-2 mb-1.5">
                   <div class="flex items-center gap-2 min-w-0">
                     <BaseBadge :variant="tx.asset_key === 'EUR' ? 'info' : (tx.type === 'BUY' || tx.type === 'DEPOSIT' ? 'success' : tx.type === 'SELL' ? 'danger' : 'info')">
-                      {{ tx.type }}
+                      {{ STOCK_TX_TYPE_LABELS[tx.type] ?? tx.type }}
                     </BaseBadge>
                     <span v-if="tx.asset_key !== 'EUR'" class="text-xs text-text-muted dark:text-text-dark-muted truncate">
-                      {{ tx.asset_key || '-' }}
+                      {{ tx.name || tx.asset_key }}
                     </span>
                   </div>
                   <span class="text-sm font-semibold text-text-main dark:text-text-dark-main whitespace-nowrap">
@@ -1771,6 +1830,7 @@ onMounted(async () => {
                     <span v-if="tx.asset_key !== 'EUR'" class="font-mono whitespace-nowrap">
                       {{ formatNumber(tx.amount, 4) }} × {{ formatCurrency(tx.price_per_unit) }}
                     </span>
+                    <span v-if="Number(tx.fees) > 0" class="whitespace-nowrap">frais {{ maskValue(formatCurrency(tx.fees)) }}</span>
                     <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
                       <Pencil class="w-4 h-4" />
                     </BaseButton>

@@ -5,6 +5,12 @@ export interface SummaryStatItem {
   label: string
   value: string
   valueClass?: string
+  /** Set before the value in smaller type, e.g. "≈" or "au moins". */
+  prefix?: string
+  /** A line under the value. */
+  note?: string
+  /** A thin bar under the value: shares 0–1, the second one hatched. */
+  gauge?: { filled: number; hatched?: number }
   /** When set, the stat card is a button that cycles through views on click. */
   onSelect?: () => void
 }
