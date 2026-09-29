@@ -142,18 +142,31 @@ describe('provenance et réserves', () => {
     ).toBe('versements mesurés sur 6 mois')
   })
 
-  it('présente les taux saisis sur les livrets comme une provenance, pas une réserve', () => {
+  it('présente l’épargne mesurée et les taux saisis comme une provenance, pas une réserve', () => {
     expect(
       basisLabel({
-        contribution: 'unavailable',
-        contribution_months: 0,
-        contribution_total: 0,
+        contribution: 'real_cashflow',
+        contribution_months: 12,
+        contribution_total: 7200,
         return: 'declared_rates',
         return_days: 0,
-        warnings: [{ code: 'contribution_not_measured', values: {} }],
+        warnings: [],
       }),
-    ).toBe('taux saisis sur vos livrets ; versements non déduits')
-    expect(PROVENANCE_CODES.has('contribution_not_measured')).toBe(true)
+    ).toBe('épargne mesurée sur 12 mois de relevés ; taux saisis sur vos livrets')
+  })
+
+  it('dit qu’aucun taux n’est saisi sans en faire une réserve', () => {
+    expect(
+      basisLabel({
+        contribution: 'real_cashflow',
+        contribution_months: 9,
+        contribution_total: 3000,
+        return: 'unavailable',
+        return_days: 0,
+        warnings: [{ code: 'no_declared_rate', values: {} }],
+      }),
+    ).toBe('épargne mesurée sur 9 mois de relevés ; aucun taux saisi')
+    expect(PROVENANCE_CODES.has('no_declared_rate')).toBe(true)
   })
 
   it('écrit ses propres phrases à partir des codes du serveur', () => {
@@ -179,17 +192,12 @@ describe('le formulaire face à des données qui arrivent après coup', () => {
     expect(isDirty(empty, loaded)).toBe(true)
   })
 
-  it('explique la banque au lieu de la signaler', () => {
-    expect(
-      basisLabel({
-        contribution: 'unavailable',
-        contribution_months: 0,
-        contribution_total: 0,
-        return: 'unavailable',
-        return_days: 0,
-        warnings: [{ code: 'not_measured', values: {} }],
-      }),
-    ).toContain('revenus et dépenses')
+  it('signale un historique bancaire trop court pour mesurer l’épargne', () => {
+    const warning = { code: 'short_cashflow_history', values: { months: 3 } }
+
+    expect(warningLabel(warning)).toContain('3 mois')
+    expect(PROVENANCE_CODES.has(warning.code)).toBe(false)
+    expect(shortWarningLabel([warning])).toBe('historique bancaire court')
   })
 
   it('nomme la réserve au lieu de dire "à nuancer"', () => {

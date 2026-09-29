@@ -128,16 +128,31 @@ export function isDirty(drafts: AssumptionDrafts, measured: AssumptionDrafts): b
  * Codes that say why a figure is missing rather than doubt one: they belong
  * with the provenance, in grey, rather than flagged in every single render.
  */
-export const PROVENANCE_CODES = new Set(['not_measured', 'contribution_not_measured'])
+export const PROVENANCE_CODES = new Set(['no_declared_rate'])
+
+/**
+ * The bank's provenance: its saving read off the statements, its rate the ones
+ * entered on the livrets. Null for any other pocket.
+ */
+function bankLabel(basis: ProjectionAssetBasis): string | null {
+  const saving =
+    basis.contribution === 'real_cashflow'
+      ? `épargne mesurée sur ${basis.contribution_months} mois de relevés`
+      : null
+  const rate =
+    basis.return === 'declared_rates'
+      ? 'taux saisis sur vos livrets'
+      : basis.warnings?.some((warning) => warning.code === 'no_declared_rate')
+        ? 'aucun taux saisi'
+        : null
+  const parts = [saving, rate].filter(Boolean)
+  return parts.length ? parts.join(' ; ') : null
+}
 
 export function basisLabel(basis: ProjectionAssetBasis | null | undefined): string | null {
   if (!basis) return null
-  if (basis.warnings?.some((warning) => warning.code === 'not_measured')) {
-    return 'non déduit : les soldes suivent vos revenus et dépenses'
-  }
-  if (basis.return === 'declared_rates') {
-    return 'taux saisis sur vos livrets ; versements non déduits'
-  }
+  const bank = bankLabel(basis)
+  if (bank) return bank
   if (basis.return === 'annualised_twr') {
     return `mesuré sur ${basis.return_days} j — rendement time-weighted annualisé`
   }
@@ -174,10 +189,10 @@ export function warningLabel(warning: ProjectionBasisWarning): string {
       return "Rendement pris sur le taux attendu que vous avez saisi, faute d'un an de relevés : c'est une hypothèse, pas une mesure."
     case 'no_statement':
       return "Aucun relevé de solde saisi sur vos placements : aucun rendement n'est déduit."
-    case 'not_measured':
-      return 'Les soldes bancaires bougent avec vos revenus et dépenses, pas avec une performance : rien n’est déduit ici.'
-    case 'contribution_not_measured':
-      return 'Rendement pris sur les taux saisis sur vos livrets ; aucun versement n’est déduit, les soldes bougeant avec vos revenus et dépenses.'
+    case 'short_cashflow_history':
+      return `Seulement ${warning.values?.months ?? 0} mois d’opérations bancaires sur les douze derniers : l’épargne mensuelle n’est pas déduite, la banque est projetée sans apport.`
+    case 'no_declared_rate':
+      return 'Aucun taux saisi sur vos livrets : la banque est projetée sans rendement.'
     default:
       return warning.code
   }
@@ -202,6 +217,7 @@ export function shortWarningLabel(warnings: ProjectionBasisWarning[]): string {
     extreme_rate: 'rendement élevé',
     expected_rate_used: 'taux supposé',
     no_statement: 'aucun relevé',
+    short_cashflow_history: 'historique bancaire court',
   }
   const label = short[first.code] ?? first.code
   return warnings.length > 1 ? `${label} +${warnings.length - 1}` : label
