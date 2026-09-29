@@ -80,9 +80,8 @@ function backToCredentials() {
 
 <template>
   <AuthLayout :title="step === 'credentials' ? 'Connexion' : 'Code de vérification'">
-    <template #intro>
-      <template v-if="step === 'credentials'">Votre mot de passe déverrouille la clé qui chiffre vos données.</template>
-      <template v-else>Saisissez le code à 6 chiffres de votre application d'authentification. Il reste valable 5 minutes.</template>
+    <template v-if="step === '2fa'" #intro>
+      Saisissez le code à 6 chiffres de votre application d'authentification. Il reste valable 5 minutes.
     </template>
 
     <form v-if="step === 'credentials'" class="space-y-6" @submit.prevent="handleLogin">
@@ -167,22 +166,5 @@ function backToCredentials() {
         Revenir à l'e-mail et au mot de passe
       </button>
     </form>
-
-    <template #aside>
-      <div class="py-6 border-t border-surface-border dark:border-surface-dark-border">
-        <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Pendant votre session</h2>
-        <p class="mt-2 leading-relaxed text-pretty">
-          La clé de vos données voyage dans un cookie que le JavaScript de la page ne peut pas lire.
-          Il dure 7 jours au plus et disparaît quand vous vous déconnectez.
-        </p>
-      </div>
-      <div class="py-6 border-t border-surface-border dark:border-surface-dark-border">
-        <h2 class="text-xl font-semibold text-text-main dark:text-text-dark-main">Mot de passe oublié</h2>
-        <p class="mt-2 leading-relaxed text-pretty">
-          Seule votre clé de récupération permet d'en choisir un nouveau sans perdre vos données.
-          Personne ne peut le réinitialiser à votre place.
-        </p>
-      </div>
-    </template>
   </AuthLayout>
 </template>
