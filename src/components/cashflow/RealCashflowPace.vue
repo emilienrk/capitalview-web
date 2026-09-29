@@ -25,6 +25,8 @@ const props = defineProps<{
   isDark?: boolean
   /** Figures above the curve at every width, for a narrow column. */
   stacked?: boolean
+  /** Two lines of figures: the pending and upcoming detail is one click away, in Explorer. */
+  compact?: boolean
 }>()
 
 const { formatCurrency } = useFormatters()
@@ -111,12 +113,22 @@ const option = computed(() => {
         {{ amount(data.spent_to_date) }}
         <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
       </p>
+      <p v-if="compact && (gap !== null || data.projection !== null)" class="text-sm text-text-muted dark:text-text-dark-muted">
+        <template v-if="gap !== null">
+          <span class="font-semibold tabular-nums">{{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }}</span>
+          face au mois médian
+        </template>
+        <template v-if="data.projection !== null">
+          <template v-if="gap !== null"> · </template>fin estimée
+          <strong class="tabular-nums text-text-main dark:text-text-dark-main">{{ amount(data.projection) }}</strong>
+        </template>
+      </p>
       <!-- The median's own amount is the dashed curve: only the gap is spelled out. -->
-      <p v-if="gap !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
+      <p v-if="!compact && gap !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
         <span class="font-semibold tabular-nums">{{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }}</span>
         face à un mois médian au même jour
       </p>
-      <p v-if="data.projection !== null" class="text-sm text-text-main dark:text-text-dark-main">
+      <p v-if="!compact && data.projection !== null" class="text-sm text-text-main dark:text-text-dark-main">
         Fin de mois estimée : <strong class="tabular-nums">{{ amount(data.projection) }}</strong>
         <span v-if="data.median_month !== null" class="text-text-muted dark:text-text-dark-muted">
           · médian {{ amount(data.median_month) }}
@@ -124,7 +136,7 @@ const option = computed(() => {
       </p>
       <!-- An income still to come lowers nothing above: it only shares the footnote line. -->
       <p
-        v-if="Number(data.pending_to_date) || upcoming.length || upcomingIncome.length"
+        v-if="!compact && (Number(data.pending_to_date) || upcoming.length || upcomingIncome.length)"
         class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-muted dark:text-text-dark-muted"
       >
         <span v-if="Number(data.pending_to_date)">dont {{ amount(data.pending_to_date) }} en attente</span>

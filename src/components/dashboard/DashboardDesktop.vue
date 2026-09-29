@@ -54,7 +54,7 @@ const showMonth = computed(() => props.overview.bankEnabled && props.overview.mo
       <template #header>
         <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Mois en cours</h3>
       </template>
-      <RealCashflowPace :data="overview.month" :is-dark="isDark" stacked />
+      <RealCashflowPace :data="overview.month" :is-dark="isDark" stacked compact />
     </BaseCard>
 
     <AttentionStrip v-if="overview.attention.length" class="col-span-12" :items="overview.attention" />
