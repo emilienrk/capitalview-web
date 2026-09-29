@@ -389,4 +389,64 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     const html = await render('PlanSection', { plan })
     expect(html).toContain('overflow-x-auto')
   })
+  it('YearlySection sépare le versé du gagné et met l’indice en face', async () => {
+    const pocket = (gain: string, twr: string | null) => ({
+      start: '2025-12-31',
+      end: '2026-09-29',
+      value_start: '1000',
+      value_end: '1500',
+      net_contributions: '400',
+      gain,
+      time_weighted_return: twr,
+      notes: [],
+    })
+    const yearly = {
+      benchmark_asset_key: 'IE00B4L5Y983',
+      benchmark_name: 'iShares Core MSCI World',
+      years: [
+        {
+          year: 2025,
+          start: '2024-12-31',
+          end: '2025-12-31',
+          covered_from: '2025-01-01',
+          complete: true,
+          stocks: pocket('120', '0.12'),
+          crypto: null,
+          placements: null,
+          gain: '120',
+          net_contributions: '1000',
+          benchmark_return: '0.08',
+          benchmark_start: '2024-12-31',
+          benchmark_end: '2025-12-31',
+        },
+        {
+          year: 2026,
+          start: '2025-12-31',
+          end: '2026-09-29',
+          covered_from: '2026-01-01',
+          complete: false,
+          stocks: pocket('100', '0.05'),
+          crypto: pocket('-20', '-0.1'),
+          placements: null,
+          gain: '80',
+          net_contributions: '400',
+          benchmark_return: '0.07',
+          benchmark_start: '2025-12-31',
+          benchmark_end: '2026-09-29',
+        },
+      ],
+    }
+    const html = await render('YearlySection', { yearly })
+
+    expect(html).toContain('iShares Core MSCI World')
+    expect(html).toContain('+12,00 %')
+    expect(html).toContain('+8,00 %')
+    expect(html).toContain('+4 pts')
+    expect(html).toContain('-2 pts')
+    expect(html).toContain('au 29 sept.')
+    expect(html).toContain('Crypto')
+    expect(html).not.toContain('undefined')
+    // L'année en cours d'abord.
+    expect(html.indexOf('2026')).toBeLessThan(html.indexOf('2025'))
+  })
 })

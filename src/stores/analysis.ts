@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { getOrFetchCached, invalidateCacheKey } from '@/services/cache'
-import type { AnalysedAsset, InvestorAnalyticsResponse } from '@/types'
+import type { AnalysedAsset, InvestorAnalyticsResponse, YearlyPerformanceResponse } from '@/types'
 
 // Behavioural metrics move on the scale of weeks, not seconds.
 const CACHE_TTL_MS = 60 * 60 * 1000
@@ -10,6 +10,7 @@ const CACHE_KEY = 'analysis:investor'
 // The traded lines change with every import, and the list is cheap to rebuild.
 const ASSETS_CACHE_TTL_MS = 5 * 60 * 1000
 const ASSETS_CACHE_KEY = 'analysis:assets'
+const YEARLY_CACHE_KEY = 'analysis:yearly'
 
 export const useAnalysisStore = defineStore('analysis', () => {
   const data = ref<InvestorAnalyticsResponse | null>(null)
@@ -17,6 +18,8 @@ export const useAnalysisStore = defineStore('analysis', () => {
   const error = ref<string | null>(null)
   const assets = ref<AnalysedAsset[]>([])
   const isLoadingAssets = ref(false)
+  const yearly = ref<YearlyPerformanceResponse | null>(null)
+  const yearlyError = ref<string | null>(null)
 
   async function fetchAnalytics(force = false): Promise<void> {
     isLoading.value = true
@@ -59,10 +62,27 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
+  /** Its own request: a few snapshots read, not the full behavioural replay. */
+  async function fetchYearly(force = false): Promise<void> {
+    yearlyError.value = null
+    try {
+      yearly.value = await getOrFetchCached<YearlyPerformanceResponse>(
+        YEARLY_CACHE_KEY,
+        () => apiClient.get<YearlyPerformanceResponse>('/analytics/yearly'),
+        CACHE_TTL_MS,
+        force,
+      )
+    } catch (e) {
+      yearlyError.value = e instanceof Error ? e.message : 'Erreur lors du chargement des années'
+    }
+  }
+
   function reset(): void {
     data.value = null
     error.value = null
+    yearly.value = null
     invalidateCacheKey(CACHE_KEY)
+    invalidateCacheKey(YEARLY_CACHE_KEY)
   }
 
   return {
@@ -73,6 +93,9 @@ export const useAnalysisStore = defineStore('analysis', () => {
     isLoadingAssets,
     fetchAnalytics,
     fetchAssets,
+    yearly,
+    yearlyError,
+    fetchYearly,
     reset,
   }
 })

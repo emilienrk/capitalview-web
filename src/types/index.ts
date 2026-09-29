@@ -2543,6 +2543,44 @@ export interface InvestorAnalyticsResponse {
   plan: PlanResponse | null
 }
 
+export interface YearPocketOut {
+  start: string | null
+  end: string | null
+  value_start: number | string | null
+  value_end: number | string | null
+  net_contributions: number | string
+  /** What the pocket produced over the year, deposits taken out. */
+  gain: number | string
+  /** Over the days covered, never annualised. Null for placements. */
+  time_weighted_return: number | string | null
+  notes: string[]
+}
+
+export interface YearPerformanceOut {
+  year: number
+  start: string
+  end: string
+  /** 1 January, or the first day anything was held when that came later. */
+  covered_from: string
+  /** False for the year in progress and for the first one. */
+  complete: boolean
+  stocks: YearPocketOut | null
+  crypto: YearPocketOut | null
+  placements: YearPocketOut | null
+  gain: number | string
+  net_contributions: number | string
+  /** Over the stock pocket's own days. */
+  benchmark_return: number | string | null
+  benchmark_start: string | null
+  benchmark_end: string | null
+}
+
+export interface YearlyPerformanceResponse {
+  benchmark_asset_key: string
+  benchmark_name: string
+  years: YearPerformanceOut[]
+}
+
 // ─── Community activity & notifications ───────────────────────
 
 export interface ActivityItem {

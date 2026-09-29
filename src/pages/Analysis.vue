@@ -18,6 +18,7 @@ import HoldingsSection from '@/components/analytics/sections/HoldingsSection.vue
 import PlanSection from '@/components/analytics/sections/PlanSection.vue'
 import MethodNotes from '@/components/analytics/sections/MethodNotes.vue'
 import ProjectionSection from '@/components/analytics/sections/ProjectionSection.vue'
+import YearlySection from '@/components/analytics/sections/YearlySection.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { isSectionVisible } from '@/utils/analysisSections'
 
@@ -101,9 +102,12 @@ const planError = computed(() => plan.value?.error ?? null)
  * whichever route was taken to change it — including a second tab.
  */
 onMounted(async () => {
-  await Promise.all([analysis.fetchAnalytics(), settingsStore.fetchSettings()])
+  await Promise.all([analysis.fetchAnalytics(), analysis.fetchYearly(), settingsStore.fetchSettings()])
 
   const declared = settingsStore.settings?.benchmark_asset_key
+  if (declared && analysis.yearly && analysis.yearly.benchmark_asset_key !== declared) {
+    await analysis.fetchYearly(true)
+  }
   if (declared && analysis.data && analysis.data.benchmark_asset_key !== declared) {
     await analysis.fetchAnalytics(true)
   }
@@ -168,7 +172,15 @@ onMounted(async () => {
 
       <template v-else>
         <SignalBoard v-if="shows('verdict') && signals.length" :signals="signals" />
+      </template>
 
+      <!-- Needs no behavioural history: a few months held are enough for a year's line. -->
+      <YearlySection v-if="shows('yearly')" :yearly="analysis.yearly" />
+      <BaseAlert v-if="analysis.yearlyError && shows('yearly')" variant="danger" class="mt-8">
+        {{ analysis.yearlyError }}
+      </BaseAlert>
+
+      <template v-if="hasAnyBlock">
         <BaseAlert v-if="planError && shows('plan')" variant="warning" class="mb-6">
           Votre plan cible n'est pas évalué : {{ planError }}
           <RouterLink
