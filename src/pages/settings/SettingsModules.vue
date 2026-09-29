@@ -3,7 +3,7 @@ import { Bitcoin, LayoutGrid, RefreshCw } from 'lucide-vue-next'
 
 import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseAlert, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseAlert, BaseHelpPopover, BaseSkeleton, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
 import type { UserSettingsUpdate } from '@/types'
 
@@ -86,7 +86,16 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
             <div class="flex items-start gap-2">
               <RefreshCw class="w-4 h-4 mt-0.5 shrink-0 text-text-muted dark:text-text-dark-muted" />
               <div>
-                <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Synchronisation automatique</p>
+                <div class="flex items-center gap-1">
+                  <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Synchronisation automatique</p>
+                  <BaseHelpPopover width="md">
+                    À chaque échéance, ajoute au solde du compte les entrées récurrentes qui lui sont
+                    rattachées dans Cashflow, et en retire les dépenses récurrentes. Rien d'autre :
+                    les dépenses ponctuelles n'y sont pas, donc le solde s'éloigne peu à peu de
+                    celui de la banque et doit être recalé à la main de temps en temps. Sans effet
+                    sur un compte relié à la banque.
+                  </BaseHelpPopover>
+                </div>
                 <p class="text-sm text-text-muted dark:text-text-dark-muted">Applique les flux récurrents aux soldes de vos comptes</p>
               </div>
             </div>
@@ -199,7 +208,16 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
                   <div class="pt-4 border-t border-surface-border dark:border-surface-dark-border">
                     <div class="flex items-center justify-between">
                       <div>
-                        <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
+                        <div class="flex items-center gap-1">
+                          <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
+                          <BaseHelpPopover width="md">
+                            Si vous ne saisissez pas vos dépôts en euros, votre solde EUR devient
+                            négatif : il correspond simplement à vos apports, et le masquer garde la
+                            liste lisible. Une crypto négative signale en revanche un historique
+                            incomplet (une vente ou un transfert sans l'achat correspondant) :
+                            activez l'option pour la repérer.
+                          </BaseHelpPopover>
+                        </div>
                         <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
                       </div>
                       <BaseToggle
