@@ -1931,9 +1931,20 @@ export interface WealthBreakdown {
   total_wealth: number
 }
 
+/** How far the total moved since a dated snapshot, deposits included. */
+export interface NetWorthChange {
+  reference: 'last_snapshot' | 'month_start' | 'year_start'
+  /** The snapshot compared against: the change is measured from its date. */
+  since: string
+  change: number
+  /** null when the reference was zero: a percentage of nothing means nothing. */
+  change_pct: number | null
+}
+
 export interface DashboardStatisticsResponse {
   distribution: InvestmentDistribution
   wealth: WealthBreakdown
+  changes: NetWorthChange[]
 }
 
 // ─── Projection ─────────────────────────────────────────────

@@ -13,7 +13,8 @@ import CompositionBar from '@/components/dashboard/CompositionBar.vue'
 import { useDisplayLocale } from '@/composables/useDisplayLocale'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import type { CompositionSegment, NetWorthChange } from '@/utils/netWorth'
+import type { NetWorthChange } from '@/types'
+import type { CompositionSegment } from '@/utils/netWorth'
 
 withDefaults(
   defineProps<{
@@ -86,12 +87,12 @@ function tone(value: number): string {
       >
         <li
           v-for="change in changes"
-          :key="change.key"
+          :key="change.reference"
           :class="layout === 'desktop' ? '' : 'flex items-baseline justify-between gap-3'"
         >
-          <span class="font-semibold tabular-nums" :class="tone(change.diff)">
-            {{ signed(change.diff) }}
-            <span v-if="change.percent !== null" class="font-medium">({{ percent(change.percent) }})</span>
+          <span class="font-semibold tabular-nums" :class="tone(change.change)">
+            {{ signed(change.change) }}
+            <span v-if="change.change_pct !== null" class="font-medium">({{ percent(change.change_pct) }})</span>
           </span>
           <span class="text-text-muted dark:text-text-dark-muted" :class="layout === 'desktop' ? 'ml-1.5' : ''">
             depuis le {{ since(change.since) }}

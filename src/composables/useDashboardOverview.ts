@@ -5,7 +5,7 @@ import { useDashboardStore } from '@/stores/dashboard'
 import { useRealCashflowStore } from '@/stores/realCashflow'
 import { useSettingsStore } from '@/stores/settings'
 import { useWealthHistoryStore } from '@/stores/wealthHistory'
-import { buildComposition, heldPockets, netWorthChanges } from '@/utils/netWorth'
+import { buildComposition } from '@/utils/netWorth'
 import type { RealCashflowYear } from '@/types'
 
 export interface AttentionItem {
@@ -68,9 +68,7 @@ export function useDashboardOverview() {
       : [],
   )
 
-  const changes = computed(() =>
-    total.value === null ? [] : netWorthChanges(total.value, historyStore.history ?? [], heldPockets(composition.value)),
-  )
+  const changes = computed(() => dashboard.statistics?.changes ?? [])
 
   /** The API counts cash at zero when a held currency has no rate: the total is then short, and says so. */
   const cashUncounted = computed(() => bankEnabled.value && dashboard.bankAccounts != null && dashboard.bankAccounts.total_balance === null)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildComposition, heldPockets, netWorthChanges, referenceSnapshot } from '../netWorth'
-import type { DashboardStatisticsResponse, GlobalHistorySnapshotResponse } from '@/types'
+import { buildComposition } from '../netWorth'
+import type { DashboardStatisticsResponse } from '@/types'
 
 function statistics(overrides: Partial<{
   cash: number
@@ -37,19 +37,7 @@ function statistics(overrides: Partial<{
       total_withdrawals: 0,
       total_wealth: o.total,
     },
-  }
-}
-
-function snapshot(date: string, total: number, pockets: Partial<GlobalHistorySnapshotResponse> = {}): GlobalHistorySnapshotResponse {
-  return {
-    snapshot_date: date,
-    total_wealth: total,
-    stock_value: 1,
-    crypto_value: 1,
-    bank_value: 1,
-    assets_value: 0,
-    placements_value: 1,
-    ...pockets,
+    changes: [],
   }
 }
 
@@ -81,60 +69,5 @@ describe('buildComposition', () => {
     })
 
     expect(segments.map((s) => s.key)).toEqual(['stock', 'crypto', 'placements', 'assets'])
-  })
-})
-
-describe('referenceSnapshot', () => {
-  it('skips a day missing a pocket held today, which would read as a gain', () => {
-    const history = [
-      snapshot('2026-09-26', 6000),
-      snapshot('2026-09-27', 5000, { bank_value: 0 }),
-    ]
-
-    expect(referenceSnapshot(history, '2026-09-28', ['bank_value'])?.snapshot_date).toBe('2026-09-26')
-  })
-
-  it('never takes today or later as its own reference', () => {
-    const history = [snapshot('2026-09-27', 6000), snapshot('2026-09-28', 6100)]
-
-    expect(referenceSnapshot(history, '2026-09-28', [])?.snapshot_date).toBe('2026-09-27')
-  })
-})
-
-describe('netWorthChanges', () => {
-  const today = new Date(2026, 8, 28)
-
-  it('measures from the last snapshot, the end of last month and of last year', () => {
-    const history = [
-      snapshot('2025-12-31', 5000),
-      snapshot('2026-08-31', 6000),
-      snapshot('2026-09-27', 6400),
-    ]
-
-    const changes = netWorthChanges(6500, history, [], today)
-
-    expect(changes).toEqual([
-      { key: 'lastSnapshot', since: '2026-09-27', diff: 100, percent: 100 / 6400 * 100 },
-      { key: 'month', since: '2026-08-31', diff: 500, percent: 500 / 6000 * 100 },
-      { key: 'year', since: '2025-12-31', diff: 1500, percent: 30 },
-    ])
-  })
-
-  it('does not repeat a change resting on the same snapshot', () => {
-    const history = [snapshot('2026-08-31', 6000)]
-
-    expect(netWorthChanges(6500, history, [], today).map((c) => c.key)).toEqual(['lastSnapshot'])
-  })
-
-  it('gives no percentage over a zero reference', () => {
-    const history = [snapshot('2026-09-27', 0)]
-
-    expect(netWorthChanges(100, history, [], today)[0]?.percent).toBeNull()
-  })
-
-  it('asks the reference for every pocket the live total holds', () => {
-    const held = heldPockets(buildComposition(statistics(), { bankEnabled: true, wealthEnabled: true }))
-
-    expect(held.sort()).toEqual(['bank_value', 'crypto_value', 'placements_value', 'stock_value'])
   })
 })
