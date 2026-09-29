@@ -472,7 +472,6 @@ onMounted(async () => {
           aria-label="Cashflow réel ou visé"
           @update:model-value="view = $event as CashflowView"
         />
-        <BaseAddButton v-if="view === 'planned'" @click="openCreate()">Nouveau flux</BaseAddButton>
       </template>
     </PageHeader>
 
@@ -638,15 +637,18 @@ onMounted(async () => {
             </button>
           </div>
 
-          <!-- Search -->
-          <div class="relative w-full sm:w-72">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Rechercher..."
-              class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-            />
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <!-- Search -->
+            <div class="relative flex-1 sm:flex-none sm:w-72">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Rechercher..."
+                class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+              />
+            </div>
+            <BaseAddButton class="shrink-0" @click="openCreate()">Nouveau flux</BaseAddButton>
           </div>
         </div>
       </div>
