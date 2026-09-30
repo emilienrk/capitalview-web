@@ -1700,7 +1700,7 @@ export interface UserSettingsUpdate {
   inflation_rate?: number
   crypto_module_enabled?: boolean
   crypto_mode?: 'SINGLE' | 'MULTI'
-  crypto_show_negative_positions?: boolean
+  crypto_auto_deposits?: boolean
   bank_module_enabled?: boolean
   bank_auto_sync_enabled?: boolean
   cashflow_module_enabled?: boolean
@@ -1735,7 +1735,7 @@ export interface UserSettingsResponse {
   inflation_rate: number
   crypto_module_enabled: boolean
   crypto_mode: 'SINGLE' | 'MULTI'
-  crypto_show_negative_positions: boolean
+  crypto_auto_deposits: boolean
   bank_module_enabled: boolean
   bank_auto_sync_enabled: boolean
   cashflow_module_enabled: boolean

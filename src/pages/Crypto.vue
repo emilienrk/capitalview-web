@@ -528,7 +528,7 @@ const txTypeOptions = computed(() => {
     { label: 'Achat · EUR → Crypto', value: 'BUY_FIAT' },
     { label: 'Swap · Crypto ↔ Crypto', value: 'BUY_SPOT' },
     { label: 'Récompense · Staking / Intérêts', value: 'REWARD' },
-    { label: 'Dépôt · EUR → Exchange', value: 'FIAT_DEPOSIT' },
+    ...(autoDeposits.value ? [] : [{ label: 'Dépôt · EUR → Exchange', value: 'FIAT_DEPOSIT' }]),
     { label: 'Retrait · Exchange → Banque', value: 'FIAT_WITHDRAW' },
     { label: 'Dépôt · Crypto avec PRU', value: 'CRYPTO_DEPOSIT' },
     { label: 'Frais · Gaz on-chain', value: 'FEE' },
@@ -978,11 +978,11 @@ const currentVisibleStep = computed(() => {
   return wizardStep.value
 })
 
-// A negative euro balance only stands for deposits never entered: someone who
-// lists their coins without them can keep it out of sight (Réglages › Modules).
-const showNegativeCash = computed(() => settingsStore.settings?.crypto_show_negative_positions ?? false)
+// With automatic deposits (Réglages › Modules) purchases are read as funded by
+// deposits never entered, so the negative euro balance they leave stays out of sight.
+const autoDeposits = computed(() => settingsStore.settings?.crypto_auto_deposits ?? true)
 const accountPositions = computed(() =>
-  (crypto.currentAccount?.positions ?? []).filter((pos) => showNegativeCash.value || Number(pos.total_amount) >= 0),
+  (crypto.currentAccount?.positions ?? []).filter((pos) => !autoDeposits.value || Number(pos.total_amount) >= 0),
 )
 
 const fiatDepositNegativeEurBalance = computed<number | null>(() => {
@@ -1145,7 +1145,7 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
     .join(' · ')
 
   const rawCash = Number(summary.cash_balance ?? 0)
-  const cash = rawCash < 0 && !showNegativeCash.value ? 0 : rawCash
+  const cash = rawCash < 0 && autoDeposits.value ? 0 : rawCash
   const deposits = Number(summary.total_deposits ?? 0)
   const daily = cryptoLatestDaily.value
   const stats: SummaryStatItem[] = [
@@ -1154,8 +1154,8 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       key: 'current_value',
       label: 'Valeur actuelle',
       value: maskAmount(summary.current_value),
-      // The curve adds the cash to the holdings; say so, or the two never meet.
-      note: cash ? `hors liquidités (${maskAmount(cash)})` : undefined,
+      // The curve adds positive cash to the holdings; say so, or the two never meet.
+      note: cash > 0 ? `hors liquidités (${maskAmount(cash)})` : undefined,
     },
     {
       key: 'profit_loss',

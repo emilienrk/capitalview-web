@@ -18,7 +18,7 @@ const notesModuleEnabled = ref(false)
 
 // Crypto settings
 const cryptoModuleEnabled = ref(false)
-const cryptoShowNegativePositions = ref(false)
+const cryptoAutoDeposits = ref(true)
 const cryptoMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
 
 const errorMessage = ref<string | null>(null)
@@ -32,7 +32,7 @@ function syncFromStore(): void {
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
   notesModuleEnabled.value = settings.notes_module_enabled ?? false
   cryptoModuleEnabled.value = settings.crypto_module_enabled
-  cryptoShowNegativePositions.value = settings.crypto_show_negative_positions ?? false
+  cryptoAutoDeposits.value = settings.crypto_auto_deposits ?? true
   cryptoMode.value = settings.crypto_mode
 }
 
@@ -209,21 +209,21 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="flex items-center gap-1">
-                          <p class="font-medium text-text-main dark:text-text-dark-main">Afficher un solde en euros négatif</p>
+                          <p class="font-medium text-text-main dark:text-text-dark-main">Dépôts automatiques</p>
                           <BaseHelpPopover width="md">
-                            Si vous ne saisissez pas vos dépôts en euros, vos achats rendent votre
-                            solde en euros négatif : il correspond simplement à vos apports. Désactivée,
-                            la page Crypto le masque, pour qui veut seulement suivre ses cryptos.
-                            Activée, elle l'affiche sous les positions, marqué « apports non saisis »,
-                            et en déduit un minimum d'apports.
+                            Activés, vos achats sont considérés comme payés par des virements en euros
+                            que vous n'avez pas à saisir : aucune ligne en euros n'apparaît sur le
+                            compte, et votre patrimoine reste juste. Les euros issus d'une vente restent
+                            affichés. Désactivés, vous saisissez vos dépôts vous-même ; s'il en manque,
+                            le solde en euros passe sous zéro, marqué « apports non saisis ».
                           </BaseHelpPopover>
                         </div>
-                        <p class="text-sm text-text-muted dark:text-text-dark-muted">Montre les euros achetés sans dépôt saisi</p>
+                        <p class="text-sm text-text-muted dark:text-text-dark-muted">Suivre vos cryptos sans saisir vos dépôts en euros</p>
                       </div>
                       <BaseToggle
-                        v-model="cryptoShowNegativePositions"
-                        aria-label="Afficher un solde en euros négatif"
-                        @update:model-value="save({ crypto_show_negative_positions: $event })"
+                        v-model="cryptoAutoDeposits"
+                        aria-label="Dépôts automatiques"
+                        @update:model-value="save({ crypto_auto_deposits: $event })"
                       />
                     </div>
                   </div>
