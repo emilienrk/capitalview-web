@@ -153,3 +153,21 @@ export function buildCryptoOperations(transactions: TransactionResponse[]): Cryp
 
   return operations.sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime())
 }
+
+const PRICED_SIDE: Partial<Record<CryptoOperationKind, 'incoming' | 'outgoing'>> = {
+  buy: 'incoming',
+  crypto_deposit: 'incoming',
+  swap: 'incoming',
+  sell: 'outgoing',
+}
+
+/**
+ * The euro price per unit the operation was booked at, to read against the
+ * average buy price. A transfer carries the sending wallet's cost, not a price.
+ */
+export function operationUnitPrice(op: CryptoOperation): { asset: string; price: number } | null {
+  const side = PRICED_SIDE[op.kind]
+  const item = side ? op[side] : null
+  if (!item || op.eurValue == null || item.amount <= 0 || isFiatSymbol(item.asset)) return null
+  return { asset: item.asset, price: op.eurValue / item.amount }
+}

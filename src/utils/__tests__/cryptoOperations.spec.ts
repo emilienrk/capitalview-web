@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildCryptoOperations } from '../cryptoOperations'
+import { buildCryptoOperations, operationUnitPrice } from '../cryptoOperations'
 import type { TransactionResponse } from '@/types'
 
 // isFiatSymbol reads the currency list, whose module imports the API client.
@@ -83,5 +83,23 @@ describe('buildCryptoOperations', () => {
       leg('SPEND', 'EUR', 250, 1, 'a', '2026-09-28T09:00:00Z'),
     ])
     expect(ops.map((op) => op.kind)).toEqual(['buy', 'fiat_deposit'])
+  })
+})
+
+describe('operationUnitPrice', () => {
+  it('prix payé de ce qu’un échange fait entrer, depuis son ancre', () => {
+    const op = only([leg('SPEND', 'USDC', 51.2), leg('ANCHOR', 'EUR', 44.26, 1), leg('BUY', 'BTC', 0.0008)])
+    expect(operationUnitPrice(op)?.asset).toBe('BTC')
+    expect(operationUnitPrice(op)?.price).toBeCloseTo(55325, 6)
+  })
+
+  it('prix de vente de ce qui sort', () => {
+    const op = only([leg('SPEND', 'SOL', 1.5), leg('DEPOSIT', 'EUR', 210, 1)])
+    expect(operationUnitPrice(op)).toEqual({ asset: 'SOL', price: 140 })
+  })
+
+  it('aucun prix pour un transfert reçu ni un dépôt en euros', () => {
+    expect(operationUnitPrice(only([leg('BUY', 'BTC', 0.01), leg('ANCHOR', 'EUR', 600, 1)]))).toBeNull()
+    expect(operationUnitPrice(only([leg('DEPOSIT', 'EUR', 200, 1, null)]))).toBeNull()
   })
 })

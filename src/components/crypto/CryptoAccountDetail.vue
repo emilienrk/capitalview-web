@@ -12,6 +12,7 @@ import { changeSince, type PriceReference } from '@/utils/cryptoPositions'
 import {
   buildCryptoOperations,
   CRYPTO_OPERATION_LABELS,
+  operationUnitPrice,
   type CryptoAmount,
   type CryptoOperation,
   type CryptoOperationKind,
@@ -163,6 +164,11 @@ function operationDetail(op: CryptoOperation): string {
 }
 
 const operationFees = (op: CryptoOperation): string => op.fees.map(quantity).join(', ')
+
+function unitPriceLabel(op: CryptoOperation): string | null {
+  const unit = operationUnitPrice(op)
+  return unit ? `${formatCurrency(unit.price)}/${unit.asset}` : null
+}
 
 function deleteOperation(op: CryptoOperation): void {
   const parts = [`${operationLabel(op)} du ${formatDateShort(op.executedAt)}`, operationDetail(op)]
@@ -365,6 +371,7 @@ function openPriceChart(position: PositionResponse): void {
                   <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
                     <span v-if="op.eurValue != null" class="font-semibold text-text-main dark:text-text-dark-main">{{ money(op.eurValue) }}</span>
                     <span v-else class="text-text-muted dark:text-text-dark-muted">—</span>
+                    <span v-if="unitPriceLabel(op)" class="block text-xs text-text-muted dark:text-text-dark-muted">{{ unitPriceLabel(op) }}</span>
                   </td>
                   <td class="px-4 py-3 text-right text-text-muted dark:text-text-dark-muted tabular-nums whitespace-nowrap">{{ operationFees(op) || '—' }}</td>
                   <td class="px-4 py-2 text-right">
@@ -442,6 +449,7 @@ function openPriceChart(position: PositionResponse): void {
                   <span class="text-right whitespace-nowrap tabular-nums">
                     <span v-if="op.eurValue != null" class="block font-semibold text-text-main dark:text-text-dark-main">{{ money(op.eurValue) }}</span>
                     <span v-else class="block text-text-muted dark:text-text-dark-muted">—</span>
+                    <span v-if="unitPriceLabel(op)" class="block text-xs text-text-muted dark:text-text-dark-muted">{{ unitPriceLabel(op) }}</span>
                     <span v-if="op.fees.length" class="block text-xs text-text-muted dark:text-text-dark-muted">frais {{ operationFees(op) }}</span>
                   </span>
                 </div>
