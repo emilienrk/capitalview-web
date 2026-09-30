@@ -1602,6 +1602,17 @@ export interface PositionResponse {
   profit_loss_percentage: number | null
 }
 
+/** A crypto whose ledger balance went below zero: a missing or duplicated transaction. */
+export interface NegativeBalanceResponse {
+  asset_key: string
+  since: string
+  shortfall: number
+  /** Null when the asset has no price. */
+  shortfall_value: number | null
+  /** Disposals the ledger could not cover, kept out of the realized P/L. */
+  excluded_proceeds: number
+}
+
 export interface AccountSummaryResponse {
   account_id: string
   account_name: string
@@ -1620,6 +1631,7 @@ export interface AccountSummaryResponse {
   total_profit_loss: number | null
   /** Only on a single account's summary. */
   order_fees?: OrderFeesResponse | null
+  negative_balances?: NegativeBalanceResponse[]
   positions: PositionResponse[]
 }
 

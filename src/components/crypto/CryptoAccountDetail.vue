@@ -17,7 +17,7 @@ import {
   type CryptoOperation,
   type CryptoOperationKind,
 } from '@/utils/cryptoOperations'
-import type { PositionResponse, TransactionResponse } from '@/types'
+import type { NegativeBalanceResponse, PositionResponse, TransactionResponse } from '@/types'
 
 /**
  * Positions / transaction-history tabs of a crypto account.
@@ -29,6 +29,7 @@ const props = defineProps<{
   transactions: TransactionResponse[]
   /** Prices of the last snapshot before today, for the change column. */
   priceReference: PriceReference | null
+  negativeBalances?: NegativeBalanceResponse[]
 }>()
 
 const tab = defineModel<'positions' | 'history'>('tab', { default: 'positions' })
@@ -80,6 +81,22 @@ function change(pos: PositionResponse): number | null {
 }
 
 const changeHeader = computed(() => (props.priceReference ? `Depuis le ${formatDayMonth(props.priceReference.date)}` : null))
+
+// ── Negative balances ──────────────────────────────────────
+
+// Below a euro the gap is fee dust, not a transaction worth hunting for.
+const NEGATIVE_BALANCE_MIN_EUR = 1
+
+const balanceGaps = computed(() =>
+  (props.negativeBalances ?? []).filter(
+    (gap) => gap.shortfall_value == null || Number(gap.shortfall_value) >= NEGATIVE_BALANCE_MIN_EUR,
+  ),
+)
+
+function showGap(gap: NegativeBalanceResponse): void {
+  historyFilter.value = gap.asset_key
+  tab.value = 'history'
+}
 
 // ── History ────────────────────────────────────────────────
 
@@ -214,6 +231,30 @@ function openPriceChart(position: PositionResponse): void {
   <div>
     <div class="mb-6">
       <BaseSegmentedControl v-model="tab" :options="[{ key: 'positions', label: 'Positions' }, { key: 'history', label: 'Historique' }]" variant="surface" size="md" />
+    </div>
+
+    <div v-if="balanceGaps.length" class="mb-6 space-y-2">
+      <div
+        v-for="gap in balanceGaps"
+        :key="gap.asset_key"
+        class="flex flex-wrap items-start gap-x-3 gap-y-1.5 px-3 py-2.5 rounded-secondary bg-warning/5 dark:bg-warning/10 border border-warning/20 text-sm"
+      >
+        <AlertCircle class="w-4 h-4 text-warning shrink-0 mt-0.5" />
+        <div class="min-w-0 flex-1">
+          <p class="text-text-main dark:text-text-dark-main">
+            {{ gap.asset_key }} passe sous zéro le {{ formatDateShort(gap.since) }}, jusqu’à {{ formatNumber(gap.shortfall, 6) }} {{ gap.asset_key }} manquants.
+          </p>
+          <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+            Une transaction manque ou est en double.
+            <template v-if="Number(gap.excluded_proceeds) > 0">
+              Faute de coût d’achat connu, {{ money(gap.excluded_proceeds) }} de ventes et d’échanges restent hors du P/L réalisé.
+            </template>
+          </p>
+        </div>
+        <button type="button" class="shrink-0 text-xs font-medium text-primary hover:underline" @click="showGap(gap)">
+          Voir l’historique {{ gap.asset_key }}
+        </button>
+      </div>
     </div>
 
     <!-- Positions Tab -->
