@@ -7,7 +7,6 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { AssetPriceTimelineResponse } from '@/types'
 import AssetPriceHistoryChart from '@/components/charts/AssetPriceHistoryChart.vue'
-import ChartPerformanceBadge from '@/components/charts/ChartPerformanceBadge.vue'
 import { BaseEmptyState, BaseModal, BaseSpinner } from '@/components'
 
 const props = defineProps<{
@@ -154,7 +153,14 @@ watch(
         <p class="text-xs text-text-muted dark:text-text-dark-muted">
           {{ tradeCount }} opération{{ tradeCount > 1 ? 's' : '' }} sur la période
         </p>
-        <ChartPerformanceBadge :performance="performance" />
+        <!-- The asset's own move, per unit: shown as a gain in euros it read as the
+             position's P/L, which the cost-basis gap above already gives. -->
+        <p
+          v-if="performance?.percent != null"
+          :class="['text-xs font-medium', performance.percent >= 0 ? 'text-success' : 'text-danger']"
+        >
+          Cours {{ formatPercent(performance.percent) }} sur la période
+        </p>
       </div>
 
       <AssetPriceHistoryChart
