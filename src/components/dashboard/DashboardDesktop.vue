@@ -18,6 +18,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import { useDashboardTiles } from '@/composables/useDashboardTiles'
 import type { DashboardOverview } from '@/composables/useDashboardOverview'
 import { useSettingsStore } from '@/stores/settings'
+import { exploreLink } from '@/utils/ledger'
 
 const props = defineProps<{ overview: DashboardOverview }>()
 
@@ -31,6 +32,10 @@ const placementsValue = computed(() => props.overview.investmentRows.find((row) 
 const hasAccounts = computed(
   () => props.overview.bankAccounts.length > 0 || (props.overview.portfolio?.accounts.length ?? 0) > 0 || !!placementsValue.value,
 )
+const monthLink = {
+  name: 'cashflow',
+  query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }),
+}
 const showMonth = computed(() => props.overview.bankEnabled && props.overview.month !== null)
 </script>
 
@@ -52,7 +57,10 @@ const showMonth = computed(() => props.overview.bankEnabled && props.overview.mo
 
     <BaseCard v-if="showMonth && overview.month" class="col-span-5 xl:col-span-4">
       <template #header>
-        <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Mois en cours</h3>
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Mois en cours</h3>
+          <router-link :to="monthLink" class="text-sm font-medium text-primary hover:underline">Explorer</router-link>
+        </div>
       </template>
       <RealCashflowPace :data="overview.month" :is-dark="isDark" stacked compact />
     </BaseCard>

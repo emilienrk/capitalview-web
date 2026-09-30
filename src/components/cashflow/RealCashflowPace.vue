@@ -25,7 +25,7 @@ const props = defineProps<{
   isDark?: boolean
   /** Figures above the curve at every width, for a narrow column. */
   stacked?: boolean
-  /** Two lines of figures: the pending and upcoming detail is one click away, in Explorer. */
+  /** Two lines of figures and no link: the host puts Explorer in its header, the detail is there. */
   compact?: boolean
 }>()
 
@@ -113,16 +113,15 @@ const option = computed(() => {
         {{ amount(data.spent_to_date) }}
         <span class="text-sm font-medium text-text-muted dark:text-text-dark-muted">dépensés au {{ data.day }}</span>
       </p>
-      <p v-if="compact && (gap !== null || data.projection !== null)" class="text-sm text-text-muted dark:text-text-dark-muted">
-        <template v-if="gap !== null">
+      <template v-if="compact">
+        <p v-if="gap !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
           <span class="font-semibold tabular-nums">{{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }}</span>
           face au mois médian
-        </template>
-        <template v-if="data.projection !== null">
-          <template v-if="gap !== null"> · </template>fin estimée
-          <strong class="tabular-nums text-text-main dark:text-text-dark-main">{{ amount(data.projection) }}</strong>
-        </template>
-      </p>
+        </p>
+        <p v-if="data.projection !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
+          Fin estimée <strong class="tabular-nums text-text-main dark:text-text-dark-main">{{ amount(data.projection) }}</strong>
+        </p>
+      </template>
       <!-- The median's own amount is the dashed curve: only the gap is spelled out. -->
       <p v-if="!compact && gap !== null" class="text-sm text-text-muted dark:text-text-dark-muted">
         <span class="font-semibold tabular-nums">{{ gap > 0 ? '+' : '−' }}{{ amount(Math.abs(gap)) }}</span>
@@ -148,13 +147,14 @@ const option = computed(() => {
         </span>
       </p>
       <router-link
+        v-if="!compact"
         :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"
         class="inline-block text-sm font-medium text-primary hover:underline"
       >
         Explorer ce mois
       </router-link>
     </div>
-    <div ref="containerRef" class="h-36 w-full" :class="stacked ? '' : 'lg:col-span-3'">
+    <div ref="containerRef" class="w-full" :class="[compact ? 'h-28' : 'h-36', stacked ? '' : 'lg:col-span-3']">
       <VChart v-if="canRenderChart" ref="chartRef" :option="option" autoresize class="w-full h-full" />
     </div>
   </div>
