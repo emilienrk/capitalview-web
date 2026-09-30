@@ -149,7 +149,7 @@ watch(
         </div>
       </div>
 
-      <div class="flex items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <p class="text-xs text-text-muted dark:text-text-dark-muted">
           {{ tradeCount }} opération{{ tradeCount > 1 ? 's' : '' }} sur la période
         </p>

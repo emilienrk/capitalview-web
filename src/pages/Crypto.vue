@@ -980,7 +980,7 @@ const currentVisibleStep = computed(() => {
 
 // With automatic deposits (Réglages › Modules) purchases are read as funded by
 // deposits never entered, so the negative euro balance they leave stays out of sight.
-const autoDeposits = computed(() => settingsStore.settings?.crypto_auto_deposits ?? true)
+const autoDeposits = computed(() => settingsStore.settings?.crypto_auto_deposits ?? false)
 const accountPositions = computed(() =>
   (crypto.currentAccount?.positions ?? []).filter((pos) => !autoDeposits.value || Number(pos.total_amount) >= 0),
 )

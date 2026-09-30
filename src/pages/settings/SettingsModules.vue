@@ -18,7 +18,7 @@ const notesModuleEnabled = ref(false)
 
 // Crypto settings
 const cryptoModuleEnabled = ref(false)
-const cryptoAutoDeposits = ref(true)
+const cryptoAutoDeposits = ref(false)
 const cryptoMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
 
 const errorMessage = ref<string | null>(null)
@@ -32,7 +32,7 @@ function syncFromStore(): void {
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
   notesModuleEnabled.value = settings.notes_module_enabled ?? false
   cryptoModuleEnabled.value = settings.crypto_module_enabled
-  cryptoAutoDeposits.value = settings.crypto_auto_deposits ?? true
+  cryptoAutoDeposits.value = settings.crypto_auto_deposits ?? false
   cryptoMode.value = settings.crypto_mode
 }
 
