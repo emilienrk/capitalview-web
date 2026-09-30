@@ -44,7 +44,8 @@ export const useCryptoStore = defineStore('crypto', () => {
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const accountHistoryById = ref<Record<string, AccountHistorySnapshotResponse[]>>({})
   const isLoading = ref(false)
-  const historyLoading = ref(false)
+  const historyLoadingCount = ref(0)
+  const historyLoading = computed(() => historyLoadingCount.value > 0)
   const error = ref<string | null>(null)
   const _liveFetchSeq = ref(0)
   const historyCacheKey = 'crypto:history:global'
@@ -218,7 +219,7 @@ export const useCryptoStore = defineStore('crypto', () => {
   }
 
   async function fetchHistory(force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -233,12 +234,12 @@ export const useCryptoStore = defineStore('crypto', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 
   async function fetchHistoryForAccount(accountId: string, force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -253,7 +254,7 @@ export const useCryptoStore = defineStore('crypto', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 

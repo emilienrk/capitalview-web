@@ -23,6 +23,7 @@ const props = defineProps<{
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   hideControls?: boolean
   showPerformance?: boolean
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -441,6 +442,20 @@ const visiblePerformance = computed(() => {
 watch(visiblePerformance, (newVal) => {
   emit('update:performance', newVal)
 }, { immediate: true })
+
+const loadingOptions = computed(() => {
+  const theme = chartTheme.value
+  return {
+    text: '',
+    color: theme.accent || theme.roles?.stock || '#3b82f6',
+    textColor: theme.text,
+    maskColor: props.isDark ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255, 255, 255, 0.55)',
+    zlevel: 10,
+    showSpinner: true,
+    spinnerRadius: 13,
+    lineWidth: 3,
+  }
+})
 </script>
 
 <template>
@@ -476,6 +491,8 @@ watch(visiblePerformance, (newVal) => {
         ref="chartRef"
         :option="option"
         :update-options="updateOptions"
+        :loading="loading"
+        :loading-options="loadingOptions"
         autoresize
         @finished="handleChartReady"
         @legendselectchanged="handleLegendSelectChanged"

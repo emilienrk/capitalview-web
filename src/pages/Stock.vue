@@ -674,6 +674,13 @@ async function reloadChartsAfterMutation(accountId?: string | null): Promise<voi
   await stocks.fetchNonTradingDays()
 }
 
+const hasActiveChartData = computed(() => {
+  if (stockChartSlide.value === 'evolution') return stockChartSeries.value.length > 0
+  if (stockChartSlide.value === 'pnl') return stockDailyPnlSeries.value.length > 0
+  if (stockChartSlide.value === 'cumulative_pnl') return stockAllTimePnlSeries.value.length > 0
+  return true
+})
+
 const modalPositions = ref<PositionResponse[]>([])
 
 /** Asset options restricted to positions the user currently holds (for SELL and DIVIDEND). */
@@ -926,7 +933,7 @@ async function handleSubmitDeposit(): Promise<void> {
           fetchAccountTransactions(selectedAccountId.value),
         ])
       }
-      void reloadChartsAfterMutation(selectedAccountId.value)
+      await reloadChartsAfterMutation(selectedAccountId.value)
     }
     return
   }
@@ -1140,7 +1147,7 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     stocks.fetchTransactions()
-    void reloadChartsAfterMutation(txForm.account_id)
+    await reloadChartsAfterMutation(txForm.account_id)
   } else {
     showTxModal.value = true
   }
@@ -1166,7 +1173,7 @@ async function deleteTransaction(id: string): Promise<void> {
       ])
     }
     stocks.fetchTransactions()
-    void reloadChartsAfterMutation(selectedAccountId.value)
+    await reloadChartsAfterMutation(selectedAccountId.value)
   }
 }
 
@@ -1233,7 +1240,7 @@ async function handleDelete(): Promise<void> {
         fetchAccountTransactions(selectedAccountId.value)
       ])
     }
-    void reloadChartsAfterMutation(selectedAccountId.value)
+    await reloadChartsAfterMutation(selectedAccountId.value)
   }
 
   deleteTarget.value = null
@@ -1423,7 +1430,7 @@ onMounted(async () => {
         @touchstart.passive="stockChartSwipe.onTouchStart"
         @touchend.passive="stockChartSwipe.onTouchEnd"
       >
-        <div v-if="stocks.historyLoading" class="h-72 flex items-center justify-center">
+        <div v-if="stocks.historyLoading && !hasActiveChartData" class="h-72 flex items-center justify-center">
           <BaseSpinner size="md" label="Chargement de l'historique..." />
         </div>
 
@@ -1433,12 +1440,13 @@ onMounted(async () => {
             :series="stockChartSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
+            :loading="stocks.historyLoading"
             show-performance
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
               <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
-                <RefreshCw class="w-4 h-4" />
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': stocks.historyLoading }" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </template>
@@ -1468,10 +1476,11 @@ onMounted(async () => {
             :series="stockDailyPnlSeries"
             :is-dark="isDark"
             granularity="daily"
+            :loading="stocks.historyLoading"
           >
             <template #leading>
               <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
-                <RefreshCw class="w-4 h-4" />
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': stocks.historyLoading }" />
               </BaseButton>
             </template>
           </HistoryLineChart>
@@ -1489,12 +1498,13 @@ onMounted(async () => {
             :series="stockAllTimePnlSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
+            :loading="stocks.historyLoading"
             show-performance
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
               <BaseButton icon size="sm" variant="outline" @click="loadStockChartHistories(true)">
-                <RefreshCw class="w-4 h-4" />
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': stocks.historyLoading }" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </template>

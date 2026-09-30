@@ -37,7 +37,8 @@ export const useStocksStore = defineStore('stocks', () => {
   // to strip flat segments from the stock charts. Empty ⇒ no filtering.
   const nonTradingDays = ref<Set<string>>(new Set())
   const isLoading = ref(false)
-  const historyLoading = ref(false)
+  const historyLoadingCount = ref(0)
+  const historyLoading = computed(() => historyLoadingCount.value > 0)
   const error = ref<string | null>(null)
   const _liveFetchSeq = ref(0)
   const historyCacheKey = 'stocks:history:global'
@@ -174,7 +175,7 @@ export const useStocksStore = defineStore('stocks', () => {
   }
 
   async function fetchHistory(force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -189,12 +190,12 @@ export const useStocksStore = defineStore('stocks', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 
   async function fetchHistoryForAccount(accountId: string, force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -209,7 +210,7 @@ export const useStocksStore = defineStore('stocks', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 

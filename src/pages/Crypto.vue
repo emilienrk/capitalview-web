@@ -1298,6 +1298,13 @@ async function reloadChartsAfterMutation(...accountIds: Array<string | null | un
   ])
 }
 
+const hasActiveChartData = computed(() => {
+  if (chartSlide.value === 'evolution') return cryptoChartSeries.value.length > 0
+  if (chartSlide.value === 'pnl') return pnlChartSeries.value.length > 0
+  if (chartSlide.value === 'cumulative_pnl') return allTimePnlChartSeries.value.length > 0
+  return true
+})
+
 function formatAssetDisplay(asset: AssetSearchResult): string {
   return asset.name || asset.symbol || asset.asset_key || ''
 }
@@ -1385,7 +1392,7 @@ async function handleSubmitTransaction(): Promise<void> {
         ])
       }
       crypto.fetchTransactions()
-      void reloadChartsAfterMutation(txForm.account_id, transferToAccountId.value)
+      await reloadChartsAfterMutation(txForm.account_id, transferToAccountId.value)
     }
     return
   }
@@ -1468,7 +1475,7 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     crypto.fetchTransactions()
-    void reloadChartsAfterMutation(txForm.account_id)
+    await reloadChartsAfterMutation(txForm.account_id)
   }
 }
 
@@ -1502,7 +1509,7 @@ async function removeTransaction(id: string): Promise<void> {
     ])
   }
   crypto.fetchTransactions()
-  void reloadChartsAfterMutation(selectedAccountId.value)
+  await reloadChartsAfterMutation(selectedAccountId.value)
 }
 
 async function fetchAccountTransactions(id: string): Promise<void> {
@@ -1668,7 +1675,7 @@ onMounted(async () => {
             @touchstart.passive="chartSwipe.onTouchStart"
             @touchend.passive="chartSwipe.onTouchEnd"
           >
-          <div v-if="crypto.historyLoading" class="h-72 flex items-center justify-center">
+          <div v-if="crypto.historyLoading && !hasActiveChartData" class="h-72 flex items-center justify-center">
             <BaseSpinner size="md" label="Chargement de l'historique..." />
           </div>
 
@@ -1678,12 +1685,13 @@ onMounted(async () => {
                 :series="cryptoChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
+                :loading="crypto.historyLoading"
                 show-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                 </template>
@@ -1713,10 +1721,11 @@ onMounted(async () => {
                 :series="pnlChartSeries"
                 :is-dark="isDark"
                 granularity="daily"
+                :loading="crypto.historyLoading"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                 </template>
               </HistoryLineChart>
@@ -1734,12 +1743,13 @@ onMounted(async () => {
                 :series="allTimePnlChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
+                :loading="crypto.historyLoading"
                 show-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                 </template>
@@ -1824,7 +1834,7 @@ onMounted(async () => {
           @touchstart.passive="chartSwipe.onTouchStart"
           @touchend.passive="chartSwipe.onTouchEnd"
         >
-          <div v-if="crypto.historyLoading" class="h-72 flex items-center justify-center">
+          <div v-if="crypto.historyLoading && !hasActiveChartData" class="h-72 flex items-center justify-center">
             <BaseSpinner size="md" label="Chargement de l'historique..." />
           </div>
 
@@ -1834,12 +1844,13 @@ onMounted(async () => {
                 :series="cryptoChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
+                :loading="crypto.historyLoading"
                 show-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                 </template>
@@ -1869,10 +1880,11 @@ onMounted(async () => {
                 :series="pnlChartSeries"
                 :is-dark="isDark"
                 granularity="daily"
+                :loading="crypto.historyLoading"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                 </template>
               </HistoryLineChart>
@@ -1890,12 +1902,13 @@ onMounted(async () => {
                 :series="allTimePnlChartSeries"
                 :is-dark="isDark"
                 :granularity="historyGranularity"
+                :loading="crypto.historyLoading"
                 show-performance
                 @update:performance="chartPerformance = $event"
               >
                 <template #leading>
                   <BaseButton icon size="sm" variant="outline" @click="loadCryptoChartHistories(true)">
-                    <RefreshCw class="w-4 h-4" />
+                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': crypto.historyLoading }" />
                   </BaseButton>
                   <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
                 </template>
