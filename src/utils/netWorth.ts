@@ -11,7 +11,7 @@ export interface CompositionSegment {
   /** The names the history chart's legend uses, so both read alike. */
   label: string
   value: number
-  /** Share of the total, 0–100; negative for a pocket that owes (an overdrawn brokerage account). */
+  /** Share of the total, 0–100; negative for a pocket that owes (an overdrawn bank account). */
   share: number
 }
 

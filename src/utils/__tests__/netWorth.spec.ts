@@ -55,7 +55,7 @@ describe('buildComposition', () => {
     expect(segments.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(100)
   })
 
-  it('keeps an overdrawn brokerage account, so the lines still add up to the total', () => {
+  it('keeps a negative pocket, so the lines still add up to the total', () => {
     const segments = buildComposition(statistics({ investments: 4800, total: 5800 }), { bankEnabled: true, wealthEnabled: true })
 
     expect(segments.find((s) => s.key === 'brokerCash')?.value).toBe(-500)
