@@ -209,20 +209,20 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="flex items-center gap-1">
-                          <p class="font-medium text-text-main dark:text-text-dark-main">Afficher les positions négatives</p>
+                          <p class="font-medium text-text-main dark:text-text-dark-main">Afficher un solde en euros négatif</p>
                           <BaseHelpPopover width="md">
-                            Si vous ne saisissez pas vos dépôts en euros, votre solde EUR devient
-                            négatif : il correspond simplement à vos apports, et le masquer garde la
-                            liste lisible. Une crypto négative signale en revanche un historique
-                            incomplet (une vente ou un transfert sans l'achat correspondant) :
-                            activez l'option pour la repérer.
+                            Si vous ne saisissez pas vos dépôts en euros, vos achats rendent votre
+                            solde en euros négatif : il correspond simplement à vos apports. Désactivée,
+                            la page Crypto le masque, pour qui veut seulement suivre ses cryptos.
+                            Activée, elle l'affiche sous les positions, marqué « apports non saisis »,
+                            et en déduit un minimum d'apports.
                           </BaseHelpPopover>
                         </div>
-                        <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche les cryptos dont le solde est négatif</p>
+                        <p class="text-sm text-text-muted dark:text-text-dark-muted">Montre les euros achetés sans dépôt saisi</p>
                       </div>
                       <BaseToggle
                         v-model="cryptoShowNegativePositions"
-                        aria-label="Afficher les positions négatives"
+                        aria-label="Afficher un solde en euros négatif"
                         @update:model-value="save({ crypto_show_negative_positions: $event })"
                       />
                     </div>

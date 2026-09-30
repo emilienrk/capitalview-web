@@ -973,7 +973,12 @@ const currentVisibleStep = computed(() => {
   return wizardStep.value
 })
 
-const accountPositions = computed(() => crypto.currentAccount?.positions ?? [])
+// A negative euro balance only stands for deposits never entered: someone who
+// lists their coins without them can keep it out of sight (Réglages › Modules).
+const showNegativeCash = computed(() => settingsStore.settings?.crypto_show_negative_positions ?? false)
+const accountPositions = computed(() =>
+  (crypto.currentAccount?.positions ?? []).filter((pos) => showNegativeCash.value || Number(pos.total_amount) >= 0),
+)
 
 const fiatDepositNegativeEurBalance = computed<number | null>(() => {
   if (!showTxModal.value || txForm.type !== 'FIAT_DEPOSIT') return null
@@ -1134,7 +1139,8 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
     .map((view) => `${pnlByView[view].short} ${signedAmount(pnlByView[view].value)}`)
     .join(' · ')
 
-  const cash = Number(summary.cash_balance ?? 0)
+  const rawCash = Number(summary.cash_balance ?? 0)
+  const cash = rawCash < 0 && !showNegativeCash.value ? 0 : rawCash
   const deposits = Number(summary.total_deposits ?? 0)
   const daily = cryptoLatestDaily.value
   const stats: SummaryStatItem[] = [
