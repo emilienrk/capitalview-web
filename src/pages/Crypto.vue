@@ -12,7 +12,6 @@ import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
-import { useCurrencyToggle } from '@/composables/useCurrencyToggle'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
@@ -49,12 +48,13 @@ import {
   toCompositeApiType,
 } from '@/utils/cryptoTransactionTypes'
 import CryptoAccountDetail from '@/components/crypto/CryptoAccountDetail.vue'
+import CryptoSummaryStats from '@/components/crypto/CryptoSummaryStats.vue'
+import { previousSnapshotPrices } from '@/utils/cryptoPositions'
 
 const crypto = useCryptoStore()
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
-const { formatCurrency, formatPercent, formatNumber, formatDate, profitLossClass } = useFormatters()
-const { fetchRate, displayCurrency, usdToEurRate, toggleCurrency } = useCurrencyToggle('crypto')
+const { formatCurrency, formatPercent, formatDate, formatDayMonth, profitLossClass } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
 const { confirmDialog } = useConfirm()
@@ -79,26 +79,13 @@ function formatEur(value: number | string | null | undefined): string {
   return formatCurrency(value, 'EUR')
 }
 
-function formatAmount(value: number | string | null | undefined): string {
-  if (displayCurrency.value === 'USD') {
-    if (value === null || value === undefined) return formatCurrency(null, 'USD')
-    const n = typeof value === 'string' ? Number(value) : value
-    if (isNaN(n)) return formatCurrency(null, 'USD')
-    return formatCurrency(n / usdToEurRate.value, 'USD')
-  }
-  return formatEur(value)
-}
-
 function maskAmount(value: number | string | null | undefined): string {
-  return maskValue(formatAmount(value))
+  return maskValue(formatEur(value))
 }
 
-function formatPercentUnsigned(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '—'
-  return `${Number(value).toLocaleString('fr-FR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })} %`
+function signedAmount(value: number | string | null | undefined): string {
+  if (value == null) return maskAmount(value)
+  return `${Number(value) > 0 ? '+' : ''}${maskAmount(value)}`
 }
 
 type TxFormType = CryptoUiTransactionType | CryptoAtomicTransactionType
@@ -986,18 +973,7 @@ const currentVisibleStep = computed(() => {
   return wizardStep.value
 })
 
-const sortedPositions = computed(() => {
-  if (!crypto.currentAccount?.positions) return []
-  const showNegative = settingsStore.settings?.crypto_show_negative_positions ?? false
-  const visiblePositions = crypto.currentAccount.positions.filter((pos) => {
-    if (showNegative) return true
-    return Number(pos.total_amount) >= 0
-  })
-
-  return [...visiblePositions].sort(
-    (a, b) => Number(b.total_invested ?? 0) - Number(a.total_invested ?? 0)
-  )
-})
+const accountPositions = computed(() => crypto.currentAccount?.positions ?? [])
 
 const fiatDepositNegativeEurBalance = computed<number | null>(() => {
   if (!showTxModal.value || txForm.type !== 'FIAT_DEPOSIT') return null
@@ -1019,6 +995,11 @@ const cryptoChartSeries = computed(() => {
       history: applyGranularity(crypto.accountHistoryById[account.id] ?? []),
     }))
     .filter((series) => series.history.length > 0)
+
+  // One wallet: the total is the same curve drawn twice.
+  if ((crypto.accounts ?? []).length <= 1) {
+    return accountSeries
+  }
 
   const series = [{ name: 'Valeur totale', history: totalHistory }, ...accountSeries]
   return series.filter((line) => line.history.length > 0)
@@ -1053,104 +1034,24 @@ const {
   applyGranularity,
 } = useHistoryGranularity(() => historyForAnalytics.value)
 
-function latestDailyPnlFromHistory(history: AccountHistorySnapshotResponse[]): number | null {
+/** The latest daily P/L, and the day of the snapshot it is measured from. */
+function latestDailyPnlFromHistory(history: AccountHistorySnapshotResponse[]): { value: number; since: string | null } | null {
   for (let idx = history.length - 1; idx >= 0; idx -= 1) {
     const snapshot = history[idx]
     if (!snapshot) continue
     const dailyPnl = parsePnlValue(snapshot.daily_pnl)
-    if (dailyPnl != null) return dailyPnl
+    if (dailyPnl != null) return { value: dailyPnl, since: history[idx - 1]?.snapshot_date ?? null }
   }
   return null
 }
 
-const selectedCryptoAccountMeta = computed(() => {
-  const accountId = selectedAccountId.value ?? crypto.currentAccount?.account_id ?? null
+const cryptoLatestDaily = computed(() => latestDailyPnlFromHistory(historyForAnalytics.value))
+const cryptoLatestDailyPnl = computed<number | null>(() => cryptoLatestDaily.value?.value ?? null)
+
+const priceReference = computed(() => {
+  const accountId = selectedAccountId.value
   if (!accountId) return null
-  return crypto.accounts.find((account) => account.id === accountId) ?? null
-})
-
-const cryptoLatestDailyPnl = computed<number | null>(() => {
-  return latestDailyPnlFromHistory(historyForAnalytics.value)
-})
-
-const cryptoSummaryOpenedAt = computed<string | null>(() => {
-  return selectedCryptoAccountMeta.value?.opened_at ?? selectedCryptoAccountMeta.value?.created_at ?? null
-})
-
-const hasSingleCryptoAccount = computed(() => (crypto.accounts?.length ?? 0) <= 1)
-
-const cryptoNonFiatPositions = computed(() => {
-  const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
-  const positions = crypto.currentAccount?.positions ?? []
-  return positions.filter((position) => !fiat.has(position.asset_key.toUpperCase()))
-})
-
-const cryptoActiveAssetsCount = computed(() => {
-  return cryptoNonFiatPositions.value.filter((position) => {
-    const amount = Number(position.total_amount ?? 0)
-    return Number.isFinite(amount) && amount !== 0
-  }).length
-})
-
-const cryptoTopPositionWeight = computed<number | null>(() => {
-  const values = cryptoNonFiatPositions.value
-    .map((position) => Number(position.current_value ?? 0))
-    .filter((value) => Number.isFinite(value) && value > 0)
-
-  if (!values.length) return null
-
-  const total = values.reduce((sum, value) => sum + value, 0)
-  if (total <= 0) return null
-
-  const top = Math.max(...values)
-  return (top / total) * 100
-})
-
-const cryptoContextFallbackStat = computed<SummaryStatItem>(() => {
-  const summary = crypto.currentAccount
-
-  if (hasSingleCryptoAccount.value && cryptoActiveAssetsCount.value > 0) {
-    return {
-      key: 'active_assets',
-      label: 'Actifs suivis',
-      value: formatNumber(cryptoActiveAssetsCount.value, 0),
-    }
-  }
-
-  if (cryptoTopPositionWeight.value != null) {
-    return {
-      key: 'top_position_weight',
-      label: 'Poids top position',
-      value: formatPercentUnsigned(cryptoTopPositionWeight.value),
-    }
-  }
-
-  if (summary && Number(summary.total_fees ?? 0) > 0) {
-    return {
-      key: 'total_fees',
-      label: 'Frais cumulés',
-      value: maskAmount(summary.total_fees),
-    }
-  }
-
-  return {
-    key: 'account_count',
-    label: 'Portefeuilles suivis',
-    value: formatNumber(crypto.accounts?.length ?? 0, 0),
-  }
-})
-
-const cryptoDateOrFallbackStat = computed<SummaryStatItem>(() => {
-  const openedAt = cryptoSummaryOpenedAt.value
-  if (openedAt) {
-    return {
-      key: 'opened_at',
-      label: 'Date d\'ouverture',
-      value: formatDate(openedAt),
-    }
-  }
-
-  return cryptoContextFallbackStat.value
+  return previousSnapshotPrices(crypto.accountHistoryById[accountId] ?? [], nowDatetimeLocal().slice(0, 10))
 })
 
 watch([selectedAccountId, isSingleMode], () => {
@@ -1215,37 +1116,42 @@ function cyclePnlView(): void {
   pnlView.value = PNL_VIEWS[(i + 1) % PNL_VIEWS.length]!
 }
 
+// Same curation as Bourse: most relevant first (the first page is what fits
+// above the fold), zero-valued tiles dropped.
 const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
   const summary = crypto.currentAccount
   if (!summary) return []
 
-  const pct = (v: number | null) =>
-    v != null && Number(summary.total_invested) > 0
-      ? (Number(v) / Number(summary.total_invested)) * 100
-      : null
+  const invested = Number(summary.total_invested)
+  const pct = (v: number | null) => (v != null && invested > 0 ? (Number(v) / invested) * 100 : null)
   const pnlByView = {
-    latent: { label: 'P/L latent', perfLabel: 'Perf. latente', value: summary.profit_loss, pct: summary.profit_loss_percentage },
-    realized: { label: 'P/L réalisé', perfLabel: 'Perf. réalisée', value: summary.realized_profit_loss, pct: pct(summary.realized_profit_loss) },
-    total: { label: 'P/L total', perfLabel: 'Perf. totale', value: summary.total_profit_loss, pct: pct(summary.total_profit_loss) },
+    latent: { label: 'P/L latent', short: 'latent', perfLabel: 'Perf. latente', value: summary.profit_loss, pct: summary.profit_loss_percentage },
+    realized: { label: 'P/L réalisé', short: 'réalisé', perfLabel: 'Perf. réalisée', value: summary.realized_profit_loss, pct: pct(summary.realized_profit_loss) },
+    total: { label: 'P/L total', short: 'total', perfLabel: 'Perf. totale', value: summary.total_profit_loss, pct: pct(summary.total_profit_loss) },
   } as const
   const pnl = pnlByView[pnlView.value]
+  const otherPnl = PNL_VIEWS.filter((view) => view !== pnlView.value)
+    .map((view) => `${pnlByView[view].short} ${signedAmount(pnlByView[view].value)}`)
+    .join(' · ')
 
-  return [
-    {
-      key: 'invested',
-      label: 'Investi',
-      value: maskAmount(summary.total_invested),
-    },
+  const cash = Number(summary.cash_balance ?? 0)
+  const deposits = Number(summary.total_deposits ?? 0)
+  const daily = cryptoLatestDaily.value
+  const stats: SummaryStatItem[] = [
+    { key: 'invested', label: 'Investi', value: maskAmount(summary.total_invested) },
     {
       key: 'current_value',
       label: 'Valeur actuelle',
       value: maskAmount(summary.current_value),
+      // The curve adds the cash to the holdings; say so, or the two never meet.
+      note: cash ? `hors liquidités (${maskAmount(cash)})` : undefined,
     },
     {
       key: 'profit_loss',
       label: pnl.label,
       value: maskAmount(pnl.value),
       valueClass: profitLossClass(pnl.value),
+      note: otherPnl,
       onSelect: cyclePnlView,
     },
     {
@@ -1255,29 +1161,39 @@ const cryptoSummaryStats = computed<SummaryStatItem[]>(() => {
       valueClass: profitLossClass(pnl.pct),
       onSelect: cyclePnlView,
     },
-    {
-      key: 'daily_pnl',
-      label: 'P/L journalier',
-      value: maskAmount(cryptoLatestDailyPnl.value),
-      valueClass: profitLossClass(cryptoLatestDailyPnl.value),
-    },
-    {
-      key: 'total_deposits',
-      label: 'Dépôts cumulés',
-      value: maskAmount(summary.total_deposits),
-    },
-    {
-      key: 'total_withdrawals',
-      label: 'Retraits cumulés',
-      value: maskAmount(summary.total_withdrawals),
-    },
-    {
-      key: 'cash_balance',
-      label: 'Liquidités',
-      value: maskAmount(summary.cash_balance ?? 0),
-    },
-    cryptoDateOrFallbackStat.value,
   ]
+
+  if (daily && daily.value !== 0) {
+    stats.push({
+      key: 'daily_pnl',
+      label: daily.since ? `P/L depuis le ${formatDayMonth(daily.since)}` : 'P/L journalier',
+      value: signedAmount(daily.value),
+      valueClass: profitLossClass(daily.value),
+    })
+  }
+
+  // Negative cash means buys were paid with money never recorded as deposited:
+  // the deposits then read as a minimum, like a PEA's on Bourse.
+  if (cash < 0) {
+    stats.push({
+      key: 'total_deposits',
+      label: 'Apports',
+      prefix: 'au moins',
+      value: maskAmount(deposits - cash),
+      note: deposits
+        ? `${maskAmount(deposits)} saisis ; le solde en euros montre qu'il en manque`
+        : 'aucun dépôt saisi ; le solde en euros montre ce minimum',
+    })
+  } else if (deposits) {
+    stats.push({ key: 'total_deposits', label: 'Dépôts cumulés', value: maskAmount(deposits) })
+  }
+  if (Number(summary.total_withdrawals ?? 0)) {
+    stats.push({ key: 'total_withdrawals', label: 'Retraits cumulés', value: maskAmount(summary.total_withdrawals) })
+  }
+  if (cash) {
+    stats.push({ key: 'cash_balance', label: 'Liquidités', value: maskAmount(cash), note: cash < 0 ? 'apports non saisis' : undefined })
+  }
+  return stats
 })
 
 const {
@@ -1315,7 +1231,6 @@ const allTimePnlChartSeries = computed(() => {
 })
 
 const allocationSegments = computed(() => {
-  const fiat = new Set(['EUR', 'USD', 'USDC', 'USDT', 'DAI'])
   const hasSelectedAccount = selectedAccountId.value && crypto.currentAccount?.account_id === selectedAccountId.value
 
   if (!hasSelectedAccount && !isSingleMode.value) {
@@ -1342,7 +1257,7 @@ const allocationSegments = computed(() => {
 
   const positions = crypto.currentAccount?.positions ?? []
   return positions
-    .filter((position) => !fiat.has(position.asset_key.toUpperCase()))
+    .filter((position) => !isFiatSymbol(position.asset_key))
     .map((position) => ({
       name: position.asset_key || position.name || 'Inconnu',
       value: Number(position.current_value ?? 0),
@@ -1619,7 +1534,6 @@ async function handleDeleteAccount(id: string): Promise<void> {
 
 onMounted(async () => {
   // Independent of the account list — start immediately in parallel
-  fetchRate()
   crypto.fetchTransactions()
 
   if (!settingsStore.settings) {
@@ -1647,15 +1561,6 @@ onMounted(async () => {
   <div>
     <PageHeader title="Crypto" :description="isSingleMode ? 'Patrimoine global crypto-monnaies' : 'Portefeuilles et transactions crypto-monnaies'">
       <template #actions>
-        <!-- Currency toggle -->
-        <BaseButton
-          variant="outline"
-          size="sm"
-          @click="toggleCurrency"
-          :title="displayCurrency === 'USD' ? 'Afficher en euros' : 'Afficher en dollars'"
-        >
-          {{ displayCurrency === 'USD' ? '$ USD' : '€ EUR' }}
-        </BaseButton>
         <!-- SINGLE mode: actions directly in header (no account management) -->
         <template v-if="isSingleMode && selectedAccountId">
           <ImportMenu
@@ -1694,40 +1599,15 @@ onMounted(async () => {
         {{ txInfo }}
       </BaseAlert>
 
-      <template v-if="!crypto.error && crypto.currentAccount">
-        <!-- Summary Stats -->
-        <div class="mb-6 space-y-3">
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <component
-              :is="stat.onSelect ? 'button' : 'div'"
-              v-for="stat in activeCryptoSummaryStats"
-              :key="stat.key"
-              :type="stat.onSelect ? 'button' : undefined"
-              class="rounded-secondary bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-4 text-left w-full"
-              :class="stat.onSelect ? 'cursor-pointer hover:border-primary/60 transition-colors' : ''"
-              @click="stat.onSelect?.()"
-            >
-              <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1.5">{{ stat.label }}</p>
-              <p :class="['text-xl font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
-                {{ stat.value }}
-              </p>
-            </component>
-          </div>
+      <div v-if="!crypto.error && crypto.currentAccount" class="flex flex-col">
+        <CryptoSummaryStats
+          v-model:page="cryptoSummaryStatsPage"
+          class="mb-6"
+          :stats="activeCryptoSummaryStats"
+          :page-count="cryptoSummaryStatPages.length"
+        />
 
-          <div v-if="cryptoSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">
-            <button
-              v-for="(_, index) in cryptoSummaryStatPages"
-              :key="`crypto-summary-dot-${index}`"
-              type="button"
-              :aria-label="`Afficher le groupe de statistiques ${index + 1}`"
-              class="h-2.5 w-2.5 rounded-full transition-colors"
-              :class="index === cryptoSummaryStatsPage ? 'bg-primary' : 'bg-surface-active dark:bg-surface-dark-active hover:bg-primary/40'"
-              @click="cryptoSummaryStatsPage = index"
-            />
-          </div>
-        </div>
-
-        <BaseCard title="Analyse du portefeuille crypto" subtitle="Évolution, répartition et performance" class="mb-6">
+        <BaseCard title="Analyse du portefeuille crypto" subtitle="Évolution, répartition et performance" class="mb-6 max-md:order-last">
           <div class="mb-3 flex items-center justify-between gap-2">
             <!-- Left: slide label + prev/next -->
             <div class="flex items-center gap-1 min-w-0">
@@ -1747,12 +1627,12 @@ onMounted(async () => {
               <div v-if="chartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
                 <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
-                  {{ formatEur(cryptoDailyPnlAverage) }}
+                  {{ maskAmount(cryptoDailyPnlAverage) }}
                 </span>
                 <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
                 <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
                 <span :class="['text-xs font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
-                  {{ formatEur(cryptoLatestDailyPnl) }}
+                  {{ maskAmount(cryptoLatestDailyPnl) }}
                 </span>
               </div>
               
@@ -1854,18 +1734,17 @@ onMounted(async () => {
         </div>
         </BaseCard>
 
-        <BaseCard>
+        <BaseCard class="max-md:mb-6">
           <CryptoAccountDetail
             v-model:tab="activeDetailTab"
-            :positions="sortedPositions"
+            :positions="accountPositions"
             :transactions="accountTransactions"
-            :format-amount="formatAmount"
-            :mask-amount="maskAmount"
+            :price-reference="priceReference"
             @edit-transaction="openEditTransaction"
             @show-price="openPriceChart"
           />
         </BaseCard>
-      </template>
+      </div>
     </template>
 
     <!-- ── MULTI MODE view ────────────────────────────────── -->
@@ -1902,12 +1781,12 @@ onMounted(async () => {
             <div v-if="chartSlide === 'pnl'" class="flex items-center gap-2 shrink-0 cursor-pointer" @click="showMobilePnlLabels = !showMobilePnlLabels">
               <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Moy.</span>
               <span :class="['text-xs font-semibold', profitLossClass(cryptoDailyPnlAverage)]">
-                {{ formatEur(cryptoDailyPnlAverage) }}
+                {{ maskAmount(cryptoDailyPnlAverage) }}
               </span>
               <span :class="['text-text-muted dark:text-text-dark-muted text-[10px]', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">•</span>
               <span :class="['text-[11px] text-text-muted dark:text-text-dark-muted transition duration-200', showMobilePnlLabels ? 'inline' : 'hidden sm:inline']">Auj.</span>
               <span :class="['text-xs font-semibold', profitLossClass(cryptoLatestDailyPnl)]">
-                {{ formatEur(cryptoLatestDailyPnl) }}
+                {{ maskAmount(cryptoLatestDailyPnl) }}
               </span>
             </div>
 
@@ -2030,6 +1909,7 @@ onMounted(async () => {
                   {{ account.platform }}
                 </span>
               </div>
+              <p v-if="account.opened_at" class="text-xs text-text-muted dark:text-text-dark-muted mt-1">Ouvert le {{ formatDate(account.opened_at) }}</p>
               <p v-if="account.public_address" class="text-xs text-text-muted dark:text-text-dark-muted font-mono truncate max-w-60 mt-1">{{ account.public_address }}</p>
             </div>
             <!-- Actions: wrap on mobile -->
@@ -2048,40 +1928,19 @@ onMounted(async () => {
             v-if="selectedAccountId === account.id && crypto.currentAccount"
             class="mt-6 pt-6 border-t border-surface-border dark:border-surface-dark-border"
           >
-            <!-- Summary Stats -->
-            <div class="mb-6 space-y-3">
-              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div
-                  v-for="stat in activeCryptoSummaryStats"
-                  :key="stat.key"
-                  class="rounded-secondary bg-background-subtle dark:bg-background-dark-subtle border border-surface-border dark:border-surface-dark-border p-3.5"
-                >
-                  <p class="text-[11px] font-medium uppercase tracking-wider text-text-muted dark:text-text-dark-muted mb-1">{{ stat.label }}</p>
-                  <p :class="['text-lg font-bold tabular-nums', stat.valueClass ?? 'text-text-main dark:text-text-dark-main']">
-                    {{ stat.value }}
-                  </p>
-                </div>
-              </div>
-
-              <div v-if="cryptoSummaryStatPages.length > 1" class="flex items-center justify-center gap-2">
-                <button
-                  v-for="(_, index) in cryptoSummaryStatPages"
-                  :key="`crypto-account-summary-dot-${index}`"
-                  type="button"
-                  :aria-label="`Afficher le groupe de statistiques ${index + 1}`"
-                  class="h-2.5 w-2.5 rounded-full transition-colors"
-                  :class="index === cryptoSummaryStatsPage ? 'bg-primary' : 'bg-surface-active dark:bg-surface-dark-active hover:bg-primary/40'"
-                  @click="cryptoSummaryStatsPage = index"
-                />
-              </div>
-            </div>
+            <CryptoSummaryStats
+              v-model:page="cryptoSummaryStatsPage"
+              class="mb-6"
+              inset
+              :stats="activeCryptoSummaryStats"
+              :page-count="cryptoSummaryStatPages.length"
+            />
 
             <CryptoAccountDetail
               v-model:tab="activeDetailTab"
-              :positions="sortedPositions"
+              :positions="accountPositions"
               :transactions="accountTransactions"
-              :format-amount="formatAmount"
-              :mask-amount="maskAmount"
+              :price-reference="priceReference"
               @edit-transaction="openEditTransaction"
               @show-price="openPriceChart"
             />
@@ -2299,13 +2158,13 @@ onMounted(async () => {
           <div v-if="txForm.type === 'SELL_TO_FIAT'" class="flex items-start gap-2 px-3 py-2 rounded-secondary bg-info/5 dark:bg-info/10 border border-info/20">
             <Circle class="w-3.5 h-3.5 text-info shrink-0 mt-0.5" />
             <span class="text-xs text-info leading-relaxed">
-              Vente imposable — la contrepartie fiat est créditée au solde exchange. Utiliser <strong>Sortie non-imposable</strong> si aucun euro reçu.
+              Vente imposable — la contrepartie fiat est créditée au solde exchange. Si aucun euro n'est reçu, utiliser <strong>Sortie · Don / Envoi hors périmètre</strong>.
             </span>
           </div>
 
           <div v-if="txForm.type === 'EXIT'" class="flex items-start gap-2 px-3 py-2 rounded-secondary bg-warning/5 dark:bg-warning/10 border border-warning/20">
             <Circle class="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-            <span class="text-xs text-warning leading-relaxed">Sortie non-imposable — aucun euro crédité, valeur de cession nulle. En cas de réception d’euros, utiliser <strong>Sortie imposable</strong>.</span>
+            <span class="text-xs text-warning leading-relaxed">Sortie non-imposable — aucun euro crédité, valeur de cession nulle. En cas de réception d’euros, utiliser <strong>Vente · Crypto → EUR</strong>.</span>
           </div>
 
           <BaseInput

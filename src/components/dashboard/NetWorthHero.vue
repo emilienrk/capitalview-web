@@ -10,7 +10,6 @@
 import { RouterLink } from 'vue-router'
 import { BaseSkeleton } from '@/components'
 import CompositionBar from '@/components/dashboard/CompositionBar.vue'
-import { useDisplayLocale } from '@/composables/useDisplayLocale'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { NetWorthChange } from '@/types'
@@ -29,20 +28,8 @@ withDefaults(
   { layout: 'mobile' },
 )
 
-const { formatCurrency } = useFormatters()
+const { formatCurrency, formatDayMonth } = useFormatters()
 const { maskValue } = usePrivacyMode()
-const { effectiveLocale } = useDisplayLocale()
-
-function since(day: string): string {
-  const date = new Date(`${day}T00:00:00Z`)
-  const sameYear = date.getUTCFullYear() === new Date().getFullYear()
-  return new Intl.DateTimeFormat(effectiveLocale.value, {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-    timeZone: 'UTC',
-  }).format(date)
-}
 
 function signed(value: number): string {
   const amount = maskValue(formatCurrency(Math.abs(value)))
@@ -95,7 +82,7 @@ function tone(value: number): string {
             <span v-if="change.change_pct !== null" class="font-medium">({{ percent(change.change_pct) }})</span>
           </span>
           <span class="text-text-muted dark:text-text-dark-muted" :class="layout === 'desktop' ? 'ml-1.5' : ''">
-            depuis le {{ since(change.since) }}
+            depuis le {{ formatDayMonth(change.since) }}
           </span>
         </li>
       </ul>

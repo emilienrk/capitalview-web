@@ -28,6 +28,7 @@ export function useFormatters(): {
   formatPercent: (value: NumericValue) => string
   formatDate: (value: string | null | undefined) => string
   formatDateShort: (value: string | null | undefined) => string
+  formatDayMonth: (day: string) => string
   formatDateTime: (value: string | null | undefined) => string
   formatNumber: (value: NumericValue, maxDecimals?: number) => string
   profitLossClass: (value: NumericValue) => string
@@ -110,6 +111,18 @@ export function useFormatters(): {
     }).format(new Date(ensureUtc(value)))
   }
 
+  /** A civil day as "27 sept.", with the year only when it isn't this one. */
+  function formatDayMonth(day: string): string {
+    const date = new Date(`${day.slice(0, 10)}T00:00:00Z`)
+    const sameYear = date.getUTCFullYear() === new Date().getFullYear()
+    return new Intl.DateTimeFormat(effectiveLocale.value, {
+      day: 'numeric',
+      month: 'short',
+      ...(sameYear ? {} : { year: 'numeric' }),
+      timeZone: 'UTC',
+    }).format(date)
+  }
+
   /** Returns 'text-success' or 'text-danger' based on sign */
   function profitLossClass(value: NumericValue): string {
     const n = toNumber(value)
@@ -141,6 +154,7 @@ export function useFormatters(): {
     formatPercent,
     formatDate,
     formatDateShort,
+    formatDayMonth,
     formatDateTime,
     formatNumber,
     profitLossClass,
