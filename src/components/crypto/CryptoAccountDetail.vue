@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, ChevronRight, Pencil } from 'lucide-vue-next'
+import { AlertCircle, ChevronRight, Pencil, Trash2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { BaseBadge, BaseButton, BaseEmptyState, BaseSegmentedControl, BaseTooltip } from '@/components'
 import type { BadgeVariant } from '@/components/base/BaseBadge.vue'
@@ -34,6 +34,8 @@ const tab = defineModel<'positions' | 'history'>('tab', { default: 'positions' }
 
 const emit = defineEmits<{
   (e: 'edit-transaction', tx: TransactionResponse): void
+  /** The API deletes a row's whole group, so one leg id removes the operation. */
+  (e: 'delete-operation', legId: string, summary: string): void
   (e: 'show-price', position: PositionResponse): void
 }>()
 
@@ -161,6 +163,12 @@ function operationDetail(op: CryptoOperation): string {
 }
 
 const operationFees = (op: CryptoOperation): string => op.fees.map(quantity).join(', ')
+
+function deleteOperation(op: CryptoOperation): void {
+  const parts = [`${operationLabel(op)} du ${formatDateShort(op.executedAt)}`, operationDetail(op)]
+  if (op.eurValue != null) parts.push(money(op.eurValue))
+  emit('delete-operation', op.legs[0]!.id, parts.filter(Boolean).join(' · '))
+}
 
 const LEG_LABELS: Record<string, string> = {
   BUY: 'Entrée',
@@ -401,6 +409,12 @@ function openPriceChart(position: PositionResponse): void {
                         </BaseButton>
                       </li>
                     </ul>
+                    <div class="flex justify-end pt-1.5">
+                      <button type="button" class="inline-flex items-center gap-1.5 rounded-secondary px-2 py-1 text-xs text-text-muted dark:text-text-dark-muted hover:text-danger hover:bg-danger/10 transition-colors" @click="deleteOperation(op)">
+                        <Trash2 class="w-3.5 h-3.5" />
+                        Supprimer l’opération
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -440,6 +454,12 @@ function openPriceChart(position: PositionResponse): void {
                     </BaseButton>
                   </li>
                 </ul>
+                <div v-if="expanded.has(op.key)" class="flex justify-end pt-1.5">
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-secondary px-2 py-1 text-xs text-text-muted dark:text-text-dark-muted hover:text-danger hover:bg-danger/10 transition-colors" @click="deleteOperation(op)">
+                    <Trash2 class="w-3.5 h-3.5" />
+                    Supprimer l’opération
+                  </button>
+                </div>
               </div>
             </div>
           </section>

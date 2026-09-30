@@ -108,6 +108,11 @@ const accountTransactions = ref<TransactionResponse[]>([])
 const activeDetailTab = ref<'positions' | 'history'>('positions')
 const editingTxId = ref<string | null>(null)
 const editingGroupUuid = ref<string | null>(null)
+// A leg of a multi-row operation is deleted with its operation, from the history.
+const editingLegOfOperation = computed(() =>
+  editingGroupUuid.value != null
+  && accountTransactions.value.filter((tx) => tx.group_uuid === editingGroupUuid.value).length > 1,
+)
 const editingAccountId = ref<string | null>(null)
 type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
 const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
@@ -1468,27 +1473,36 @@ async function handleSubmitTransaction(): Promise<void> {
 }
 
 async function deleteTransaction(id: string): Promise<void> {
-  const confirmationMessage = editingGroupUuid.value
-    ? 'Cette transaction fait partie d\'un groupe. La suppression supprimera toutes les transactions du groupe. Continuer ?'
-    : 'Supprimer cette transaction ?'
-
   const confirmed = await confirmDialog({
     title: 'Supprimer la transaction',
-    message: confirmationMessage,
+    message: 'Supprimer cette transaction ?',
     confirmLabel: 'Supprimer',
   })
   if (confirmed) {
     showTxModal.value = false
-    await crypto.deleteTransaction(id)
-    if (selectedAccountId.value) {
-      await Promise.all([
-        crypto.fetchAccount(selectedAccountId.value),
-        fetchAccountTransactions(selectedAccountId.value)
-      ])
-    }
-    crypto.fetchTransactions()
-    void reloadChartsAfterMutation(selectedAccountId.value)
+    await removeTransaction(id)
   }
+}
+
+async function deleteOperation(legId: string, summary: string): Promise<void> {
+  const confirmed = await confirmDialog({
+    title: 'Supprimer l’opération',
+    message: `${summary}\n\nToutes ses écritures seront supprimées. Cette action est définitive.`,
+    confirmLabel: 'Supprimer',
+  })
+  if (confirmed) await removeTransaction(legId)
+}
+
+async function removeTransaction(id: string): Promise<void> {
+  await crypto.deleteTransaction(id)
+  if (selectedAccountId.value) {
+    await Promise.all([
+      crypto.fetchAccount(selectedAccountId.value),
+      fetchAccountTransactions(selectedAccountId.value)
+    ])
+  }
+  crypto.fetchTransactions()
+  void reloadChartsAfterMutation(selectedAccountId.value)
 }
 
 async function fetchAccountTransactions(id: string): Promise<void> {
@@ -1747,6 +1761,7 @@ onMounted(async () => {
             :transactions="accountTransactions"
             :price-reference="priceReference"
             @edit-transaction="openEditTransaction"
+            @delete-operation="deleteOperation"
             @show-price="openPriceChart"
           />
         </BaseCard>
@@ -1948,6 +1963,7 @@ onMounted(async () => {
               :transactions="accountTransactions"
               :price-reference="priceReference"
               @edit-transaction="openEditTransaction"
+              @delete-operation="deleteOperation"
               @show-price="openPriceChart"
             />
           </div>
@@ -2030,9 +2046,9 @@ onMounted(async () => {
         <BaseInput v-model="txForm.amount" label="Quantité" type="number" step="any" min="0" required />
         <div>
           <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
-          <p v-if="editingGroupUuid" class="mt-1.5 text-xs text-info dark:text-info flex items-center gap-1.5">
+          <p v-if="editingLegOfOperation" class="mt-1.5 text-xs text-info dark:text-info flex items-center gap-1.5">
             <AlertCircle class="w-3.5 h-3.5 shrink-0" />
-            Cette transaction est liée à un groupe: modifier la date mettra à jour le groupe et la suppression supprimera toutes les transactions du groupe.
+            Cette écriture fait partie d’une opération : modifier la date met à jour toute l’opération.
           </p>
         </div>
       </form>
@@ -2769,8 +2785,8 @@ onMounted(async () => {
         <div class="flex justify-between w-full">
           <!-- Edit footer -->
           <template v-if="editingTxId">
-            <BaseButton variant="danger" @click="deleteTransaction(editingTxId)">Supprimer</BaseButton>
-            <div class="flex gap-2">
+            <BaseButton v-if="!editingLegOfOperation" variant="danger" @click="deleteTransaction(editingTxId)">Supprimer</BaseButton>
+            <div class="ml-auto flex gap-2">
               <BaseButton variant="ghost" @click="showTxModal = false">Annuler</BaseButton>
               <BaseButton :loading="crypto.isLoading" @click="handleSubmitTransaction">Enregistrer</BaseButton>
             </div>
