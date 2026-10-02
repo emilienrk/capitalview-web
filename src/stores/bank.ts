@@ -6,6 +6,7 @@ import {
   getOrFetchCached,
   invalidateCacheKey,
   invalidateCachePrefix,
+  invalidateWealthViews,
   isCacheEntryValid,
 } from '@/services/cache'
 import type {
@@ -41,7 +42,8 @@ export const useBankStore = defineStore('bank', () => {
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const accountHistoryById = ref<Record<string, AccountHistorySnapshotResponse[]>>({})
   const isLoading = ref(false)
-  const historyLoading = ref(false)
+  const historyLoadingCount = ref(0)
+  const historyLoading = computed(() => historyLoadingCount.value > 0)
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
   /** This year's interest per savings account that has a rate, from GET /bank/interest. */
@@ -225,7 +227,7 @@ export const useBankStore = defineStore('bank', () => {
   }
 
   async function fetchHistory(force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -240,12 +242,12 @@ export const useBankStore = defineStore('bank', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 
   async function fetchHistoryForAccount(accountId: string, force = false): Promise<void> {
-    historyLoading.value = true
+    historyLoadingCount.value++
     error.value = null
     try {
       const data = await getOrFetchCached<AccountHistorySnapshotResponse[]>(
@@ -260,7 +262,7 @@ export const useBankStore = defineStore('bank', () => {
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors du chargement de l\'historique'
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 
@@ -483,6 +485,7 @@ export const useBankStore = defineStore('bank', () => {
     // The observed flows are built from the same movements a sync or an import
     // just changed, so they go stale at exactly the same moments.
     invalidateCachePrefix('bank:flows:')
+    invalidateWealthViews()
   }
 
   function reset(): void {

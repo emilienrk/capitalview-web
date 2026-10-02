@@ -139,7 +139,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
       <div v-if="chartSlide === 'month' && realCashflow.current" v-on="chartSwipe">
         <RealCashflowPace :data="realCashflow.current" :is-dark="isDark" />
       </div>
-      <div v-else-if="bank.historyLoading" class="h-72 flex items-center justify-center">
+      <div v-else-if="bank.historyLoading && !chartSeries.length" class="h-72 flex items-center justify-center">
         <BaseSkeleton variant="rect" width="100%" height="18rem" />
       </div>
       <BaseAlert v-else-if="bank.error" variant="danger" class="mb-4">
@@ -151,6 +151,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
           :series="chartSeries"
           :is-dark="isDark"
           :granularity="historyGranularity"
+          :loading="bank.historyLoading"
           show-performance
           @update:performance="chartPerformance = $event"
         >

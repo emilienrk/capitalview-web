@@ -814,7 +814,7 @@ async function handleSubmitAccount(): Promise<void> {
     return
   }
   if (result) {
-    void reloadChartsAfterMutation(editingAccountId.value ?? result.id)
+    await reloadChartsAfterMutation(editingAccountId.value ?? result.id)
   }
 }
 
@@ -982,7 +982,7 @@ async function handleSubmitDeposit(): Promise<void> {
     } else {
       await stocks.fetchAccounts()
     }
-    void reloadChartsAfterMutation(targetStockAccountId)
+    await reloadChartsAfterMutation(targetStockAccountId)
   }
 }
 
@@ -995,7 +995,7 @@ async function handleCsvImport(transactions: StockTransactionBulkCreate[]): Prom
     showCsvImportModal.value = false
     await refreshAccountView(csvImportAccountId.value)
     stocks.fetchTransactions()
-    void reloadChartsAfterMutation(csvImportAccountId.value)
+    await reloadChartsAfterMutation(csvImportAccountId.value)
     return true
   }
   return false
@@ -1011,7 +1011,7 @@ async function handlePlatformImported(): Promise<void> {
   if (platformImportAccountId.value) {
     await refreshAccountView(platformImportAccountId.value)
     stocks.fetchTransactions()
-    void reloadChartsAfterMutation(platformImportAccountId.value)
+    await reloadChartsAfterMutation(platformImportAccountId.value)
   }
 }
 
@@ -1050,7 +1050,7 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
   await stocks.bulkImportTransactions(photoImportAccountId.value, bulkItems)
   await refreshAccountView(photoImportAccountId.value)
   stocks.fetchTransactions()
-  void reloadChartsAfterMutation(photoImportAccountId.value)
+  await reloadChartsAfterMutation(photoImportAccountId.value)
 }
 
 function openEditTransaction(tx: any): void {
@@ -1226,7 +1226,7 @@ async function handleDelete(): Promise<void> {
       selectedAccountId.value = null
       stocks.currentAccount = null
     }
-    void reloadChartsAfterMutation()
+    await reloadChartsAfterMutation()
   } else {
     // Legacy delete path via confirmation modal, if used
     const success = await stocks.deleteTransaction(deleteTarget.value.id)

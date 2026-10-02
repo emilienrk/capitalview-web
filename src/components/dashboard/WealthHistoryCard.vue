@@ -47,6 +47,7 @@ const chartHistory = computed(() => applyGranularity(props.history))
       :bank-enabled="bankEnabled"
       :wealth-enabled="wealthEnabled"
       :granularity="granularity"
+      :loading="loading"
       show-performance
       @update:performance="performance = $event"
     >

@@ -5,6 +5,7 @@ import {
   getOrFetchCached,
   invalidateCacheKey,
   invalidateCachePrefix,
+  invalidateWealthViews,
   isCacheEntryValid,
 } from '@/services/cache'
 import type {
@@ -217,6 +218,7 @@ export const useStocksStore = defineStore('stocks', () => {
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('stocks:history:account:')
+    invalidateWealthViews()
   }
 
   // Resolve the days closed on every held exchange over the current history span.

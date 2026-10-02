@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { apiClient } from '@/api/client'
 import { useChartCache } from '@/composables/useChartCache'
+import { WEALTH_HISTORY_CACHE_KEY } from '@/services/cache'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 
 // Cache TTL: 1 hour — data is daily, no need to refresh frequently
@@ -24,7 +25,7 @@ export const useWealthHistoryStore = defineStore('wealthHistory', () => {
         new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime()
       )
     },
-    { ttlMs: CACHE_TTL_MS, cacheKey: 'dashboard:wealth-history' },
+    { ttlMs: CACHE_TTL_MS, cacheKey: WEALTH_HISTORY_CACHE_KEY },
   )
 
   // Only show the chart when there's at least 7 days of history — less is not meaningful

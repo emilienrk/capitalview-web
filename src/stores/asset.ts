@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiClient } from '@/api/client'
+import { invalidateWealthViews } from '@/services/cache'
 import type {
   AssetResponse,
   AssetSummaryResponse,
@@ -18,6 +19,13 @@ export const useAssetStore = defineStore('asset', () => {
   const valuations = ref<AssetValuationResponse[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  /** Bumped by every write the API answers with a rebuilt history; the pages drawing it reload. */
+  const dataRevision = ref(0)
+
+  function markHistoryChanged(): void {
+    invalidateWealthViews()
+    dataRevision.value += 1
+  }
 
   async function fetchAssets(): Promise<void> {
     isLoading.value = true
@@ -48,6 +56,7 @@ export const useAssetStore = defineStore('asset', () => {
     error.value = null
     try {
       const asset = await apiClient.post<AssetResponse>('/assets', data)
+      markHistoryChanged()
       await fetchAssets()
       return asset
     } catch (e) {
@@ -63,6 +72,7 @@ export const useAssetStore = defineStore('asset', () => {
     error.value = null
     try {
       const asset = await apiClient.put<AssetResponse>(`/assets/${id}`, data)
+      markHistoryChanged()
       await fetchAssets()
       return asset
     } catch (e) {
@@ -78,6 +88,7 @@ export const useAssetStore = defineStore('asset', () => {
     error.value = null
     try {
       await apiClient.delete(`/assets/${id}`)
+      markHistoryChanged()
       await fetchAssets()
       return true
     } catch (e) {
@@ -93,6 +104,7 @@ export const useAssetStore = defineStore('asset', () => {
     error.value = null
     try {
       const asset = await apiClient.post<AssetResponse>(`/assets/${id}/sell`, data)
+      markHistoryChanged()
       await fetchAssets()
       return asset
     } catch (e) {
@@ -115,7 +127,8 @@ export const useAssetStore = defineStore('asset', () => {
   async function addValuation(assetId: string, data: AssetValuationCreate): Promise<AssetValuationResponse | null> {
     try {
       const v = await apiClient.post<AssetValuationResponse>(`/assets/${assetId}/valuations`, data)
-      await fetchValuations(assetId)
+      markHistoryChanged()
+      await Promise.all([fetchValuations(assetId), fetchAssets()])
       return v
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de l\'ajout de la valorisation'
@@ -130,7 +143,8 @@ export const useAssetStore = defineStore('asset', () => {
   ): Promise<AssetValuationResponse | null> {
     try {
       const v = await apiClient.put<AssetValuationResponse>(`/assets/${assetId}/valuations/${valuationId}`, data)
-      await fetchValuations(assetId)
+      markHistoryChanged()
+      await Promise.all([fetchValuations(assetId), fetchAssets()])
       return v
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la mise a jour de la valorisation'
@@ -141,7 +155,8 @@ export const useAssetStore = defineStore('asset', () => {
   async function deleteValuation(assetId: string, valuationId: string): Promise<boolean> {
     try {
       await apiClient.delete(`/assets/${assetId}/valuations/${valuationId}`)
-      await fetchValuations(assetId)
+      markHistoryChanged()
+      await Promise.all([fetchValuations(assetId), fetchAssets()])
       return true
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur lors de la suppression'
@@ -162,6 +177,7 @@ export const useAssetStore = defineStore('asset', () => {
     valuations,
     isLoading,
     error,
+    dataRevision,
     fetchAssets,
     fetchAsset,
     createAsset,

@@ -609,7 +609,7 @@ async function handleSubmitAccount(): Promise<void> {
     result = await crypto.createAccount({ ...accountForm })
   }
   if (result) {
-    void reloadChartsAfterMutation(editingAccountId.value ?? result.id)
+    await reloadChartsAfterMutation(editingAccountId.value ?? result.id)
   }
 }
 
@@ -686,7 +686,7 @@ async function handleBinanceImported(): Promise<void> {
   if (binanceImportAccountId.value) {
     await refreshAccountView(binanceImportAccountId.value)
     crypto.fetchTransactions()
-    void reloadChartsAfterMutation(binanceImportAccountId.value)
+    await reloadChartsAfterMutation(binanceImportAccountId.value)
   }
 }
 
@@ -700,7 +700,7 @@ async function handlePlatformImported(): Promise<void> {
   if (platformImportAccountId.value) {
     await refreshAccountView(platformImportAccountId.value)
     crypto.fetchTransactions()
-    void reloadChartsAfterMutation(platformImportAccountId.value)
+    await reloadChartsAfterMutation(platformImportAccountId.value)
   }
 }
 
@@ -725,7 +725,7 @@ async function handleCsvImport(transactions: CryptoCompositeBulkItem[]): Promise
     showCsvImportModal.value = false
     await refreshAccountView(csvImportAccountId.value)
     crypto.fetchTransactions()
-    void reloadChartsAfterMutation(csvImportAccountId.value)
+    await reloadChartsAfterMutation(csvImportAccountId.value)
     return true
   }
   return false
@@ -762,7 +762,7 @@ async function handlePhotoImport(transactions: any[]): Promise<void> {
 
   await refreshAccountView(photoImportAccountId.value)
   crypto.fetchTransactions()
-  void reloadChartsAfterMutation(photoImportAccountId.value)
+  await reloadChartsAfterMutation(photoImportAccountId.value)
 }
 
 function openEditTransaction(tx: any): void {
@@ -1551,11 +1551,11 @@ async function handleDeleteAccount(id: string): Promise<void> {
   if (confirmed) {
     showAccountModal.value = false
     await crypto.deleteAccount(id)
-    void reloadChartsAfterMutation()
     if (selectedAccountId.value === id) {
       selectedAccountId.value = null
       crypto.currentAccount = null
     }
+    await reloadChartsAfterMutation()
   }
 }
 

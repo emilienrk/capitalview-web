@@ -103,6 +103,21 @@ export function useChartTheme() {
 }
 
 /**
+ * Veil laid over a chart while its data reloads: the curve already drawn stays
+ * readable underneath instead of being swapped for a placeholder.
+ */
+export function chartLoading(theme: ChartTheme) {
+  return {
+    text: '',
+    color: theme.accent,
+    maskColor: mixColor(theme.surface, 'transparent', 55),
+    zlevel: 10,
+    spinnerRadius: 13,
+    lineWidth: 3,
+  }
+}
+
+/**
  * Entrance shared by every chart. ECharts' default is a one-second draw that
  * replays on each mount, and these charts are opened daily to read a figure.
  */

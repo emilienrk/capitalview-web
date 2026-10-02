@@ -12,7 +12,7 @@ import {
 import VChart from 'vue-echarts'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
@@ -24,6 +24,7 @@ const props = defineProps<{
   wealthEnabled?: boolean
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   showPerformance?: boolean
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -75,6 +76,7 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const chartTheme = useChartTheme()
+const loadingOptions = computed(() => chartLoading(chartTheme.value))
 const { privacyMode } = usePrivacyMode()
 const legendSelection = ref<Record<string, boolean>>({})
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
@@ -529,6 +531,8 @@ watch(visiblePerformance, (newVal) => {
         ref="chartRef"
         :option="option"
         :update-options="updateOptions"
+        :loading="loading"
+        :loading-options="loadingOptions"
         autoresize
         class="w-full h-full"
         @legendselectchanged="handleLegendSelectChanged"

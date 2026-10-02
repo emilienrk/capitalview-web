@@ -372,12 +372,13 @@ onMounted(async () => {
             :series="evolutionSeries"
             :is-dark="isDark"
             :granularity="historyGranularity"
+            :loading="store.historyLoading"
             show-performance
             @update:performance="chartPerformance = $event"
           >
             <template #leading>
               <BaseButton icon size="sm" variant="outline" @click="store.fetchHistory()">
-                <RefreshCw class="w-4 h-4" />
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': store.historyLoading }" />
               </BaseButton>
               <BaseSegmentedControl v-model="historyGranularity" :options="granularityOptions" variant="primary" size="sm" />
             </template>

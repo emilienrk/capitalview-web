@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Check, Clock3, Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
 
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { apiClient } from '@/api/client'
 import { getOrFetchCached, invalidateCacheKey } from '@/services/cache'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -63,6 +63,13 @@ async function fetchAssetHistory(force = false): Promise<void> {
   }
 }
 
+// Every asset or valuation write comes back with the history already rebuilt,
+// including those made from the history modal.
+watch(() => asset.dataRevision, () => {
+  invalidateCacheKey(assetHistoryCacheKey)
+  void fetchAssetHistory(true)
+})
+
 onMounted(async () => {
   const promises: Promise<unknown>[] = [
     dashboard.fetchAll(settingsStore.settings),
@@ -118,8 +125,6 @@ async function confirmSell(): Promise<void> {
     showSellModal.value = true
     return
   }
-  invalidateCacheKey(assetHistoryCacheKey)
-  await fetchAssetHistory(true)
   sellingAsset.value = null
 }
 
@@ -131,8 +136,6 @@ async function confirmHardDelete(): Promise<void> {
     showSellModal.value = true
     return
   }
-  invalidateCacheKey(assetHistoryCacheKey)
-  await fetchAssetHistory(true)
   sellingAsset.value = null
 }
 
@@ -148,8 +151,6 @@ async function onSaveAsset(data: AssetCreate | AssetUpdate): Promise<void> {
     showAssetModal.value = true
     return
   }
-  invalidateCacheKey(assetHistoryCacheKey)
-  await fetchAssetHistory(true)
 }
 
 const groupedAssets = computed(() => {
@@ -193,10 +194,10 @@ const groupedAssets = computed(() => {
       <!-- Asset evolution chart -->
       <BaseCard title="Evolution des assets">
         <BaseAlert v-if="assetHistoryError" variant="danger" class="mb-4">{{ assetHistoryError }}</BaseAlert>
-        <div v-if="isLoadingAssetHistory" class="h-44 rounded-secondary border border-surface-border dark:border-surface-dark-border flex items-center justify-center text-sm text-text-muted dark:text-text-dark-muted">
+        <div v-if="isLoadingAssetHistory && !assetHistory.length" class="h-44 rounded-secondary border border-surface-border dark:border-surface-dark-border flex items-center justify-center text-sm text-text-muted dark:text-text-dark-muted">
           Chargement de l'evolution...
         </div>
-        <AssetValueHistoryChart v-else :history="assetHistory" />
+        <AssetValueHistoryChart v-else :history="assetHistory" :loading="isLoadingAssetHistory" />
       </BaseCard>
 
       <!-- ═══════════════ PERSONAL ASSETS ═══════════════ -->

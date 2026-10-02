@@ -5,6 +5,7 @@ import {
   getOrFetchCached,
   invalidateCacheKey,
   invalidateCachePrefix,
+  invalidateWealthViews,
   isCacheEntryValid,
 } from '@/services/cache'
 import type {
@@ -261,6 +262,7 @@ export const useCryptoStore = defineStore('crypto', () => {
   function invalidateHistoryCache(): void {
     invalidateCacheKey(historyCacheKey)
     invalidateCachePrefix('crypto:history:account:')
+    invalidateWealthViews()
   }
 
   async function createTransaction(data: CryptoTransactionCreate): Promise<CryptoTransactionBasicResponse | null> {

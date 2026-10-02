@@ -47,8 +47,15 @@ export async function getOrFetchCached<T>(
     return existingInFlight as Promise<T>
   }
 
-  const request = fetcher()
+  const request: Promise<T> = fetcher()
     .then((value) => {
+      // Invalidated while in flight: this answer predates a write, so it is
+      // never cached, and its callers get whatever replaced it instead.
+      const current = inFlightStore.get(key)
+      if (current !== request) {
+        if (current) return current as Promise<T>
+        return getCachedValue<T>(key) ?? value
+      }
       cacheStore.set(key, {
         value,
         fetchedAt: Date.now(),
@@ -79,6 +86,17 @@ export function invalidateCachePrefix(prefix: string): void {
   for (const key of inFlightStore.keys()) {
     if (key.startsWith(prefix)) inFlightStore.delete(key)
   }
+}
+
+export const WEALTH_HISTORY_CACHE_KEY = 'dashboard:wealth-history'
+
+/**
+ * The dashboard curve and the analysis are drawn from every account's history,
+ * so any write that rebuilds one account's curve leaves them stale as well.
+ */
+export function invalidateWealthViews(): void {
+  invalidateCacheKey(WEALTH_HISTORY_CACHE_KEY)
+  invalidateCachePrefix('analysis:')
 }
 
 export function clearCache(): void {

@@ -12,7 +12,7 @@ import {
 import VChart from 'vue-echarts'
 import type { AccountHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
@@ -443,19 +443,7 @@ watch(visiblePerformance, (newVal) => {
   emit('update:performance', newVal)
 }, { immediate: true })
 
-const loadingOptions = computed(() => {
-  const theme = chartTheme.value
-  return {
-    text: '',
-    color: theme.accent || theme.roles?.stock || '#3b82f6',
-    textColor: theme.text,
-    maskColor: props.isDark ? 'rgba(15, 23, 42, 0.45)' : 'rgba(255, 255, 255, 0.55)',
-    zlevel: 10,
-    showSpinner: true,
-    spinnerRadius: 13,
-    lineWidth: 3,
-  }
-})
+const loadingOptions = computed(() => chartLoading(chartTheme.value))
 </script>
 
 <template>

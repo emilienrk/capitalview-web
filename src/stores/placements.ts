@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { apiClient } from '@/api/client'
+import { invalidateWealthViews } from '@/services/cache'
 import type {
   AccountHistorySnapshotResponse,
   PlacementAccountCreate,
@@ -17,7 +18,9 @@ export const usePlacementsStore = defineStore('placements', () => {
   const entriesByAccount = ref<Record<string, PlacementEntryResponse[]>>({})
   const history = ref<AccountHistorySnapshotResponse[]>([])
   const isLoading = ref(false)
-  const historyLoading = ref(false)
+  const historyLoadingCount = ref(0)
+  const historyLoading = computed(() => historyLoadingCount.value > 0)
+  let historySeq = 0
   const error = ref<string | null>(null)
 
   function fail(e: unknown, fallback: string): void {
@@ -37,13 +40,16 @@ export const usePlacementsStore = defineStore('placements', () => {
   }
 
   async function fetchHistory(): Promise<void> {
-    historyLoading.value = true
+    const seq = ++historySeq
+    historyLoadingCount.value++
     try {
-      history.value = await apiClient.get<AccountHistorySnapshotResponse[]>('/placements/history')
+      const data = await apiClient.get<AccountHistorySnapshotResponse[]>('/placements/history')
+      // A reload started after a write may answer before one started ahead of it.
+      if (seq === historySeq) history.value = data
     } catch (e) {
       fail(e, "Erreur lors du chargement de l'historique")
     } finally {
-      historyLoading.value = false
+      historyLoadingCount.value = Math.max(0, historyLoadingCount.value - 1)
     }
   }
 
@@ -66,7 +72,13 @@ export const usePlacementsStore = defineStore('placements', () => {
     error.value = null
     try {
       const placement = await apiClient.put<PlacementAccountResponse>(`/placements/${id}`, data)
-      await fetchPlacements()
+      // Moving the opening date reshapes the curve: the API has rebuilt it.
+      if ('opened_at' in data) {
+        invalidateWealthViews()
+        await Promise.all([fetchPlacements(), fetchHistory()])
+      } else {
+        await fetchPlacements()
+      }
       return placement
     } catch (e) {
       fail(e, 'Erreur lors de la mise à jour du placement')
@@ -79,6 +91,7 @@ export const usePlacementsStore = defineStore('placements', () => {
     try {
       await apiClient.delete(`/placements/${id}`)
       delete entriesByAccount.value[id]
+      invalidateWealthViews()
       await Promise.all([fetchPlacements(), fetchHistory()])
       return true
     } catch (e) {
@@ -98,6 +111,7 @@ export const usePlacementsStore = defineStore('placements', () => {
   }
 
   async function refreshAfterEntryChange(accountId: string): Promise<void> {
+    invalidateWealthViews()
     await Promise.all([fetchEntries(accountId), fetchPlacements(), fetchHistory()])
   }
 
@@ -142,7 +156,7 @@ export const usePlacementsStore = defineStore('placements', () => {
     entriesByAccount.value = {}
     history.value = []
     isLoading.value = false
-    historyLoading.value = false
+    historyLoadingCount.value = 0
     error.value = null
   }
 

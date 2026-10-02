@@ -7,16 +7,18 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { AssetHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
 const props = defineProps<{
   history: AssetHistorySnapshotResponse[]
+  loading?: boolean
 }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const chartTheme = useChartTheme()
+const loadingOptions = computed(() => chartLoading(chartTheme.value))
 
 const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
   return [...props.history].sort((a, b) =>
@@ -124,6 +126,8 @@ const option = computed(() => {
       v-if="canRenderChart"
       ref="chartRef"
       :option="option"
+      :loading="loading"
+      :loading-options="loadingOptions"
       autoresize
       class="w-full h-full"
     />
