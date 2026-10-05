@@ -37,34 +37,38 @@ const tabs = [
 </script>
 
 <template>
-  <nav ref="strip" class="relative mb-6 flex gap-1 overflow-x-auto border-b border-surface-border dark:border-surface-dark-border">
-    <router-link
-      v-for="tab in tabs"
-      :key="tab.name"
-      :to="{ name: tab.name }"
-      :class="[
-        '-mb-px flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors duration-150',
-        route.name === tab.name
-          ? 'border-primary text-primary'
-          : 'border-transparent text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-      ]"
-    >
-      <component :is="tab.icon" class="w-4 h-4" :stroke-width="1.75" />
-      {{ tab.label }}
-      <span
-        v-if="tab.name === 'bank-review' && bank.transferQuestions?.total"
-        class="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-xs font-semibold leading-5 text-center tabular-nums"
-        :title="`${bank.transferQuestions.total} question${bank.transferQuestions.total > 1 ? 's' : ''} à trier`"
+  <!-- The strip overlaps the rule below it rather than each tab overflowing
+       the strip: a tab sticking out made it scroll vertically under a finger. -->
+  <div class="mb-6 border-b border-surface-border dark:border-surface-dark-border">
+    <nav ref="strip" class="relative -mb-px flex gap-1 overflow-x-auto overflow-y-hidden">
+      <router-link
+        v-for="tab in tabs"
+        :key="tab.name"
+        :to="{ name: tab.name }"
+        :class="[
+          'flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors duration-150',
+          route.name === tab.name
+            ? 'border-primary text-primary'
+            : 'border-transparent text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
+        ]"
       >
-        {{ bank.transferQuestions.total }}
-      </span>
-      <span
-        v-if="tab.name === 'bank-recurring' && bank.transferQuestions?.recurring"
-        class="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-xs font-semibold leading-5 text-center tabular-nums"
-        :title="`${bank.transferQuestions.recurring} récurrent${bank.transferQuestions.recurring > 1 ? 's' : ''} à confirmer`"
-      >
-        {{ bank.transferQuestions.recurring }}
-      </span>
-    </router-link>
-  </nav>
+        <component :is="tab.icon" class="w-4 h-4" :stroke-width="1.75" />
+        {{ tab.label }}
+        <span
+          v-if="tab.name === 'bank-review' && bank.transferQuestions?.total"
+          class="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-xs font-semibold leading-5 text-center tabular-nums"
+          :title="`${bank.transferQuestions.total} question${bank.transferQuestions.total > 1 ? 's' : ''} à trier`"
+        >
+          {{ bank.transferQuestions.total }}
+        </span>
+        <span
+          v-if="tab.name === 'bank-recurring' && bank.transferQuestions?.recurring"
+          class="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-xs font-semibold leading-5 text-center tabular-nums"
+          :title="`${bank.transferQuestions.recurring} récurrent${bank.transferQuestions.recurring > 1 ? 's' : ''} à confirmer`"
+        >
+          {{ bank.transferQuestions.recurring }}
+        </span>
+      </router-link>
+    </nav>
+  </div>
 </template>
