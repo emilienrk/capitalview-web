@@ -95,57 +95,64 @@ const paymentMeans = computed(() =>
 </script>
 
 <template>
-  <li :class="['group flex items-center gap-3 px-4 sm:px-6 py-3', tx.is_pending ? 'opacity-70' : '']">
-    <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-medium text-text-main dark:text-text-dark-main" :title="tx.label ?? undefined">
-        {{ tx.label ?? 'Opération sans libellé' }}
-      </p>
-      <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
-        <span v-if="date">{{ date }}</span>
-        <span v-if="date && showAccount" aria-hidden="true">·</span>
-        <span v-if="showAccount">{{ tx.account_name }}</span>
-        <span v-if="paymentMeans" class="text-text-muted/80 dark:text-text-dark-muted/80">{{ paymentMeans }}</span>
-        <button
-          v-if="typable"
-          type="button"
-          :class="['px-2 py-0.5 rounded-full font-medium transition-opacity hover:opacity-80', CASHFLOW_TYPE_TONES[tx.cashflow_type]]"
-          :title="typeSourceTitle(tx.type_source)"
-          @click="$emit('retype')"
-        >
-          {{ CASHFLOW_TYPE_LABELS[tx.cashflow_type] }}
-        </button>
-        <BaseBadge v-if="cancelled" variant="secondary">
-          <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
-          {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
-        </BaseBadge>
-        <BaseBadge v-else-if="tx.transfer_account_name" :variant="suggested ? 'warning' : 'info'">
-          <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
-          {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
-          <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
-        </BaseBadge>
-        <!-- A deposit or withdrawal the investment account proves: read like a
-             transfer to one of the user's accounts. -->
-        <BaseBadge v-else-if="tx.contribution?.exact" variant="info">
-          <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
-          {{ contributionBadge(tx.contribution) }}
-        </BaseBadge>
-        <!-- Why this one is asked at all: the bank names no account, and none
-             of the user's own holds the other leg. -->
-        <BaseBadge v-else-if="unpairedTransfer" variant="secondary">
-          <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
-          {{ tx.is_credit ? 'depuis' : 'vers' }} ?
-        </BaseBadge>
-        <!-- A refund happened once: it names what it comes off, not a rhythm. -->
-        <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
-          <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
-          {{ tx.recurring.direction === 'income' ? 'Reprise' : 'Remboursement' }} · {{ tx.recurring.name }}
-        </BaseBadge>
-        <BaseBadge v-else-if="tx.recurring" variant="primary" :title="tx.recurring.name">
-          <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
-          Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
-        </BaseBadge>
-        <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
-      </div>
+  <!-- On a phone the label shares its line with the amount alone: the actions
+       drop beside the details below it, and the questions take the full width. -->
+  <li
+    :class="[
+      'group grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 px-4 sm:px-6 py-3',
+      tx.is_pending ? 'opacity-70' : '',
+    ]"
+  >
+    <p class="col-start-1 row-start-1 line-clamp-2 sm:line-clamp-1 break-words text-sm font-medium text-text-main dark:text-text-dark-main" :title="tx.label ?? undefined">
+      {{ tx.label ?? 'Opération sans libellé' }}
+    </p>
+    <div class="col-start-1 row-start-2 mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+      <span v-if="date">{{ date }}</span>
+      <span v-if="date && showAccount" aria-hidden="true">·</span>
+      <span v-if="showAccount">{{ tx.account_name }}</span>
+      <span v-if="paymentMeans" class="text-text-muted/80 dark:text-text-dark-muted/80">{{ paymentMeans }}</span>
+      <button
+        v-if="typable"
+        type="button"
+        :class="['px-2 py-0.5 rounded-full font-medium transition-opacity hover:opacity-80', CASHFLOW_TYPE_TONES[tx.cashflow_type]]"
+        :title="typeSourceTitle(tx.type_source)"
+        @click="$emit('retype')"
+      >
+        {{ CASHFLOW_TYPE_LABELS[tx.cashflow_type] }}
+      </button>
+      <BaseBadge v-if="cancelled" variant="secondary">
+        <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
+        {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
+      </BaseBadge>
+      <BaseBadge v-else-if="tx.transfer_account_name" :variant="suggested ? 'warning' : 'info'">
+        <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
+        {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
+        <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
+      </BaseBadge>
+      <!-- A deposit or withdrawal the investment account proves: read like a
+           transfer to one of the user's accounts. -->
+      <BaseBadge v-else-if="tx.contribution?.exact" variant="info">
+        <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
+        {{ contributionBadge(tx.contribution) }}
+      </BaseBadge>
+      <!-- Why this one is asked at all: the bank names no account, and none
+           of the user's own holds the other leg. -->
+      <BaseBadge v-else-if="unpairedTransfer" variant="secondary">
+        <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
+        {{ tx.is_credit ? 'depuis' : 'vers' }} ?
+      </BaseBadge>
+      <!-- A refund happened once: it names what it comes off, not a rhythm. -->
+      <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
+        <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
+        {{ tx.recurring.direction === 'income' ? 'Reprise' : 'Remboursement' }} · {{ tx.recurring.name }}
+      </BaseBadge>
+      <BaseBadge v-else-if="tx.recurring" variant="primary" :title="tx.recurring.name">
+        <Repeat class="inline w-3 h-3 mr-1 -mt-px" />
+        Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
+      </BaseBadge>
+      <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
+    </div>
+    <div class="col-span-full sm:col-end-2 row-start-3">
       <!-- What the investment accounts say: the deposit this operation was
            recognised as, or a nearby one to answer the question by. -->
       <p
@@ -231,11 +238,11 @@ const paymentMeans = computed(() =>
         </span>
       </div>
     </div>
-    <p :class="['shrink-0 text-sm font-semibold tabular-nums', amountClass]">
+    <p :class="['col-start-2 row-start-1 sm:row-end-3 self-start sm:self-center text-right text-sm font-semibold tabular-nums whitespace-nowrap', amountClass]">
       {{ amount }}
     </p>
     <!-- A fixed width, so the amounts line up whether a row offers one action or two. -->
-    <div class="shrink-0 w-16 flex items-center justify-end gap-0.5">
+    <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:row-end-3 self-center w-16 flex items-center justify-end gap-0.5">
       <BaseButton
         v-if="!suggested && recurrable"
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"

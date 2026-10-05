@@ -73,12 +73,12 @@ function day(value: string | null): string {
   <span class="basis-full flex flex-col gap-1">
     <button
       type="button"
-      class="self-start inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
+      class="self-start inline-flex items-center gap-1 text-left text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
       :aria-expanded="open"
       @click="toggle"
     >
       s'applique aux {{ count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
-      <ChevronDown :class="['w-3 h-3 transition-transform', open ? 'rotate-180' : '']" />
+      <ChevronDown :class="['w-3 h-3 shrink-0 transition-transform', open ? 'rotate-180' : '']" />
     </button>
 
     <Transition name="cv-expand">
@@ -95,7 +95,7 @@ function day(value: string | null): string {
               >
                 <div class="flex items-baseline gap-2">
                   <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
-                  <span class="shrink-0">{{ operation.account_name }}</span>
+                  <span class="truncate" :title="operation.account_name">{{ operation.account_name }}</span>
                   <!-- The references and dates a bank writes into its labels differ from
                        one operation to the next; the words they share are what groups them. -->
                   <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
