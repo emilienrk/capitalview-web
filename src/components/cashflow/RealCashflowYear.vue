@@ -255,12 +255,18 @@ function monthName(period: string): string {
       />
 
       <div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <!-- Two columns on a phone, as on the dashboard, so the chart below
+             shows without a long scroll; the cashflow, the difference of the
+             two tiles above it, takes a row of its own. -->
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <router-link
             v-for="card in cards"
             :key="card.key"
             :to="cardLink(card.type)"
-            class="group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-5 shadow-soft transition-colors hover:border-primary/40"
+            :class="[
+              'group rounded-card bg-surface dark:bg-surface-dark border border-surface-border dark:border-surface-dark-border p-3.5 sm:p-5 shadow-soft transition-colors hover:border-primary/40',
+              card.key === 'cashflow' ? 'col-span-2 lg:col-span-1' : '',
+            ]"
             :title="detail(card.key)"
           >
             <p class="flex items-center gap-2 text-sm font-medium text-text-muted dark:text-text-dark-muted">
@@ -269,11 +275,12 @@ function monthName(period: string): string {
               </span>
               {{ card.label }}
             </p>
-            <p class="mt-2 text-2xl font-bold tabular-nums whitespace-nowrap text-text-main dark:text-text-dark-main">
+            <p class="mt-1 sm:mt-2 text-lg sm:text-2xl font-bold tabular-nums whitespace-nowrap text-text-main dark:text-text-dark-main">
               {{ amount(monthly[card.key]) }}
             </p>
-            <p class="mt-1 truncate text-xs tabular-nums text-text-muted dark:text-text-dark-muted">
-              par mois<template v-if="comparison(card.key)"> · <span class="font-medium">{{ comparison(card.key) }}</span></template>
+            <!-- Too narrow on a phone for both on one line: the comparison goes under. -->
+            <p class="mt-0.5 sm:mt-1 sm:truncate text-xs tabular-nums text-text-muted dark:text-text-dark-muted">
+              par mois<template v-if="comparison(card.key)"><span class="hidden sm:inline"> · </span><span class="block sm:inline font-medium">{{ comparison(card.key) }}</span></template>
             </p>
           </router-link>
         </div>

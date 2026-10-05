@@ -76,7 +76,7 @@ watch(() => bank.dataRevision, () => {
         @select-year="view.openYear($event)"
         @select-month="view.openMonth($event)"
       />
-      <div v-else-if="!store.error" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div v-else-if="!store.error" class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <BaseSkeleton v-for="i in 4" :key="i" variant="rect" width="100%" height="6rem" />
       </div>
     </template>
