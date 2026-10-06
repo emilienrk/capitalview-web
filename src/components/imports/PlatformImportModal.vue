@@ -664,8 +664,7 @@ function typeBadgeClass(t: string): string {
           </thead>
           <tbody>
             <tr v-for="(p, i) in bankPoints" :key="i"
-                class="border-b border-surface-border/50 dark:border-surface-dark-border/50"
-                :class="{ 'opacity-50': p.is_duplicate && !overwrite }">
+                class="border-b border-surface-border/50 dark:border-surface-dark-border/50">
               <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">{{ fmtDate(p.snapshot_date) }}</td>
               <td class="py-2 text-right text-text-body dark:text-text-dark-body">{{ Number(p.value).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) }} €</td>
             </tr>
@@ -682,10 +681,16 @@ function typeBadgeClass(t: string): string {
         </label>
         <!-- Balance imports only: there is no curve to overwrite on a movement
              import, and ticking it would wipe a history this file cannot rebuild. -->
-        <label v-else-if="!bankTransactions.length" class="flex items-center gap-2 text-sm cursor-pointer">
-          <input v-model="overwrite" type="checkbox" class="w-4 h-4 rounded accent-primary" />
-          <span class="text-text-body dark:text-text-dark-body">Écraser l'historique existant du compte</span>
-        </label>
+        <template v-else-if="!bankTransactions.length">
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Sur la période couverte par le fichier, ses soldes remplacent ceux déjà enregistrés ;
+            en dehors, rien n'est touché.
+          </p>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input v-model="overwrite" type="checkbox" class="w-4 h-4 rounded accent-primary" />
+            <span class="text-text-body dark:text-text-dark-body">Effacer aussi tout l'historique en dehors de cette période</span>
+          </label>
+        </template>
         <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">
           La courbe du compte est reconstruite sur la période couverte par le fichier ; en dehors,
           rien n'est touché. Les opérations déjà connues sont ignorées : réimporter le même relevé
