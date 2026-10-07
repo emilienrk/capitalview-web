@@ -28,6 +28,8 @@ import type {
   BankSummaryResponse,
   BankAccountCreate,
   BankAccountUpdate,
+  BankEntryRequest,
+  BankEntryResponse,
   SavingsInterestResponse,
   AccountHistorySnapshotResponse,
 } from '@/types'
@@ -196,6 +198,32 @@ export const useBankStore = defineStore('bank', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  /**
+   * An operation typed by hand or a balance read on a statement, on an account
+   * no bank feeds. Under `dryRun`, nothing is written: the answer says what would be.
+   */
+  async function addEntry(
+    accountId: string,
+    entry: BankEntryRequest,
+    dryRun = false,
+  ): Promise<BankEntryResponse> {
+    const response = await apiClient.post<BankEntryResponse>(
+      `/bank/accounts/${accountId}/entries${dryRun ? '?dry_run=true' : ''}`,
+      entry,
+    )
+    if (!dryRun) {
+      await fetchAccounts()
+      invalidateHistoryCache()
+    }
+    return response
+  }
+
+  async function deleteTransaction(transactionId: string): Promise<void> {
+    await apiClient.delete(`/bank/transactions/${transactionId}`)
+    await fetchAccounts()
+    invalidateHistoryCache()
   }
 
   /** The user's word that an imported account missed nothing up to today. */
@@ -531,6 +559,8 @@ export const useBankStore = defineStore('bank', () => {
     updateAccount,
     deleteAccount,
     confirmUpToDate,
+    addEntry,
+    deleteTransaction,
     fetchHistory,
     fetchHistoryForAccount,
     syncBanking,

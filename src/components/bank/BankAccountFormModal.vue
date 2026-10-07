@@ -176,10 +176,10 @@ async function handleSubmit(): Promise<void> {
   }
   if (editingId.value) {
     // No account_type: the API has no field for it, and the picker is locked
-    // while editing. A linked account's balance and currency belong to its bank.
-    const update: BankAccountUpdate = editingLinked.value
-      ? common
-      : { ...common, balance: form.balance, currency: form.currency }
+    // while editing. No balance either: a linked account's is its bank's, an
+    // unlinked one's the sum of its operations. A linked account's currency
+    // belongs to its bank too.
+    const update: BankAccountUpdate = editingLinked.value ? common : { ...common, currency: form.currency }
     result = await bank.updateAccount(editingId.value, update)
   } else {
     const create: BankAccountCreate = {
@@ -225,13 +225,19 @@ defineExpose({ openCreate, openEdit })
       </div>
       <BaseInput v-model="form.institution_name" label="Banque" placeholder="Nom de la banque" />
       <BaseInput v-model="form.identifier" label="Identifiant" placeholder="IBAN" />
-      <BaseInput
-        v-if="!(editingId && editingLinked)"
-        v-model="form.balance"
-        label="Solde"
-        type="number"
-        placeholder="0.00"
-      />
+      <!-- Once created, the balance is the sum of the operations: corrected
+           by a balance read ("Ajouter" on the card), never typed over. -->
+      <template v-if="!editingId">
+        <BaseInput
+          v-model="form.balance"
+          label="Solde à l'ouverture"
+          type="number"
+          placeholder="0.00"
+        />
+        <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+          Laissez 0 si vous importez tout l'historique.
+        </p>
+      </template>
       <div>
         <BaseSelect
           v-model="form.currency"
@@ -242,6 +248,8 @@ defineExpose({ openCreate, openEdit })
         <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
           {{ editingId && editingLinked
             ? 'Compte lié : le solde et la devise viennent de votre banque, à chaque synchronisation.'
+            : editingId
+              ? 'Le solde est la somme des opérations. Pour le corriger, ajoutez un relevé de solde depuis la carte du compte.'
             : isRegulated
               ? 'Les livrets réglementés sont en euros.'
               : 'Le solde est affiché dans cette devise ; les totaux et les courbes restent en euros.' }}

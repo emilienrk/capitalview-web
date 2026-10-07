@@ -9,13 +9,15 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeftRight, ChevronLeft, ChevronRight, HelpCircle, Search, Undo2 } from 'lucide-vue-next'
+import { ArrowLeftRight, ChevronLeft, ChevronRight, HelpCircle, Plus, Search, Undo2 } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useConfirm } from '@/composables/useConfirm'
+import { useBankSection } from '@/composables/useBankSection'
 import {
   BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSelect, BaseSkeleton, BaseToggle,
 } from '@/components'
@@ -42,6 +44,8 @@ const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
 const { maskValue } = usePrivacyMode()
+const { confirmDialog } = useConfirm()
+const { openEntry } = useBankSection()
 
 function toPeriod(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
@@ -282,6 +286,32 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
+// ── Entries on an account no bank feeds ────────────────────
+
+/** The account shown, when its operations are typed or imported rather than synced. */
+const entryAccount = computed(() => {
+  const account = bank.summary?.accounts.find((a) => a.id === accountFilter.value)
+  return account && !account.is_linked ? account : null
+})
+
+async function removeOperation(tx: BankTransactionItem): Promise<void> {
+  const ok = await confirmDialog({
+    title: "Supprimer l'opération",
+    message: 'Le solde du compte sera recalculé sans elle.',
+    confirmLabel: 'Supprimer',
+  })
+  if (!ok) return
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await bank.deleteTransaction(tx.id)
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : 'Impossible de supprimer cette opération.'
+  } finally {
+    deciding.value = null
+  }
+}
+
 // ── Cashflow types ──────────────────────────────────────────
 
 const retyping = ref<BankTransactionItem | null>(null)
@@ -406,6 +436,16 @@ onMounted(() => void load())
               <ChevronRight class="w-4 h-4" />
             </BaseButton>
           </div>
+          <BaseButton
+            v-if="entryAccount"
+            class="ml-auto"
+            size="sm" variant="outline"
+            :aria-label="`Ajouter une opération sur ${entryAccount.name}`"
+            @click="openEntry(entryAccount.id)"
+          >
+            <Plus class="w-4 h-4" />
+            Ajouter
+          </BaseButton>
         </div>
         <!-- Every account one click away, and the one shown always in sight:
              a select hid which account the figures below were about. -->
@@ -630,6 +670,8 @@ onMounted(() => void load())
             @answer="(type) => answer(tx, type)"
             @retype="retyping = tx"
             @subscribe="(decision) => subscribe(tx, decision)"
+            @edit="openEntry(tx.account_id, tx)"
+            @remove="removeOperation(tx)"
           />
         </ul>
         <template v-else>
@@ -654,6 +696,8 @@ onMounted(() => void load())
                 @answer="(type) => answer(tx, type)"
                 @retype="retyping = tx"
                 @subscribe="(decision) => subscribe(tx, decision)"
+                @edit="openEntry(tx.account_id, tx)"
+                @remove="removeOperation(tx)"
               />
             </ul>
           </section>

@@ -26,7 +26,7 @@ import RealCashflowPace from '@/components/cashflow/RealCashflowPace.vue'
 
 const bank = useBankStore()
 const realCashflow = useRealCashflowStore()
-const { openCreateAccount, openEditAccount } = useBankSection()
+const { openCreateAccount, openEditAccount, openEntry } = useBankSection()
 const { formatCurrency } = useFormatters()
 const { maskValue } = usePrivacyMode()
 const { isDark } = useDarkMode()
@@ -175,6 +175,7 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         :key="account.id"
         :account="account"
         @edit="openEditAccount"
+        @entry="(account) => openEntry(account.id)"
       />
     </div>
 

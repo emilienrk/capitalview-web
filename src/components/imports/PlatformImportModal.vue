@@ -80,7 +80,7 @@ const overwrite = ref(false)
 
 const isLoading = ref(false)
 const error = ref<string | null>(null)
-const result = reactive({ imported: 0, skipped: 0, groups: null as number | null, coveredByBank: 0 })
+const result = reactive({ imported: 0, skipped: 0, groups: null as number | null, coveredByBank: 0, replaced: 0 })
 
 const selectedSource = computed(() => sources.value.find((s) => s.source_id === selectedSourceId.value) ?? null)
 
@@ -273,6 +273,47 @@ async function applyOpeningBalance(): Promise<void> {
 }
 
 // ── Review helpers ───────────────────────────────────────────
+
+/** Newest first, as a statement reads; the payload keeps the file's order. */
+const bankTransactionsShown = computed(() =>
+  [...bankTransactions.value].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0)),
+)
+
+const ROW_STATUS_BADGES: Record<string, { label: string; title: string; tone: string }> = {
+  duplicate: {
+    label: 'Doublon',
+    title: 'Déjà enregistrée : ignorée.',
+    tone: 'bg-surface-border/60 text-text-muted dark:bg-surface-dark-border dark:text-text-dark-muted',
+  },
+  replaces_manual: {
+    label: 'Remplace une saisie',
+    title: 'Une opération saisie à la main, même jour et même montant, sera remplacée par celle-ci.',
+    tone: 'bg-info/10 text-info',
+  },
+  ambiguous: {
+    label: 'Ambiguë',
+    title: 'Une autre opération du même montant, le même jour, existe déjà ou figure aussi dans le fichier. Excluez-la si c\'est la même.',
+    tone: 'bg-warning/10 text-warning',
+  },
+}
+
+function signedOf(t: BankImportTransactionPreview): number {
+  return t.direction === 'CRDT' ? Number(t.amount) : -Number(t.amount)
+}
+
+/** The balance at the file's last operation, less what the user left out. */
+const balanceAfter = computed(() => {
+  const base = preview.value?.bank_balance_after
+  if (base == null) return null
+  const excluded = bankTransactions.value
+    .filter((t) => t.excluded && (t.status === 'new' || t.status === 'ambiguous'))
+    .reduce((sum, t) => sum + signedOf(t), 0)
+  return Number(base) - excluded
+})
+
+function euros(value: number): string {
+  return `${Number(value).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+}
 const validStockRows = computed(() => stockRows.value.filter((r) => !r.error))
 const stockErrorCount = computed(() => stockRows.value.filter((r) => r.error).length)
 const stockMissingAsset = computed(() =>
@@ -320,6 +361,7 @@ async function runConfirm() {
     result.skipped = res.skipped_duplicates
     result.groups = res.groups_count
     result.coveredByBank = res.covered_by_bank_count
+    result.replaced = res.replaced_count ?? 0
     step.value = 'result'
     emit('imported', localAccountId.value)
   } catch (e) {
@@ -587,6 +629,25 @@ function typeBadgeClass(t: string): string {
 
       <!-- BANK -->
       <template v-else>
+      <!-- An account no bank feeds: its operations are its balance. -->
+      <p v-if="bankTransactions.length && balanceAfter !== null && preview?.bank_balance_after_date" class="mb-3 text-sm text-text-body dark:text-text-dark-body">
+        Solde après import au {{ fmtDate(preview.bank_balance_after_date) }} :
+        <strong class="text-text-main dark:text-text-dark-main tabular-nums">{{ euros(balanceAfter) }}</strong>
+      </p>
+      <div
+        v-if="preview?.bank_replaced?.length"
+        class="mb-4 p-3 rounded-card border border-info/30 bg-info/5 text-sm text-text-body dark:text-text-dark-body"
+      >
+        <p class="font-medium text-text-main dark:text-text-dark-main">
+          {{ preview.bank_replaced.length }} ajustement(s) ou prévision(s) remplacé(s) par les opérations du fichier
+        </p>
+        <ul class="mt-1 space-y-0.5 text-xs">
+          <li v-for="(e, i) in preview.bank_replaced" :key="i" class="flex justify-between gap-3">
+            <span>{{ fmtDate(e.day) }} · {{ e.origin === 'forecast' ? 'Prévu' : 'Ajustement' }}<template v-if="e.label"> · {{ e.label }}</template></span>
+            <span class="tabular-nums whitespace-nowrap">{{ Number(e.amount) > 0 ? '+' : '' }}{{ euros(e.amount) }}</span>
+          </li>
+        </ul>
+      </div>
       <!-- The curve the movements rebuild, and the anchor it hangs on -->
       <div
         v-if="bankTransactions.length && bankCurve"
@@ -635,11 +696,24 @@ function typeBadgeClass(t: string): string {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(t, i) in bankTransactions" :key="i"
+            <tr v-for="(t, i) in bankTransactionsShown" :key="i"
                 class="border-b border-surface-border/50 dark:border-surface-dark-border/50"
-                :class="{ 'opacity-50': t.is_duplicate }">
+                :class="{ 'opacity-50': t.is_duplicate || t.excluded }">
               <td class="py-2 pr-2 whitespace-nowrap text-text-body dark:text-text-dark-body">{{ fmtDate(t.day) }}</td>
-              <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">{{ t.label || '—' }}</td>
+              <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">
+                {{ t.label || '—' }}
+                <span
+                  v-if="t.status && ROW_STATUS_BADGES[t.status]"
+                  :class="['ml-1 inline-block px-1.5 py-0.5 rounded-badge text-[10px] font-semibold', ROW_STATUS_BADGES[t.status]!.tone]"
+                  :title="ROW_STATUS_BADGES[t.status]!.title"
+                >
+                  {{ ROW_STATUS_BADGES[t.status]!.label }}
+                </span>
+                <label v-if="t.status === 'ambiguous'" class="mt-1 flex items-center gap-1.5 text-xs text-warning cursor-pointer">
+                  <input v-model="t.excluded" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" />
+                  Déjà enregistrée : l'exclure de l'import
+                </label>
+              </td>
               <!-- The sign was consumed into `direction` server-side; put it back
                    so the row reads like the statement it came from. -->
               <td
@@ -664,7 +738,9 @@ function typeBadgeClass(t: string): string {
           </thead>
           <tbody>
             <tr v-for="(p, i) in bankPoints" :key="i"
-                class="border-b border-surface-border/50 dark:border-surface-dark-border/50">
+                class="border-b border-surface-border/50 dark:border-surface-dark-border/50"
+                :class="{ 'opacity-50': p.is_duplicate }"
+                :title="p.is_duplicate ? 'Vos opérations donnent déjà ce solde : rien à ajuster.' : undefined">
               <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">{{ fmtDate(p.snapshot_date) }}</td>
               <td class="py-2 text-right text-text-body dark:text-text-dark-body">{{ Number(p.value).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) }} €</td>
             </tr>
@@ -681,20 +757,20 @@ function typeBadgeClass(t: string): string {
         </label>
         <!-- Balance imports only: there is no curve to overwrite on a movement
              import, and ticking it would wipe a history this file cannot rebuild. -->
-        <template v-else-if="!bankTransactions.length">
-          <p class="text-sm text-text-muted dark:text-text-dark-muted">
-            Sur la période couverte par le fichier, ses soldes remplacent ceux déjà enregistrés ;
-            en dehors, rien n'est touché.
-          </p>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input v-model="overwrite" type="checkbox" class="w-4 h-4 rounded accent-primary" />
-            <span class="text-text-body dark:text-text-dark-body">Effacer aussi tout l'historique en dehors de cette période</span>
-          </label>
-        </template>
-        <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">
+        <!-- Balance files only go to accounts no bank feeds: each balance
+             becomes the adjustment that makes the operations agree with it. -->
+        <p v-else-if="!bankTransactions.length" class="text-sm text-text-muted dark:text-text-dark-muted">
+          Chaque solde devient un ajustement : l'écart entre ce solde et vos opérations à cette date.
+          Un solde que vos opérations donnent déjà ne crée rien : réimporter le même fichier est sans effet.
+        </p>
+        <p v-else-if="linkedTarget" class="text-sm text-text-muted dark:text-text-dark-muted">
           La courbe du compte est reconstruite sur la période couverte par le fichier ; en dehors,
           rien n'est touché. Les opérations déjà connues sont ignorées : réimporter le même relevé
           ne crée pas de doublon.
+        </p>
+        <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">
+          Le solde et la courbe du compte sont recalculés à partir de toutes ses opérations.
+          Les opérations déjà connues sont ignorées : réimporter le même relevé ne crée pas de doublon.
         </p>
       </div>
     </template>
@@ -707,6 +783,7 @@ function typeBadgeClass(t: string): string {
         <p v-if="result.groups !== null"><strong>{{ result.groups }}</strong> opération(s) traitée(s)</p>
         <p v-if="result.skipped > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.skipped }} doublon(s) ignoré(s)</p>
         <p v-if="result.coveredByBank > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.coveredByBank }} opération(s) déjà fournie(s) par la banque ignorée(s)</p>
+        <p v-if="result.replaced > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.replaced }} ajustement(s) ou prévision(s) remplacé(s)</p>
       </div>
     </template>
 

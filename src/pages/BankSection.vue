@@ -16,20 +16,26 @@ import { BANK_SECTION_KEY } from '@/composables/useBankSection'
 import PageHeader from '@/components/PageHeader.vue'
 import BankTabs from '@/components/bank/BankTabs.vue'
 import BankAccountFormModal from '@/components/bank/BankAccountFormModal.vue'
+import BankEntryModal from '@/components/bank/BankEntryModal.vue'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import BankingExportImportModal from '@/components/banking/BankingExportImportModal.vue'
 import { BaseAddButton, BaseAlert, BaseButton } from '@/components'
+import type { BankTransactionItem } from '@/types'
 
 const bank = useBankStore()
 const router = useRouter()
 const settingsStore = useSettingsStore()
 
 const accountForm = ref<InstanceType<typeof BankAccountFormModal> | null>(null)
+const entry = ref<{ accountId: string; editing: BankTransactionItem | null } | null>(null)
 
 provide(BANK_SECTION_KEY, {
   openCreateAccount: () => accountForm.value?.openCreate(),
   openEditAccount: (account) => accountForm.value?.openEdit(account),
+  openEntry: (accountId, editing = null) => {
+    entry.value = { accountId, editing }
+  },
 })
 
 const showPlatformImportModal = ref(false)
@@ -173,5 +179,11 @@ onMounted(async () => {
     <BankingExportImportModal :open="showExportImportModal" @close="showExportImportModal = false" />
 
     <BankAccountFormModal ref="accountForm" />
+    <BankEntryModal
+      :open="entry !== null"
+      :account-id="entry?.accountId ?? null"
+      :editing="entry?.editing ?? null"
+      @close="entry = null"
+    />
   </div>
 </template>

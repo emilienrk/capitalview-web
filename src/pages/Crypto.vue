@@ -145,9 +145,9 @@ const selectedBankAccountId = ref<string | null>(null)
 /**
  * The bank accounts a euro movement can be booked against, current accounts first.
  *
- * Euro ones only: the deduction (and the credit, on a withdrawal) writes the
- * balance back to the account, and converting here would put a rate the app
- * cannot vouch for into a stored balance (see docs/currencies.md in the API).
+ * Euro ones only: the deduction (and the credit, on a withdrawal) books the euro
+ * amount as an operation of the account, and converting here would put a rate
+ * the app cannot vouch for into its balance (see docs/currencies.md in the API).
  * Never a synchronised one either: its balance is the bank's, and the transfer
  * shows up there on the next sync — booking it here as well would count it twice.
  */
@@ -1442,28 +1442,35 @@ async function handleSubmitTransaction(): Promise<void> {
     if ((txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw.value) && deductFromBank.value && selectedBankAccountId.value) {
       const bankAcc = sortedBankAccounts.value.find(a => a.id === selectedBankAccountId.value)
       if (bankAcc) {
+        // A real operation on the bank account, dated like the transfer: its
+        // balance is the sum of its operations, never a figure written over.
+        // "Virement": the label the lexicon reads as a transfer, which is what
+        // lets the declared deposit type it as an investment.
+        const target = crypto.accounts.find((a) => a.id === txForm.account_id)
+        const entry = {
+          kind: 'operation' as const,
+          day: txForm.executed_at.slice(0, 10),
+        }
         if (txForm.type === 'FIAT_DEPOSIT') {
-          if (Number(bankAcc.balance) < Number(txForm.amount)) {
-            const ok = await confirmDialog({
-              title: 'Solde insuffisant',
-              message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance, bankAcc.currency)}) est insuffisant. Déduire quand même ?`,
-              confirmLabel: 'Déduire quand même',
-              variant: 'primary',
-            })
-            if (ok) {
-              await bank.updateAccount(selectedBankAccountId.value, {
-                balance: Number(bankAcc.balance) - Number(txForm.amount),
-              })
-            }
-          } else {
-            await bank.updateAccount(selectedBankAccountId.value, {
-              balance: Number(bankAcc.balance) - Number(txForm.amount),
+          const ok = Number(bankAcc.balance) >= Number(txForm.amount) || await confirmDialog({
+            title: 'Solde insuffisant',
+            message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance, bankAcc.currency)}) est insuffisant. Déduire quand même ?`,
+            confirmLabel: 'Déduire quand même',
+            variant: 'primary',
+          })
+          if (ok) {
+            await bank.addEntry(selectedBankAccountId.value, {
+              ...entry,
+              amount: -Number(txForm.amount),
+              label: target ? `Virement vers ${target.name}` : 'Virement',
             })
           }
         } else {
-          // FIAT_WITHDRAW on EUR: add the amount to the bank account
-          await bank.updateAccount(selectedBankAccountId.value, {
-            balance: Number(bankAcc.balance) + Number(txForm.amount),
+          // FIAT_WITHDRAW on EUR: the amount comes back to the bank account
+          await bank.addEntry(selectedBankAccountId.value, {
+            ...entry,
+            amount: Number(txForm.amount),
+            label: target ? `Virement depuis ${target.name}` : 'Virement',
           })
         }
       }

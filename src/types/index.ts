@@ -445,6 +445,38 @@ export interface BankTransactionItem {
   recurring: BankRecurringTag | null
   /** Set on the last operation of a series found but not sure enough to count. */
   recurring_question: BankRecurringQuestion | null
+  /** Typed by hand, a balance's adjustment, or a forecast; null for a reported one. */
+  origin?: BankOperationOrigin | null
+  /** Whether DELETE /bank/transactions/{id} accepts it. */
+  deletable?: boolean
+}
+
+/** Where an operation comes from, beyond the bank or a statement. Adjustments
+ *  and forecasts only move the balance (docs/bank-ledger.md on the API). */
+export type BankOperationOrigin = 'manual' | 'adjustment' | 'forecast'
+
+export type BankEntryKind = 'operation' | 'balance'
+
+/** POST /bank/accounts/{id}/entries, on an account no bank feeds. */
+export interface BankEntryRequest {
+  kind: BankEntryKind
+  /** YYYY-MM-DD */
+  day: string
+  /** `operation`: signed, negative for money out. */
+  amount?: number
+  /** `balance`: what the account held at the end of `day`. */
+  balance?: number
+  label?: string | null
+}
+
+/** What an entry does, or would do under ?dry_run=true. */
+export interface BankEntryResponse {
+  id: string | null
+  /** `balance` only: the adjustment it records. */
+  adjustment: number | null
+  forecasts_replaced: number
+  balance_now_before: number
+  balance_now_after: number
 }
 
 // ─── Types de flux ───────────────────────────────────────────
@@ -455,7 +487,7 @@ export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' 
 export type CashflowType = 'INCOME' | 'EXPENSE' | 'SAVING' | 'INVESTMENT' | 'NEUTRAL'
 
 /** What gave an operation its type, strongest first. */
-export type TypeSource = 'pair' | 'override' | 'rule' | 'contribution' | 'recurring' | 'default'
+export type TypeSource = 'pair' | 'override' | 'rule' | 'contribution' | 'recurring' | 'default' | 'adjustment'
 
 /** Every operation reading like this one on its account and direction, or this one alone. */
 export type TypeScope = 'label' | 'operation'
@@ -1488,6 +1520,21 @@ export interface BankImportTransactionPreview {
   label: string
   currency: string
   is_duplicate: boolean
+  /** Account no bank feeds: what the import does with it. */
+  status?: BankImportRowStatus
+  /** Left out of the import by the user. */
+  excluded?: boolean
+}
+
+export type BankImportRowStatus = 'new' | 'duplicate' | 'replaces_manual' | 'ambiguous'
+
+/** An adjustment or a forecast the file's operations replace. */
+export interface BankImportReplacedEntry {
+  day: string
+  /** Signed. */
+  amount: number
+  origin: 'adjustment' | 'forecast'
+  label: string | null
 }
 
 /** The balance curve a movements file describes, once anchored. */
@@ -1520,6 +1567,11 @@ export interface ImportPreviewResponse {
   bank_history_from: string | null
   /** Rows the bank already holds, left out of `bank_transactions`. */
   covered_by_bank_count: number
+  /** Account no bank feeds: the adjustments and forecasts the file replaces. */
+  bank_replaced?: BankImportReplacedEntry[] | null
+  /** Account no bank feeds: the balance at the file's last operation, once imported. */
+  bank_balance_after?: number | null
+  bank_balance_after_date?: string | null
 }
 
 export interface ImportConfirmRequest {
@@ -1538,6 +1590,8 @@ export interface ImportConfirmResponse {
   skipped_duplicates: number
   groups_count: number | null
   covered_by_bank_count: number
+  /** Adjustments and forecasts the import replaced. */
+  replaced_count?: number
 }
 
 // ─── Notes ───────────────────────────────────────────────────

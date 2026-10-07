@@ -114,9 +114,9 @@ const depositForm = reactive<EurDepositCreate>({
 /**
  * The bank accounts a euro deposit can be deducted from, current accounts first.
  *
- * Euro ones only: the deduction writes `balance - amount` back to the account,
- * and converting here would put a rate the app cannot vouch for into a stored
- * balance (see docs/currencies.md in the API). Never a synchronised one either:
+ * Euro ones only: the deduction books the euro amount as an operation of the
+ * account, and converting here would put a rate the app cannot vouch for into
+ * its balance (see docs/currencies.md in the API). Never a synchronised one either:
  * its balance is the bank's, and the transfer shows up there on the next sync —
  * deducting it here as well would count it twice.
  */
@@ -967,12 +967,17 @@ async function handleSubmitDeposit(): Promise<void> {
   if (result) {
     // Deduct from bank account if requested
     if (deductFromBank.value && selectedBankAccountId.value) {
-      const bankAcc = sortedBankAccounts.value.find(a => a.id === selectedBankAccountId.value)
-      if (bankAcc) {
-        await bank.updateAccount(selectedBankAccountId.value, {
-          balance: Number(bankAcc.balance) - grossAmount,
-        })
-      }
+      // A real operation on the bank account, dated like the deposit: its
+      // balance is the sum of its operations, never a figure written over.
+      // "Virement": the label the lexicon reads as a transfer, which is what
+      // lets the declared deposit type it as an investment.
+      const target = stocks.accounts.find((a) => a.id === targetStockAccountId)
+      await bank.addEntry(selectedBankAccountId.value, {
+        kind: 'operation',
+        day: depositForm.executed_at.slice(0, 10),
+        amount: -grossAmount,
+        label: target ? `Virement vers ${target.name}` : 'Virement',
+      })
     }
     if (selectedAccountId.value) {
       await Promise.all([

@@ -5,7 +5,7 @@
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, Pencil, TriangleAlert } from 'lucide-vue-next'
+import { ChevronRight, Pencil, Plus, TriangleAlert } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
@@ -18,6 +18,7 @@ import type { BankAccountResponse } from '@/types'
 const props = defineProps<{ account: BankAccountResponse }>()
 const emit = defineEmits<{
   edit: [account: BankAccountResponse]
+  entry: [account: BankAccountResponse]
 }>()
 
 const bank = useBankStore()
@@ -317,6 +318,16 @@ async function reseedHistory(): Promise<void> {
       </p>
       <span v-else />
       <div class="flex items-center gap-1">
+        <!-- Its operations are its balance: one more, or a balance read on a statement. -->
+        <BaseButton
+          v-if="!account.is_linked"
+          size="sm" variant="ghost"
+          :aria-label="`Ajouter une opération sur ${account.name}`"
+          @click.stop="emit('entry', account)"
+        >
+          <Plus class="w-4 h-4" />
+          Ajouter
+        </BaseButton>
         <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${account.name}`" @click.stop="emit('edit', account)">
           <Pencil class="w-4 h-4" />
         </BaseButton>

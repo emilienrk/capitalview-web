@@ -89,14 +89,13 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
                 <div class="flex items-center gap-1">
                   <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Synchronisation automatique</p>
                   <BaseHelpPopover width="md">
-                    À chaque échéance, ajoute au solde du compte les entrées récurrentes qui lui sont
-                    rattachées dans Cashflow, et en retire les dépenses récurrentes. Rien d'autre :
-                    les dépenses ponctuelles n'y sont pas, donc le solde s'éloigne peu à peu de
-                    celui de la banque et doit être recalé à la main de temps en temps. Sans effet
-                    sur un compte relié à la banque.
+                    À chaque échéance, crée sur le compte une opération « prévue » pour chaque entrée
+                    ou dépense récurrente qui lui est rattachée dans Cashflow. Elles ne comptent ni en
+                    dépense ni en revenu, et un relevé d'opérations ou un solde saisi qui couvre leur
+                    date les remplace par les vraies. Sans effet sur un compte relié à la banque.
                   </BaseHelpPopover>
                 </div>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted">Applique les flux récurrents aux soldes de vos comptes</p>
+                <p class="text-sm text-text-muted dark:text-text-dark-muted">Crée des opérations prévues, remplacées par les vraies</p>
               </div>
             </div>
             <BaseToggle

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed } from 'vue'
-import { ArrowLeftRight, Check, HelpCircle, Link2, Repeat, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
@@ -45,6 +45,8 @@ defineEmits<{
   retype: []
   subscribe: [decision: RecurringDecisionKind]
   recurring: []
+  remove: []
+  edit: []
 }>()
 
 const { formatCurrency } = useFormatters()
@@ -67,8 +69,16 @@ const offered = computed(() => {
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
 )
+/** An adjustment or a forecast only moves the balance: no type, no pair, no recurring. */
+const synthetic = computed(() => props.tx.origin === 'adjustment' || props.tx.origin === 'forecast')
+const ORIGIN_BADGES = { manual: 'Saisie', adjustment: 'Ajustement', forecast: 'Prévu' } as const
+const ORIGIN_TITLES = {
+  manual: 'Saisie à la main : un relevé qui la contient la remplace.',
+  adjustment: 'Écart entre un solde déclaré et vos opérations. Ne compte ni en dépense ni en revenu.',
+  forecast: 'Prévision récurrente : remplacée par la vraie opération quand elle arrive.',
+} as const
 /** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */
-const typable = computed(() => props.tx.transfer_status === null || suggested.value)
+const typable = computed(() => !synthetic.value && (props.tx.transfer_status === null || suggested.value))
 /** A transfer asked about: nothing pairs it, so where it went is unknown. */
 const unpairedTransfer = computed(
   () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
@@ -81,6 +91,7 @@ const unpairedTransfer = computed(
 const recurrable = computed(() => {
   const tx = props.tx
   if (tx.recurring) return true
+  if (synthetic.value) return false
   return !tx.is_pending && tx.transfer_status === null && tx.cashflow_type === (tx.is_credit ? 'INCOME' : 'EXPENSE')
 })
 const recurringAction = computed(() =>
@@ -151,6 +162,9 @@ const paymentMeans = computed(() =>
         Récurrent<template v-if="roleNote(tx.recurring.role, tx.recurring.direction)"> · {{ roleNote(tx.recurring.role, tx.recurring.direction) }}</template>
       </BaseBadge>
       <BaseBadge v-if="tx.is_pending" variant="warning">En attente</BaseBadge>
+      <BaseBadge v-if="tx.origin" variant="secondary" :title="ORIGIN_TITLES[tx.origin]">
+        {{ ORIGIN_BADGES[tx.origin] }}
+      </BaseBadge>
     </div>
     <div class="col-span-full sm:col-end-2 row-start-3">
       <!-- What the investment accounts say: the deposit this operation was
@@ -241,8 +255,8 @@ const paymentMeans = computed(() =>
     <p :class="['col-start-2 row-start-1 sm:row-end-3 self-start sm:self-center text-right text-sm font-semibold tabular-nums whitespace-nowrap', amountClass]">
       {{ amount }}
     </p>
-    <!-- A fixed width, so the amounts line up whether a row offers one action or two. -->
-    <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:row-end-3 self-center w-16 flex items-center justify-end gap-0.5">
+    <!-- A fixed width, so the amounts line up however many actions a row offers. -->
+    <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:row-end-3 self-center w-24 flex items-center justify-end gap-0.5">
       <BaseButton
         v-if="!suggested && recurrable"
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
@@ -281,13 +295,34 @@ const paymentMeans = computed(() =>
         <Unlink class="w-4 h-4" />
       </BaseButton>
       <BaseButton
-        v-else
+        v-else-if="!tx.origin"
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
         icon size="sm" variant="ghost" :disabled="busy"
         aria-label="Lier à une autre opération" :title="PAIR_HINTS.link"
         @click="$emit('link')"
       >
         <Link2 class="w-4 h-4" />
+      </BaseButton>
+      <!-- Typed by hand: corrected or deleted in the modal it was typed in. -->
+      <BaseButton
+        v-if="tx.origin === 'manual'"
+        class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+        icon size="sm" variant="ghost" :disabled="busy"
+        aria-label="Modifier l'opération" title="Modifier l'opération"
+        @click="$emit('edit')"
+      >
+        <Pencil class="w-4 h-4" />
+      </BaseButton>
+      <!-- What a balance put there can be taken back; what a bank reported
+           only before its own history. -->
+      <BaseButton
+        v-else-if="tx.deletable"
+        class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+        icon size="sm" variant="ghost" :disabled="busy"
+        aria-label="Supprimer l'opération" title="Supprimer l'opération"
+        @click="$emit('remove')"
+      >
+        <Trash2 class="w-4 h-4" />
       </BaseButton>
     </div>
   </li>
