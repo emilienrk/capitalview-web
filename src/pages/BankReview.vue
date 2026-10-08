@@ -22,7 +22,7 @@ import { useRecurringStore } from '@/stores/recurring'
 import { CASHFLOW_TYPE_LABELS, contributionNote } from '@/utils/cashflowTypes'
 import type {
   BankReviewItem, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
-  RecurringDecisionKind,
+  RecurringDecisionKind, TypeScope,
 } from '@/types'
 
 const bank = useBankStore()
@@ -119,13 +119,13 @@ const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
 const retyping = ref<BankTransactionItem | null>(null)
 /** The last label answered, which "Annuler" takes back. */
-const lastAnswer = ref<{ ruleId: string; message: string } | null>(null)
+const lastAnswer = ref<{ ruleId: string | null; transactionId: string; message: string } | null>(null)
 
-async function answer(tx: BankTransactionItem, type: CashflowType): Promise<void> {
+async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope): Promise<void> {
   busy.value = tx.id
   error.value = null
   try {
-    const result = await types.answerFlow(tx.id, type)
+    const result = await types.answerFlow(tx.id, type, scope)
     remember(result)
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
@@ -138,7 +138,8 @@ function remember(result: BankTransactionTypeResult): void {
   const count = result.covered_count
   const ruleId = result.transaction.type_rule_id
   const message = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]}.`
-  lastAnswer.value = ruleId ? { ruleId, message } : null
+  // Kept to this one operation, there is no rule: undoing clears its own type.
+  lastAnswer.value = { ruleId, transactionId: result.transaction.id, message }
 }
 
 async function undo(): Promise<void> {
@@ -146,7 +147,8 @@ async function undo(): Promise<void> {
   if (!answered) return
   lastAnswer.value = null
   try {
-    await types.deleteRule(answered.ruleId)
+    if (answered.ruleId) await types.deleteRule(answered.ruleId)
+    else await types.clearOverride(answered.transactionId)
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'annuler cette réponse."
   }
@@ -255,7 +257,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           @decide="(kind) => decide(item.transaction, kind)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
-          @answer="(type) => answer(item.transaction, type)"
+          @answer="(type, scope) => answer(item.transaction, type, scope)"
           @retype="retyping = item.transaction"
           @subscribe="(decision) => subscribe(item.transaction, decision)"
         />

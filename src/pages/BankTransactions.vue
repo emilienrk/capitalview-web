@@ -31,6 +31,7 @@ import {
 } from '@/utils/cashflowTypes'
 import type {
   BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
+  TypeScope,
 } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -324,11 +325,11 @@ function onTyped(result: BankTransactionTypeResult): void {
   typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
 }
 
-async function answer(tx: BankTransactionItem, type: CashflowType): Promise<void> {
+async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope): Promise<void> {
   deciding.value = tx.id
   decisionError.value = null
   try {
-    onTyped(await cashflowTypes.answerFlow(tx.id, type))
+    onTyped(await cashflowTypes.answerFlow(tx.id, type, scope))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -667,7 +668,7 @@ onMounted(() => void load())
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
             @recurring="filing = tx"
-            @answer="(type) => answer(tx, type)"
+            @answer="(type, scope) => answer(tx, type, scope)"
             @retype="retyping = tx"
             @subscribe="(decision) => subscribe(tx, decision)"
             @edit="openEntry(tx.account_id, tx)"
@@ -693,7 +694,7 @@ onMounted(() => void load())
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
                 @recurring="filing = tx"
-                @answer="(type) => answer(tx, type)"
+                @answer="(type, scope) => answer(tx, type, scope)"
                 @retype="retyping = tx"
                 @subscribe="(decision) => subscribe(tx, decision)"
                 @edit="openEntry(tx.account_id, tx)"

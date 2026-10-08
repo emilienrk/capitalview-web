@@ -396,7 +396,7 @@ export interface BankFlowsResponse {
  * other status keeps the pair out of the totals.
  */
 export type BankTransferStatus =
-  | 'suggested' | 'savings' | 'recurring' | 'learned' | 'confirmed' | 'reversal' | 'refund'
+  | 'suggested' | 'savings' | 'recurring' | 'learned' | 'confirmed' | 'reversal' | 'refund' | 'identical'
 
 export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
 

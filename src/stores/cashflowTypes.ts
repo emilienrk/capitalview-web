@@ -23,9 +23,16 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     return result
   }
 
-  /** Answering a flow question types the label: every operation of it, and those imported later. */
-  function answerFlow(transactionId: string, type: CashflowType): Promise<BankTransactionTypeResult> {
-    return setType(transactionId, type, 'label')
+  /**
+   * Answering a flow question types the label — every operation of it, and
+   * those imported later — unless the user keeps the answer to this one.
+   */
+  function answerFlow(
+    transactionId: string,
+    type: CashflowType,
+    scope: TypeScope = 'label',
+  ): Promise<BankTransactionTypeResult> {
+    return setType(transactionId, type, scope)
   }
 
   async function clearOverride(transactionId: string): Promise<BankTransactionItem> {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
@@ -18,7 +18,7 @@ import {
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
-import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind } from '@/types'
+import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope } from '@/types'
 
 const props = defineProps<{
   tx: BankTransactionItem
@@ -41,7 +41,7 @@ const stake = computed(() => props.stakeAmount ?? null)
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   link: []
-  answer: [type: CashflowType]
+  answer: [type: CashflowType, scope: TypeScope]
   retype: []
   subscribe: [decision: RecurringDecisionKind]
   recurring: []
@@ -50,6 +50,9 @@ defineEmits<{
 }>()
 
 const { formatCurrency } = useFormatters()
+
+/** A label that means several things — one's own transfers, say — is answered one operation at a time. */
+const thisOneOnly = ref(false)
 const { maskValue } = usePrivacyMode()
 
 function money(value: number): string {
@@ -197,18 +200,26 @@ const paymentMeans = computed(() =>
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('answer', choice)"
+          @click="$emit('answer', choice, thisOneOnly ? 'operation' : 'label')"
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
         <!-- What the answer covers, openable: the operations it would type. -->
         <BankFlowGroup
-          v-if="tx.flow_question.operation_count > 1"
+          v-if="tx.flow_question.operation_count > 1 && !thisOneOnly"
           :transaction-id="tx.id"
           :count="tx.flow_question.operation_count"
           :stake="stake ?? undefined"
           :label="tx.label"
         />
+        <label
+          v-if="tx.flow_question.operation_count > 1"
+          class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
+          title="La réponse ne vaut que pour cette opération : les autres du même libellé restent à classer."
+        >
+          <input v-model="thisOneOnly" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" :disabled="busy" />
+          Celle-ci seulement
+        </label>
         <!-- The hints sit on operations the question is not asked on: said
              here, and shown on each of them once the list is open. -->
         <span v-if="tx.flow_question.hints" class="basis-full inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted">
