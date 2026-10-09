@@ -17,10 +17,18 @@ describe('useCashflowTypesStore', () => {
     vi.mocked(apiClient.get).mockResolvedValue({ total: 0, months: [] })
   })
 
-  it('answers a flow question by typing the label', async () => {
+  it('answers a flow question for this operation alone by default', async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({ transaction: {}, covered_count: 1 })
+
+    await useCashflowTypesStore().answerFlow('tx 1', 'SAVING')
+
+    expect(apiClient.put).toHaveBeenCalledWith('/banking/transactions/tx%201/type', { type: 'SAVING', scope: 'operation' })
+  })
+
+  it('types the whole label when asked to', async () => {
     vi.mocked(apiClient.put).mockResolvedValue({ transaction: {}, covered_count: 23 })
 
-    const result = await useCashflowTypesStore().answerFlow('tx 1', 'SAVING')
+    const result = await useCashflowTypesStore().answerFlow('tx 1', 'SAVING', 'label')
 
     expect(apiClient.put).toHaveBeenCalledWith('/banking/transactions/tx%201/type', { type: 'SAVING', scope: 'label' })
     expect(result.covered_count).toBe(23)

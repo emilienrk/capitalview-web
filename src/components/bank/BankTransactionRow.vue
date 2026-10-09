@@ -51,8 +51,10 @@ defineEmits<{
 
 const { formatCurrency } = useFormatters()
 
-/** A label that means several things — one's own transfers, say — is answered one operation at a time. */
-const thisOneOnly = ref(false)
+/** An answer types this operation alone unless the user asks for the whole
+ * label, the next ones included: one label often means several things
+ * (docs/bank-sorting.md). */
+const wholeLabel = ref(false)
 const { maskValue } = usePrivacyMode()
 
 function money(value: number): string {
@@ -143,11 +145,11 @@ const paymentMeans = computed(() =>
         {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
         <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
       </BaseBadge>
-      <!-- A deposit or withdrawal the investment account proves: read like a
-           transfer to one of the user's accounts. -->
-      <BaseBadge v-else-if="tx.contribution?.exact" variant="info">
+      <!-- A deposit or withdrawal of the very day: read like a transfer to
+           one of the user's accounts, offered until the user vouches for it. -->
+      <BaseBadge v-else-if="tx.contribution?.exact" :variant="tx.type_source === 'contribution' ? 'info' : 'warning'">
         <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
-        {{ contributionBadge(tx.contribution) }}
+        {{ contributionBadge(tx.contribution) }}{{ tx.type_source === 'contribution' ? '' : ' ?' }}
       </BaseBadge>
       <!-- Why this one is asked at all: the bank names no account, and none
            of the user's own holds the other leg. -->
@@ -200,25 +202,24 @@ const paymentMeans = computed(() =>
           :disabled="busy"
           :title="answerHint(choice, tx.is_credit)"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('answer', choice, thisOneOnly ? 'operation' : 'label')"
+          @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation')"
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
         <!-- What the answer covers, openable: the operations it would type. -->
         <BankFlowGroup
-          v-if="tx.flow_question.operation_count > 1 && !thisOneOnly"
+          v-if="tx.flow_question.operation_count > 1 && wholeLabel"
           :transaction-id="tx.id"
           :count="tx.flow_question.operation_count"
           :stake="stake ?? undefined"
           :label="tx.label"
         />
         <label
-          v-if="tx.flow_question.operation_count > 1"
           class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
-          title="La réponse ne vaut que pour cette opération : les autres du même libellé restent à classer."
+          title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans les réglages."
         >
-          <input v-model="thisOneOnly" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" :disabled="busy" />
-          Celle-ci seulement
+          <input v-model="wholeLabel" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" :disabled="busy" />
+          Toutes celles de ce libellé, et les prochaines
         </label>
         <!-- The hints sit on operations the question is not asked on: said
              here, and shown on each of them once the list is open. -->

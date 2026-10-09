@@ -78,16 +78,25 @@ export function typeSourceTitle(source: TypeSource): string {
 
 /**
  * What an investment account says about an operation, in one line, or null
- * when a badge says it all: the same amount, on the very day. `format` puts
- * an amount in the operation's currency, privacy mode included.
+ * when a badge says it all: the same amount, on the very day, already
+ * vouched for. Until the user vouches for it, even a same-day deposit is only
+ * a candidate, asked about (docs/bank-sorting.md). `format` puts an amount in
+ * the operation's currency, privacy mode included.
  */
 export function contributionNote(
   match: BankContributionMatch,
   operationAmount: number,
   format: (value: number) => string,
   day: string,
+  proved: boolean,
 ): string | null {
   const amount = Number(match.amount)
+  if (match.exact && !proved) {
+    const movement = match.is_deposit
+      ? `Un versement de ${format(amount)} sur ${match.account_name}`
+      : `Un retrait de ${format(amount)} depuis ${match.account_name}`
+    return `${movement} le même jour : est-ce celui-ci ?`
+  }
   if (!match.exact) {
     const movement = match.is_deposit
       ? `Un versement de ${format(amount)} sur ${match.account_name}`

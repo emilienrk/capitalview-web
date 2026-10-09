@@ -24,13 +24,13 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   }
 
   /**
-   * Answering a flow question types the label — every operation of it, and
-   * those imported later — unless the user keeps the answer to this one.
+   * Answering a flow question types this operation alone, unless the user
+   * asks for the whole label — every operation of it, and those imported later.
    */
   function answerFlow(
     transactionId: string,
     type: CashflowType,
-    scope: TypeScope = 'label',
+    scope: TypeScope = 'operation',
   ): Promise<BankTransactionTypeResult> {
     return setType(transactionId, type, scope)
   }

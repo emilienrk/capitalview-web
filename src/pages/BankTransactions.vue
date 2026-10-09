@@ -147,7 +147,7 @@ function stakeOf(tx: BankTransactionItem): string | undefined {
 function contributionOf(tx: BankTransactionItem): string | undefined {
   const match = tx.contribution
   if (!match) return undefined
-  return contributionNote(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day)) ?? undefined
+  return contributionNote(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day), tx.type_source === 'contribution') ?? undefined
 }
 
 function signedAmount(tx: BankTransactionItem): string {

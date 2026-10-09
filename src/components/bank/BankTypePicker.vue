@@ -42,7 +42,9 @@ const contribution = computed(() => {
   if (!tx?.contribution) return null
   const format = (value: number) => maskValue(formatCurrency(value, tx.currency))
   // The row says it with a badge; here the type needs its reason spelled out.
-  return contributionNote(tx.contribution, Number(tx.amount), format, formatDateShort(tx.contribution.day))
+  return contributionNote(
+    tx.contribution, Number(tx.amount), format, formatDateShort(tx.contribution.day), tx.type_source === 'contribution',
+  )
     ?? `${tx.contribution.is_deposit ? 'Versé sur' : 'Retiré de'} ${tx.contribution.account_name} le même jour.`
 })
 

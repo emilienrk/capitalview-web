@@ -88,26 +88,32 @@ describe('contributionNote', () => {
   const deposit = { account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: false }
   const euros = (value: number) => `${value.toFixed(2).replace('.', ',')} €`
 
-  it('says nothing of a deposit of the very amount on the very day: the badge does', () => {
-    expect(contributionNote({ ...deposit, exact: true }, 200, euros, '5 mars')).toBeNull()
+  it('says nothing of a vouched deposit of the very amount on the very day: the badge does', () => {
+    expect(contributionNote({ ...deposit, exact: true }, 200, euros, '5 mars', true)).toBeNull()
     expect(contributionBadge({ ...deposit, exact: true })).toBe('vers PEA')
   })
 
   it('names the fee a platform kept', () => {
-    expect(contributionNote({ ...deposit, amount: 199, exact: true }, 200, euros, '5 mars')).toBe(
+    expect(contributionNote({ ...deposit, amount: 199, exact: true }, 200, euros, '5 mars', true)).toBe(
       '199,00 € arrivés sur PEA, 1,00 € de frais.',
     )
   })
 
   it('offers a nearby deposit without deciding for the user', () => {
-    expect(contributionNote(deposit, 200, euros, '7 mars')).toBe(
+    expect(contributionNote(deposit, 200, euros, '7 mars', false)).toBe(
       'Un versement de 200,00 € sur PEA le 7 mars pourrait être celui-ci.',
+    )
+  })
+
+  it('asks about a same-day deposit until the user vouches for it', () => {
+    expect(contributionNote({ ...deposit, exact: true }, 200, euros, '5 mars', false)).toBe(
+      'Un versement de 200,00 € sur PEA le même jour : est-ce celui-ci ?',
     )
   })
 
   it('reads a withdrawal as money coming back', () => {
     const withdrawal = { ...deposit, is_deposit: false }
-    expect(contributionNote(withdrawal, 80, euros, '5 mars')).toContain('retrait de 200,00 € depuis PEA')
+    expect(contributionNote(withdrawal, 80, euros, '5 mars', false)).toContain('retrait de 200,00 € depuis PEA')
     expect(contributionBadge({ ...withdrawal, exact: true })).toBe('depuis PEA')
   })
 })
