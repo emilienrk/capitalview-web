@@ -287,6 +287,21 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
+/** The pair set aside, the operation counted as the deposit facing it. */
+async function deposit(tx: BankTransactionItem): Promise<void> {
+  if (!tx.transfer_id) return
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
+    onTyped(await cashflowTypes.answerFlow(tx.id, 'INVESTMENT', 'operation'))
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    deciding.value = null
+  }
+}
+
 // ── Entries on an account no bank feeds ────────────────────
 
 /** The account shown, when its operations are typed or imported rather than synced. */
@@ -668,6 +683,7 @@ onMounted(() => void load())
             :stake-amount="stakeOf(tx)"
             :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
+            @deposit="deposit(tx)"
             @link="linking = tx"
             @recurring="filing = tx"
             @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
@@ -694,6 +710,7 @@ onMounted(() => void load())
                 :stake-amount="stakeOf(tx)"
                 :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
+                @deposit="deposit(tx)"
                 @link="linking = tx"
                 @recurring="filing = tx"
                 @answer="(type, scope, picked) => answer(tx, type, scope, picked)"

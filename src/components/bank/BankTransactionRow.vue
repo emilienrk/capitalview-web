@@ -40,6 +40,8 @@ const stake = computed(() => props.stakeAmount ?? null)
 
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
+  /** A suggested pair is set aside for the deposit facing the operation. */
+  deposit: []
   link: []
   /** `picked`: the operations to type with the operation scope, this one or those ticked in its label. */
   answer: [type: CashflowType, scope: TypeScope, picked: string[]]
@@ -193,6 +195,32 @@ const paymentMeans = computed(() =>
         <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
         <span class="truncate" :title="offered">{{ offered }}</span>
       </p>
+      <!-- A pair offered and a deposit facing the same operation: one
+           question for both, so neither hides the other. -->
+      <div v-if="suggested && tx.contribution" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="inline-flex items-center gap-1 text-warning font-medium">
+          <HelpCircle class="w-3.5 h-3.5" />
+          C'est…
+        </span>
+        <button
+          type="button"
+          :disabled="busy"
+          :title="PAIR_HINTS.transfer"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('decide', 'transfer')"
+        >
+          {{ tx.is_credit ? 'Depuis' : 'Vers' }} {{ tx.transfer_account_name }}
+        </button>
+        <button
+          type="button"
+          :disabled="busy"
+          title="Compté en investissement, et la paire n'est plus proposée."
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('deposit')"
+        >
+          {{ tx.contribution.is_deposit ? 'Versement sur' : 'Retrait depuis' }} {{ tx.contribution.account_name }}
+        </button>
+      </div>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">

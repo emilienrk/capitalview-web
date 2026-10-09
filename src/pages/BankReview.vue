@@ -168,6 +168,21 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
   }
 }
 
+/** The pair set aside, the operation counted as the deposit facing it. */
+async function deposit(tx: BankTransactionItem): Promise<void> {
+  if (!tx.transfer_id) return
+  busy.value = tx.id
+  error.value = null
+  try {
+    await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
+    remember(await types.answerFlow(tx.id, 'INVESTMENT', 'operation'))
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    busy.value = null
+  }
+}
+
 async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
   if (!tx.transfer_id) return
   busy.value = tx.id
@@ -257,6 +272,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           :stake-amount="stakeOf(item)"
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
+          @deposit="deposit(item.transaction)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
           @answer="(type, scope, picked) => answer(item.transaction, type, scope, picked)"
