@@ -848,6 +848,34 @@ export interface BankReviewQueue {
   unfaced: BankUnfacedContribution[]
 }
 
+export type BankHistoryKind = 'transfer' | 'not_transfer' | 'reversal' | 'type' | 'rule' | 'recurring'
+
+export interface BankHistoryOperation {
+  id: string
+  operation_date: string | null
+  label: string | null
+  amount: number
+  currency: string
+  is_credit: boolean
+  account_name: string
+}
+
+/** One answer of the user still in force: withdrawing it undoes it. */
+export interface BankHistoryItem {
+  kind: BankHistoryKind
+  id: string
+  /** Null for a type forced before the date was kept. */
+  at: string | null
+  type: CashflowType | null
+  operations: BankHistoryOperation[]
+  name: string | null
+  account_name: string | null
+  operation_count: number | null
+  confirmed: boolean | null
+  /** A type chosen by hand that a pair recognised since outranks. */
+  overridden_by_pair: boolean
+}
+
 export interface BankUnfacedContribution {
   day: string
   account_name: string

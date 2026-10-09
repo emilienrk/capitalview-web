@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { CheckCircle2 } from 'lucide-vue-next'
 
 import { BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSkeleton } from '@/components'
+import BankHistoryModal from '@/components/bank/BankHistoryModal.vue'
 import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
@@ -115,11 +116,18 @@ function contributionOf(tx: BankTransactionItem): string | undefined {
 
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
+const showHistory = ref(false)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
 const retyping = ref<BankTransactionItem | null>(null)
 /** The last label answered, which "Annuler" takes back. */
-const lastAnswer = ref<{ ruleId: string | null; transactionIds: string[]; message: string } | null>(null)
+const lastAnswer = ref<{
+  ruleId: string | null
+  transactionIds: string[]
+  message: string
+  /** Answered as its deposit: the pair refused on the way comes back too. */
+  refusedPair?: boolean
+} | null>(null)
 
 async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
   busy.value = tx.id
@@ -151,6 +159,13 @@ async function undo(): Promise<void> {
   try {
     if (answered.ruleId) await types.deleteRule(answered.ruleId)
     else await types.clearOverride(...answered.transactionIds)
+    if (answered.refusedPair) {
+      const [id] = answered.transactionIds
+      const refusal = (await types.fetchHistory()).find(
+        (item) => item.kind === 'not_transfer' && item.operations.some((op) => op.id === id),
+      )
+      if (refusal) await types.undoAnswer(refusal)
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'annuler cette réponse."
   }
@@ -176,6 +191,7 @@ async function deposit(tx: BankTransactionItem): Promise<void> {
   try {
     await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
     remember(await types.answerFlow(tx.id, 'INVESTMENT', 'operation'))
+    if (lastAnswer.value) lastAnswer.value.refusedPair = true
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
   } finally {
@@ -321,6 +337,17 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
       </ul>
     </BaseCard>
 
+    <p class="mt-6 text-center">
+      <button
+        type="button"
+        class="text-sm font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:underline"
+        @click="showHistory = true"
+      >
+        Historique de mes réponses
+      </button>
+    </p>
+
+    <BankHistoryModal :open="showHistory" @close="showHistory = false" />
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker :open="retyping !== null" :tx="retyping" @close="retyping = null" @saved="remember" />

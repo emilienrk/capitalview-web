@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
 import type {
-  BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, CashflowType, TypeScope,
+  BankHistoryItem, BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, CashflowType, TypeScope,
 } from '@/types'
 
 /** How operations count: the type of one of them, the rules of their labels. */
@@ -64,6 +64,17 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     )
   }
 
+  /** Every answer still in force, newest first. */
+  function fetchHistory(): Promise<BankHistoryItem[]> {
+    return apiClient.get<BankHistoryItem[]>('/banking/history')
+  }
+
+  /** Withdraws one answer: the operations read as they did before it. */
+  async function undoAnswer(item: Pick<BankHistoryItem, 'kind' | 'id'>): Promise<void> {
+    await apiClient.delete(`/banking/history/${item.kind}/${encodeURIComponent(item.id)}`)
+    changed()
+  }
+
   /** Every open question, heaviest first; the year narrows the list, never the years offered. */
   async function fetchReviewQueue(year: number | null = null): Promise<void> {
     queueYear.value = year
@@ -86,6 +97,6 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
 
   return {
     rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, deleteRule, fetchFlowGroup,
-    fetchReviewQueue, reset,
+    fetchHistory, undoAnswer, fetchReviewQueue, reset,
   }
 })
