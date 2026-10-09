@@ -41,7 +41,8 @@ const stake = computed(() => props.stakeAmount ?? null)
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   link: []
-  answer: [type: CashflowType, scope: TypeScope]
+  /** `picked`: the operations to type with the operation scope, this one or those ticked in its label. */
+  answer: [type: CashflowType, scope: TypeScope, picked: string[]]
   retype: []
   subscribe: [decision: RecurringDecisionKind]
   recurring: []
@@ -55,6 +56,10 @@ const { formatCurrency } = useFormatters()
  * label, the next ones included: one label often means several things
  * (docs/bank-sorting.md). */
 const wholeLabel = ref(false)
+/** The label's list open to tick from, and what is ticked: this one to begin with. */
+const picking = ref(false)
+const picked = ref<string[]>([props.tx.id])
+const answering = computed<string[]>(() => (picking.value ? picked.value : [props.tx.id]))
 const { maskValue } = usePrivacyMode()
 
 function money(value: number): string {
@@ -199,21 +204,13 @@ const paymentMeans = computed(() =>
           v-for="choice in tx.flow_question.choices"
           :key="choice"
           type="button"
-          :disabled="busy"
+          :disabled="busy || (!wholeLabel && !answering.length)"
           :title="answerHint(choice, tx.is_credit)"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation')"
+          @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation', wholeLabel ? [tx.id] : answering)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
-        <!-- What the answer covers, openable: the operations it would type. -->
-        <BankFlowGroup
-          v-if="tx.flow_question.operation_count > 1 && wholeLabel"
-          :transaction-id="tx.id"
-          :count="tx.flow_question.operation_count"
-          :stake="stake ?? undefined"
-          :label="tx.label"
-        />
         <label
           class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
           title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans les réglages."
@@ -221,6 +218,18 @@ const paymentMeans = computed(() =>
           <input v-model="wholeLabel" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" :disabled="busy" />
           Toutes celles de ce libellé, et les prochaines
         </label>
+        <!-- What the answer covers, openable: the operations it would type,
+             to tick from unless the whole label is answered. -->
+        <BankFlowGroup
+          v-if="tx.flow_question.operation_count > 1"
+          v-model:open="picking"
+          v-model:picked="picked"
+          :transaction-id="tx.id"
+          :count="tx.flow_question.operation_count"
+          :stake="stake ?? undefined"
+          :label="tx.label"
+          :picking="!wholeLabel"
+        />
         <!-- The hints sit on operations the question is not asked on: said
              here, and shown on each of them once the list is open. -->
         <span v-if="tx.flow_question.hints" class="basis-full inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted">

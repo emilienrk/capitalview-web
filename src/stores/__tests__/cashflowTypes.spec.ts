@@ -34,6 +34,30 @@ describe('useCashflowTypesStore', () => {
     expect(result.covered_count).toBe(23)
   })
 
+  it('types the operations ticked beside it, and never with a rule', async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({ transaction: {}, covered_count: 3 })
+    const types = useCashflowTypesStore()
+
+    await types.answerFlow('tx-1', 'SAVING', 'operation', ['tx-2', 'tx-3'])
+    await types.answerFlow('tx-1', 'SAVING', 'label', ['tx-2'])
+
+    expect(apiClient.put).toHaveBeenNthCalledWith(1, '/banking/transactions/tx-1/type', {
+      type: 'SAVING', scope: 'operation', also: ['tx-2', 'tx-3'],
+    })
+    expect(apiClient.put).toHaveBeenNthCalledWith(2, '/banking/transactions/tx-1/type', { type: 'SAVING', scope: 'label' })
+  })
+
+  it('takes back several answers in one refresh', async () => {
+    vi.mocked(apiClient.delete).mockResolvedValue({})
+    const bank = useBankStore()
+
+    await useCashflowTypesStore().clearOverride('tx-1', 'tx-2')
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/banking/transactions/tx-1/type')
+    expect(apiClient.delete).toHaveBeenCalledWith('/banking/transactions/tx-2/type')
+    expect(bank.dataRevision).toBe(1)
+  })
+
   it('makes every observed flow stale after a write', async () => {
     vi.mocked(apiClient.put).mockResolvedValue({ transaction: {}, covered_count: 1 })
     const bank = useBankStore()

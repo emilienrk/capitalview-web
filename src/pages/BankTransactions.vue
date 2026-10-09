@@ -325,11 +325,13 @@ function onTyped(result: BankTransactionTypeResult): void {
   typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
 }
 
-async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope): Promise<void> {
+async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
   deciding.value = tx.id
   decisionError.value = null
+  // The operation asked about may have been unticked: the first ticked one carries the answer.
+  const [first = tx.id, ...also] = picked
   try {
-    onTyped(await cashflowTypes.answerFlow(tx.id, type, scope))
+    onTyped(await cashflowTypes.answerFlow(first, type, scope, also))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -668,7 +670,7 @@ onMounted(() => void load())
             @decide="(kind) => decide(tx, kind)"
             @link="linking = tx"
             @recurring="filing = tx"
-            @answer="(type, scope) => answer(tx, type, scope)"
+            @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
             @retype="retyping = tx"
             @subscribe="(decision) => subscribe(tx, decision)"
             @edit="openEntry(tx.account_id, tx)"
@@ -694,7 +696,7 @@ onMounted(() => void load())
                 @decide="(kind) => decide(tx, kind)"
                 @link="linking = tx"
                 @recurring="filing = tx"
-                @answer="(type, scope) => answer(tx, type, scope)"
+                @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
                 @retype="retyping = tx"
                 @subscribe="(decision) => subscribe(tx, decision)"
                 @edit="openEntry(tx.account_id, tx)"

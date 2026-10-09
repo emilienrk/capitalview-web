@@ -6,6 +6,10 @@
  * this opens the list of the very operations counted, so an answer is given
  * knowing what it moves rather than on trust. Fetched on the first opening
  * only: the group spans the whole history, which the month's list never loads.
+ *
+ * With `picking`, the list is where the user ticks the operations an answer
+ * types ("celles que je coche"): open, the answer covers the ticked ones;
+ * closed, the operation asked about alone.
  */
 import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
@@ -25,13 +29,17 @@ const props = defineProps<{
   stake?: string
   /** The label asked about: only the operations reading differently show theirs. */
   label: string | null
+  /** Ticks each operation, into `picked`. */
+  picking?: boolean
 }>()
+
+const open = defineModel<boolean>('open', { default: false })
+const picked = defineModel<string[]>('picked', { default: () => [] })
 
 const types = useCashflowTypesStore()
 const { formatCurrency } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
-const open = ref(false)
 const operations = ref<BankTransactionItem[] | null>(null)
 const failed = ref(false)
 
@@ -80,7 +88,13 @@ function day(value: string | null): string {
       :aria-expanded="open"
       @click="toggle"
     >
-      s'applique aux {{ count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
+      <template v-if="!picking">
+        s'applique aux {{ count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
+      </template>
+      <template v-else-if="open">
+        s'applique aux {{ picked.length }} cochée{{ picked.length > 1 ? 's' : '' }}, sur {{ count }}
+      </template>
+      <template v-else>Choisir parmi les {{ count }} opérations de ce libellé</template>
       <ChevronDown :class="['w-3 h-3 shrink-0 transition-transform', open ? 'rotate-180' : '']" />
     </button>
 
@@ -96,7 +110,15 @@ function day(value: string | null): string {
                 :key="operation.id"
                 class="px-2.5 py-1.5 text-text-muted dark:text-text-dark-muted"
               >
-                <div class="flex items-baseline gap-2">
+                <component :is="picking ? 'label' : 'div'" :class="['flex items-baseline gap-2', { 'cursor-pointer': picking }]">
+                  <input
+                    v-if="picking"
+                    v-model="picked"
+                    type="checkbox"
+                    :value="operation.id"
+                    class="self-center w-3.5 h-3.5 shrink-0 rounded accent-primary"
+                    :aria-label="`${day(operation.operation_date)}, ${signed(operation)}`"
+                  />
                   <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
                   <span class="truncate" :title="operation.account_name">{{ operation.account_name }}</span>
                   <!-- The references and dates a bank writes into its labels differ from
@@ -107,7 +129,7 @@ function day(value: string | null): string {
                   <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
                     {{ signed(operation) }}
                   </span>
-                </div>
+                </component>
                 <p v-if="hint(operation)" class="text-info">{{ hint(operation) }}</p>
               </li>
             </template>

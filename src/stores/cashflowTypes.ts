@@ -14,33 +14,37 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   /** The year the queue was last asked for, null for every year. */
   const queueYear = ref<number | null>(null)
 
-  async function setType(transactionId: string, type: CashflowType, scope: TypeScope): Promise<BankTransactionTypeResult> {
+  async function setType(
+    transactionId: string, type: CashflowType, scope: TypeScope, also: string[] = [],
+  ): Promise<BankTransactionTypeResult> {
     const result = await apiClient.put<BankTransactionTypeResult>(
       `/banking/transactions/${encodeURIComponent(transactionId)}/type`,
-      { type, scope },
+      also.length ? { type, scope, also } : { type, scope },
     )
     changed()
     return result
   }
 
   /**
-   * Answering a flow question types this operation alone, unless the user
-   * asks for the whole label — every operation of it, and those imported later.
+   * Answering a flow question types this operation alone, the others of its
+   * label the user ticked (`also`, no rule written), or the whole label —
+   * every operation of it, and those imported later.
    */
   function answerFlow(
     transactionId: string,
     type: CashflowType,
     scope: TypeScope = 'operation',
+    also: string[] = [],
   ): Promise<BankTransactionTypeResult> {
-    return setType(transactionId, type, scope)
+    return setType(transactionId, type, scope, scope === 'operation' ? also : [])
   }
 
-  async function clearOverride(transactionId: string): Promise<BankTransactionItem> {
-    const item = await apiClient.delete<BankTransactionItem>(
-      `/banking/transactions/${encodeURIComponent(transactionId)}/type`,
-    )
+  /** Drops what the user forced on these operations, in one refresh. */
+  async function clearOverride(...transactionIds: string[]): Promise<void> {
+    await Promise.all(transactionIds.map((id) =>
+      apiClient.delete<BankTransactionItem>(`/banking/transactions/${encodeURIComponent(id)}/type`),
+    ))
     changed()
-    return item
   }
 
   async function fetchRules(): Promise<void> {
