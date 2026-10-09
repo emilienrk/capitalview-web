@@ -844,6 +844,15 @@ export interface BankReviewQueue {
   /** Over the whole history, whatever the year asked for. */
   years: Array<{ year: number; amount: number; count: number }>
   questions: BankReviewItem[]
+  /** Declared on an investment account, faced by no bank operation: narrowed to the year, newest first. */
+  unfaced: BankUnfacedContribution[]
+}
+
+export interface BankUnfacedContribution {
+  day: string
+  account_name: string
+  amount: number
+  is_deposit: boolean
 }
 
 export interface BankLedgerAccount {

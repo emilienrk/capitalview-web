@@ -37,8 +37,8 @@ describe('openQuestionsNotice', () => {
   })
 
   it('weighs what can still move the figures, then counts it', () => {
-    expect(openQuestionsNotice(1, '400,00 €')).toBe('400,00 € à confirmer (1 opération)')
-    expect(openQuestionsNotice(12, '3 200,00 €')).toBe('3 200,00 € à confirmer (12 opérations)')
+    expect(openQuestionsNotice(1, '400,00 €')).toBe('400,00 € à trier (1 opération)')
+    expect(openQuestionsNotice(12, '3 200,00 €')).toBe('3 200,00 € à trier (12 opérations)')
   })
 })
 

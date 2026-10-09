@@ -99,6 +99,27 @@ watch(
 onMounted(() => void loadChartHistories())
 
 const chartPerformance = ref<{ diff: number; percent: number | null } | null>(null)
+
+// A transfer to an account the app does not hold counts as spent: said once,
+// when the first accounts land, then closed for good on this browser. Storage
+// can be missing or throw; the notice then simply comes back.
+const OTHER_ACCOUNTS_HINT_KEY = 'bank-other-accounts-hint-closed'
+function readHintClosed(): boolean {
+  try {
+    return localStorage.getItem(OTHER_ACCOUNTS_HINT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const otherAccountsHintClosed = ref(readHintClosed())
+function closeOtherAccountsHint(): void {
+  otherAccountsHintClosed.value = true
+  try {
+    localStorage.setItem(OTHER_ACCOUNTS_HINT_KEY, '1')
+  } catch {
+    // Closed for this visit only.
+  }
+}
 </script>
 
 <template>
@@ -114,6 +135,16 @@ const chartPerformance = ref<{ diff: number; percent: number | null } | null>(nu
         Total indisponible : le cours d'une de vos devises n'est pas publié.
       </p>
     </div>
+
+    <BaseAlert
+      v-if="bank.summary?.accounts?.length && !otherAccountsHintClosed"
+      variant="info"
+      dismissible
+      class="mb-6"
+      @dismiss="closeOtherAccountsHint"
+    >
+      Ajoutez aussi vos livrets et vos comptes de bourse : sinon, les virements vers eux compteront comme des dépenses.
+    </BaseAlert>
 
     <!-- Bank History Chart -->
     <BaseCard v-if="bank.summary?.accounts?.length" class="mb-6">

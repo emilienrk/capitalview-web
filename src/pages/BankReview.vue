@@ -280,6 +280,29 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
       </template>
     </BaseEmptyState>
 
+    <!-- Shown, never asked: no answer would change a total, only adding the
+         account the money went through would. -->
+    <BaseCard v-if="queue?.unfaced?.length" class="mt-6">
+      <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Sans contrepartie bancaire</h3>
+      <p class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
+        Aucune opération de vos comptes bancaires ne correspond à ces mouvements de vos comptes d'investissement :
+        ils sont peut-être passés par un compte que vous n'avez pas ajouté.
+      </p>
+      <ul class="mt-3 divide-y divide-surface-border dark:divide-surface-dark-border">
+        <li
+          v-for="(item, i) in queue.unfaced"
+          :key="`${item.day}-${i}`"
+          class="flex items-center justify-between gap-3 py-2 text-sm"
+        >
+          <span class="min-w-0 truncate text-text-main dark:text-text-dark-main">
+            <span class="text-text-muted dark:text-text-dark-muted">{{ shortDay(item.day) }}</span>
+            · {{ item.is_deposit ? 'Dépôt sur' : 'Retrait de' }} {{ item.account_name }}
+          </span>
+          <span class="shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">{{ amount(item.amount) }}</span>
+        </li>
+      </ul>
+    </BaseCard>
+
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker :open="retyping !== null" :tx="retyping" @close="retyping = null" @saved="remember" />

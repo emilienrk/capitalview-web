@@ -26,7 +26,7 @@ export function monthlyFigures(year: RealCashflowYear, statistic: MonthlyStatist
 export function openQuestionsNotice(count: number, amount: string): string | null {
   if (count <= 0) return null
   const operations = count === 1 ? '1 opération' : `${count} opérations`
-  return `${amount} à confirmer (${operations})`
+  return `${amount} à trier (${operations})`
 }
 
 /**
