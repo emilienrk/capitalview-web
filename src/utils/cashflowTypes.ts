@@ -117,14 +117,14 @@ export function contributionBadge(match: BankContributionMatch): string {
 
 /**
  * What settling a suggested pair does to the figures, said on hover as
- * `answerHint` says it for a type. In full, because both answers teach the
- * pairing something durable about the two labels, not just about this pair.
+ * `answerHint` says it for a type. A confirmation teaches the pairing about
+ * the two sides; a refusal holds for this pair alone (docs/bank-sorting.md).
  */
 export const PAIR_HINTS = {
   transfer:
     "C'est un virement entre mes comptes : les deux lignes sortent des totaux, et les prochaines paires qui leur ressemblent s'apparieront seules.",
   notTransfer:
-    "Ce n'est pas un virement : chaque ligne compte de son côté, et cette paire ne sera plus proposée.",
+    "Pas ensemble : chacune restera comptée de son côté. Seule cette paire ne sera plus proposée.",
   unlink:
     'Dissocier : les deux opérations recomptent chacune de leur côté, dans les entrées et les dépenses.',
   link:

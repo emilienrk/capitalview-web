@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed, ref } from 'vue'
-import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink, X } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
@@ -195,9 +195,10 @@ const paymentMeans = computed(() =>
         <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
         <span class="truncate" :title="offered">{{ offered }}</span>
       </p>
-      <!-- A pair offered and a deposit facing the same operation: one
-           question for both, so neither hides the other. -->
-      <div v-if="suggested && tx.contribution" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+      <!-- A pair offered, asked in words: the refusal says what it does, so it
+           is not read as "count it as spent". A deposit facing the same
+           operation joins the same question, so neither hides the other. -->
+      <div v-if="suggested" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
           C'est…
@@ -212,6 +213,7 @@ const paymentMeans = computed(() =>
           {{ tx.is_credit ? 'Depuis' : 'Vers' }} {{ tx.transfer_account_name }}
         </button>
         <button
+          v-if="tx.contribution"
           type="button"
           :disabled="busy"
           title="Compté en investissement, et la paire n'est plus proposée."
@@ -220,6 +222,18 @@ const paymentMeans = computed(() =>
         >
           {{ tx.contribution.is_deposit ? 'Versement sur' : 'Retrait depuis' }} {{ tx.contribution.account_name }}
         </button>
+        <button
+          type="button"
+          :disabled="busy"
+          :title="PAIR_HINTS.notTransfer"
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main font-medium hover:bg-surface-border dark:hover:bg-surface-dark-border disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('decide', 'not_transfer')"
+        >
+          Pas ensemble
+        </button>
+        <span class="basis-full text-text-muted dark:text-text-dark-muted">
+          Pas ensemble : chacune restera comptée de son côté.
+        </span>
       </div>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->
@@ -315,25 +329,10 @@ const paymentMeans = computed(() =>
       >
         <Repeat class="w-4 h-4" />
       </BaseButton>
-      <!-- Only a suggested pair asks: every other one was settled without the user.
-           The corrections stay out of sight until hovered, so the list does not
-           read as a to-do list. -->
-      <template v-if="suggested">
-        <BaseButton
-          icon size="sm" variant="ghost" :disabled="busy"
-          aria-label="C'est un virement entre mes comptes" :title="PAIR_HINTS.transfer"
-          @click="$emit('decide', 'transfer')"
-        >
-          <Check class="w-4 h-4" />
-        </BaseButton>
-        <BaseButton
-          icon size="sm" variant="ghost" :disabled="busy"
-          aria-label="Ce n'est pas un virement" :title="PAIR_HINTS.notTransfer"
-          @click="$emit('decide', 'not_transfer')"
-        >
-          <X class="w-4 h-4" />
-        </BaseButton>
-      </template>
+      <!-- A suggested pair asks in the question below; every other one was
+           settled without the user. The corrections stay out of sight until
+           hovered, so the list does not read as a to-do list. -->
+      <template v-if="suggested" />
       <BaseButton
         v-else-if="tx.transfer_id"
         class="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
