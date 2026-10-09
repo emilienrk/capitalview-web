@@ -142,7 +142,6 @@ export interface BankAccountCreate {
   account_type: BankAccountType
   institution_name?: string
   identifier?: string
-  balance?: number
   /** ISO 4217 code. Defaults to EUR; refused if no exchange rate is published. */
   currency?: string
   opened_at?: string | null
@@ -158,7 +157,6 @@ export interface BankAccountUpdate {
   name?: string
   institution_name?: string
   identifier?: string
-  balance?: number
   currency?: string
   opened_at?: string | null
   interest_rate?: number | null
@@ -445,7 +443,7 @@ export interface BankTransactionItem {
   recurring: BankRecurringTag | null
   /** Set on the last operation of a series found but not sure enough to count. */
   recurring_question: BankRecurringQuestion | null
-  /** Typed by hand, a balance's adjustment, or a forecast; null for a reported one. */
+  /** Typed by hand, an adjustment, or a forecast; null for a reported one. */
   origin?: BankOperationOrigin | null
   /** Whether DELETE /bank/transactions/{id} accepts it. */
   deletable?: boolean
@@ -455,28 +453,25 @@ export interface BankTransactionItem {
  *  and forecasts only move the balance (docs/bank-ledger.md on the API). */
 export type BankOperationOrigin = 'manual' | 'adjustment' | 'forecast'
 
-export type BankEntryKind = 'operation' | 'balance'
-
-/** POST /bank/accounts/{id}/entries, on an account no bank feeds. */
+/** POST /bank/accounts/{id}/entries: an operation typed by hand on an account
+ *  no bank feeds. Money already there when it opened is one too. */
 export interface BankEntryRequest {
-  kind: BankEntryKind
   /** YYYY-MM-DD */
   day: string
-  /** `operation`: signed, negative for money out. */
-  amount?: number
-  /** `balance`: what the account held at the end of `day`. */
-  balance?: number
+  /** Signed, negative for money out. */
+  amount: number
   label?: string | null
 }
 
-/** What an entry does, or would do under ?dry_run=true. */
 export interface BankEntryResponse {
-  id: string | null
-  /** `balance` only: the adjustment it records. */
-  adjustment: number | null
-  forecasts_replaced: number
-  balance_now_before: number
-  balance_now_after: number
+  id: string
+}
+
+/** GET /bank/accounts/{id}/balance?day=: what the operations add up to, in the account's currency. */
+export interface BankBalanceResponse {
+  day: string
+  balance_on_day: number
+  balance_now: number
 }
 
 // ─── Types de flux ───────────────────────────────────────────
@@ -1503,10 +1498,10 @@ export interface ColumnMapping {
   quantity?: string
   price?: string
   fees?: string
-  /** Bank: end-of-day balance column (mode "balance"). */
-  balance?: string
-  /** Bank: signed movement column (mode "delta"). */
+  /** Bank: signed movement column. */
   amount?: string
+  /** Bank: the operation's label. */
+  label?: string
 }
 
 export interface ImportOptions {
@@ -1515,9 +1510,6 @@ export interface ImportOptions {
   decimal_separator?: string
   date_format?: string
   type_mapping?: Record<string, string>
-  /** Bank: "balance" (each row is a balance) or "delta" (each row is a movement). */
-  /** Bank delta mode: starting balance before the first movement. */
-  initial_balance?: number | string
 }
 
 export interface ImportPreviewRequest {
@@ -1540,12 +1532,6 @@ export interface StockImportRowPreview {
   is_duplicate: boolean
   error: string | null
   notes: string | null
-}
-
-export interface BankImportPointPreview {
-  snapshot_date: string
-  value: number
-  is_duplicate: boolean
 }
 
 /** One movement read from a statement CSV. `amount` is the magnitude: the
@@ -1574,15 +1560,16 @@ export interface BankImportReplacedEntry {
   label: string | null
 }
 
-/** The balance curve a movements file describes, once anchored. */
+/** The curve a movements file draws before a linked account's history,
+ *  anchored so that it meets the bank's. */
 export interface BankImportCurvePreview {
   start_date: string
   end_date: string
-  /** Balance held before the first movement — what the whole curve hangs on. */
+  /** Balance before the first movement. */
   opening_balance: number
   closing_balance: number
   days: number
-  /** Set when the curve dips below zero: usually an anchor left too low. */
+  /** Set when the curve dips below zero: usually older operations missing. */
   first_negative_date: string | null
 }
 
@@ -1596,7 +1583,6 @@ export interface ImportPreviewResponse {
   warnings: string[]
   crypto: BinanceImportPreviewResponse | null
   stock_rows: StockImportRowPreview[] | null
-  bank_points: BankImportPointPreview[] | null
   bank_transactions: BankImportTransactionPreview[] | null
   bank_curve: BankImportCurvePreview | null
   /** Bank-linked account only (YYYY-MM-DD): the first day the bank's own history
@@ -1617,9 +1603,7 @@ export interface ImportConfirmRequest {
   options?: ImportOptions
   crypto_groups?: BinanceImportGroupPreview[] | null
   stock_rows?: StockImportRowPreview[] | null
-  bank_points?: BankImportPointPreview[] | null
   bank_transactions?: BankImportTransactionPreview[] | null
-  overwrite?: boolean
 }
 
 export interface ImportConfirmResponse {

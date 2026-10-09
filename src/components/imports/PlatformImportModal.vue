@@ -14,7 +14,6 @@ import type {
   ImportPreviewResponse,
   ImportSourceInfo,
   StockImportRowPreview,
-  BankImportPointPreview,
   BankImportTransactionPreview,
   BankImportCurvePreview,
 } from '@/types'
@@ -62,21 +61,15 @@ const options = ref<ImportOptions>({})
 const preview = ref<ImportPreviewResponse | null>(null)
 const cryptoGroups = ref<BinanceImportGroupPreview[]>([])
 const stockRows = ref<StockImportRowPreview[]>([])
-const bankPoints = ref<BankImportPointPreview[]>([])
-// A bank source writes one shape or the other, never both: a balance curve
-// (generic_bank) or real movements (generic_bank_transactions).
 const bankTransactions = ref<BankImportTransactionPreview[]>([])
-// The curve those movements describe. A statement carries no balance of its
-// own, so it hangs on an anchor the user can correct without leaving the review.
+// Linked account only: the curve the movements draw up to the bank's history.
 const bankCurve = ref<BankImportCurvePreview | null>(null)
-const openingBalance = ref('')
 
 // The menu already asked which import this is; re-presenting the picker makes
 // the choice look unmade. Kept one click away for a wrong pick or a detection.
 const sourcePicked = ref(false)
 
 const skipDuplicates = ref(true)
-const overwrite = ref(false)
 
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -85,9 +78,8 @@ const result = reactive({ imported: 0, skipped: 0, groups: null as number | null
 const selectedSource = computed(() => sources.value.find((s) => s.source_id === selectedSourceId.value) ?? null)
 
 /**
- * A bank-linked account only takes a movements file, cut where the bank's
- * history starts; a balance file would fight the bank's curve, so those
- * accounts are not offered for it.
+ * A bank-linked account only takes a file cut where the bank's history starts:
+ * a source that cannot do so is not offered those accounts.
  */
 const selectableAccounts = computed(() =>
   props.category === 'bank' && selectedSource.value && !selectedSource.value.fills_before_bank_history
@@ -122,7 +114,7 @@ const needsMapping = computed(
 const mappingReady = computed(() => {
   const m = options.value.mapping
   if (!m) return false
-  if (props.category === 'bank') return !!m.date && !!(m.balance || m.amount)
+  if (props.category === 'bank') return !!m.date && !!m.amount
   return !!m.date && !!m.asset && !!m.quantity
 })
 
@@ -157,14 +149,11 @@ function reset() {
   preview.value = null
   cryptoGroups.value = []
   stockRows.value = []
-  bankPoints.value = []
   bankTransactions.value = []
   bankCurve.value = null
-  openingBalance.value = ''
   detectedSourceId.value = ''
   sourcePicked.value = false
   skipDuplicates.value = true
-  overwrite.value = false
   error.value = null
   isLoading.value = false
   if (props.accountId) localAccountId.value = props.accountId
@@ -248,28 +237,14 @@ async function runPreview() {
     preview.value = res
     cryptoGroups.value = res.crypto ? res.crypto.groups.map((g) => ({ ...g, rows: [...g.rows] })) : []
     stockRows.value = res.stock_rows ? res.stock_rows.map((r) => ({ ...r })) : []
-    bankPoints.value = res.bank_points ? res.bank_points.map((p) => ({ ...p })) : []
     bankTransactions.value = res.bank_transactions ? res.bank_transactions.map((t) => ({ ...t })) : []
     bankCurve.value = res.bank_curve
-    // Show the anchor actually used — typed, or picked up from the account's
-    // own history so a monthly import continues the curve instead of restarting it.
-    if (res.bank_curve) openingBalance.value = String(res.bank_curve.opening_balance)
     step.value = 'review'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Erreur lors de l\'analyse du fichier'
   } finally {
     isLoading.value = false
   }
-}
-
-/** Re-read the file with the anchor the user just typed. */
-async function applyOpeningBalance(): Promise<void> {
-  const raw = openingBalance.value.trim().replace(',', '.')
-  const parsed = raw === '' ? 0 : Number(raw)
-  if (Number.isNaN(parsed)) return
-  if (parsed === (bankCurve.value?.opening_balance ?? 0)) return
-  options.value = { ...options.value, initial_balance: parsed }
-  await runPreview()
 }
 
 // ── Review helpers ───────────────────────────────────────────
@@ -328,7 +303,7 @@ const canConfirm = computed(() => {
   if (props.category === 'stock') {
     return validStockRows.value.length > 0 && stockMissingAsset.value.length === 0
   }
-  return bankPoints.value.length > 0 || bankTransactions.value.length > 0
+  return bankTransactions.value.length > 0
 })
 
 function setAssetKey(row: StockImportRowPreview, value: string) {
@@ -353,9 +328,7 @@ async function runConfirm() {
       options: options.value,
       crypto_groups: props.category === 'crypto' ? cryptoGroups.value : null,
       stock_rows: props.category === 'stock' ? validStockRows.value : null,
-      bank_points: props.category === 'bank' ? bankPoints.value : null,
       bank_transactions: props.category === 'bank' ? bankTransactions.value : null,
-      overwrite: props.category === 'bank' ? overwrite.value : false,
     })
     result.imported = res.imported_count
     result.skipped = res.skipped_duplicates
@@ -648,45 +621,19 @@ function typeBadgeClass(t: string): string {
           </li>
         </ul>
       </div>
-      <!-- The curve the movements rebuild, and the anchor it hangs on -->
-      <div
+      <!-- Linked account: the curve the movements draw up to the bank's history -->
+      <p
         v-if="bankTransactions.length && bankCurve"
-        class="mb-4 p-3 rounded-card border border-surface-border dark:border-surface-dark-border"
+        class="mb-4 text-sm text-text-muted dark:text-text-dark-muted"
       >
-        <div class="flex flex-wrap items-end gap-4">
-          <div class="min-w-0">
-            <label class="block text-sm font-medium text-text-main dark:text-text-dark-main mb-1">
-              Solde avant la première opération
-            </label>
-            <div class="flex items-center gap-2">
-              <input
-                v-model="openingBalance"
-                type="text"
-                inputmode="decimal"
-                placeholder="0"
-                class="w-32 px-3 py-2 text-sm rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                @keyup.enter="applyOpeningBalance"
-                @blur="applyOpeningBalance"
-              />
-              <span class="text-sm text-text-muted dark:text-text-dark-muted">€</span>
-            </div>
-          </div>
-          <p class="text-sm text-text-muted dark:text-text-dark-muted">
-            <template v-if="preview?.bank_history_from && options.initial_balance === undefined">
-              Solde de départ calculé pour rejoindre la courbe de la banque.
-            </template>
-            Courbe reconstruite du {{ fmtDate(bankCurve.start_date) }} au
-            {{ fmtDate(bankCurve.end_date) }} ({{ bankCurve.days }} jours) —
-            solde final
-            <strong class="text-text-main dark:text-text-dark-main">
-              {{ Number(bankCurve.closing_balance).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} €
-            </strong>
-          </p>
-        </div>
-      </div>
+        Courbe reconstruite du {{ fmtDate(bankCurve.start_date) }} au
+        {{ fmtDate(bankCurve.end_date) }} pour rejoindre celle de la banque —
+        solde final
+        <strong class="text-text-main dark:text-text-dark-main tabular-nums">{{ euros(bankCurve.closing_balance) }}</strong>
+      </p>
 
       <!-- Movements -->
-      <div v-if="bankTransactions.length" class="overflow-x-auto -mx-6 px-6">
+      <div class="overflow-x-auto -mx-6 px-6">
         <table class="w-full text-sm border-collapse">
           <thead>
             <tr class="border-b border-surface-border dark:border-surface-dark-border text-left">
@@ -726,27 +673,6 @@ function typeBadgeClass(t: string): string {
           </tbody>
         </table>
       </div>
-
-      <!-- Balance curve -->
-      <div v-else class="overflow-x-auto -mx-6 px-6">
-        <table class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="border-b border-surface-border dark:border-surface-dark-border text-left">
-              <th class="py-2 pr-2 font-medium text-text-muted dark:text-text-dark-muted">Date</th>
-              <th class="py-2 font-medium text-text-muted dark:text-text-dark-muted text-right">Solde</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(p, i) in bankPoints" :key="i"
-                class="border-b border-surface-border/50 dark:border-surface-dark-border/50"
-                :class="{ 'opacity-50': p.is_duplicate }"
-                :title="p.is_duplicate ? 'Vos opérations donnent déjà ce solde : rien à ajuster.' : undefined">
-              <td class="py-2 pr-2 text-text-body dark:text-text-dark-body">{{ fmtDate(p.snapshot_date) }}</td>
-              <td class="py-2 text-right text-text-body dark:text-text-dark-body">{{ Number(p.value).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) }} €</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
       </template>
 
       <!-- Options -->
@@ -755,14 +681,6 @@ function typeBadgeClass(t: string): string {
           <input v-model="skipDuplicates" type="checkbox" class="w-4 h-4 rounded accent-primary" />
           <span class="text-text-body dark:text-text-dark-body">Ignorer les doublons déjà importés</span>
         </label>
-        <!-- Balance imports only: there is no curve to overwrite on a movement
-             import, and ticking it would wipe a history this file cannot rebuild. -->
-        <!-- Balance files only go to accounts no bank feeds: each balance
-             becomes the adjustment that makes the operations agree with it. -->
-        <p v-else-if="!bankTransactions.length" class="text-sm text-text-muted dark:text-text-dark-muted">
-          Chaque solde devient un ajustement : l'écart entre ce solde et vos opérations à cette date.
-          Un solde que vos opérations donnent déjà ne crée rien : réimporter le même fichier est sans effet.
-        </p>
         <p v-else-if="linkedTarget" class="text-sm text-text-muted dark:text-text-dark-muted">
           La courbe du compte est reconstruite sur la période couverte par le fichier ; en dehors,
           rien n'est touché. Les opérations déjà connues sont ignorées : réimporter le même relevé

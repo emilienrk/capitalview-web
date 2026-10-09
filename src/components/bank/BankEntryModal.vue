@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * An operation typed by hand, or a balance read on a statement, on an account
- * no bank feeds. Its operations are its balance: a balance read becomes the
- * adjustment that makes them agree with it, shown before it is saved.
+ * An operation typed by hand on an account no bank feeds. Its operations are
+ * its balance: the form shows where this one takes it, and can work the amount
+ * out from a balance read on a statement — still a real operation, never an
+ * adjustment.
  *
  * The same form as a placement's "Nouvelle opération" (Placements.vue).
  */
@@ -13,9 +14,9 @@ import { useBankStore } from '@/stores/bank'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
-import type { BankEntryResponse, BankTransactionItem } from '@/types'
+import type { BankBalanceResponse, BankTransactionItem } from '@/types'
 
-type EntryType = 'IN' | 'OUT' | 'BALANCE'
+type EntryType = 'IN' | 'OUT'
 
 const props = defineProps<{
   open: boolean
@@ -30,11 +31,10 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 const ENTRY_OPTIONS: { label: string; value: EntryType }[] = [
   { label: 'Entrée', value: 'IN' },
   { label: 'Sortie', value: 'OUT' },
-  { label: 'Relevé de solde', value: 'BALANCE' },
 ]
 
 const bank = useBankStore()
-const { formatCurrency, formatDateShort } = useFormatters()
+const { formatCurrency, formatDayMonth } = useFormatters()
 const { maskValue } = usePrivacyMode()
 const { confirmDialog } = useConfirm()
 
@@ -48,7 +48,10 @@ const form = reactive<{ type: EntryType; amount: number | ''; day: string; label
 })
 const error = ref<string | null>(null)
 const saving = ref(false)
-const preview = ref<BankEntryResponse | null>(null)
+const balance = ref<BankBalanceResponse | null>(null)
+// The balance read on a statement, when the user would rather type that.
+const fromStatement = ref(false)
+const statementBalance = ref<number | ''>('')
 
 const account = computed(() => bank.summary?.accounts.find((a) => a.id === props.accountId) ?? null)
 const currency = computed(() => account.value?.currency ?? 'EUR')
@@ -58,7 +61,9 @@ watch(
   (open) => {
     if (!open) return
     error.value = null
-    preview.value = null
+    balance.value = null
+    fromStatement.value = false
+    statementBalance.value = ''
     const tx = props.editing
     form.type = tx ? (tx.is_credit ? 'IN' : 'OUT') : 'OUT'
     form.amount = tx ? Number(tx.amount) : ''
@@ -67,52 +72,67 @@ watch(
   },
 )
 
-function money(value: number): string {
-  return maskValue(formatCurrency(Number(value), currency.value))
-}
-
-function request() {
-  const value = Number(form.amount)
-  if (form.type === 'BALANCE') return { kind: 'balance' as const, day: form.day, balance: value, label: form.label || null }
-  return { kind: 'operation' as const, day: form.day, amount: form.type === 'IN' ? value : -value, label: form.label || null }
-}
-
-// What a balance read would record, asked of the API as it is typed.
-let previewTimer: ReturnType<typeof setTimeout> | undefined
-let latestPreview = 0
+// The balance on the chosen day, asked of the API as the date changes.
+let balanceTimer: ReturnType<typeof setTimeout> | undefined
+let latestBalance = 0
 watch(
-  () => [form.type, form.amount, form.day, props.open],
-  () => {
-    clearTimeout(previewTimer)
-    preview.value = null
-    if (!props.open || !props.accountId || form.type !== 'BALANCE' || form.amount === '' || !form.day) return
-    const asked = ++latestPreview
-    const accountId = props.accountId
-    previewTimer = setTimeout(async () => {
+  () => [props.open, props.accountId, form.day] as const,
+  ([open, accountId, day]) => {
+    clearTimeout(balanceTimer)
+    if (!open || !accountId || !day) return
+    const asked = ++latestBalance
+    balanceTimer = setTimeout(async () => {
       try {
-        const answer = await bank.addEntry(accountId, request(), true)
-        if (asked === latestPreview) preview.value = answer
+        const answer = await bank.fetchBalance(accountId, day)
+        if (asked === latestBalance) balance.value = answer
       } catch {
-        // The submit says what is wrong; the hint just stays away.
+        // The line just stays away: saving does not depend on it.
       }
-    }, 300)
+    }, 200)
   },
+  { immediate: true },
 )
 
-const hint = computed(() => {
-  const p = preview.value
-  if (!p || p.adjustment === null) return null
-  const day = formatDateShort(form.day)
-  const change = `solde actuel ${money(p.balance_now_before)} → ${money(p.balance_now_after)}`
-  if (Number(p.adjustment) === 0) return `Vos opérations donnent déjà ce solde au ${day} : rien à ajuster.`
-  const sign = Number(p.adjustment) > 0 ? '+' : ''
-  return `Ajustement de ${sign}${money(p.adjustment)} au ${day} — ${change}`
+function signedOf(type: EntryType, amount: number): number {
+  return type === 'IN' ? amount : -amount
+}
+
+// Corrected by being typed again: the operation being edited is not part of
+// the balance it lands on.
+const editedShare = computed(() => {
+  const tx = props.editing
+  if (!tx) return { onDay: 0, now: 0 }
+  const signed = signedOf(tx.is_credit ? 'IN' : 'OUT', Number(tx.amount))
+  return { onDay: tx.operation_date && tx.operation_date <= form.day ? signed : 0, now: signed }
 })
+const before = computed(() => {
+  if (!balance.value || balance.value.day !== form.day) return null
+  return {
+    onDay: Number(balance.value.balance_on_day) - editedShare.value.onDay,
+    now: Number(balance.value.balance_now) - editedShare.value.now,
+  }
+})
+const typed = computed(() => (form.amount === '' ? 0 : signedOf(form.type, Number(form.amount))))
+
+watch([statementBalance, before], ([read, known]) => {
+  if (!fromStatement.value || read === '' || !known) return
+  const gap = Number((Number(read) - known.onDay).toFixed(2))
+  form.type = gap >= 0 ? 'IN' : 'OUT'
+  form.amount = Math.abs(gap)
+})
+
+function money(value: number): string {
+  return maskValue(formatCurrency(value, currency.value))
+}
+
+const isToday = computed(() => form.day === today())
 
 async function submit(): Promise<void> {
   if (!props.accountId || form.amount === '' || saving.value) return
-  if (form.type !== 'BALANCE' && Number(form.amount) <= 0) {
-    error.value = 'Le montant doit être positif : le type dit si c\'est une entrée ou une sortie.'
+  if (Number(form.amount) <= 0) {
+    error.value = fromStatement.value
+      ? 'Vos opérations donnent déjà ce solde à cette date : il n\'y a rien à ajouter.'
+      : 'Le montant doit être positif : le type dit si c\'est une entrée ou une sortie.'
     return
   }
   saving.value = true
@@ -120,7 +140,11 @@ async function submit(): Promise<void> {
   try {
     // A typed operation is corrected by being typed again.
     if (props.editing) await bank.deleteTransaction(props.editing.id)
-    await bank.addEntry(props.accountId, request())
+    await bank.addEntry(props.accountId, {
+      day: form.day,
+      amount: signedOf(form.type, Number(form.amount)),
+      label: form.label || null,
+    })
     emit('saved')
     emit('close')
   } catch (e) {
@@ -154,27 +178,49 @@ async function remove(): Promise<void> {
       {{ error }}
     </BaseAlert>
     <form class="space-y-4" @submit.prevent="submit">
-      <BaseSelect
-        v-model="form.type"
-        label="Type d'opération"
-        :options="editing ? ENTRY_OPTIONS.filter((o) => o.value !== 'BALANCE') : ENTRY_OPTIONS"
-      />
-      <BaseInput
-        v-model="form.amount"
-        :label="form.type === 'BALANCE' ? 'Solde lu' : 'Montant'"
-        type="number"
-        step="any"
-        :min="form.type === 'BALANCE' ? undefined : '0'"
-        placeholder="0.00"
-        required
-      />
-      <p v-if="form.type === 'BALANCE'" class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
-        <template v-if="hint">{{ hint }}</template>
-        <template v-else>
-          Le solde affiché sur votre relevé à cette date. L'écart avec vos opérations est enregistré comme un ajustement,
-          qui ne compte ni en dépense ni en revenu.
-        </template>
-      </p>
+      <BaseSelect v-model="form.type" label="Type d'opération" :options="ENTRY_OPTIONS" />
+      <div v-if="fromStatement">
+        <BaseInput
+          v-model="statementBalance"
+          :label="isToday ? 'Solde lu sur votre relevé aujourd\'hui' : `Solde lu sur votre relevé au ${formatDayMonth(form.day)}`"
+          type="number"
+          step="any"
+          placeholder="0.00"
+        />
+        <button
+          type="button"
+          class="mt-1 text-xs font-medium text-primary hover:underline underline-offset-2"
+          @click="fromStatement = false"
+        >
+          Saisir le montant directement
+        </button>
+      </div>
+      <div>
+        <BaseInput
+          v-model="form.amount"
+          label="Montant"
+          type="number"
+          step="any"
+          min="0"
+          placeholder="0.00"
+          required
+        />
+        <p v-if="before" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted tabular-nums">
+          {{ isToday ? 'Solde du compte' : `Solde au ${formatDayMonth(form.day)}` }} :
+          {{ money(before.onDay) }}<template v-if="typed"> → <span class="text-text-body dark:text-text-dark-body">{{ money(before.onDay + typed) }}</span></template>
+          <template v-if="!isToday && before.now !== before.onDay">
+            · aujourd'hui {{ money(before.now) }}<template v-if="typed"> → {{ money(before.now + typed) }}</template>
+          </template>
+        </p>
+        <button
+          v-if="!fromStatement && !editing"
+          type="button"
+          class="mt-1 text-xs font-medium text-primary hover:underline underline-offset-2"
+          @click="fromStatement = true"
+        >
+          Calculer le montant depuis le solde de votre relevé
+        </button>
+      </div>
       <BaseInput v-model="form.day" label="Date" type="date" :max="today()" required />
       <BaseInput v-model="form.label" label="Libellé" placeholder="Optionnel" />
     </form>

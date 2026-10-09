@@ -39,9 +39,6 @@ const typeRows = ref<{ from: string; to: string }[]>(
 )
 const showAdvanced = ref(false)
 
-// ── Bank-specific state ──────────────────────────────────────
-const bankValueColumn = ref<string | undefined>(mapping.balance ?? mapping.amount)
-
 const typeOptions =
   props.category === 'crypto'
     ? ['BUY', 'SPEND', 'FEE', 'REWARD', 'DEPOSIT', 'TRANSFER', 'WITHDRAW']
@@ -53,7 +50,8 @@ function autoGuess() {
   const find = (patterns: string[]) => props.headers.find((h) => patterns.some((p) => norm(h).includes(p)))
   if (isBank.value) {
     if (!mapping.date) mapping.date = find(['date', 'jour', 'valeur'])
-    if (!bankValueColumn.value) bankValueColumn.value = find(['solde', 'balance', 'montant', 'amount'])
+    if (!mapping.amount) mapping.amount = find(['montant', 'amount', 'mouvement'])
+    if (!mapping.label) mapping.label = find(['libell', 'label', 'description', 'intitul'])
     return
   }
   if (Object.values(mapping).some(Boolean)) return
@@ -72,9 +70,8 @@ function emitOptions() {
 
   if (isBank.value) {
     if (mapping.date) cleanedMapping.date = mapping.date
-    if (bankValueColumn.value) {
-      cleanedMapping.balance = bankValueColumn.value
-    }
+    if (mapping.amount) cleanedMapping.amount = mapping.amount
+    if (mapping.label) cleanedMapping.label = mapping.label
   } else {
     for (const [k, v] of Object.entries(mapping)) {
       if (v) cleanedMapping[k as keyof ColumnMapping] = v
@@ -93,7 +90,7 @@ function emitOptions() {
   emit('update:modelValue', options)
 }
 watch(
-  [mapping, delimiter, decimalSeparator, dateFormat, typeRows, bankValueColumn],
+  [mapping, delimiter, decimalSeparator, dateFormat, typeRows],
   emitOptions,
   { deep: true, immediate: true },
 )
@@ -121,20 +118,23 @@ function removeTypeRow(i: number) { typeRows.value.splice(i, 1) }
         </div>
         <div class="space-y-1.5">
           <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">
-            Colonne du solde <span class="text-danger">*</span>
+            Montant <span class="text-danger">*</span>
           </label>
-          <select v-model="bankValueColumn" :class="selectClass">
+          <select v-model="mapping.amount" :class="selectClass">
+            <option :value="undefined">— non mappé —</option>
+            <option v-for="h in props.headers" :key="h" :value="h">{{ h }}</option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-medium text-text-main dark:text-text-dark-main">Libellé</label>
+          <select v-model="mapping.label" :class="selectClass">
             <option :value="undefined">— non mappé —</option>
             <option v-for="h in props.headers" :key="h" :value="h">{{ h }}</option>
           </select>
         </div>
       </div>
-      <!-- A file of movements belongs to the Opérations import: it writes the
-           operations themselves as well as the curve they describe, which this
-           one cannot do. -->
       <p class="text-xs text-text-muted dark:text-text-dark-muted">
-        Votre fichier liste des mouvements plutôt que des soldes ? Fermez et choisissez
-        « Opérations » : la courbe en sera déduite, et les opérations seront gardées.
+        Un montant signé par ligne : négatif pour une sortie, positif pour une entrée.
       </p>
     </template>
 

@@ -1448,7 +1448,6 @@ async function handleSubmitTransaction(): Promise<void> {
         // lets the declared deposit type it as an investment.
         const target = crypto.accounts.find((a) => a.id === txForm.account_id)
         const entry = {
-          kind: 'operation' as const,
           day: txForm.executed_at.slice(0, 10),
         }
         if (txForm.type === 'FIAT_DEPOSIT') {

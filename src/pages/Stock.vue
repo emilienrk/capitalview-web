@@ -973,7 +973,6 @@ async function handleSubmitDeposit(): Promise<void> {
       // lets the declared deposit type it as an investment.
       const target = stocks.accounts.find((a) => a.id === targetStockAccountId)
       await bank.addEntry(selectedBankAccountId.value, {
-        kind: 'operation',
         day: depositForm.executed_at.slice(0, 10),
         amount: -grossAmount,
         label: target ? `Virement vers ${target.name}` : 'Virement',

@@ -5,7 +5,7 @@
  * between Comptes and Opérations swaps the content without redrawing the header
  * or losing its actions.
  */
-import { ArrowLeftRight, FileJson, Landmark, RefreshCw, Upload } from 'lucide-vue-next'
+import { ArrowLeftRight, FileJson, Landmark, RefreshCw } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, provide, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -45,20 +45,13 @@ const importSourceId = ref('')
 
 const BANKING_EXPORT_KEY = 'enablebanking_export'
 
-// The two CSV kinds are complementary, not alternatives: a Livret A wants both,
-// and the choice is about what gets written, not about the file's shape.
+// A balance is never imported: the operations make it (docs/bank-ledger.md on the API).
 const CSV_IMPORT_ITEMS: ImportMenuItem[] = [
   {
     key: 'generic_bank_transactions',
     label: 'Opérations',
     description: 'Historique des mouvements et flux observés',
     icon: ArrowLeftRight,
-  },
-  {
-    key: 'generic_bank',
-    label: 'Soldes',
-    description: 'Courbe du compte, depuis un relevé ou le modèle CapitalView',
-    icon: Upload,
   },
 ]
 
@@ -93,7 +86,7 @@ function onImportMenuSelect(key: string): void {
 async function handlePlatformImported(): Promise<void> {
   showPlatformImportModal.value = false
   await bank.fetchAccounts()
-  // The import wrote movements or balances behind the store's back.
+  // The import wrote movements behind the store's back.
   bank.invalidateHistoryCache()
 }
 

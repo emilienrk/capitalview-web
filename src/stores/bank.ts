@@ -28,6 +28,7 @@ import type {
   BankSummaryResponse,
   BankAccountCreate,
   BankAccountUpdate,
+  BankBalanceResponse,
   BankEntryRequest,
   BankEntryResponse,
   SavingsInterestResponse,
@@ -200,24 +201,17 @@ export const useBankStore = defineStore('bank', () => {
     }
   }
 
-  /**
-   * An operation typed by hand or a balance read on a statement, on an account
-   * no bank feeds. Under `dryRun`, nothing is written: the answer says what would be.
-   */
-  async function addEntry(
-    accountId: string,
-    entry: BankEntryRequest,
-    dryRun = false,
-  ): Promise<BankEntryResponse> {
-    const response = await apiClient.post<BankEntryResponse>(
-      `/bank/accounts/${accountId}/entries${dryRun ? '?dry_run=true' : ''}`,
-      entry,
-    )
-    if (!dryRun) {
-      await fetchAccounts()
-      invalidateHistoryCache()
-    }
+  /** An operation typed by hand, on an account no bank feeds. */
+  async function addEntry(accountId: string, entry: BankEntryRequest): Promise<BankEntryResponse> {
+    const response = await apiClient.post<BankEntryResponse>(`/bank/accounts/${accountId}/entries`, entry)
+    await fetchAccounts()
+    invalidateHistoryCache()
     return response
+  }
+
+  /** What an unsynced account's operations add up to at the end of `day`, and today. */
+  function fetchBalance(accountId: string, day: string): Promise<BankBalanceResponse> {
+    return apiClient.get<BankBalanceResponse>(`/bank/accounts/${accountId}/balance?day=${day}`)
   }
 
   async function deleteTransaction(transactionId: string): Promise<void> {
@@ -560,6 +554,7 @@ export const useBankStore = defineStore('bank', () => {
     deleteAccount,
     confirmUpToDate,
     addEntry,
+    fetchBalance,
     deleteTransaction,
     fetchHistory,
     fetchHistoryForAccount,

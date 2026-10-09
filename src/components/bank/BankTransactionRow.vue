@@ -86,7 +86,7 @@ const synthetic = computed(() => props.tx.origin === 'adjustment' || props.tx.or
 const ORIGIN_BADGES = { manual: 'Saisie', adjustment: 'Ajustement', forecast: 'Prévu' } as const
 const ORIGIN_TITLES = {
   manual: 'Saisie à la main : un relevé qui la contient la remplace.',
-  adjustment: 'Écart entre un solde déclaré et vos opérations. Ne compte ni en dépense ni en revenu.',
+  adjustment: 'Solde repris quand le compte a cessé d\'être synchronisé. Ne compte ni en dépense ni en revenu.',
   forecast: 'Prévision récurrente : remplacée par la vraie opération quand elle arrive.',
 } as const
 /** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */

@@ -195,7 +195,7 @@ function closeOtherAccountsHint(): void {
       <BaseEmptyState
         v-else
         title="Pas encore de données historiques"
-        description="L'historique s'affichera après avoir importé ou créé des entrées de solde"
+        description="L'historique s'affichera après avoir ajouté ou importé des opérations"
       />
     </BaseCard>
 

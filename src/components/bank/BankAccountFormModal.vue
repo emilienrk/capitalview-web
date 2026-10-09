@@ -21,8 +21,8 @@ const { confirmDialog } = useConfirm()
 
 const open = ref(false)
 const editingId = ref<string | null>(null)
-// A linked account's balance is the bank's last reading and its currency is what
-// that reading is matched on: the API refuses either being changed by hand.
+// A linked account's currency is what the bank's balance reading is matched on:
+// the API refuses it being changed by hand.
 const editingLinked = ref(false)
 
 // Every field bound, none optional: the inputs always hold a value, and the two
@@ -32,7 +32,6 @@ interface AccountForm {
   account_type: BankAccountType
   institution_name: string
   identifier: string
-  balance: number
   currency: string
   /** '' when unset — what a cleared date input holds. */
   opened_at: string
@@ -48,7 +47,6 @@ const form = reactive<AccountForm>({
   account_type: 'CHECKING',
   institution_name: '',
   identifier: '',
-  balance: 0,
   currency: BASE_CURRENCY,
   opened_at: '',
   interest_rate_pct: '',
@@ -108,7 +106,6 @@ function openCreate(): void {
   form.account_type = 'CHECKING'
   form.institution_name = ''
   form.identifier = ''
-  form.balance = 0
   form.currency = BASE_CURRENCY
   form.opened_at = ''
   form.interest_rate_pct = ''
@@ -127,7 +124,6 @@ function openEdit(account: BankAccountResponse): void {
   form.account_type = account.account_type
   form.institution_name = account.institution_name ?? ''
   form.identifier = account.identifier ?? ''
-  form.balance = account.balance
   form.currency = account.currency
   form.opened_at = account.opened_at ?? ''
   form.interest_rate_pct = toPct(account.interest_rate)
@@ -176,16 +172,13 @@ async function handleSubmit(): Promise<void> {
   }
   if (editingId.value) {
     // No account_type: the API has no field for it, and the picker is locked
-    // while editing. No balance either: a linked account's is its bank's, an
-    // unlinked one's the sum of its operations. A linked account's currency
-    // belongs to its bank too.
+    // while editing. A linked account's currency belongs to its bank.
     const update: BankAccountUpdate = editingLinked.value ? common : { ...common, currency: form.currency }
     result = await bank.updateAccount(editingId.value, update)
   } else {
     const create: BankAccountCreate = {
       ...common,
       account_type: form.account_type,
-      balance: form.balance,
       currency: form.currency,
     }
     result = await bank.createAccount(create)
@@ -225,19 +218,10 @@ defineExpose({ openCreate, openEdit })
       </div>
       <BaseInput v-model="form.institution_name" label="Banque" placeholder="Nom de la banque" />
       <BaseInput v-model="form.identifier" label="Identifiant" placeholder="IBAN" />
-      <!-- Once created, the balance is the sum of the operations: corrected
-           by a balance read ("Ajouter" on the card), never typed over. -->
-      <template v-if="!editingId">
-        <BaseInput
-          v-model="form.balance"
-          label="Solde à l'ouverture"
-          type="number"
-          placeholder="0.00"
-        />
-        <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
-          Laissez 0 si vous importez tout l'historique.
-        </p>
-      </template>
+      <p v-if="!editingId" class="text-xs text-text-muted dark:text-text-dark-muted">
+        Le solde est la somme des opérations : une fois le compte créé, ajoutez l'argent déjà présent
+        comme une première entrée.
+      </p>
       <div>
         <BaseSelect
           v-model="form.currency"
@@ -248,8 +232,6 @@ defineExpose({ openCreate, openEdit })
         <p class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
           {{ editingId && editingLinked
             ? 'Compte lié : le solde et la devise viennent de votre banque, à chaque synchronisation.'
-            : editingId
-              ? 'Le solde est la somme des opérations. Pour le corriger, ajoutez un relevé de solde depuis la carte du compte.'
             : isRegulated
               ? 'Les livrets réglementés sont en euros.'
               : 'Le solde est affiché dans cette devise ; les totaux et les courbes restent en euros.' }}
