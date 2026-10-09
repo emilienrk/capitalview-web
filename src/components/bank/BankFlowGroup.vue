@@ -47,8 +47,10 @@ const failed = ref(false)
 const placeholders = computed(() => Math.min(props.count, 5))
 
 async function toggle(): Promise<void> {
-  open.value = !open.value
-  if (!open.value || operations.value) return
+  // Bound by the parent, the model reads back its old value until it re-renders.
+  const opening = !open.value
+  open.value = opening
+  if (!opening || operations.value) return
   failed.value = false
   try {
     operations.value = await types.fetchFlowGroup(props.transactionId)
