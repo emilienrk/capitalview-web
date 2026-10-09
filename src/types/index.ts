@@ -1769,6 +1769,7 @@ export interface UserSettingsUpdate {
   crypto_auto_deposits?: boolean
   bank_module_enabled?: boolean
   bank_auto_sync_enabled?: boolean
+  bank_question_threshold?: number
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
   notes_module_enabled?: boolean
@@ -1804,6 +1805,7 @@ export interface UserSettingsResponse {
   crypto_auto_deposits: boolean
   bank_module_enabled: boolean
   bank_auto_sync_enabled: boolean
+  bank_question_threshold: number
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
   notes_module_enabled: boolean
@@ -2711,4 +2713,11 @@ export interface AssetPriceTimelineResponse {
   average_buy_price: number | null
   quantity_held: number
   current_price: number | null
+}
+
+/** GET /banking/question-threshold — what moving the threshold would ask. */
+export interface BankQuestionThreshold {
+  threshold: number
+  // Every debit nothing faces that the user has not typed, largest first.
+  amounts: number[]
 }

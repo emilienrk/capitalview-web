@@ -4,6 +4,7 @@ import { Bitcoin, LayoutGrid, RefreshCw } from 'lucide-vue-next'
 import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { BaseAlert, BaseHelpPopover, BaseSkeleton, BaseToggle } from '@/components'
+import BankQuestionThreshold from './BankQuestionThreshold.vue'
 import SettingsSection from './SettingsSection.vue'
 import type { UserSettingsUpdate } from '@/types'
 
@@ -102,6 +103,13 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
               v-model="bankAutoSyncEnabled"
               aria-label="Activer la synchronisation automatique des comptes bancaires"
               @update:model-value="save({ bank_auto_sync_enabled: $event })"
+            />
+          </div>
+
+          <div v-if="bankModuleEnabled" class="pl-4 border-l-2 border-surface-border dark:border-surface-dark-border">
+            <BankQuestionThreshold
+              :threshold="settingsStore.settings?.bank_question_threshold ?? 500"
+              @save="save({ bank_question_threshold: $event })"
             />
           </div>
 
