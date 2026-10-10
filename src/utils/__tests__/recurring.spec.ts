@@ -58,15 +58,14 @@ describe('sections', () => {
   const item = (state: BankRecurringItem['state'], status: BankRecurringItem['status']) =>
     ({ state, status }) as BankRecurringItem
 
-  it('counts what was found sure enough or said yes to', () => {
-    expect(isCounted(item('auto', 'active'))).toBe(true)
+  it('counts only what was said yes to', () => {
     expect(isCounted(item('confirmed', 'active'))).toBe(true)
     expect(isCounted(item('candidate', 'active'))).toBe(false)
     expect(isCounted(item('refused', 'active'))).toBe(false)
   })
 
   it('keeps a late or stale one current, not an ended one', () => {
-    expect(isCurrent(item('auto', 'late'))).toBe(true)
+    expect(isCurrent(item('confirmed', 'late'))).toBe(true)
     expect(isCurrent(item('confirmed', 'stale'))).toBe(true)
     expect(isCurrent(item('confirmed', 'ended'))).toBe(false)
     expect(isCurrent(item('candidate', 'active'))).toBe(false)
@@ -75,9 +74,10 @@ describe('sections', () => {
   // The API adds up the active and stale ones only: the count beside the
   // total says the same, or it would name a sum it does not hold.
   it('counts in the total what the API adds up, a late one apart', () => {
-    expect(isInTotal(item('auto', 'active'))).toBe(true)
+    expect(isInTotal(item('confirmed', 'active'))).toBe(true)
     expect(isInTotal(item('confirmed', 'stale'))).toBe(true)
-    expect(isInTotal(item('auto', 'late'))).toBe(false)
+    expect(isInTotal(item('confirmed', 'late'))).toBe(false)
+    expect(isInTotal(item('candidate', 'active'))).toBe(false)
     expect(isInTotal(item('confirmed', 'ended'))).toBe(false)
   })
 })

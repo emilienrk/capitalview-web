@@ -29,6 +29,14 @@ export function openQuestionsNotice(count: number, amount: string): string | nul
   return `${amount} à trier (${operations})`
 }
 
+/** « 3 récurrents à valider » — found, offered, counted once confirmed. */
+export function recurringToConfirmNotice(count: number): string | null {
+  if (count <= 0) return null
+  return count === 1
+    ? '1 récurrent à valider : il ne compte pas tant que vous ne l\'avez pas confirmé.'
+    : `${count} récurrents à valider : ils ne comptent pas tant que vous ne les avez pas confirmés.`
+}
+
 /**
  * The change from `previous` to `current`, in percent; null when there is
  * nothing to compare against.

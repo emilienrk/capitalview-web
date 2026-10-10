@@ -38,7 +38,7 @@ describe('filters', () => {
 
   it('keeps only the operations of a recurring payment or income under Récurrent, whatever their type', () => {
     const tag = {
-      id: null, key: 'k', direction: 'expense', name: 'EDF', cadence: 'monthly', role: 'regular', state: 'auto',
+      id: null, key: 'k', direction: 'expense', name: 'EDF', cadence: 'monthly', role: 'regular', state: 'confirmed',
     } as const
     const salary = anOperation({
       is_credit: true, cashflow_type: 'INCOME', recurring: { ...tag, direction: 'income', name: 'Employeur' },

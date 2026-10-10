@@ -520,8 +520,8 @@ export type RecurringDirection = 'expense' | 'income'
 export type RecurringCadence =
   | 'weekly' | 'biweekly' | 'fourweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual'
 
-/** `auto`: sure enough to count without asking; `candidate`: found, asked about. */
-export type RecurringState = 'auto' | 'confirmed' | 'candidate' | 'refused'
+/** `candidate`: found, offered; counted once `confirmed`. */
+export type RecurringState = 'confirmed' | 'candidate' | 'refused'
 
 /** `stale`: its account is known only up to `covered_until`, before the next due date. */
 export type RecurringStatus = 'active' | 'late' | 'ended' | 'stale'
@@ -589,7 +589,6 @@ export interface BankRecurringItem {
   /** What it is for, or where it comes from; null until the user files it. */
   nature: RecurringNature | null
   state: RecurringState
-  confidence: string | null
   status: RecurringStatus
   covered_until: string | null
   cadence: RecurringCadence
@@ -607,7 +606,6 @@ export interface BankRecurringItem {
   occurrence_count: number
   extra_count: number
   accounts: string[]
-  payment_method: OperationType
   price_changes: Array<{ date: string; before: number; after: number; percent: number }>
   episodes: Array<{ start: string; end: string }>
   renamed: Array<{ date: string; before: string; after: string }>

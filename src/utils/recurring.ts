@@ -78,9 +78,9 @@ export function questionText(question: BankRecurringQuestion, amount: string): s
   return `${kind} ${CADENCE_LABELS[question.cadence]} · ${approx}${amount} depuis ${since} ?`
 }
 
-/** Counted in the expenses, or the income: found sure enough, or said yes to. */
+/** Counted in the expenses, or the income: once the user said yes to it. */
 export function isCounted(item: BankRecurringItem): boolean {
-  return item.state === 'auto' || item.state === 'confirmed'
+  return item.state === 'confirmed'
 }
 
 /** Counted and not over: what the list shows first, late ones included. */

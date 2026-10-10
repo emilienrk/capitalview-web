@@ -11,7 +11,6 @@ import { BaseBadge, BaseButton, BaseInput, BaseSelect, BaseSkeleton } from '@/co
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useRecurringStore } from '@/stores/recurring'
-import { OPERATION_TYPE_LABELS } from '@/utils/cashflowTypes'
 import { CADENCE_LABELS, CADENCE_PER, NATURES, NATURE_LABELS, isCounted, roleNote } from '@/utils/recurring'
 import type { BankRecurringItem, BankTransactionItem, RecurringDecisionKind, RecurringNature } from '@/types'
 
@@ -35,9 +34,6 @@ const income = computed(() => props.item.direction === 'income')
 const counted = computed(() => isCounted(props.item))
 const ended = computed(() => props.item.status === 'ended')
 const lastChange = computed(() => props.item.price_changes[props.item.price_changes.length - 1] ?? null)
-const means = computed(() =>
-  props.item.payment_method === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.item.payment_method],
-)
 
 /** Where it stands, said once beside its name; nothing when it simply runs. */
 const statusBadge = computed(() => {
@@ -174,7 +170,6 @@ function today(): string {
             {{ item.nature ? NATURE_LABELS[item.nature] : 'À classer' }}
           </span>
           <span>· <span class="first-letter:uppercase">{{ CADENCE_LABELS[item.cadence] }}</span></span>
-          <span v-if="means">· {{ means }}</span>
           <span>· {{ item.accounts.join(', ') }}</span>
           <BaseBadge v-if="statusBadge" :variant="statusBadge.variant">{{ statusBadge.text }}</BaseBadge>
           <!-- The arrow carries the direction; no colour, which would call a rise bad. -->

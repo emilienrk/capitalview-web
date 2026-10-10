@@ -1,16 +1,17 @@
 <script setup lang="ts">
 /**
  * What can still move the figures, in one block: the operations left to
- * confirm, and the accounts whose history leaves part of the period out — a
- * transfer to one there cannot pair, and counts as spent.
+ * confirm, the recurring payments and income found but not confirmed yet, and
+ * the accounts whose history leaves part of the period out — a transfer to one
+ * there cannot pair, and counts as spent.
  */
-import { computed, ref } from 'vue'
-import { AlertTriangle, HelpCircle } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { AlertTriangle, HelpCircle, Repeat } from 'lucide-vue-next'
 
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
-import { coverageNotice, openQuestionsNotice } from '@/utils/realCashflow'
+import { coverageNotice, openQuestionsNotice, recurringToConfirmNotice } from '@/utils/realCashflow'
 import type { RealCashflowCoverageGap } from '@/types'
 
 const props = defineProps<{
@@ -27,6 +28,13 @@ const { formatCurrency, formatDate } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
 const questions = computed(() => openQuestionsNotice(props.count, maskValue(formatCurrency(Number(props.amount), props.currency))))
+// Across the whole history, as the Récurrents tab's badge: a series is not a year's.
+const recurring = computed(() => recurringToConfirmNotice(bank.transferQuestions?.recurring ?? 0))
+
+onMounted(() => {
+  if (!bank.transferQuestions) void bank.fetchTransferQuestions()
+})
+watch(() => bank.dataRevision, () => void bank.fetchTransferQuestions())
 const confirming = ref<string | null>(null)
 
 async function confirm(accountId: string): Promise<void> {
@@ -38,7 +46,7 @@ async function confirm(accountId: string): Promise<void> {
 
 <template>
   <ul
-    v-if="questions || gaps.length"
+    v-if="questions || recurring || gaps.length"
     class="space-y-1.5 rounded-card border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-text-main dark:text-text-dark-main"
   >
     <li v-if="questions" class="flex items-start gap-2">
@@ -51,6 +59,13 @@ async function confirm(accountId: string): Promise<void> {
         >
           Trier
         </router-link>
+      </p>
+    </li>
+    <li v-if="recurring" class="flex items-start gap-2">
+      <Repeat class="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+      <p>
+        {{ recurring }}
+        <router-link :to="{ name: 'bank-recurring' }" class="ml-1 font-medium text-warning hover:underline">Valider</router-link>
       </p>
     </li>
     <li v-for="gap in gaps" :key="gap.account_id" class="flex items-start gap-2">

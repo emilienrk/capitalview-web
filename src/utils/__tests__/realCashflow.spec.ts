@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  changePercent, coverageNotice, defaultCashflowView, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView, writeCashflowView,
+  changePercent, coverageNotice, defaultCashflowView, defaultYear, monthlyFigures, openQuestionsNotice, readCashflowView,
+  recurringToConfirmNotice, writeCashflowView,
 } from '@/utils/realCashflow'
 import type { RealCashflowCoverageGap, RealCashflowTotals, RealCashflowYear } from '@/types'
 
@@ -39,6 +40,17 @@ describe('openQuestionsNotice', () => {
   it('weighs what can still move the figures, then counts it', () => {
     expect(openQuestionsNotice(1, '400,00 €')).toBe('400,00 € à trier (1 opération)')
     expect(openQuestionsNotice(12, '3 200,00 €')).toBe('3 200,00 € à trier (12 opérations)')
+  })
+})
+
+describe('recurringToConfirmNotice', () => {
+  it('says nothing once every series found is decided', () => {
+    expect(recurringToConfirmNotice(0)).toBeNull()
+  })
+
+  it('says they do not count until confirmed', () => {
+    expect(recurringToConfirmNotice(1)).toBe('1 récurrent à valider : il ne compte pas tant que vous ne l\'avez pas confirmé.')
+    expect(recurringToConfirmNotice(20)).toBe('20 récurrents à valider : ils ne comptent pas tant que vous ne les avez pas confirmés.')
   })
 })
 
