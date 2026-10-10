@@ -21,7 +21,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  saved: [result: BankTransactionTypeResult]
+  /** `outranked`: the rule written by hand the choice now comes before, by its title. */
+  saved: [result: BankTransactionTypeResult, outranked: string | null]
   cleared: []
 }>()
 
@@ -78,7 +79,8 @@ async function choose(type: CashflowType): Promise<void> {
   saving.value = type
   error.value = null
   try {
-    emit('saved', await types.setType(props.tx.id, type, byLabel.value ? 'label' : 'operation'))
+    const outranked = writtenRule.value ? ruleTitle(writtenRule.value) : null
+    emit('saved', await types.setType(props.tx.id, type, byLabel.value ? 'label' : 'operation'), outranked)
     emit('close')
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce type."

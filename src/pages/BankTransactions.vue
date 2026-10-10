@@ -336,11 +336,15 @@ const typedMessage = ref<string | null>(null)
 /** The last correction wrote a rule: the message says where it went. */
 const typedRule = ref(false)
 
-function onTyped(result: BankTransactionTypeResult): void {
+/** The rule written by hand the last correction now comes before, by its title. */
+const typedOutranked = ref<string | null>(null)
+
+function onTyped(result: BankTransactionTypeResult, outranked: string | null = null): void {
   const count = result.covered_count
   const label = CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]
   typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
   typedRule.value = result.transaction.type_rule_id !== null
+  typedOutranked.value = outranked
 }
 
 async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
@@ -365,6 +369,7 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
     await recurring.decide(tx.id, decision)
     typedMessage.value = decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.'
     typedRule.value = false
+    typedOutranked.value = null
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -661,6 +666,10 @@ onMounted(() => void load())
         {{ typedMessage }}
         <template v-if="typedRule">
           Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
+        </template>
+        <!-- Never silent: a rule given from an answer, or a choice by hand, comes before a rule written by hand. -->
+        <template v-if="typedOutranked">
+          {{ typedRule ? 'Pour ce libellé, elle' : 'Ce choix' }} passe avant la règle {{ typedOutranked }}.
         </template>
       </BaseAlert>
 

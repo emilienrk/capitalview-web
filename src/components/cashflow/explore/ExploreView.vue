@@ -178,9 +178,14 @@ function asTransaction(entry: LedgerEntry): BankTransactionItem {
   }
 }
 
-function onTyped(result: BankTransactionTypeResult): void {
+function onTyped(result: BankTransactionTypeResult, outranked: string | null = null): void {
   const count = result.covered_count
-  notice.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]}.`
+  const typed = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]}.`
+  // Never silent: the choice now comes before a rule written by hand.
+  const before = outranked
+    ? ` ${result.transaction.type_rule_id ? 'Règle créée ; pour ce libellé, elle' : 'Ce choix'} passe avant la règle ${outranked}.`
+    : ''
+  notice.value = typed + before
 }
 
 function exportCsv(): void {

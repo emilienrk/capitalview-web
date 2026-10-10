@@ -665,6 +665,17 @@ export interface BankTypeRuleWrite {
   account_id: string | null
   is_credit: boolean
   type: CashflowType
+  /** Saving only: hand the rule the operations typed by hand as something else. */
+  take_overrides?: boolean
+}
+
+/** Another rule a new one takes operations from, or yields them to. */
+export interface BankRulePreviewRule {
+  id: string
+  match: RuleMatch
+  signature: string
+  label: string | null
+  count: number
 }
 
 export interface BankRulePreviewOperation {
@@ -687,6 +698,14 @@ export interface BankTypeRulePreview {
   changed_count: number
   /** Newest first, the first few only. */
   touched: BankRulePreviewOperation[]
+  /** Among the touched, those another rule counted until now. */
+  taken: BankRulePreviewRule[]
+  /** Chosen by hand as another type: the choice holds unless saved with `take_overrides`. */
+  overridden_count: number
+  overridden: BankRulePreviewOperation[]
+  /** More precise rules keeping some of what it reaches. */
+  yielded: BankRulePreviewRule[]
+  /** Everything it reaches and does not type, the overridden included. */
   kept_count: number
   kept: Array<{ reason: TypeSource; count: number }>
   /** Every operation on the rule's side: its account or all, its direction. */

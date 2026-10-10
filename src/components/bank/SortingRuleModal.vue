@@ -15,7 +15,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankRulePreviewOperation, BankTypeRule, BankTypeRulePreview, BankTypeRuleWrite, TypeSource } from '@/types'
-import { CASHFLOW_TYPES, answerHint, answerLabel } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, answerHint, answerLabel, ruleTitle } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   open: boolean
@@ -91,6 +91,7 @@ watch(
     preview.value = null
     previewedFor.value = null
     error.value = null
+    takeOverrides.value = false
     if (!bank.summary) void bank.fetchAccounts()
     // The same rule opened twice leaves the form as it was: nothing else would ask.
     schedule()
@@ -138,7 +139,8 @@ async function save(): Promise<void> {
   saving.value = true
   error.value = null
   try {
-    await types.writeRule(written.value, props.rule?.id ?? null)
+    const handed = takeOverrides.value && Boolean(preview.value?.overridden_count)
+    await types.writeRule({ ...written.value, take_overrides: handed }, props.rule?.id ?? null)
     emit('close')
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette règle."
@@ -147,19 +149,38 @@ async function save(): Promise<void> {
   }
 }
 
+// The more precise rules are named on their own line, not here.
 const KEPT_REASONS: Partial<Record<TypeSource, string>> = {
   pair: 'liées par une paire',
-  override: 'choisies à la main',
+  override: 'déjà classées ainsi à la main',
   contribution: "rapprochées d'un dépôt",
-  rule: 'couvertes par une règle plus précise',
 }
 
 const keptSentence = computed(() => {
-  const found = preview.value
-  if (!found?.kept_count) return null
-  const reasons = found.kept.map((kept) => `${kept.count} ${KEPT_REASONS[kept.reason] ?? 'déjà classées'}`)
-  return `${found.kept_count} restent comme elles sont : ${reasons.join(', ')}.`
+  const kept = (preview.value?.kept ?? []).filter((item) => KEPT_REASONS[item.reason])
+  const count = kept.reduce((sum, item) => sum + item.count, 0)
+  if (!count) return null
+  const reasons = kept.map((item) => `${item.count} ${KEPT_REASONS[item.reason]}`)
+  return `${count} ${count > 1 ? 'restent' : 'reste'} comme ${count > 1 ? 'elles sont' : 'elle est'} : ${reasons.join(', ')}.`
 })
+
+/** The rules it takes operations from: until now they counted them. */
+const takenSentence = computed(() => {
+  const taken = preview.value?.taken ?? []
+  if (!taken.length) return null
+  return `Elle en prend ${taken.map((other) => `${other.count} à la règle ${ruleTitle(other)}`).join(', ')}.`
+})
+
+/** The more precise rules that keep theirs. */
+const yieldedSentence = computed(() => {
+  const yielded = preview.value?.yielded ?? []
+  if (!yielded.length) return null
+  const kept = yielded.map((other) => `${other.count} à la règle ${ruleTitle(other)}`).join(', ')
+  return `Plus précises, d'autres règles gardent les leurs : ${kept}.`
+})
+
+/** Handing the rule what was chosen by hand is said and asked, never done by default. */
+const takeOverrides = ref(false)
 
 /** Most of a side is a rule too wide: "VIR" reaches every transfer, own ones included. */
 const tooWide = computed(() => {
@@ -252,6 +273,8 @@ function signed(op: BankRulePreviewOperation): string {
               <template v-if="preview.touched_count">{{ counted(preview) }}</template>
               <template v-else>Aucune opération ne correspond pour l'instant : la règle comptera les prochaines.</template>
             </p>
+            <p v-if="takenSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ takenSentence }}</p>
+            <p v-if="yieldedSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ yieldedSentence }}</p>
             <p v-if="keptSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ keptSentence }}</p>
             <BaseAlert v-if="tooWide" variant="warning">
               Cette règle touche plus de la moitié des {{ isCredit ? 'entrées' : 'sorties' }}
@@ -281,6 +304,37 @@ function signed(op: BankRulePreviewOperation): string {
             <p v-if="preview.touched_count > preview.touched.length" class="text-xs text-text-muted dark:text-text-dark-muted">
               Et {{ preview.touched_count - preview.touched.length }} plus anciennes.
             </p>
+
+            <div v-if="preview.overridden_count" class="space-y-2 pt-3 border-t border-surface-border dark:border-surface-dark-border">
+              <p class="text-sm text-text-main dark:text-text-dark-main">
+                {{ preview.overridden_count }}
+                {{ preview.overridden_count > 1 ? 'opérations que vous avez classées' : 'opération que vous avez classée' }}
+                à la main autrement : votre choix l'emporte sur la règle.
+              </p>
+              <ul class="max-h-40 overflow-y-auto divide-y divide-surface-border dark:divide-surface-dark-border -mx-1">
+                <li v-for="op in preview.overridden" :key="op.id" class="flex items-baseline gap-3 px-1 py-1.5">
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm text-text-main dark:text-text-dark-main" :title="op.label ?? undefined">
+                      {{ op.label ?? 'Opération sans libellé' }}
+                    </p>
+                    <p class="text-xs text-text-muted dark:text-text-dark-muted">
+                      {{ formatDateShort(op.operation_date) }} · {{ op.account_name }} · classée en
+                      {{ answerLabel(op.cashflow_type, op.is_credit) }}
+                    </p>
+                  </div>
+                  <span class="shrink-0 text-sm tabular-nums text-text-main dark:text-text-dark-main">{{ signed(op) }}</span>
+                </li>
+              </ul>
+              <label class="flex items-start gap-2 text-sm text-text-main dark:text-text-dark-main cursor-pointer">
+                <input id="sorting-rule-take-overrides" v-model="takeOverrides" type="checkbox" class="mt-0.5 accent-primary" />
+                <span>
+                  {{ preview.overridden_count > 1 ? 'Les passer' : 'La passer' }} aussi en {{ answerLabel(form.type, isCredit) }}
+                  <span class="block text-xs text-text-muted dark:text-text-dark-muted">
+                    Vos choix à la main sur {{ preview.overridden_count > 1 ? 'ces opérations' : 'cette opération' }} seront retirés.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
         </template>
       </section>

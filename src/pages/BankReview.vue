@@ -127,6 +127,8 @@ const lastAnswer = ref<{
   message: string
   /** Answered as its deposit: the pair refused on the way comes back too. */
   refusedPair?: boolean
+  /** The rule written by hand the answer now comes before, by its title. */
+  outranked?: string | null
 } | null>(null)
 
 async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
@@ -144,12 +146,14 @@ async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeSc
   }
 }
 
-function remember(result: BankTransactionTypeResult, transactionIds = [result.transaction.id]): void {
+function remember(
+  result: BankTransactionTypeResult, transactionIds = [result.transaction.id], outranked: string | null = null,
+): void {
   const count = result.covered_count
   const ruleId = result.transaction.type_rule_id
   const message = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]}.`
   // Kept to the operations answered, there is no rule: undoing clears their own type.
-  lastAnswer.value = { ruleId, transactionIds, message }
+  lastAnswer.value = { ruleId, transactionIds, message, outranked }
 }
 
 async function undo(): Promise<void> {
@@ -262,6 +266,9 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
       <template v-if="lastAnswer.ruleId">
         Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
       </template>
+      <template v-if="lastAnswer.outranked">
+        {{ lastAnswer.ruleId ? 'Pour ce libellé, elle' : 'Ce choix' }} passe avant la règle {{ lastAnswer.outranked }}.
+      </template>
       <button type="button" class="ml-2 font-medium underline" @click="undo">Annuler</button>
     </BaseAlert>
     <BaseAlert v-if="error" variant="danger" dismissible class="mb-3" @dismiss="error = null">{{ error }}</BaseAlert>
@@ -359,6 +366,9 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     <BankHistoryModal :open="showHistory" @close="showHistory = false" />
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
-    <BankTypePicker :open="retyping !== null" :tx="retyping" @close="retyping = null" @saved="remember" />
+    <BankTypePicker
+      :open="retyping !== null" :tx="retyping"
+      @close="retyping = null" @saved="(result, outranked) => remember(result, undefined, outranked)"
+    />
   </div>
 </template>
