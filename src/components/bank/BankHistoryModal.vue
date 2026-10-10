@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * Every answer the user gave that is still in force — pairs bound or refused,
- * types, rules, recurring payments — newest first, each one withdrawable. A
- * withdrawn answer leaves the list: the operations read as they did before it
- * (docs/bank-sorting.md).
+ * types, recurring payments — newest first, each one withdrawable. A withdrawn
+ * answer leaves the list: the operations read as they did before it
+ * (docs/bank-sorting.md). Rules speak for the operations to come: they have
+ * their own page, Paramètres › Banque › Règles de tri.
  */
 import { ref, watch } from 'vue'
 
@@ -90,7 +91,7 @@ function signed(op: BankHistoryOperation): string {
       <BaseEmptyState
         v-else-if="!items.length"
         title="Aucune réponse"
-        description="Les paires liées ou refusées, les types choisis et les règles apparaîtront ici."
+        description="Les paires liées ou refusées, les types choisis et les récurrents décidés apparaîtront ici."
       />
       <ul v-else class="divide-y divide-surface-border dark:divide-surface-dark-border -mx-2">
         <li v-for="item in items" :key="`${item.kind}-${item.id}`" class="flex items-start gap-3 px-2 py-2.5">
@@ -105,9 +106,6 @@ function signed(op: BankHistoryOperation): string {
                 {{ day(op.operation_date) }} · {{ op.account_name }} · {{ op.label ?? 'Opération sans libellé' }}
               </span>
               <span class="ml-auto shrink-0 tabular-nums text-text-main dark:text-text-dark-main">{{ signed(op) }}</span>
-            </p>
-            <p v-if="item.kind === 'rule' && item.account_name" class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-              Sur {{ item.account_name }}
             </p>
             <!-- Never replaced in silence: the pair reads first, and says so. -->
             <p v-if="item.overridden_by_pair" class="mt-0.5 text-xs text-warning">

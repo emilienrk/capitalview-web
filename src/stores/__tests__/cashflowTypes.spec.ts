@@ -7,7 +7,7 @@ import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { getOrFetchCached } from '@/services/cache'
 
 vi.mock('@/api/client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }))
 
 describe('useCashflowTypesStore', () => {
@@ -81,6 +81,18 @@ describe('useCashflowTypesStore', () => {
 
     expect(apiClient.delete).toHaveBeenCalledWith('/banking/type-rules/r1')
     expect(store.rules?.map((rule) => rule.id)).toEqual(['r2'])
+  })
+
+  it('swaps a retyped rule for the one that comes back', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce([{ id: 'r1', type: 'EXPENSE' }, { id: 'r2', type: 'SAVING' }])
+    vi.mocked(apiClient.patch).mockResolvedValueOnce({ id: 'r3', type: 'INVESTMENT' })
+    const store = useCashflowTypesStore()
+    await store.fetchRules()
+
+    await store.retypeRule('r1', 'INVESTMENT')
+
+    expect(apiClient.patch).toHaveBeenCalledWith('/banking/type-rules/r1', { type: 'INVESTMENT' })
+    expect(store.rules?.map((rule) => rule.id)).toEqual(['r3', 'r2'])
   })
 
   it('reads the review queue, for every year or one', async () => {

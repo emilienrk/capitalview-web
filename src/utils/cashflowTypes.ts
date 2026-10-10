@@ -10,6 +10,9 @@ export const CASHFLOW_TYPE_LABELS: Record<CashflowType, string> = {
   NEUTRAL: 'Non compté',
 }
 
+/** Where the user's sorting rules live: Paramètres › Banque › Règles de tri. */
+export const RULES_PAGE = { name: 'settings', query: { tab: 'banque' }, hash: '#regles-de-tri' } as const
+
 export const CASHFLOW_TYPE_TONES: Record<CashflowType, string> = {
   INCOME: 'bg-success/10 text-success',
   EXPENSE: 'bg-danger/10 text-danger',

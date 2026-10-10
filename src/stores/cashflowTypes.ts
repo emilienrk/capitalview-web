@@ -51,6 +51,14 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     rules.value = await apiClient.get<BankTypeRule[]>('/banking/type-rules')
   }
 
+  /** Gives a rule another type: it comes back under a new id. */
+  async function retypeRule(ruleId: string, type: CashflowType): Promise<BankTypeRule> {
+    const rule = await apiClient.patch<BankTypeRule>(`/banking/type-rules/${encodeURIComponent(ruleId)}`, { type })
+    if (rules.value) rules.value = rules.value.map((other) => (other.id === ruleId ? rule : other))
+    changed()
+    return rule
+  }
+
   async function deleteRule(ruleId: string): Promise<void> {
     await apiClient.delete(`/banking/type-rules/${encodeURIComponent(ruleId)}`)
     if (rules.value) rules.value = rules.value.filter((rule) => rule.id !== ruleId)
@@ -96,7 +104,7 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   }
 
   return {
-    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, deleteRule, fetchFlowGroup,
+    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, retypeRule, deleteRule, fetchFlowGroup,
     fetchHistory, undoAnswer, fetchReviewQueue, reset,
   }
 })

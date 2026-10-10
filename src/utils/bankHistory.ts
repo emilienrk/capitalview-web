@@ -20,10 +20,6 @@ export function historyTitle(item: BankHistoryItem): string {
       const words = counted(item.type, 'e')
       return words.charAt(0).toUpperCase() + words.slice(1)
     }
-    case 'rule': {
-      const count = item.operation_count ?? 0
-      return `« ${item.name} » ${counted(item.type, '')}, et les prochaines (${count} opération${count > 1 ? 's' : ''})`
-    }
     case 'recurring':
       return `${item.confirmed ? 'Récurrent confirmé' : 'Pas un récurrent'} : ${item.name}`
   }

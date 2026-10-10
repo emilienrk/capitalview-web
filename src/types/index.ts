@@ -843,7 +843,7 @@ export interface BankReviewQueue {
   unfaced: BankUnfacedContribution[]
 }
 
-export type BankHistoryKind = 'transfer' | 'not_transfer' | 'reversal' | 'type' | 'rule' | 'recurring'
+export type BankHistoryKind = 'transfer' | 'not_transfer' | 'reversal' | 'type' | 'recurring'
 
 export interface BankHistoryOperation {
   id: string
@@ -863,9 +863,8 @@ export interface BankHistoryItem {
   at: string | null
   type: CashflowType | null
   operations: BankHistoryOperation[]
+  /** A recurring payment's name. */
   name: string | null
-  account_name: string | null
-  operation_count: number | null
   confirmed: boolean | null
   /** A type chosen by hand that a pair recognised since outranks. */
   overridden_by_pair: boolean

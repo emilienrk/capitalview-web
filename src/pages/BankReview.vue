@@ -20,7 +20,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
-import { CASHFLOW_TYPE_LABELS, contributionNote } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionNote } from '@/utils/cashflowTypes'
 import type {
   BankReviewItem, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
   RecurringDecisionKind, TypeScope,
@@ -259,6 +259,9 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
 
     <BaseAlert v-if="lastAnswer" variant="success" dismissible class="mb-3" @dismiss="lastAnswer = null">
       {{ lastAnswer.message }}
+      <template v-if="lastAnswer.ruleId">
+        Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
+      </template>
       <button type="button" class="ml-2 font-medium underline" @click="undo">Annuler</button>
     </BaseAlert>
     <BaseAlert v-if="error" variant="danger" dismissible class="mb-3" @dismiss="error = null">{{ error }}</BaseAlert>
@@ -337,7 +340,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
       </ul>
     </BaseCard>
 
-    <p class="mt-6 text-center">
+    <p class="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
       <button
         type="button"
         class="text-sm font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:underline"
@@ -345,6 +348,12 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
       >
         Historique de mes réponses
       </button>
+      <router-link
+        :to="RULES_PAGE"
+        class="text-sm font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:underline"
+      >
+        Règles de tri
+      </router-link>
     </p>
 
     <BankHistoryModal :open="showHistory" @close="showHistory = false" />

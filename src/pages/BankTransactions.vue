@@ -27,7 +27,7 @@ import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
   ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, RECURRING, matchesCashflowType,
-  matchesOperationType, contributionNote, needsReview,
+  matchesOperationType, contributionNote, needsReview, RULES_PAGE,
 } from '@/utils/cashflowTypes'
 import type {
   BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
@@ -333,11 +333,14 @@ async function removeOperation(tx: BankTransactionItem): Promise<void> {
 const retyping = ref<BankTransactionItem | null>(null)
 /** What the last correction did, said once under the filters. */
 const typedMessage = ref<string | null>(null)
+/** The last correction wrote a rule: the message says where it went. */
+const typedRule = ref(false)
 
 function onTyped(result: BankTransactionTypeResult): void {
   const count = result.covered_count
   const label = CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]
   typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
+  typedRule.value = result.transaction.type_rule_id !== null
 }
 
 async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
@@ -361,6 +364,7 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
   try {
     await recurring.decide(tx.id, decision)
     typedMessage.value = decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.'
+    typedRule.value = false
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -655,6 +659,9 @@ onMounted(() => void load())
 
       <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
         {{ typedMessage }}
+        <template v-if="typedRule">
+          Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
+        </template>
       </BaseAlert>
 
       <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
