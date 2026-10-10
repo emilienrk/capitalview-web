@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType, matchesOperationType,
-  needsReview, typeSourceTitle,
+  needsReview, ruleTitle, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -124,5 +124,14 @@ describe('typeSourceTitle', () => {
     expect(typeSourceTitle('contribution')).toContain('déduit')
     expect(typeSourceTitle('override')).toContain('choisi')
     expect(typeSourceTitle('rule')).toContain('choisi')
+  })
+})
+
+describe('ruleTitle', () => {
+  it('reads a rule given from an answer by its label, one written by hand by its text', () => {
+    expect(ruleTitle({ match: 'similar', signature: 'spotify', label: 'PRLV SEPA Spotify' })).toBe('PRLV SEPA Spotify')
+    expect(ruleTitle({ match: 'similar', signature: 'spotify', label: null })).toBe('spotify')
+    expect(ruleTitle({ match: 'contains', signature: 'spotify', label: 'PRLV SEPA Spotify' })).toBe('Contient « spotify »')
+    expect(ruleTitle({ match: 'starts_with', signature: 'carte', label: null })).toBe('Commence par « carte »')
   })
 })

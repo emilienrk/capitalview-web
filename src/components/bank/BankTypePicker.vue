@@ -11,7 +11,7 @@ import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { CASHFLOW_TYPES, answerHint, answerLabel, contributionNote } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, RULES_PAGE, answerHint, answerLabel, contributionNote, ruleTitle } from '@/utils/cashflowTypes'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const props = defineProps<{
@@ -36,6 +36,14 @@ const error = ref<string | null>(null)
 const hasLabel = computed(() => Boolean(props.tx?.label?.trim()))
 /** What the user set, which going back to the detected type undoes. */
 const userSet = computed(() => props.tx?.type_source === 'override' || props.tx?.type_source === 'rule')
+/**
+ * A rule written by hand reaches far beyond this label: it is changed on its
+ * page, never dropped from here.
+ */
+const writtenRule = computed(() => {
+  const id = props.tx?.type_source === 'rule' ? props.tx.type_rule_id : null
+  return types.rules?.find((rule) => rule.id === id && rule.match !== 'similar') ?? null
+})
 /** Why it carries this type, when one of the investment accounts explains it. */
 const contribution = computed(() => {
   const tx = props.tx
@@ -54,6 +62,8 @@ watch(
     error.value = null
     saving.value = null
     byLabel.value = hasLabel.value
+    // Which kind of rule types it is only known from the list of rules.
+    if (props.open && props.tx?.type_source === 'rule' && !types.rules) types.fetchRules().catch(() => {})
   },
   { immediate: true },
 )
@@ -144,7 +154,13 @@ async function backToDetected(): Promise<void> {
     </div>
 
     <template v-if="tx && userSet" #footer>
-      <BaseButton variant="ghost" size="sm" :loading="saving === 'clear'" :disabled="saving !== null" @click="backToDetected">
+      <p v-if="writtenRule" class="text-sm text-text-muted dark:text-text-dark-muted">
+        Comptée par la règle {{ ruleTitle(writtenRule) }} :
+        <router-link :to="RULES_PAGE" class="font-medium text-primary hover:underline" @click="emit('close')">la modifier</router-link>
+      </p>
+      <BaseButton
+        v-else variant="ghost" size="sm" :loading="saving === 'clear'" :disabled="saving !== null" @click="backToDetected"
+      >
         {{ tx.type_source === 'override' ? 'Revenir au type détecté' : 'Retirer la règle de ce libellé' }}
       </BaseButton>
     </template>

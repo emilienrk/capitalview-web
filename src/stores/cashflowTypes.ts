@@ -4,7 +4,8 @@ import { ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
 import type {
-  BankHistoryItem, BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, CashflowType, TypeScope,
+  BankHistoryItem, BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, BankTypeRulePreview,
+  BankTypeRuleWrite, CashflowType, TypeScope,
 } from '@/types'
 
 /** How operations count: the type of one of them, the rules of their labels. */
@@ -49,6 +50,23 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
 
   async function fetchRules(): Promise<void> {
     rules.value = await apiClient.get<BankTypeRule[]>('/banking/type-rules')
+  }
+
+  /** What a rule written by hand would type, nothing written; `replacing` is the rule it edits. */
+  function previewRule(rule: BankTypeRuleWrite, replacing: string | null = null): Promise<BankTypeRulePreview> {
+    const query = replacing ? `?replacing=${encodeURIComponent(replacing)}` : ''
+    return apiClient.post<BankTypeRulePreview>(`/banking/type-rules/preview${query}`, rule)
+  }
+
+  /** Writes a rule by hand, in place of `replacing` when it edits one (it comes back under a new id). */
+  async function writeRule(rule: BankTypeRuleWrite, replacing: string | null = null): Promise<BankTypeRule> {
+    const saved = replacing
+      ? await apiClient.put<BankTypeRule>(`/banking/type-rules/${encodeURIComponent(replacing)}`, rule)
+      : await apiClient.post<BankTypeRule>('/banking/type-rules', rule)
+    changed()
+    // Read again whole: a new rule can take operations from the others.
+    await fetchRules()
+    return saved
   }
 
   /** Gives a rule another type: it comes back under a new id. */
@@ -104,7 +122,8 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   }
 
   return {
-    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, retypeRule, deleteRule, fetchFlowGroup,
+    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, previewRule, writeRule, retypeRule,
+    deleteRule, fetchFlowGroup,
     fetchHistory, undoAnswer, fetchReviewQueue, reset,
   }
 })

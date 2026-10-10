@@ -638,17 +638,59 @@ export interface BankTransactionTypeResult {
   covered_count: number
 }
 
+/** A rule given from an answer reaches its label and nearby ones; one written by hand, a text. */
+export type RuleMatch = 'similar' | 'contains' | 'starts_with'
+
 export interface BankTypeRule {
   id: string
-  account_id: string
-  account_name: string
+  /** Null for a rule written over every account. */
+  account_id: string | null
+  account_name: string | null
   is_credit: boolean
+  /** The label's words, or the text of a rule written by hand, folded. */
   signature: string
+  match: RuleMatch
   /** The most recent operation it types, null when it types nothing any more. */
   label: string | null
   type: CashflowType
   operation_count: number
   created_at: string
+}
+
+/** A rule written by hand, as POST /banking/type-rules and its preview take it. */
+export interface BankTypeRuleWrite {
+  match: Exclude<RuleMatch, 'similar'>
+  text: string
+  /** Null: every account, those added later included. */
+  account_id: string | null
+  is_credit: boolean
+  type: CashflowType
+}
+
+export interface BankRulePreviewOperation {
+  id: string
+  operation_date: string | null
+  label: string | null
+  amount: number
+  currency: string
+  is_credit: boolean
+  account_name: string
+  /** How it counts now, before the rule. */
+  cashflow_type: CashflowType
+}
+
+/** What a rule would do, nothing written. */
+export interface BankTypeRulePreview {
+  pattern: string
+  touched_count: number
+  /** Those counted otherwise until now: what the rule actually changes. */
+  changed_count: number
+  /** Newest first, the first few only. */
+  touched: BankRulePreviewOperation[]
+  kept_count: number
+  kept: Array<{ reason: TypeSource; count: number }>
+  /** Every operation on the rule's side: its account or all, its direction. */
+  side_count: number
 }
 
 // ─── Cashflow réel ───────────────────────────────────────────

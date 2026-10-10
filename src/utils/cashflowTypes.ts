@@ -1,4 +1,6 @@
-import type { BankContributionMatch, BankTransactionItem, CashflowType, OperationType, TypeSource } from '@/types'
+import type {
+  BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, OperationType, TypeSource,
+} from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
 
@@ -8,6 +10,13 @@ export const CASHFLOW_TYPE_LABELS: Record<CashflowType, string> = {
   SAVING: 'Épargne',
   INVESTMENT: 'Investissement',
   NEUTRAL: 'Non compté',
+}
+
+/** A rule as the user reads it: its label, or the text it was written with. */
+export function ruleTitle(rule: Pick<BankTypeRule, 'match' | 'signature' | 'label'>): string {
+  if (rule.match === 'contains') return `Contient « ${rule.signature} »`
+  if (rule.match === 'starts_with') return `Commence par « ${rule.signature} »`
+  return rule.label ?? rule.signature
 }
 
 /** Where the user's sorting rules live: Paramètres › Banque › Règles de tri. */
