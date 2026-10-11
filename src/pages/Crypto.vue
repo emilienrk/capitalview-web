@@ -1402,14 +1402,8 @@ async function handleSubmitTransaction(): Promise<void> {
 
   if (editingTxId.value) {
     const updateData: CryptoTransactionUpdate = {
-      asset_key: txForm.asset_key || undefined,
-      name: txForm.name || undefined,
-      type: txForm.type as CryptoTransactionUpdate['type'],
-      amount: txForm.amount,
-      price_per_unit: txForm.price_per_unit,
+      amount: txForm.type === 'ANCHOR' ? txForm.amount : undefined,
       executed_at: datetimeLocalToIso(txForm.executed_at),
-      tx_hash: txForm.tx_hash || undefined,
-      notes: txForm.notes || undefined,
     }
     const result = await crypto.updateTransaction(editingTxId.value, updateData)
     success = !!result
@@ -2064,7 +2058,11 @@ onMounted(async () => {
           <span class="font-semibold text-text-main dark:text-text-dark-main">{{ txForm.asset_key }}</span>
           <span v-if="txForm.name" class="text-sm text-text-muted dark:text-text-dark-muted">{{ txForm.name }}</span>
         </div>
-        <BaseInput v-model="txForm.amount" label="Quantité" type="number" step="any" min="0" required />
+        <BaseInput v-if="txForm.type === 'ANCHOR'" v-model="txForm.amount" label="Valeur en euros" type="number" step="any" min="0" required />
+        <p v-else class="text-xs text-text-muted dark:text-text-dark-muted flex items-center gap-1.5">
+          <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+          Seule la date se modifie. Pour changer une quantité ou un actif, supprimez l’opération et recréez-la.
+        </p>
         <div>
           <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
           <p v-if="editingLegOfOperation" class="mt-1.5 text-xs text-info dark:text-info flex items-center gap-1.5">

@@ -1351,12 +1351,9 @@ export interface CryptoCompositeTransactionResponse {
   info: string | null
 }
 
+/** A row is one leg of an operation: only its date and notes change, and an ANCHOR's euro value. */
 export interface CryptoTransactionUpdate {
-  asset_key?: string
-  name?: string
-  type?: CryptoAtomicTransactionType
   amount?: number
-  price_per_unit?: number
   executed_at?: string
   notes?: string
   tx_hash?: string
