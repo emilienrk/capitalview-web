@@ -19,7 +19,7 @@ import {
 } from '@/utils/realCashflow'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseToggle, BaseSegmentedControl,
+  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import type { CashflowCreate, CashflowResponse, FlowType, Frequency } from '@/types'
 
@@ -85,33 +85,7 @@ const form = reactive<CashflowCreate>({
   amount: 0,
   frequency: 'MONTHLY' as Frequency,
   transaction_date: new Date().toISOString().split('T')[0] as string,
-  bank_account_id: undefined,
 })
-
-const bankAccountOptions = computed(() => [
-  { label: 'Aucun compte lié', value: '' },
-  ...(bank.summary?.accounts ?? [])
-    .slice()
-    .sort((a, b) => {
-      if (a.account_type === 'CHECKING' && b.account_type !== 'CHECKING') return -1
-      if (b.account_type === 'CHECKING' && a.account_type !== 'CHECKING') return 1
-      return 0
-    })
-    .map(a => ({
-      label: a.institution_name ? `${a.name} (${a.institution_name})` : a.name,
-      value: a.id,
-    })),
-])
-
-const bankAccountNameById = computed(() => {
-  const map: Record<string, string> = {}
-  for (const account of bank.summary?.accounts ?? []) map[account.id] = account.name
-  return map
-})
-
-async function toggleActive(item: CashflowResponse, value: boolean): Promise<void> {
-  await cashflow.updateCashflow(item.id, { is_active: value })
-}
 
 const existingCategories = computed(() => {
   const categories = new Set(cashflow.cashflows.map(c => c.category))
@@ -218,37 +192,19 @@ const filteredCashflows = computed<CashflowResponse[]>(() => {
   }))
 })
 
-/**
- * Add up monthly amounts in euros, or give up on the total.
- *
- * A flow is denominated by the account it hits, so a list of them can mix
- * currencies and only `monthly_amount_eur` is addable. That figure is null when
- * a currency has no published rate, and one of those takes the whole total
- * with it: a sum over the rest would read as the total it is not. Same
- * contract as the bank's — see docs/currencies.md in the API.
- */
-function totalInEuros(flows: CashflowResponse[]): number | null {
-  let total = 0
-  for (const flow of flows) {
-    if (flow.monthly_amount_eur === null) return null
-    total += Number(flow.monthly_amount_eur)
-  }
-  return total
-}
-
 const inflowsTotal = computed(() =>
-  totalInEuros(cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW')),
+  cashflow.cashflows
+    .filter((c) => c.flow_type === 'INFLOW')
+    .reduce((sum, c) => sum + Number(c.monthly_amount), 0),
 )
 
 const outflowsTotal = computed(() =>
-  totalInEuros(cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW')),
+  cashflow.cashflows
+    .filter((c) => c.flow_type === 'OUTFLOW')
+    .reduce((sum, c) => sum + Number(c.monthly_amount), 0),
 )
 
-const netBalance = computed(() =>
-  inflowsTotal.value === null || outflowsTotal.value === null
-    ? null
-    : inflowsTotal.value - outflowsTotal.value,
-)
+const netBalance = computed(() => inflowsTotal.value - outflowsTotal.value)
 
 const cashflowSankeyData = computed(() => {
   const links: Array<{ source: string; target: string; value: number }> = []
@@ -272,18 +228,15 @@ const cashflowSankeyData = computed(() => {
     return count > 1 ? `${base} (${count})` : base
   }
 
-  // Widths are compared against each other, so every node has to be in the same
-  // currency: euros. A flow with no rate is left out — drawn at its face value
-  // it would claim a share of the diagram it has not earned.
-  const inflows = cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW' && Number(c.monthly_amount_eur) > 0)
-  const outflows = cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW' && Number(c.monthly_amount_eur) > 0)
+  const inflows = cashflow.cashflows.filter((c) => c.flow_type === 'INFLOW' && Number(c.monthly_amount) > 0)
+  const outflows = cashflow.cashflows.filter((c) => c.flow_type === 'OUTFLOW' && Number(c.monthly_amount) > 0)
 
   for (const item of inflows) {
     const nodeId = `inflow:${item.id}`
     const categoryKey = `inflow:${capitalize(item.category)}`
     nodeLabels[nodeId] = toUnitLabel(item.name)
     nodeGroups[nodeId] = categoryKey
-    links.push({ source: nodeId, target: 'hub:revenus', value: Number(item.monthly_amount_eur) })
+    links.push({ source: nodeId, target: 'hub:revenus', value: Number(item.monthly_amount) })
   }
 
   for (const item of outflows) {
@@ -291,14 +244,13 @@ const cashflowSankeyData = computed(() => {
     const categoryKey = `outflow:${capitalize(item.category)}`
     nodeLabels[nodeId] = toUnitLabel(item.name)
     nodeGroups[nodeId] = categoryKey
-    links.push({ source: 'hub:revenus', target: nodeId, value: Number(item.monthly_amount_eur) })
+    links.push({ source: 'hub:revenus', target: nodeId, value: Number(item.monthly_amount) })
   }
 
-  const net = netBalance.value ?? 0
-  if (net > 0) {
-    links.push({ source: 'hub:revenus', target: 'hub:epargne', value: net })
-  } else if (net < 0) {
-    links.push({ source: 'hub:external', target: 'hub:revenus', value: Math.abs(net) })
+  if (netBalance.value > 0) {
+    links.push({ source: 'hub:revenus', target: 'hub:epargne', value: netBalance.value })
+  } else if (netBalance.value < 0) {
+    links.push({ source: 'hub:external', target: 'hub:revenus', value: Math.abs(netBalance.value) })
   }
 
   return {
@@ -309,31 +261,24 @@ const cashflowSankeyData = computed(() => {
 })
 
 const savingsRate = computed(() => {
-  if (!inflowsTotal.value || netBalance.value === null) return null
+  if (inflowsTotal.value === 0) return null
   return ((netBalance.value / inflowsTotal.value) * 100)
 })
 
 const categorySummary = computed(() => {
-  const grouped = new Map<string, { category: string; flow_type: FlowType; items: CashflowResponse[] }>()
+  const map = new Map<string, { category: string; flow_type: FlowType; total: number; count: number }>()
   for (const c of cashflow.cashflows) {
     const capitalizedCategory = capitalize(c.category)
     const key = `${c.flow_type}-${capitalizedCategory}`
-    const existing = grouped.get(key)
+    const existing = map.get(key)
     if (existing) {
-      existing.items.push(c)
+      existing.total += Number(c.monthly_amount)
+      existing.count++
     } else {
-      grouped.set(key, { category: capitalizedCategory, flow_type: c.flow_type, items: [c] })
+      map.set(key, { category: capitalizedCategory, flow_type: c.flow_type, total: Number(c.monthly_amount), count: 1 })
     }
   }
-  return Array.from(grouped.values())
-    .map(({ category, flow_type, items }) => ({
-      category,
-      flow_type,
-      total: totalInEuros(items),
-      count: items.length,
-    }))
-    // An unavailable total sorts last rather than as a zero.
-    .sort((a, b) => (b.total ?? -Infinity) - (a.total ?? -Infinity))
+  return Array.from(map.values()).sort((a, b) => b.total - a.total)
 })
 
 function resetForm(): void {
@@ -343,7 +288,6 @@ function resetForm(): void {
   form.amount = 0
   form.frequency = 'MONTHLY'
   form.transaction_date = new Date().toISOString().split('T')[0] as string
-  form.bank_account_id = undefined
   amountInput.value = ''
   selectedDay.value = new Date().getDate()
   selectedMonth.value = new Date().getMonth() + 1
@@ -383,7 +327,6 @@ function openEdit(item: CashflowResponse): void {
   form.amount = Number(item.amount)
   form.frequency = item.frequency
   form.transaction_date = item.transaction_date
-  form.bank_account_id = item.bank_account_id ?? undefined
   amountInput.value = String(Number(item.amount))
   const d = new Date(item.transaction_date)
   selectedDay.value = d.getDate()
@@ -429,7 +372,6 @@ async function handleSubmit(): Promise<void> {
       amount: parsedAmount,
       frequency: form.frequency,
       transaction_date: dateStr,
-      bank_account_id: form.bank_account_id || undefined,
     })
   } else {
     result = await cashflow.createCashflow({
@@ -437,7 +379,6 @@ async function handleSubmit(): Promise<void> {
       category: form.category.toLowerCase(),
       amount: parsedAmount,
       transaction_date: dateStr,
-      bank_account_id: form.bank_account_id || undefined,
     })
   }
   if (!result) {
@@ -486,60 +427,53 @@ onMounted(async () => {
 
 
       <!-- ── Stats Cards ──────────────────────────────────── -->
-      <div v-if="cashflow.cashflows.length" class="mb-8">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <BaseStatCard
-            label="Revenus mensuels"
-            :value="maskValue(formatCurrency(inflowsTotal))"
-            sub-value-class="text-success"
-          >
-            <template #icon>
-              <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                <ArrowUp class="w-5 h-5 text-success" />
-              </div>
-            </template>
-          </BaseStatCard>
+      <div v-if="cashflow.cashflows.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <BaseStatCard
+          label="Revenus mensuels"
+          :value="maskValue(formatCurrency(inflowsTotal))"
+          sub-value-class="text-success"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+              <ArrowUp class="w-5 h-5 text-success" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-          <BaseStatCard
-            label="Dépenses mensuelles"
-            :value="maskValue(formatCurrency(outflowsTotal))"
-            sub-value-class="text-danger"
-          >
-            <template #icon>
-              <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
-                <ArrowDown class="w-5 h-5 text-danger" />
-              </div>
-            </template>
-          </BaseStatCard>
+        <BaseStatCard
+          label="Dépenses mensuelles"
+          :value="maskValue(formatCurrency(outflowsTotal))"
+          sub-value-class="text-danger"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
+              <ArrowDown class="w-5 h-5 text-danger" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-          <BaseStatCard
-            label="Balance nette"
-            :value="maskValue(formatCurrency(netBalance))"
-          >
-            <template #icon>
-              <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
-                <Scale class="w-5 h-5 text-primary" />
-              </div>
-            </template>
-          </BaseStatCard>
+        <BaseStatCard
+          label="Balance nette"
+          :value="maskValue(formatCurrency(netBalance))"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary/10">
+              <Scale class="w-5 h-5 text-primary" />
+            </div>
+          </template>
+        </BaseStatCard>
 
-          <BaseStatCard
-            label="Taux d'épargne"
-            :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
-            :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
-          >
-            <template #icon>
-              <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Circle class="w-5 h-5 text-primary" />
-              </div>
-            </template>
-          </BaseStatCard>
-        </div>
-
-        <!-- No totals rather than wrong ones: a flow's currency has no published rate. -->
-        <p v-if="inflowsTotal === null || outflowsTotal === null" class="mt-3 text-xs text-warning">
-          Totaux indisponibles : le cours d'une de vos devises n'est pas publié.
-        </p>
+        <BaseStatCard
+          label="Taux d'épargne"
+          :value="savingsRate !== null ? `${savingsRate.toFixed(1)} %` : '—'"
+          :sub-value-class="savingsRate !== null && savingsRate >= 0 ? 'text-success' : 'text-danger'"
+        >
+          <template #icon>
+            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Circle class="w-5 h-5 text-primary" />
+            </div>
+          </template>
+        </BaseStatCard>
       </div>
 
       <!-- ── Inflows vs Outflows Breakdown ──────────────── -->
@@ -661,7 +595,6 @@ onMounted(async () => {
               <tr class="border-b border-surface-border dark:border-surface-dark-border">
                 <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Flux</th>
                 <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Récurrence</th>
-                <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Compte</th>
                 <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Montant</th>
                 <th class="text-right px-4 py-3 text-xs font-semibold text-text-muted dark:text-text-dark-muted uppercase tracking-wider">Actions</th>
               </tr>
@@ -670,10 +603,7 @@ onMounted(async () => {
               <tr
                 v-for="item in filteredCashflows"
                 :key="item.id"
-                :class="[
-                  'hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors',
-                  item.is_active ? '' : 'opacity-60',
-                ]"
+                class="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
               >
                 <td class="px-4 py-3">
                   <div class="flex items-start gap-2.5">
@@ -694,28 +624,16 @@ onMounted(async () => {
                   <span class="block text-sm text-text-body dark:text-text-dark-body">{{ frequencyLabels[item.frequency] }}</span>
                   <span class="block text-xs text-text-muted dark:text-text-dark-muted">{{ formatDayMonth(item.transaction_date) }}</span>
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap">
-                  <span v-if="item.bank_account_id" class="text-sm text-text-body dark:text-text-dark-body">
-                    {{ bankAccountNameById[item.bank_account_id] ?? 'Compte supprimé' }}
-                  </span>
-                  <span v-else class="text-sm text-text-muted dark:text-text-dark-muted">—</span>
-                </td>
                 <td class="px-4 py-3 text-right whitespace-nowrap">
                   <span :class="['block text-sm font-semibold', item.flow_type === 'INFLOW' ? 'text-success' : 'text-danger']">
-                    {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount, item.currency) }}
+                    {{ item.flow_type === 'INFLOW' ? '+' : '-' }}{{ formatCurrency(item.amount) }}
                   </span>
                   <span v-if="item.frequency !== 'MONTHLY'" class="block text-xs text-text-muted dark:text-text-dark-muted">
-                    ≈ {{ formatCurrency(item.monthly_amount, item.currency) }}/mois
+                    ≈ {{ formatCurrency(item.monthly_amount) }}/mois
                   </span>
                 </td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-1">
-                    <BaseToggle
-                      v-if="item.bank_account_id"
-                      :model-value="item.is_active"
-                      :aria-label="`Synchroniser ${item.name} avec le compte bancaire`"
-                      @update:model-value="toggleActive(item, $event)"
-                    />
                     <BaseButton size="sm" variant="ghost" :aria-label="`Modifier ${item.name}`" @click="openEdit(item)">
                       <Pencil class="w-4 h-4" />
                     </BaseButton>
@@ -858,12 +776,6 @@ onMounted(async () => {
             required
           />
         </div>
-        <BaseSelect
-          v-if="bankAccountOptions.length > 1"
-          v-model="form.bank_account_id"
-          label="Compte bancaire lié"
-          :options="bankAccountOptions"
-        />
       </form>
       <template #footer>
         <BaseButton variant="ghost" @click="showFormModal = false">Annuler</BaseButton>

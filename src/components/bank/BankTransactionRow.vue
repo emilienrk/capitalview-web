@@ -81,16 +81,15 @@ const offered = computed(() => {
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
 )
-/** An adjustment or a forecast only moves the balance: no type, no pair, no recurring. */
-const synthetic = computed(() => props.tx.origin === 'adjustment' || props.tx.origin === 'forecast')
-const ORIGIN_BADGES = { manual: 'Saisie', adjustment: 'Ajustement', forecast: 'Prévu' } as const
+/** An adjustment only moves the balance: no type, no pair, no recurring. */
+const adjustment = computed(() => props.tx.origin === 'adjustment')
+const ORIGIN_BADGES = { manual: 'Saisie', adjustment: 'Ajustement' } as const
 const ORIGIN_TITLES = {
   manual: 'Saisie à la main : un relevé qui la contient la remplace.',
   adjustment: 'Solde repris quand le compte a cessé d\'être synchronisé. Ne compte ni en dépense ni en revenu.',
-  forecast: 'Prévision récurrente : remplacée par la vraie opération quand elle arrive.',
 } as const
 /** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */
-const typable = computed(() => !synthetic.value && (props.tx.transfer_status === null || suggested.value))
+const typable = computed(() => !adjustment.value && (props.tx.transfer_status === null || suggested.value))
 /** A transfer asked about: nothing pairs it, so where it went is unknown. */
 const unpairedTransfer = computed(
   () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
@@ -103,7 +102,7 @@ const unpairedTransfer = computed(
 const recurrable = computed(() => {
   const tx = props.tx
   if (tx.recurring) return true
-  if (synthetic.value) return false
+  if (adjustment.value) return false
   return !tx.is_pending && tx.transfer_status === null && tx.cashflow_type === (tx.is_credit ? 'INCOME' : 'EXPENSE')
 })
 const recurringAction = computed(() =>

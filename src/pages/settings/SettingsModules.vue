@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bitcoin, LayoutGrid, RefreshCw } from 'lucide-vue-next'
+import { Bitcoin, LayoutGrid } from 'lucide-vue-next'
 
 import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
@@ -12,7 +12,6 @@ const settingsStore = useSettingsStore()
 
 // Module toggles
 const bankModuleEnabled = ref(true)
-const bankAutoSyncEnabled = ref(true)
 const cashflowModuleEnabled = ref(true)
 const wealthModuleEnabled = ref(true)
 const notesModuleEnabled = ref(false)
@@ -28,7 +27,6 @@ function syncFromStore(): void {
   const settings = settingsStore.settings
   if (!settings) return
   bankModuleEnabled.value = settings.bank_module_enabled ?? true
-  bankAutoSyncEnabled.value = settings.bank_auto_sync_enabled ?? false
   cashflowModuleEnabled.value = settings.cashflow_module_enabled ?? true
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
   notesModuleEnabled.value = settings.notes_module_enabled ?? false
@@ -79,30 +77,6 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
               v-model="bankModuleEnabled"
               aria-label="Activer le module Banque"
               @update:model-value="save({ bank_module_enabled: $event })"
-            />
-          </div>
-
-          <!-- Bank auto-sync -->
-          <div v-if="bankModuleEnabled" class="flex items-center justify-between gap-4 pl-4 border-l-2 border-surface-border dark:border-surface-dark-border">
-            <div class="flex items-start gap-2">
-              <RefreshCw class="w-4 h-4 mt-0.5 shrink-0 text-text-muted dark:text-text-dark-muted" />
-              <div>
-                <div class="flex items-center gap-1">
-                  <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Synchronisation automatique</p>
-                  <BaseHelpPopover width="md">
-                    À chaque échéance, crée sur le compte une opération « prévue » pour chaque entrée
-                    ou dépense récurrente qui lui est rattachée dans Cashflow. Elles ne comptent ni en
-                    dépense ni en revenu, et un relevé d'opérations ou un solde saisi qui couvre leur
-                    date les remplace par les vraies. Sans effet sur un compte relié à la banque.
-                  </BaseHelpPopover>
-                </div>
-                <p class="text-sm text-text-muted dark:text-text-dark-muted">Crée des opérations prévues, remplacées par les vraies</p>
-              </div>
-            </div>
-            <BaseToggle
-              v-model="bankAutoSyncEnabled"
-              aria-label="Activer la synchronisation automatique des comptes bancaires"
-              @update:model-value="save({ bank_auto_sync_enabled: $event })"
             />
           </div>
 

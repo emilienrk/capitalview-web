@@ -443,15 +443,15 @@ export interface BankTransactionItem {
   recurring: BankRecurringTag | null
   /** Set on the last operation of a series found but not sure enough to count. */
   recurring_question: BankRecurringQuestion | null
-  /** Typed by hand, an adjustment, or a forecast; null for a reported one. */
+  /** Typed by hand or an adjustment; null for a reported one. */
   origin?: BankOperationOrigin | null
   /** Whether DELETE /bank/transactions/{id} accepts it. */
   deletable?: boolean
 }
 
 /** Where an operation comes from, beyond the bank or a statement. Adjustments
- *  and forecasts only move the balance (docs/bank-ledger.md on the API). */
-export type BankOperationOrigin = 'manual' | 'adjustment' | 'forecast'
+ *  only move the balance (docs/bank-ledger.md on the API). */
+export type BankOperationOrigin = 'manual' | 'adjustment'
 
 /** POST /bank/accounts/{id}/entries: an operation typed by hand on an account
  *  no bank feeds. Money already there when it opened is one too. */
@@ -1092,8 +1092,6 @@ export interface CashflowCreate {
   amount: number
   frequency: Frequency
   transaction_date: string
-  bank_account_id?: string
-  is_active?: boolean
 }
 
 export interface CashflowUpdate {
@@ -1103,8 +1101,6 @@ export interface CashflowUpdate {
   amount?: number
   frequency?: Frequency
   transaction_date?: string
-  bank_account_id?: string
-  is_active?: boolean
 }
 
 export interface CashflowResponse {
@@ -1115,50 +1111,33 @@ export interface CashflowResponse {
   amount: number
   frequency: Frequency
   transaction_date: string
-  /** Normalized to monthly, in `currency`. */
   monthly_amount: number
-  /**
-   * The same figure in euros — what to aggregate on, since the app holds no
-   * exchange rates. null when this flow's currency has no published rate.
-   */
-  monthly_amount_eur: number | null
   created_at: string
   updated_at: string
-  bank_account_id: string | null
-  /**
-   * Read-only: the currency of the linked account, EUR when there is none.
-   * A flow is denominated by the account it hits, so it is never submitted —
-   * there is no field for it in CashflowCreate/Update.
-   */
-  currency: string
-  /** false = excluded from the automatic bank balance sync */
-  is_active: boolean
 }
 
-// Every total below is in euros, and null when a currency in play has no
-// published rate — same contract as BankSummaryResponse.total_balance.
 export interface CashflowCategoryResponse {
   category: string
-  total_amount: number | null
-  monthly_total: number | null
+  total_amount: number
+  monthly_total: number
   count: number
   items: CashflowResponse[]
 }
 
 export interface CashflowSummaryResponse {
   flow_type: FlowType
-  total_amount: number | null
-  monthly_total: number | null
+  total_amount: number
+  monthly_total: number
   categories: CashflowCategoryResponse[]
 }
 
 export interface CashflowBalanceResponse {
-  total_inflows: number | null
-  monthly_inflows: number | null
-  total_outflows: number | null
-  monthly_outflows: number | null
-  net_balance: number | null
-  monthly_balance: number | null
+  total_inflows: number
+  monthly_inflows: number
+  total_outflows: number
+  monthly_outflows: number
+  net_balance: number
+  monthly_balance: number
   savings_rate: number | null
   inflows: CashflowSummaryResponse
   outflows: CashflowSummaryResponse
@@ -1609,12 +1588,11 @@ export interface BankImportTransactionPreview {
 
 export type BankImportRowStatus = 'new' | 'duplicate' | 'replaces_manual' | 'ambiguous'
 
-/** An adjustment or a forecast the file's operations replace. */
+/** An adjustment the file's operations replace. */
 export interface BankImportReplacedEntry {
   day: string
   /** Signed. */
   amount: number
-  origin: 'adjustment' | 'forecast'
   label: string | null
 }
 
@@ -1648,7 +1626,7 @@ export interface ImportPreviewResponse {
   bank_history_from: string | null
   /** Rows the bank already holds, left out of `bank_transactions`. */
   covered_by_bank_count: number
-  /** Account no bank feeds: the adjustments and forecasts the file replaces. */
+  /** Account no bank feeds: the adjustments the file replaces. */
   bank_replaced?: BankImportReplacedEntry[] | null
   /** Account no bank feeds: the balance at the file's last operation, once imported. */
   bank_balance_after?: number | null
@@ -1669,7 +1647,7 @@ export interface ImportConfirmResponse {
   skipped_duplicates: number
   groups_count: number | null
   covered_by_bank_count: number
-  /** Adjustments and forecasts the import replaced. */
+  /** Adjustments the import replaced. */
   replaced_count?: number
 }
 
@@ -1847,7 +1825,6 @@ export interface UserSettingsUpdate {
   crypto_mode?: 'SINGLE' | 'MULTI'
   crypto_auto_deposits?: boolean
   bank_module_enabled?: boolean
-  bank_auto_sync_enabled?: boolean
   bank_question_threshold?: number
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
@@ -1883,7 +1860,6 @@ export interface UserSettingsResponse {
   crypto_mode: 'SINGLE' | 'MULTI'
   crypto_auto_deposits: boolean
   bank_module_enabled: boolean
-  bank_auto_sync_enabled: boolean
   bank_question_threshold: number
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean

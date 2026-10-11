@@ -612,11 +612,11 @@ function typeBadgeClass(t: string): string {
         class="mb-4 p-3 rounded-card border border-info/30 bg-info/5 text-sm text-text-body dark:text-text-dark-body"
       >
         <p class="font-medium text-text-main dark:text-text-dark-main">
-          {{ preview.bank_replaced.length }} ajustement(s) ou prévision(s) remplacé(s) par les opérations du fichier
+          {{ preview.bank_replaced.length }} ajustement(s) remplacé(s) par les opérations du fichier
         </p>
         <ul class="mt-1 space-y-0.5 text-xs">
           <li v-for="(e, i) in preview.bank_replaced" :key="i" class="flex justify-between gap-3">
-            <span>{{ fmtDate(e.day) }} · {{ e.origin === 'forecast' ? 'Prévu' : 'Ajustement' }}<template v-if="e.label"> · {{ e.label }}</template></span>
+            <span>{{ fmtDate(e.day) }}<template v-if="e.label"> · {{ e.label }}</template></span>
             <span class="tabular-nums whitespace-nowrap">{{ Number(e.amount) > 0 ? '+' : '' }}{{ euros(e.amount) }}</span>
           </li>
         </ul>
@@ -701,7 +701,7 @@ function typeBadgeClass(t: string): string {
         <p v-if="result.groups !== null"><strong>{{ result.groups }}</strong> opération(s) traitée(s)</p>
         <p v-if="result.skipped > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.skipped }} doublon(s) ignoré(s)</p>
         <p v-if="result.coveredByBank > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.coveredByBank }} opération(s) déjà fournie(s) par la banque ignorée(s)</p>
-        <p v-if="result.replaced > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.replaced }} ajustement(s) ou prévision(s) remplacé(s)</p>
+        <p v-if="result.replaced > 0" class="text-text-muted dark:text-text-dark-muted">{{ result.replaced }} ajustement(s) remplacé(s)</p>
       </div>
     </template>
 
