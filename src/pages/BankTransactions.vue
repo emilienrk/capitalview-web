@@ -29,8 +29,8 @@ import {
   ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview, RULES_PAGE,
 } from '@/utils/cashflowTypes'
 import type {
-  BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
-  TypeScope,
+  BankContributionDecisionKind, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
+  RecurringDecisionKind, TypeScope,
 } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -279,19 +279,43 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
-/** The pair set aside, the operation counted as the deposit facing it. */
+/** The pair set aside, the operation bound to the deposit facing it. */
 async function deposit(tx: BankTransactionItem): Promise<void> {
-  if (!tx.transfer_id) return
+  if (!tx.transfer_id || !tx.contribution) return
   deciding.value = tx.id
   decisionError.value = null
   try {
     await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
-    onTyped(await cashflowTypes.answerFlow(tx.id, 'INVESTMENT', 'operation'))
+    await bank.decideContribution(tx.id, tx.contribution.id, 'contribution')
+    onContribution('contribution')
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
   } finally {
     deciding.value = null
   }
+}
+
+/** Yes or no to the deposit or withdrawal facing the operation. */
+async function contribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): Promise<void> {
+  if (!tx.contribution) return
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await bank.decideContribution(tx.id, tx.contribution.id, kind)
+    onContribution(kind)
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
+  } finally {
+    deciding.value = null
+  }
+}
+
+function onContribution(kind: BankContributionDecisionKind): void {
+  typedMessage.value = kind === 'contribution'
+    ? 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
+    : 'Comptée comme les autres opérations.'
+  typedRule.value = false
+  typedOutranked.value = null
 }
 
 // ── Entries on an account no bank feeds ────────────────────
@@ -691,6 +715,7 @@ onMounted(() => void load())
             :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @deposit="deposit(tx)"
+            @contribution="(kind) => contribution(tx, kind)"
             @link="linking = tx"
             @recurring="filing = tx"
             @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
@@ -718,6 +743,7 @@ onMounted(() => void load())
                 :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @deposit="deposit(tx)"
+                @contribution="(kind) => contribution(tx, kind)"
                 @link="linking = tx"
                 @recurring="filing = tx"
                 @answer="(type, scope, picked) => answer(tx, type, scope, picked)"

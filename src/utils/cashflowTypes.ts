@@ -105,13 +105,23 @@ export function contributionNote(
     const movement = match.is_deposit
       ? `Un versement de ${format(amount)} sur ${match.account_name}`
       : `Un retrait de ${format(amount)} depuis ${match.account_name}`
-    return `${movement} le ${day} pourrait être celui-ci.`
+    return `${movement} le ${day} : est-ce celui-ci ?`
   }
   const fee = Math.abs(Number(operationAmount) - amount)
   if (fee < 0.005) return null
   return match.is_deposit
     ? `${format(amount)} arrivés sur ${match.account_name}, ${format(fee)} de frais.`
     : `${format(amount)} retirés de ${match.account_name}, ${format(fee)} de frais.`
+}
+
+/**
+ * Whether the operation asks, yes or no, if it is the declared movement facing
+ * it. Not once it is proved, typed by hand or paired: a suggested pair asks in
+ * its own question, which offers the deposit too (docs/bank-sorting.md).
+ */
+export function asksContribution(tx: BankTransactionItem): boolean {
+  return tx.contribution !== null && tx.transfer_status === null
+    && (tx.type_source === 'default' || tx.type_source === 'rule' || tx.type_source === 'recurring')
 }
 
 /** The investment account an operation went to or came from, for its badge. */
@@ -150,4 +160,5 @@ export function matchesCashflowType(tx: BankTransactionItem, filter: string): bo
 /** A pair offered to the user, a label only the user can type, or a recurring payment or income to confirm. */
 export function needsReview(tx: BankTransactionItem): boolean {
   return tx.transfer_status === 'suggested' || tx.flow_question !== null || tx.recurring_question !== null
+    || asksContribution(tx)
 }

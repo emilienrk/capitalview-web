@@ -15,6 +15,11 @@ describe('historyTitle', () => {
     expect(historyTitle(item({ kind: 'not_transfer' }))).toBe('Pas ensemble : chacune comptée de son côté')
   })
 
+  it('names the investment account an operation was bound to, or ruled out of', () => {
+    expect(historyTitle(item({ kind: 'contribution', name: 'PEA' }))).toBe('Liée à un mouvement de PEA : comptée en Investissement')
+    expect(historyTitle(item({ kind: 'not_contribution', name: null }))).toBe("Pas liée à un mouvement d'un compte d'investissement")
+  })
+
   it('names the type an operation was given', () => {
     expect(historyTitle(item({ kind: 'type', type: 'SAVING' }))).toBe('Comptée en Épargne')
     expect(historyTitle(item({ kind: 'type', type: 'NEUTRAL' }))).toBe('Non comptée')

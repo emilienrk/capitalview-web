@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType, needsReview, ruleTitle,
-  typeSourceTitle,
+  ALL, RECURRING, answerHint, answerLabel, asksContribution, contributionBadge, contributionNote, matchesCashflowType,
+  needsReview, ruleTitle, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -80,7 +80,7 @@ describe('answerHint', () => {
 })
 
 describe('contributionNote', () => {
-  const deposit = { account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: false }
+  const deposit = { id: 'deposit-1', account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: false }
   const euros = (value: number) => `${value.toFixed(2).replace('.', ',')} €`
 
   it('says nothing of a vouched deposit of the very amount on the very day: the badge does', () => {
@@ -94,9 +94,9 @@ describe('contributionNote', () => {
     )
   })
 
-  it('offers a nearby deposit without deciding for the user', () => {
+  it('asks about a nearby deposit without deciding for the user', () => {
     expect(contributionNote(deposit, 200, euros, '7 mars', false)).toBe(
-      'Un versement de 200,00 € sur PEA le 7 mars pourrait être celui-ci.',
+      'Un versement de 200,00 € sur PEA le 7 mars : est-ce celui-ci ?',
     )
   })
 
@@ -110,6 +110,24 @@ describe('contributionNote', () => {
     const withdrawal = { ...deposit, is_deposit: false }
     expect(contributionNote(withdrawal, 80, euros, '5 mars', false)).toContain('retrait de 200,00 € depuis PEA')
     expect(contributionBadge({ ...withdrawal, exact: true })).toBe('depuis PEA')
+  })
+})
+
+describe('asksContribution', () => {
+  const contribution = { id: 'deposit-1', account_name: 'PEA', day: '2026-03-05', amount: 40, is_deposit: true, exact: true }
+
+  it('asks until the user said, a rule or a recurring payment notwithstanding', () => {
+    expect(asksContribution(anOperation({ contribution }))).toBe(true)
+    expect(asksContribution(anOperation({ contribution, type_source: 'rule' }))).toBe(true)
+    expect(asksContribution(anOperation({ contribution, type_source: 'recurring' }))).toBe(true)
+    expect(needsReview(anOperation({ contribution }))).toBe(true)
+  })
+
+  it('leaves a proved deposit, a type chosen by hand and a pair alone', () => {
+    expect(asksContribution(anOperation())).toBe(false)
+    expect(asksContribution(anOperation({ contribution, type_source: 'contribution', cashflow_type: 'INVESTMENT' }))).toBe(false)
+    expect(asksContribution(anOperation({ contribution, type_source: 'override' }))).toBe(false)
+    expect(asksContribution(anOperation({ contribution, transfer_status: 'suggested' }))).toBe(false)
   })
 })
 

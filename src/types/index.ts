@@ -398,6 +398,9 @@ export type BankTransferStatus =
 
 export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
 
+/** POST /banking/contribution-decisions: the operation is the declared deposit or withdrawal facing it, or not. */
+export type BankContributionDecisionKind = 'contribution' | 'not_contribution'
+
 /** Response of GET /banking/transfer-questions — pairs and flow questions waiting for the user, by month. */
 export interface BankTransferQuestionsResponse {
   total: number
@@ -489,6 +492,8 @@ export type TypeScope = 'label' | 'operation'
  * it. Otherwise it is a nearby amount, shown for the user to judge.
  */
 export interface BankContributionMatch {
+  /** The declared row, what a decision names. */
+  id: string
   account_name: string
   /** YYYY-MM-DD */
   day: string
@@ -898,7 +903,8 @@ export interface BankReviewQueue {
   unfaced: BankUnfacedContribution[]
 }
 
-export type BankHistoryKind = 'transfer' | 'not_transfer' | 'reversal' | 'type' | 'recurring'
+export type BankHistoryKind =
+  | 'transfer' | 'not_transfer' | 'reversal' | 'contribution' | 'not_contribution' | 'type' | 'recurring'
 
 export interface BankHistoryOperation {
   id: string
@@ -918,7 +924,7 @@ export interface BankHistoryItem {
   at: string | null
   type: CashflowType | null
   operations: BankHistoryOperation[]
-  /** A recurring payment's name. */
+  /** A recurring payment's name; the investment account of a contribution decision. */
   name: string | null
   confirmed: boolean | null
   /** A type chosen by hand that a pair recognised since outranks. */

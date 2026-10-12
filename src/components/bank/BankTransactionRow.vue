@@ -13,11 +13,15 @@ import {
   PAIR_HINTS,
   answerHint,
   answerLabel,
+  asksContribution,
   contributionBadge,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
-import type { BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope } from '@/types'
+import type {
+  BankContributionDecisionKind, BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
+  TypeScope,
+} from '@/types'
 
 const props = defineProps<{
   tx: BankTransactionItem
@@ -41,6 +45,8 @@ defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   /** A suggested pair is set aside for the deposit facing the operation. */
   deposit: []
+  /** The operation is, or is not, the deposit or withdrawal facing it. */
+  contribution: [kind: BankContributionDecisionKind]
   link: []
   /** `picked`: the operations to type with the operation scope, this one or those ticked in its label. */
   answer: [type: CashflowType, scope: TypeScope, picked: string[]]
@@ -68,6 +74,9 @@ function money(value: number): string {
 }
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
+/** Asked yes or no, in place of the type question: only the user knows it went there. */
+const asksDeposit = computed(() => asksContribution(props.tx))
+const proved = computed(() => props.tx.type_source === 'contribution')
 /** The other side of a pair offered to the user: what the pair is judged by. */
 const offered = computed(() => {
   const { transfer_label: label, transfer_date: day } = props.tx
@@ -144,9 +153,9 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       </BaseBadge>
       <!-- A deposit or withdrawal of the very day: read like a transfer to
            one of the user's accounts, offered until the user vouches for it. -->
-      <BaseBadge v-else-if="tx.contribution?.exact" :variant="tx.type_source === 'contribution' ? 'info' : 'warning'">
+      <BaseBadge v-else-if="tx.contribution?.exact && (proved || asksDeposit)" :variant="proved ? 'info' : 'warning'">
         <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
-        {{ contributionBadge(tx.contribution) }}{{ tx.type_source === 'contribution' ? '' : ' ?' }}
+        {{ contributionBadge(tx.contribution) }}{{ proved ? '' : ' ?' }}
       </BaseBadge>
       <!-- A refund happened once: it names what it comes off, not a rhythm. -->
       <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
@@ -163,18 +172,39 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       </BaseBadge>
     </div>
     <div class="col-span-full sm:col-end-2 row-start-3">
-      <!-- What the investment accounts say: the deposit this operation was
-           recognised as, or a nearby one to answer the question by. -->
-      <p
-        v-if="contributionNote"
-        :class="[
-          'mt-1 flex items-center gap-1 text-xs',
-          tx.contribution?.exact ? 'text-info' : 'text-text-muted dark:text-text-dark-muted',
-        ]"
-      >
+      <!-- What the investment accounts say of a deposit this operation was
+           recognised as: the fee kept on the way, when there is one. -->
+      <p v-if="contributionNote && proved" class="mt-1 flex items-center gap-1 text-xs text-info">
         <TrendingUp class="w-3.5 h-3.5 shrink-0" />
         {{ contributionNote }}
       </p>
+      <!-- Each operation facing a deposit asks on its own: each has its own
+           deposit. A yes vouches for the label, so the next ones prove
+           themselves; a no puts the operation back with the others. -->
+      <div v-if="asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="inline-flex items-center gap-1 text-warning font-medium">
+          <TrendingUp class="w-3.5 h-3.5 shrink-0" />
+          {{ contributionNote }}
+        </span>
+        <button
+          type="button"
+          :disabled="busy"
+          title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('contribution', 'contribution')"
+        >
+          Oui
+        </button>
+        <button
+          type="button"
+          :disabled="busy"
+          title="Ce n'est pas ce mouvement : l'opération compte comme les autres."
+          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('contribution', 'not_contribution')"
+        >
+          Non
+        </button>
+      </div>
       <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
         <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
         <span class="truncate" :title="offered">{{ offered }}</span>
@@ -221,7 +251,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       </div>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->
-      <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+      <div v-if="tx.flow_question && !asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
           {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Cette sortie, c\'est…' }}

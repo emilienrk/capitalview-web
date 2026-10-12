@@ -7,6 +7,11 @@ function counted(type: CashflowType | null, ending: '' | 'e'): string {
   return `compté${ending} en ${type ? CASHFLOW_TYPE_LABELS[type] : '?'}`
 }
 
+/** The declared deposit or withdrawal a decision named, by its account while it is still there. */
+function movement(account: string | null): string {
+  return account ? `un mouvement de ${account}` : "un mouvement d'un compte d'investissement"
+}
+
 /** What one answer said, in the words of the question it settled. */
 export function historyTitle(item: BankHistoryItem): string {
   switch (item.kind) {
@@ -16,6 +21,10 @@ export function historyTitle(item: BankHistoryItem): string {
       return 'Pas ensemble : chacune comptée de son côté'
     case 'reversal':
       return 'Liée à son remboursement'
+    case 'contribution':
+      return `Liée à ${movement(item.name)} : comptée en Investissement`
+    case 'not_contribution':
+      return `Pas liée à ${movement(item.name)}`
     case 'type': {
       const words = counted(item.type, 'e')
       return words.charAt(0).toUpperCase() + words.slice(1)

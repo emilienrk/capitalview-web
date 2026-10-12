@@ -312,6 +312,21 @@ describe('useBankStore — fetchTransactions', () => {
     ])
   })
 
+  it('reloads every month once a deposit is answered: a yes vouches for its label', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.post).mockResolvedValue(undefined)
+    vi.mocked(apiClient.get).mockResolvedValue({ total: 0, months: [] })
+
+    const store = useBankStore()
+    const before = store.dataRevision
+    await store.decideContribution('tx-1', 'deposit-1', 'contribution')
+
+    expect(apiClient.post).toHaveBeenCalledWith('/banking/contribution-decisions', {
+      transaction_id: 'tx-1', contribution_id: 'deposit-1', kind: 'contribution',
+    })
+    expect(store.dataRevision).toBe(before + 1)
+  })
+
   it('goes stale with the flows when the movements change', async () => {
     const { apiClient } = await import('@/api/client')
     vi.mocked(apiClient.get).mockResolvedValue(aMonth())

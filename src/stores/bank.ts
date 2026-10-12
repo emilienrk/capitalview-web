@@ -17,6 +17,7 @@ import type {
   BankAccountSyncResult,
   BankAccountUnlinkResult,
   BankAuthorizeResponse,
+  BankContributionDecisionKind,
   BankFlowsResponse,
   BankTransactionItem,
   BankTransactionsResponse,
@@ -424,6 +425,23 @@ export const useBankStore = defineStore('bank', () => {
   }
 
   /**
+   * Says whether an operation is the deposit or withdrawal declared facing it.
+   * A yes vouches for its label too, so every month may move, as for a pair.
+   */
+  async function decideContribution(
+    transactionId: string,
+    contributionId: string,
+    kind: BankContributionDecisionKind,
+  ): Promise<void> {
+    await apiClient.post('/banking/contribution-decisions', {
+      transaction_id: transactionId,
+      contribution_id: contributionId,
+      kind,
+    })
+    operationsRead()
+  }
+
+  /**
    * How operations are read moved — a pair settled, a type given: every
    * observed flow goes stale, the pages listening to `dataRevision` reload, and
    * the questions are counted again.
@@ -567,6 +585,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchTransferQuestions,
     fetchTransferCounterparts,
     decideTransfer,
+    decideContribution,
     operationsRead,
     fetchAspsps,
     authorizeBank,
