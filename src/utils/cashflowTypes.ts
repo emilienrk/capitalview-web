@@ -136,7 +136,7 @@ export function contributionBadge(match: BankContributionMatch): string {
  */
 export const PAIR_HINTS = {
   transfer:
-    "C'est un virement entre mes comptes : les deux lignes sortent des totaux, et les prochaines paires qui leur ressemblent s'apparieront seules.",
+    "Ensemble : un virement entre vos comptes, ou un remboursement. Les prochaines paires qui leur ressemblent s'apparieront seules.",
   notTransfer:
     "Pas ensemble : chacune restera comptée de son côté. Seule cette paire ne sera plus proposée.",
   unlink:
@@ -144,6 +144,16 @@ export const PAIR_HINTS = {
   link:
     "Lier à un virement entre vos comptes, ou au remboursement de cette opération : les deux sortent alors des totaux.",
 } as const
+
+/**
+ * What saying "Ensemble" does, written under the question: we do not know
+ * whether it is a transfer or a refund, only what the pair would count as.
+ */
+export function togetherNote(type: CashflowType | null | undefined): string {
+  return type === 'SAVING'
+    ? 'Ensemble : comptées en épargne.'
+    : "Ensemble : elles s'annulent, aucune n'est comptée."
+}
 
 export const ALL = 'all'
 /**

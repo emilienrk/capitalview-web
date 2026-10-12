@@ -11,7 +11,8 @@ function item(fields: Partial<BankHistoryItem>): BankHistoryItem {
 }
 
 describe('historyTitle', () => {
-  it('says a refused pair the way the button did', () => {
+  it('says a pair the way the buttons did', () => {
+    expect(historyTitle(item({ kind: 'transfer' }))).toBe("Ensemble : liées l'une à l'autre")
     expect(historyTitle(item({ kind: 'not_transfer' }))).toBe('Pas ensemble : chacune comptée de son côté')
   })
 

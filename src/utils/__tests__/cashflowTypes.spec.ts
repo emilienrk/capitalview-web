@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ALL, RECURRING, answerHint, answerLabel, asksContribution, contributionBadge, contributionNote, matchesCashflowType,
-  needsReview, ruleTitle, typeSourceTitle,
+  needsReview, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -128,6 +128,14 @@ describe('asksContribution', () => {
     expect(asksContribution(anOperation({ contribution, type_source: 'contribution', cashflow_type: 'INVESTMENT' }))).toBe(false)
     expect(asksContribution(anOperation({ contribution, type_source: 'override' }))).toBe(false)
     expect(asksContribution(anOperation({ contribution, transfer_status: 'suggested' }))).toBe(false)
+  })
+})
+
+describe('togetherNote', () => {
+  it('says what the pair counts as, never whether it is a transfer or a refund', () => {
+    expect(togetherNote('NEUTRAL')).toBe("Ensemble : elles s'annulent, aucune n'est comptée.")
+    expect(togetherNote(null)).toBe("Ensemble : elles s'annulent, aucune n'est comptée.")
+    expect(togetherNote('SAVING')).toBe('Ensemble : comptées en épargne.')
   })
 })
 

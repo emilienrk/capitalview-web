@@ -15,6 +15,7 @@ import {
   answerLabel,
   asksContribution,
   contributionBadge,
+  togetherNote,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
@@ -146,9 +147,13 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
         {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
       </BaseBadge>
-      <BaseBadge v-else-if="tx.transfer_account_name" :variant="suggested ? 'warning' : 'info'">
+      <!-- Offered, it may be a transfer or a refund: no arrow claims which. -->
+      <BaseBadge v-else-if="tx.transfer_account_name && suggested" variant="warning">
+        avec {{ tx.transfer_account_name }} ?
+      </BaseBadge>
+      <BaseBadge v-else-if="tx.transfer_account_name" variant="info">
         <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
-        {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}{{ suggested ? ' ?' : '' }}
+        {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}
         <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
       </BaseBadge>
       <!-- A deposit or withdrawal of the very day: read like a transfer to
@@ -206,7 +211,6 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         </button>
       </div>
       <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
-        <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
         <span class="truncate" :title="offered">{{ offered }}</span>
       </p>
       <!-- A pair offered, asked in words: the refusal says what it does, so it
@@ -224,7 +228,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('decide', 'transfer')"
         >
-          {{ tx.is_credit ? 'Depuis' : 'Vers' }} {{ tx.transfer_account_name }}
+          Ensemble
         </button>
         <button
           v-if="tx.contribution"
@@ -246,7 +250,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           Pas ensemble
         </button>
         <span class="basis-full text-text-muted dark:text-text-dark-muted">
-          Pas ensemble : chacune restera comptée de son côté.
+          {{ togetherNote(tx.together_type) }} Pas ensemble : chacune restera comptée de son côté.
         </span>
       </div>
       <!-- Asked on the last operation of a label only the user can type, beside

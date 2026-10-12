@@ -16,7 +16,7 @@ function movement(account: string | null): string {
 export function historyTitle(item: BankHistoryItem): string {
   switch (item.kind) {
     case 'transfer':
-      return 'Ensemble : un virement entre vos comptes'
+      return "Ensemble : liées l'une à l'autre"
     case 'not_transfer':
       return 'Pas ensemble : chacune comptée de son côté'
     case 'reversal':

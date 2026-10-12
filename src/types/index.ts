@@ -432,6 +432,8 @@ export interface BankTransactionItem {
   /** Only on a suggested pair: the other side's label and day, the amount being the same. */
   transfer_label?: string | null
   transfer_date?: string | null
+  /** Only on a suggested pair: what both sides count as once said to go together. */
+  together_type?: CashflowType | null
   cashflow_type: CashflowType
   type_source: TypeSource
   /** The rule typing it, exact or reached from a nearby label. */
