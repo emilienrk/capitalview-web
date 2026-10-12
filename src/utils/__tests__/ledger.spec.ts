@@ -20,7 +20,6 @@ function row(overrides: Partial<BankLedgerRow>): BankLedgerRow {
     is_credit: false,
     is_pending: false,
     label: 'CARTE 09/08/26 CARREFOUR ANNECY CB*0837',
-    operation_type: 'CARD',
     cashflow_type: 'EXPENSE',
     type_source: 'default',
     type_rule_id: null,
@@ -82,12 +81,12 @@ describe('periodRange', () => {
 describe('applyFilters', () => {
   const entries = hydrate(ledger([
     row({ id: 'card', amount: 42.5, signed: 42.5 }),
-    row({ id: 'salary', group: 1, is_credit: true, amount: 1500, signed: 1500, cashflow_type: 'INCOME', operation_type: 'TRANSFER', label: 'VIR SEPA EMPLOYEUR' }),
+    row({ id: 'salary', group: 1, is_credit: true, amount: 1500, signed: 1500, cashflow_type: 'INCOME', label: 'VIR SEPA EMPLOYEUR' }),
     row({ id: 'pending', is_pending: true, counted: false, signed: 0 }),
     row({ id: 'pair', account: 1, cashflow_type: 'NEUTRAL', transfer_status: 'recurring', counted: false, signed: 0, label: 'Recharge Apple Pay' }),
     row({ id: 'old', day: '2024-02-01' }),
     row({ id: 'chf', currency: 'CHF', label: 'DENNER GENEVE' }),
-    row({ id: 'open', group: 2, label: 'Vinted', amount: 250, signed: 250, open: true, account: 1, operation_type: 'UNKNOWN' }),
+    row({ id: 'open', group: 2, label: 'Vinted', amount: 250, signed: 250, open: true, account: 1 }),
   ]))
   const ids = (overrides: Partial<LedgerFilters>, range = periodRange(filters(overrides), TODAY)) =>
     applyFilters(entries, filters(overrides), range, 'EUR').map((entry) => entry.id)
@@ -101,12 +100,11 @@ describe('applyFilters', () => {
     expect(ids({ includeUncounted: true })).toEqual(['card', 'salary', 'pair', 'open'])
   })
 
-  it('filters on accounts, direction, types, means, amounts, groups and open questions', () => {
+  it('filters on accounts, direction, types, amounts, groups and open questions', () => {
     expect(ids({ accounts: ['neobank'] })).toEqual(['open'])
     expect(ids({ direction: 'in' })).toEqual(['salary'])
     expect(ids({ direction: 'out' })).toEqual(['card', 'open'])
     expect(ids({ types: ['INCOME'] })).toEqual(['salary'])
-    expect(ids({ means: ['UNKNOWN'] })).toEqual(['open'])
     expect(ids({ min: 42.5, max: 250 })).toEqual(['card', 'open'])
     expect(ids({ groups: ['D:vinted'] })).toEqual(['open'])
     expect(ids({ onlyOpen: true })).toEqual(['open'])
@@ -284,8 +282,8 @@ describe('toCsv', () => {
   it('writes French decimals, quotes what needs it and starts with a BOM', () => {
     const [entry] = hydrate(ledger([row({ day: '2026-08-10', amount: 42.5, label: 'CARTE "A;B"' })]))
     const csv = toCsv([entry!])
-    expect(csv.startsWith('\uFEFFDate;Compte;Libellé;Contrepartie;Montant;Devise;Type;Moyen de paiement;En attente\r\n')).toBe(true)
-    expect(csv).toContain('2026-08-10;Principal;"CARTE ""A;B""";Carrefour Annecy;-42,50;EUR;Dépense;Carte;non\r\n')
+    expect(csv.startsWith('\uFEFFDate;Compte;Libellé;Contrepartie;Montant;Devise;Type;En attente\r\n')).toBe(true)
+    expect(csv).toContain('2026-08-10;Principal;"CARTE ""A;B""";Carrefour Annecy;-42,50;EUR;Dépense;non\r\n')
   })
 })
 
@@ -298,7 +296,7 @@ describe('the URL', () => {
     const state = {
       filters: filters({
         preset: 'custom', from: '2025-01', to: '2025-06', accounts: ['a', 'b'], direction: 'out', types: ['EXPENSE', 'SAVING'],
-        means: ['CARD'], min: 10, max: 200.5, query: 'carrefour -annecy', groups: ['D:annecy carrefour'],
+        min: 10, max: 200.5, query: 'carrefour -annecy', groups: ['D:annecy carrefour'],
         onlyOpen: true, includePending: true, includeUncounted: true,
       }),
       by: 'month',

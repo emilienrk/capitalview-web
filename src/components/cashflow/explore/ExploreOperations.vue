@@ -6,7 +6,7 @@ import { ArrowLeftRight, Download, HelpCircle, Link2 } from 'lucide-vue-next'
 import { BaseBadge, BaseButton, BaseCard, BaseSegmentedControl } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, OPERATION_TYPE_LABELS } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES } from '@/utils/cashflowTypes'
 import type { LedgerEntry } from '@/utils/ledger'
 
 const props = defineProps<{ entries: LedgerEntry[] }>()
@@ -81,7 +81,6 @@ function amountClass(entry: LedgerEntry): string {
             <span>{{ day(entry) }}</span>
             <span aria-hidden="true">·</span>
             <span>{{ entry.account.name }}</span>
-            <span v-if="entry.operationType !== 'UNKNOWN'">{{ OPERATION_TYPE_LABELS[entry.operationType] }}</span>
             <button
               v-if="typable(entry)"
               type="button"

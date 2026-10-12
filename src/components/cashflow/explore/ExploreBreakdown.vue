@@ -33,7 +33,7 @@ const shown = computed(() => (expanded.value ? props.buckets : props.buckets.sli
 
 const options = (Object.keys(DIMENSION_LABELS) as Dimension[]).map((value) => ({ label: DIMENSION_LABELS[value], value }))
 /** Only these narrow the selection when clicked; the others would need a filter the page does not have. */
-const selectable = computed(() => ['group', 'month', 'account', 'means', 'type', 'amount-band'].includes(props.by))
+const selectable = computed(() => ['group', 'month', 'account', 'type', 'amount-band'].includes(props.by))
 
 function amount(value: number): string {
   return maskValue(formatCurrency(value, props.currency))

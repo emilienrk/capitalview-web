@@ -26,8 +26,7 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS, RECURRING, matchesCashflowType,
-  matchesOperationType, contributionNote, needsReview, RULES_PAGE,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview, RULES_PAGE,
 } from '@/utils/cashflowTypes'
 import type {
   BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
@@ -179,11 +178,6 @@ const typeOptions = [
   ...CASHFLOW_TYPES.map((value) => ({ label: CASHFLOW_TYPE_LABELS[value], value })),
   { label: 'Récurrent', value: RECURRING },
 ]
-const meansFilter = ref<string>(ALL)
-const meansOptions = [
-  { label: 'Tous moyens de paiement', value: ALL },
-  ...Object.entries(OPERATION_TYPE_LABELS).map(([value, label]) => ({ label, value })),
-]
 
 /** Kept out of the totals: every pair but a suggested one. */
 function isDeducted(tx: BankTransactionItem): boolean {
@@ -192,7 +186,7 @@ function isDeducted(tx: BankTransactionItem): boolean {
 
 const hasFilters = computed(() =>
   direction.value !== 'all' || search.value.trim() !== '' || !showTransfers.value || toReviewOnly.value
-  || typeFilter.value !== ALL || meansFilter.value !== ALL,
+  || typeFilter.value !== ALL,
 )
 
 function resetFilters(): void {
@@ -201,7 +195,6 @@ function resetFilters(): void {
   showTransfers.value = true
   toReviewOnly.value = false
   typeFilter.value = ALL
-  meansFilter.value = ALL
 }
 
 const filtered = computed(() => {
@@ -212,7 +205,6 @@ const filtered = computed(() => {
     if (!showTransfers.value && isDeducted(tx)) return false
     if (toReviewOnly.value && !needsReview(tx)) return false
     if (!matchesCashflowType(tx, typeFilter.value)) return false
-    if (!matchesOperationType(tx, meansFilter.value)) return false
     if (!query) return true
     return (tx.label ?? '').toLowerCase().includes(query)
       || tx.account_name.toLowerCase().includes(query)
@@ -654,11 +646,10 @@ onMounted(() => void load())
             Virements internes
           </label>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <BaseSelect v-model="direction" :options="directionOptions" />
           <BaseSelect v-model="sortBy" :options="sortOptions" />
           <BaseSelect v-model="typeFilter" :options="typeOptions" />
-          <BaseSelect v-model="meansFilter" :options="meansOptions" />
         </div>
       </div>
 

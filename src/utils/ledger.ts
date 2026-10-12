@@ -7,10 +7,9 @@
  * direction; this only picks rows and adds those amounts up.
  */
 import type {
-  BankLedger, BankLedgerAccount, BankLedgerGroup, BankReviewKind, BankTransferStatus, CashflowType, OperationType,
-  TypeSource,
+  BankLedger, BankLedgerAccount, BankLedgerGroup, BankReviewKind, BankTransferStatus, CashflowType, TypeSource,
 } from '@/types'
-import { CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS } from '@/utils/cashflowTypes'
 
 export interface LedgerEntry {
   id: string
@@ -29,7 +28,6 @@ export interface LedgerEntry {
   label: string
   account: BankLedgerAccount
   group: BankLedgerGroup & { id: string }
-  operationType: OperationType
   cashflowType: CashflowType
   typeSource: TypeSource
   typeRuleId: string | null
@@ -43,7 +41,7 @@ export interface LedgerEntry {
 
 export type PeriodPreset = 'month' | 'last-month' | '3m' | '12m' | 'ytd' | 'last-year' | 'all' | 'custom'
 export type Direction = 'all' | 'in' | 'out'
-export type Dimension = 'group' | 'month' | 'week' | 'account' | 'means' | 'type' | 'weekday' | 'amount-band'
+export type Dimension = 'group' | 'month' | 'week' | 'account' | 'type' | 'weekday' | 'amount-band'
 export type ChartStack = 'type' | 'group'
 
 export interface LedgerFilters {
@@ -54,7 +52,6 @@ export interface LedgerFilters {
   accounts: string[]
   direction: Direction
   types: CashflowType[]
-  means: OperationType[]
   min: number | null
   max: number | null
   query: string
@@ -79,7 +76,6 @@ export const DEFAULT_FILTERS: LedgerFilters = {
   accounts: [],
   direction: 'all',
   types: [],
-  means: [],
   min: null,
   max: null,
   query: '',
@@ -174,7 +170,6 @@ export function hydrate(ledger: BankLedger): LedgerEntry[] {
       label,
       account,
       group,
-      operationType: row.operation_type,
       cashflowType: row.cashflow_type,
       typeSource: row.type_source,
       typeRuleId: row.type_rule_id,
@@ -218,7 +213,6 @@ function matcher(filters: LedgerFilters): (entry: LedgerEntry) => boolean {
   const { includePending, includeUncounted, direction, min, max, onlyOpen } = filters
   const accounts = filters.accounts.length ? new Set(filters.accounts) : null
   const types = filters.types.length ? new Set<string>(filters.types) : null
-  const means = filters.means.length ? new Set<string>(filters.means) : null
   const groups = filters.groups.length ? new Set(filters.groups) : null
   const words = queryWords(filters.query)
   const searching = words.required.length > 0 || words.excluded.length > 0
@@ -228,7 +222,6 @@ function matcher(filters: LedgerFilters): (entry: LedgerEntry) => boolean {
     if (direction === 'in' && !entry.isCredit) return false
     if (direction === 'out' && entry.isCredit) return false
     if (types && !types.has(entry.cashflowType)) return false
-    if (means && !means.has(entry.operationType)) return false
     if (min !== null && entry.amount < min) return false
     if (max !== null && entry.amount > max) return false
     if (groups && !groups.has(entry.group.id)) return false
@@ -365,7 +358,6 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   month: 'Mois',
   week: 'Semaine',
   account: 'Compte',
-  means: 'Moyen de paiement',
   type: 'Type',
   weekday: 'Jour de la semaine',
   'amount-band': 'Tranche de montant',
@@ -410,11 +402,6 @@ export function bucketOf(entry: LedgerEntry, dimension: Dimension): { key: strin
     }
     case 'account':
       return { key: entry.account.id, label: entry.account.name }
-    case 'means':
-      return {
-        key: entry.operationType,
-        label: entry.operationType === 'UNKNOWN' ? 'Non précisé' : OPERATION_TYPE_LABELS[entry.operationType],
-      }
     case 'type':
       return { key: entry.cashflowType, label: CASHFLOW_TYPE_LABELS[entry.cashflowType] }
     case 'weekday': {
@@ -574,7 +561,7 @@ function csvCell(value: string): string {
 
 /** Semicolons and decimal commas, as a French spreadsheet opens them; a BOM so accents survive. */
 export function toCsv(entries: LedgerEntry[]): string {
-  const header = ['Date', 'Compte', 'Libellé', 'Contrepartie', 'Montant', 'Devise', 'Type', 'Moyen de paiement', 'En attente']
+  const header = ['Date', 'Compte', 'Libellé', 'Contrepartie', 'Montant', 'Devise', 'Type', 'En attente']
   const lines = entries.map((entry) => [
     entry.day,
     entry.account.name,
@@ -583,7 +570,6 @@ export function toCsv(entries: LedgerEntry[]): string {
     entry.bankSigned.toFixed(2).replace('.', ','),
     entry.currency,
     CASHFLOW_TYPE_LABELS[entry.cashflowType],
-    entry.operationType === 'UNKNOWN' ? '' : OPERATION_TYPE_LABELS[entry.operationType],
     entry.isPending ? 'oui' : 'non',
   ].map(csvCell).join(';'))
   return `\uFEFF${[header.join(';'), ...lines].join('\r\n')}\r\n`
@@ -594,7 +580,6 @@ export function toCsv(entries: LedgerEntry[]): string {
 const PRESETS: PeriodPreset[] = ['month', 'last-month', '3m', '12m', 'ytd', 'last-year', 'all', 'custom']
 const DIRECTIONS: Direction[] = ['all', 'in', 'out']
 const DIMENSIONS = Object.keys(DIMENSION_LABELS) as Dimension[]
-const MEANS: OperationType[] = ['CARD', 'TRANSFER', 'DIRECT_DEBIT', 'WITHDRAWAL', 'INTEREST', 'UNKNOWN']
 const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/
 
 type Query = Record<string, string | undefined>
@@ -621,7 +606,6 @@ export function serializeState(state: ExploreState): Query {
   if (f.accounts.length) query.acc = f.accounts.join(',')
   if (f.direction !== 'all') query.dir = f.direction
   if (f.types.length) query.types = f.types.join(',')
-  if (f.means.length) query.means = f.means.join(',')
   if (f.min !== null) query.min = String(f.min)
   if (f.max !== null) query.max = String(f.max)
   if (f.query.trim()) query.q = f.query.trim()
@@ -647,7 +631,6 @@ export function parseState(query: Query): ExploreState {
       accounts: list(query.acc),
       direction: DIRECTIONS.includes(query.dir as Direction) ? (query.dir as Direction) : 'all',
       types: list(query.types).filter((type): type is CashflowType => CASHFLOW_TYPES.includes(type as CashflowType)),
-      means: list(query.means).filter((means): means is OperationType => MEANS.includes(means as OperationType)),
       min: amount(query.min),
       max: amount(query.max),
       query: query.q ?? '',

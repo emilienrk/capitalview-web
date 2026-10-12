@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType, matchesOperationType,
-  needsReview, ruleTitle, typeSourceTitle,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType, needsReview, ruleTitle,
+  typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -11,7 +11,7 @@ function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransact
     id: 'tx-1', account_id: 'acc-1', account_name: 'Compte courant', operation_date: '2026-03-05',
     amount: 40, currency: 'EUR', is_credit: false, is_pending: false, label: 'VIR INST ROUKINE EMILIEN',
     transfer_account_id: null, transfer_account_name: null, transfer_id: null, transfer_status: null,
-    operation_type: 'TRANSFER', cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
+    cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
     flow_question: null, contribution: null, recurring: null, recurring_question: null, ...overrides,
   }
 }
@@ -49,11 +49,6 @@ describe('filters', () => {
     // Still an income under its type: the mark does not move it.
     expect(matchesCashflowType(salary, 'INCOME')).toBe(true)
     expect(matchesCashflowType(salary, 'EXPENSE')).toBe(false)
-  })
-
-  it('filters on the payment means', () => {
-    expect(matchesOperationType(anOperation(), 'TRANSFER')).toBe(true)
-    expect(matchesOperationType(anOperation(), 'CARD')).toBe(false)
   })
 })
 

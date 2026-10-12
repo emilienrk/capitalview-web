@@ -8,11 +8,11 @@ import { computed, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from 'lucide-vue-next'
 
 import { BaseButton, BaseSegmentedControl, BaseSelect, BaseToggle } from '@/components'
-import { CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, OPERATION_TYPE_LABELS } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS } from '@/utils/cashflowTypes'
 import {
   DEFAULT_FILTERS, monthLabel, shiftRange, toPeriod, type LedgerFilters, type PeriodPreset, type PeriodRange,
 } from '@/utils/ledger'
-import type { BankLedgerAccount, CashflowType, OperationType } from '@/types'
+import type { BankLedgerAccount, CashflowType } from '@/types'
 
 const filters = defineModel<LedgerFilters>({ required: true })
 
@@ -72,11 +72,6 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
 }
 
-const meansOptions = computed(() => [
-  ...Object.entries(OPERATION_TYPE_LABELS).map(([value, label]) => ({ value: value as OperationType, label })),
-  { value: 'UNKNOWN' as OperationType, label: 'Non précisé' },
-])
-
 const directionOptions = [
   { label: 'Entrées et sorties', value: 'all' },
   { label: 'Sorties', value: 'out' },
@@ -99,9 +94,6 @@ const active = computed(() => {
   }
   if (f.direction !== 'all') chips.push({ key: 'dir', label: f.direction === 'out' ? 'Sorties' : 'Entrées', clear: { direction: 'all' } })
   for (const type of f.types) chips.push({ key: `type:${type}`, label: CASHFLOW_TYPE_LABELS[type], clear: { types: f.types.filter((t) => t !== type) } })
-  for (const means of f.means) {
-    chips.push({ key: `means:${means}`, label: meansOptions.value.find((m) => m.value === means)?.label ?? means, clear: { means: f.means.filter((m) => m !== means) } })
-  }
   for (const id of f.groups) chips.push({ key: `group:${id}`, label: props.groupNames[id] ?? id.slice(2), clear: { groups: f.groups.filter((g) => g !== id) } })
   if (f.min !== null) chips.push({ key: 'min', label: `≥ ${f.min} €`, clear: { min: null } })
   if (f.max !== null) chips.push({ key: 'max', label: `≤ ${f.max} €`, clear: { max: null } })
@@ -180,7 +172,7 @@ const chip = (on: boolean) => [
     </div>
 
     <div :class="['space-y-3', open ? 'block' : 'hidden lg:block']">
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         <div>
           <p class="mb-1.5 text-xs font-medium text-text-muted dark:text-text-dark-muted">Comptes</p>
           <div class="flex flex-wrap gap-1.5">
@@ -208,21 +200,6 @@ const chip = (on: boolean) => [
               @click="update({ types: toggle<CashflowType>(filters.types, type) })"
             >
               {{ CASHFLOW_TYPE_LABELS[type] }}
-            </button>
-          </div>
-        </div>
-        <div>
-          <p class="mb-1.5 text-xs font-medium text-text-muted dark:text-text-dark-muted">Moyens de paiement</p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="means in meansOptions"
-              :key="means.value"
-              type="button"
-              :aria-pressed="filters.means.includes(means.value)"
-              :class="chip(filters.means.includes(means.value))"
-              @click="update({ means: toggle<OperationType>(filters.means, means.value) })"
-            >
-              {{ means.label }}
             </button>
           </div>
         </div>

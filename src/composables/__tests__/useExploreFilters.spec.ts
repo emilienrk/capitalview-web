@@ -14,6 +14,11 @@ describe('exploreQuery', () => {
     expect(exploreQuery({ view: 'explore', dir: 'out', by: 'month' }, state)).toEqual({ view: 'explore', dir: 'in', q: 'lidl' })
   })
 
+  it('drops the payment method an old link still carries', () => {
+    const old = { view: 'explore', means: 'CARD', by: 'means' }
+    expect(exploreQuery(old, parseState(old))).toEqual({ view: 'explore' })
+  })
+
   it('reads a repeated key as its first value', () => {
     expect(exploreQuery({ dir: ['out', 'in'] }, parseState({ dir: 'out' }))).toBeNull()
   })

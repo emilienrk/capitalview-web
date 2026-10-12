@@ -27,7 +27,7 @@ import {
   shiftPeriod, shiftRange, summarize, timeSeries, toCsv, toPeriod, type Bucket, type LedgerEntry, type LedgerFilters,
 } from '@/utils/ledger'
 import type { ExploreState } from '@/utils/ledger'
-import type { BankTransactionItem, BankTransactionTypeResult, CashflowType, OperationType } from '@/types'
+import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const ledger = useLedgerStore()
 const bank = useBankStore()
@@ -114,8 +114,6 @@ function selectBucket(bucket: Bucket): void {
       return update({ preset: 'custom', from: bucket.key, to: bucket.key })
     case 'account':
       return update({ accounts: toggle(f.accounts, bucket.key) })
-    case 'means':
-      return update({ means: toggle(f.means, bucket.key as OperationType) })
     case 'type':
       return update({ types: toggle(f.types, bucket.key as CashflowType) })
     case 'amount-band':
@@ -127,7 +125,6 @@ const views: Array<{ label: string; apply: Partial<LedgerFilters>; by: typeof st
   { label: "Où va l'argent", apply: { direction: 'out', types: ['EXPENSE'] }, by: 'group' },
   { label: "D'où vient l'argent", apply: { direction: 'in', types: ['INCOME'] }, by: 'group' },
   { label: 'Gros achats', apply: { direction: 'out', types: ['EXPENSE'], min: 200 }, by: 'group' },
-  { label: 'Espèces', apply: { means: ['WITHDRAWAL'] }, by: 'month' },
   { label: 'À confirmer', apply: { onlyOpen: true }, by: 'group' },
 ]
 
@@ -165,7 +162,6 @@ function asTransaction(entry: LedgerEntry): BankTransactionItem {
     transfer_account_name: null,
     transfer_id: null,
     transfer_status: entry.transferStatus,
-    operation_type: entry.operationType,
     cashflow_type: entry.cashflowType,
     type_source: entry.typeSource,
     type_rule_id: entry.typeRuleId,

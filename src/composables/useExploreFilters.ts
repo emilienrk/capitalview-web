@@ -3,7 +3,11 @@ import { useRoute, useRouter, type LocationQuery } from 'vue-router'
 
 import { DEFAULT_STATE, parseState, serializeState, type ExploreState } from '@/utils/ledger'
 
-/** The query keys the Explorer owns, so leaving it clears them and nothing else. */
+/**
+ * The query keys the Explorer owns, so leaving it clears them and nothing else.
+ * `means`, the payment method filter it no longer has, stays owned so that an
+ * old link loses it on the first change.
+ */
 export const EXPLORE_QUERY_KEYS = [
   'p', 'from', 'to', 'acc', 'dir', 'types', 'means', 'min', 'max', 'q', 'groups', 'open', 'pending', 'all', 'by', 'stack', 'cum',
 ]

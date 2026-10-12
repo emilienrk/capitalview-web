@@ -429,8 +429,6 @@ export interface BankTransactionItem {
   /** Only on a suggested pair: the other side's label and day, the amount being the same. */
   transfer_label?: string | null
   transfer_date?: string | null
-  /** Read from the label: display, filtering, and whether a transfer sent asks a flow question. */
-  operation_type: OperationType
   cashflow_type: CashflowType
   type_source: TypeSource
   /** The rule typing it, exact or reached from a nearby label. */
@@ -475,8 +473,6 @@ export interface BankBalanceResponse {
 }
 
 // ─── Types de flux ───────────────────────────────────────────
-
-export type OperationType = 'CARD' | 'TRANSFER' | 'DIRECT_DEBIT' | 'WITHDRAWAL' | 'INTEREST' | 'UNKNOWN'
 
 /** How an operation counts in the real cashflow, one per operation. */
 export type CashflowType = 'INCOME' | 'EXPENSE' | 'SAVING' | 'INVESTMENT' | 'NEUTRAL'
@@ -966,7 +962,6 @@ export interface BankLedgerRow {
   is_credit: boolean
   is_pending: boolean
   label: string | null
-  operation_type: OperationType
   cashflow_type: CashflowType
   type_source: TypeSource
   /** The rule typing it, so the type picker can take it back. */

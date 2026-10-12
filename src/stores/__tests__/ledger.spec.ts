@@ -16,7 +16,7 @@ function aLedger(label: string): BankLedger {
     groups: [{ key: 'lidl', name: 'Lidl', is_credit: false }],
     rows: [{
       id: 'r', account: 0, group: 0, day: '2026-08-10', amount: 12, currency: 'EUR', is_credit: false, is_pending: false,
-      label, operation_type: 'CARD', cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null, transfer_status: null,
+      label, cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null, transfer_status: null,
       counted: true, signed: 12, question: null, open: false,
     }],
   }

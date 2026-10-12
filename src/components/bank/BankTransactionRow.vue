@@ -10,7 +10,6 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
   CASHFLOW_TYPE_LABELS,
   CASHFLOW_TYPE_TONES,
-  OPERATION_TYPE_LABELS,
   PAIR_HINTS,
   answerHint,
   answerLabel,
@@ -90,10 +89,6 @@ const ORIGIN_TITLES = {
 } as const
 /** A settled pair counts by its pair, undone through the transfer decision: no type to pick. */
 const typable = computed(() => !adjustment.value && (props.tx.transfer_status === null || suggested.value))
-/** A transfer asked about: nothing pairs it, so where it went is unknown. */
-const unpairedTransfer = computed(
-  () => props.tx.flow_question !== null && props.tx.operation_type === 'TRANSFER' && !props.tx.transfer_account_name,
-)
 /**
  * What the API lets the user file under a recurring by hand: a past debit
  * counted as spent or a credit counted as received, no transfer between the
@@ -111,9 +106,6 @@ const recurringAction = computed(() =>
     : `Rattacher à un ${props.tx.is_credit ? 'revenu' : 'paiement'} récurrent`,
 )
 const incomeQuestion = computed(() => props.tx.recurring_question?.direction === 'income')
-const paymentMeans = computed(() =>
-  props.tx.operation_type === 'UNKNOWN' ? null : OPERATION_TYPE_LABELS[props.tx.operation_type],
-)
 </script>
 
 <template>
@@ -132,7 +124,6 @@ const paymentMeans = computed(() =>
       <span v-if="date">{{ date }}</span>
       <span v-if="date && showAccount" aria-hidden="true">·</span>
       <span v-if="showAccount">{{ tx.account_name }}</span>
-      <span v-if="paymentMeans" class="text-text-muted/80 dark:text-text-dark-muted/80">{{ paymentMeans }}</span>
       <button
         v-if="typable"
         type="button"
@@ -156,12 +147,6 @@ const paymentMeans = computed(() =>
       <BaseBadge v-else-if="tx.contribution?.exact" :variant="tx.type_source === 'contribution' ? 'info' : 'warning'">
         <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
         {{ contributionBadge(tx.contribution) }}{{ tx.type_source === 'contribution' ? '' : ' ?' }}
-      </BaseBadge>
-      <!-- Why this one is asked at all: the bank names no account, and none
-           of the user's own holds the other leg. -->
-      <BaseBadge v-else-if="unpairedTransfer" variant="secondary">
-        <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
-        {{ tx.is_credit ? 'depuis' : 'vers' }} ?
       </BaseBadge>
       <!-- A refund happened once: it names what it comes off, not a rhythm. -->
       <BaseBadge v-if="tx.recurring?.role === 'refund'" variant="secondary" :title="tx.recurring.name">
@@ -239,7 +224,7 @@ const paymentMeans = computed(() =>
       <div v-if="tx.flow_question" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <HelpCircle class="w-3.5 h-3.5" />
-          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Ce virement émis, c\'est…' }}
+          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Cette sortie, c\'est…' }}
         </span>
         <button
           v-for="choice in tx.flow_question.choices"

@@ -1,5 +1,5 @@
 import type {
-  BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, OperationType, TypeSource,
+  BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
 } from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
@@ -28,14 +28,6 @@ export const CASHFLOW_TYPE_TONES: Record<CashflowType, string> = {
   SAVING: 'bg-primary/10 text-primary',
   INVESTMENT: 'bg-info/10 text-info',
   NEUTRAL: 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted',
-}
-
-export const OPERATION_TYPE_LABELS: Record<Exclude<OperationType, 'UNKNOWN'>, string> = {
-  CARD: 'Carte',
-  TRANSFER: 'Virement',
-  DIRECT_DEBIT: 'Prélèvement',
-  WITHDRAWAL: 'Retrait',
-  INTEREST: 'Intérêts',
 }
 
 /**
@@ -153,10 +145,6 @@ export const RECURRING = 'recurring'
 export function matchesCashflowType(tx: BankTransactionItem, filter: string): boolean {
   if (filter === RECURRING) return tx.recurring !== null
   return filter === ALL || tx.cashflow_type === filter
-}
-
-export function matchesOperationType(tx: BankTransactionItem, filter: string): boolean {
-  return filter === ALL || tx.operation_type === filter
 }
 
 /** A pair offered to the user, a label only the user can type, or a recurring payment or income to confirm. */
