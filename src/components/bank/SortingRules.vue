@@ -6,14 +6,14 @@
  * reaches, those imported later included (docs/bank-sorting.md in the API).
  */
 import { BookMarked, Plus } from 'lucide-vue-next'
-import { onActivated, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import { BaseAlert, BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
 import SortingRuleModal from '@/components/bank/SortingRuleModal.vue'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTypeRule, CashflowType } from '@/types'
 import { CASHFLOW_TYPES, answerLabel, ruleTitle } from '@/utils/cashflowTypes'
-import SettingsSection from './SettingsSection.vue'
+import SettingsSection from '@/pages/settings/SettingsSection.vue'
 
 const types = useCashflowTypesStore()
 
@@ -33,9 +33,8 @@ async function load(): Promise<void> {
   }
 }
 
-// Kept alive with the settings page, and fired on the first mount too: read
-// again each time the tab shows, a rule may have been made in « À trier » since.
-onActivated(load)
+// Read again each time the tab shows: a rule may have been made in « À trier » since.
+onMounted(load)
 
 async function retype(rule: BankTypeRule, type: CashflowType): Promise<void> {
   if (type === rule.type) return
@@ -73,7 +72,6 @@ function details(rule: BankTypeRule): string {
 
 <template>
   <SettingsSection
-    id="regles-de-tri"
     :icon="BookMarked"
     title="Règles de tri"
     subtitle="Votre dictionnaire : les libellés pour lesquels vous avez coché « les prochaines aussi », et les règles que vous écrivez. Elles comptent aussi les opérations importées plus tard."

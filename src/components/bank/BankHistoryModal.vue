@@ -4,7 +4,7 @@
  * types, recurring payments — newest first, each one withdrawable. A withdrawn
  * answer leaves the list: the operations read as they did before it
  * (docs/bank-sorting.md). Rules speak for the operations to come: they have
- * their own page, Paramètres › Banque › Règles de tri.
+ * their own page, the Banque section's Règles tab.
  */
 import { ref, watch } from 'vue'
 

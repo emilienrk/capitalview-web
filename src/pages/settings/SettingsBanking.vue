@@ -11,7 +11,6 @@ import { useFormatters } from '@/composables/useFormatters'
 import type { AlertVariant } from '@/components/base/BaseAlert.vue'
 import BankLinkModal from '@/components/banking/BankLinkModal.vue'
 import SettingsSection from './SettingsSection.vue'
-import SortingRules from './SortingRules.vue'
 
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
@@ -468,9 +467,6 @@ onMounted(async () => {
       </p>
       <p v-if="error && !isEnabled" class="mt-2 text-xs text-danger">{{ error }}</p>
     </SettingsSection>
-
-    <!-- Hangs off nothing above: rules sort the operations of every account, linked or not. -->
-    <SortingRules />
 
     <!-- Connections. Listed with the feature off too: opting out attaches nothing
          and detaches nothing, so hiding them would hide live consents. -->

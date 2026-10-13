@@ -319,7 +319,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         </button>
         <label
           class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
-          title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans les réglages."
+          title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans l'onglet Règles."
         >
           <input v-model="wholeLabel" type="checkbox" class="w-3.5 h-3.5 rounded accent-primary" :disabled="busy" />
           Toutes celles de ce libellé, et les prochaines

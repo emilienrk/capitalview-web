@@ -15,6 +15,7 @@ const Bank = () => import('@/pages/Bank.vue')
 const BankTransactions = () => import('@/pages/BankTransactions.vue')
 const BankReview = () => import('@/pages/BankReview.vue')
 const BankRecurring = () => import('@/pages/BankRecurring.vue')
+const BankRules = () => import('@/pages/BankRules.vue')
 const Wealth = () => import('@/pages/Asset.vue')
 const Crypto = () => import('@/pages/Crypto.vue')
 const Notes = () => import('@/pages/Notes.vue')
@@ -84,6 +85,7 @@ const routes = [
       { path: 'review', name: 'bank-review', component: BankReview },
       { path: 'transactions', name: 'bank-transactions', component: BankTransactions },
       { path: 'recurring', name: 'bank-recurring', component: BankRecurring },
+      { path: 'rules', name: 'bank-rules', component: BankRules },
     ],
   },
   {
@@ -132,6 +134,8 @@ const routes = [
   {
     path: '/settings',
     name: 'settings',
+    // The sorting rules lived here until they got their own tab in Banque.
+    beforeEnter: (to: RouteLocationGeneric) => (to.hash === '#regles-de-tri' ? { name: 'bank-rules' } : true),
     component: Settings,
     meta: { requiresAuth: true },
   },

@@ -19,8 +19,8 @@ export function ruleTitle(rule: Pick<BankTypeRule, 'match' | 'signature' | 'labe
   return rule.label ?? rule.signature
 }
 
-/** Where the user's sorting rules live: Paramètres › Banque › Règles de tri. */
-export const RULES_PAGE = { name: 'settings', query: { tab: 'banque' }, hash: '#regles-de-tri' } as const
+/** Where the user's sorting rules live: the Banque section's Règles tab. */
+export const RULES_PAGE = { name: 'bank-rules' } as const
 
 export const CASHFLOW_TYPE_TONES: Record<CashflowType, string> = {
   INCOME: 'bg-success/10 text-success',

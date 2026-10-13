@@ -4,7 +4,7 @@
  * account's operations can be linked to and survive a reload.
  */
 import { nextTick, onMounted, ref, watch } from 'vue'
-import { ArrowLeftRight, ListChecks, Repeat, Wallet } from 'lucide-vue-next'
+import { ArrowLeftRight, BookMarked, ListChecks, Repeat, Wallet } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 import { useBankStore } from '@/stores/bank'
@@ -33,6 +33,7 @@ const tabs = [
   { name: 'bank-review', label: 'À trier', icon: ListChecks },
   { name: 'bank-transactions', label: 'Opérations', icon: ArrowLeftRight },
   { name: 'bank-recurring', label: 'Récurrent', icon: Repeat },
+  { name: 'bank-rules', label: 'Règles', icon: BookMarked },
 ] as const
 </script>
 
