@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
@@ -91,6 +91,17 @@ const depositAnswers = computed<BankContributionAnswer[]>(() =>
     return contributionId ? [{ transaction_id: id, contribution_id: contributionId }] : []
   }),
 )
+/** Answered one at a time, a label's question moves on to its next operation in
+ * the same row (À trier): what was ticked went with the answer, and the new
+ * operation shows itself coming in. */
+const swaps = ref(0)
+watch(() => [props.tx.id, props.tx.flow_question?.operation_count], () => {
+  wholeLabel.value = false
+  picking.value = false
+  picked.value = [props.tx.id]
+  facing.value = {}
+  swaps.value += 1
+})
 const proved = computed(() => props.tx.type_source === 'contribution')
 /** A yes counts it as an investment, out of the recurring payment it is one of. */
 const leavesRecurring = computed(() =>
@@ -145,10 +156,10 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       tx.is_pending ? 'opacity-70' : '',
     ]"
   >
-    <p class="col-start-1 row-start-1 line-clamp-2 sm:line-clamp-1 break-words text-sm font-medium text-text-main dark:text-text-dark-main" :title="tx.label ?? undefined">
+    <p :key="tx.id" :class="{ 'cv-swap': swaps }" class="col-start-1 row-start-1 line-clamp-2 sm:line-clamp-1 break-words text-sm font-medium text-text-main dark:text-text-dark-main" :title="tx.label ?? undefined">
       {{ tx.label ?? 'Opération sans libellé' }}
     </p>
-    <div class="col-start-1 row-start-2 mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+    <div :key="tx.id" :class="{ 'cv-swap': swaps }" class="col-start-1 row-start-2 mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
       <span v-if="date">{{ date }}</span>
       <span v-if="date && showAccount" aria-hidden="true">·</span>
       <span v-if="showAccount">{{ tx.account_name }}</span>
@@ -233,6 +244,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         </span>
         <BankFlowGroup
           v-if="tx.flow_question && tx.flow_question.operation_count > 1"
+          :key="`${tx.id}-${tx.flow_question.operation_count}`"
           v-model:open="picking"
           v-model:picked="picked"
           :transaction-id="tx.id"
@@ -315,6 +327,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
              to tick from unless the whole label is answered. -->
         <BankFlowGroup
           v-if="tx.flow_question.operation_count > 1"
+          :key="`${tx.id}-${tx.flow_question.operation_count}`"
           v-model:open="picking"
           v-model:picked="picked"
           :transaction-id="tx.id"
@@ -358,7 +371,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         </span>
       </div>
     </div>
-    <p :class="['col-start-2 row-start-1 sm:row-end-3 self-start sm:self-center text-right text-sm font-semibold tabular-nums whitespace-nowrap', amountClass]">
+    <p :key="tx.id" :class="['col-start-2 row-start-1 sm:row-end-3 self-start sm:self-center text-right text-sm font-semibold tabular-nums whitespace-nowrap', amountClass, { 'cv-swap': swaps }]">
       {{ amount }}
     </p>
     <!-- A fixed width, so the amounts line up however many actions a row offers. -->

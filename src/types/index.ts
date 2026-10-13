@@ -892,6 +892,8 @@ export type BankReviewKind = 'flow' | 'transfer' | 'recurring'
 /** One question waiting for the user, on the operation carrying it. */
 export interface BankReviewItem {
   kind: BankReviewKind
+  /** The same while the question is: a label answered one operation at a time keeps it. */
+  group: string
   transaction: BankTransactionItem
   /** What the answer can move; for a recurring payment or income, what it weighs a year. */
   amount: number

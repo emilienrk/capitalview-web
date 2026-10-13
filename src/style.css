@@ -157,6 +157,16 @@ input:is(:-webkit-autofill, :autofill) {
   opacity: 0;
 }
 
+/* A row that stays while what it shows changes (the next operation of a
+   label's question): the new content comes in, short like the rows. Put
+   `cv-swap` on elements keyed by what they show, from the first change on. */
+.cv-swap {
+  animation: cv-swap-in 200ms var(--cv-ease-out) both;
+}
+@keyframes cv-swap-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
 /* Work with no measurable progress (a long computation): a segment runs
    across the track at a constant pace. Reduced motion holds it still. */
 .cv-indeterminate {
@@ -202,7 +212,8 @@ input:is(:-webkit-autofill, :autofill) {
     opacity: 0.4;
   }
   .cv-done > :first-child,
-  .cv-done > :not(:first-child) {
+  .cv-done > :not(:first-child),
+  .cv-swap {
     animation-name: cv-fade-in;
   }
 }

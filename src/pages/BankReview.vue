@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The Banque section's À trier tab: every question the history leaves to the
- * user, the one moving the most money first. A few dozen answers settle most
+ * user, those facing a deposit first, then the one moving the most money. A few dozen answers settle most
  * of the euros, where the Opérations list would show them month by month, a
  * 5 € sale next to a 20 000 € transfer.
  */
@@ -58,6 +58,25 @@ function amount(value: number, code = currency.value): string {
   return maskValue(formatCurrency(Number(value), code))
 }
 
+/**
+ * The questions where they stood when the page opened on this year, those
+ * arriving since beside their neighbours: an answer never moves the row under
+ * the pointer, and a label answered one operation at a time stays put.
+ */
+const ranks = new Map<string, number>()
+const shown = computed(() => {
+  const questions = queue.value?.questions ?? []
+  const rank = questions.map((item) => ranks.get(item.group))
+  rank.forEach((known, i) => {
+    if (known !== undefined) return
+    const before = i > 0 ? rank[i - 1]! : -1
+    const after = rank.slice(i + 1).find((next) => next !== undefined && next > before) ?? before + 2
+    rank[i] = (before + after) / 2
+  })
+  questions.forEach((item, i) => ranks.set(item.group, rank[i]!))
+  return questions.map((item, i) => ({ item, rank: rank[i]! })).sort((a, b) => a.rank - b.rank).map(({ item }) => item)
+})
+
 /** What was left when the page opened on this year: the answers since are what it went down by. */
 const openedWith = ref<number | null>(null)
 const settled = computed(() =>
@@ -77,6 +96,7 @@ async function load(): Promise<void> {
 function chooseYear(value: number | null): void {
   year.value = value
   openedWith.value = null
+  ranks.clear()
   void router.replace({ query: { ...route.query, year: value === null ? undefined : String(value) } })
 }
 
@@ -85,6 +105,7 @@ watch(() => route.query.year, (value) => {
   if (next !== year.value) {
     year.value = next
     openedWith.value = null
+    ranks.clear()
   }
 })
 watch(year, () => void load())
@@ -303,8 +324,8 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     <BaseCard v-else-if="queue.questions.length" :padding="false" class="overflow-hidden">
       <TransitionGroup tag="ul" name="cv-row" class="relative divide-y divide-surface-border dark:divide-surface-dark-border">
         <BankTransactionRow
-          v-for="item in queue.questions"
-          :key="item.transaction.id"
+          v-for="item in shown"
+          :key="item.group"
           :tx="item.transaction"
           :date="shortDay(item.transaction.operation_date)"
           :show-account="true"
