@@ -124,3 +124,67 @@ describe('useCashflowTypesStore', () => {
     expect(store.queue?.total_amount).toBe(4)
   })
 })
+
+describe('an answer shown before the API holds it', () => {
+  const tx = {
+    id: 'tx-1', account_id: 'acc-1', account_name: 'Compte courant', operation_date: '2026-03-05', amount: 40,
+    currency: 'EUR', is_credit: true, is_pending: false, label: 'VIR SERGE', transfer_account_id: null,
+    transfer_account_name: null, transfer_id: null, transfer_status: null, cashflow_type: 'INCOME', type_source: 'default',
+    type_rule_id: null, flow_question: { choices: ['INCOME'], operation_count: 1, amount: 40 }, contribution: null,
+    asks_contribution: false, recurring: null, recurring_question: null,
+  } as const
+  const queue = {
+    total_amount: 40, total_count: 1, recurring_count: 0, unfaced: [],
+    years: [{ year: 2026, amount: 40, count: 1 }],
+    questions: [{ kind: 'flow', group: 'g', transaction: tx, amount: 40, operation_count: 1 }],
+  }
+  const counts = { total: 1, recurring: 0, months: [{ period: '2026-03', count: 1 }] }
+  const answer = () => ({ operations: {}, settled: [{ ids: ['tx-1'], day: '2026-03-05' }], shrunk: {} })
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  async function opened() {
+    vi.mocked(apiClient.get).mockResolvedValueOnce(structuredClone(queue)).mockResolvedValueOnce({ ...counts })
+    const types = useCashflowTypesStore()
+    const bank = useBankStore()
+    await types.fetchReviewQueue()
+    await bank.fetchTransferQuestions()
+    return { types, bank }
+  }
+
+  it('moves the queue and the tab at the click, and puts them back when the API fails', async () => {
+    const { types, bank } = await opened()
+    let fail!: (error: Error) => void
+    const pending = bank.answering(answer(), () => new Promise((_, reject) => { fail = reject }))
+
+    expect(types.queue?.questions).toEqual([])
+    expect(types.queue?.total_amount).toBe(0)
+    expect(bank.transferQuestions?.total).toBe(0)
+
+    fail(new Error('Erreur serveur'))
+    await expect(pending).rejects.toThrow('Erreur serveur')
+    expect(types.queue?.questions.map((q) => q.group)).toEqual(['g'])
+    expect(types.queue?.total_amount).toBe(40)
+    expect(bank.transferQuestions?.total).toBe(1)
+  })
+
+  it('holds the answer over a reading asked before it was stored, and hands over to the next one', async () => {
+    const { types, bank } = await opened()
+    await bank.answering(answer(), async () => { bank.operationsRead() })
+    expect(types.queue?.questions).toEqual([])
+
+    // A reading asked before the answer was stored, landing late, still shows it answered.
+    const before = bank.dataRevision - 1
+    expect(bank.answersSince(before)).toHaveLength(1)
+
+    // The reload asked since holds it: what the server says is shown as is.
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ ...structuredClone(queue), total_amount: 7 })
+    await types.fetchReviewQueue()
+    expect(bank.answersSince(bank.dataRevision)).toEqual([])
+    expect(types.queue?.total_amount).toBe(7)
+    expect(types.queue?.questions).toHaveLength(1)
+  })
+})

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
@@ -7,11 +7,19 @@ import type {
   BankHistoryItem, BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, BankTypeRulePreview,
   BankTypeRuleWrite, CashflowType, TypeScope,
 } from '@/types'
+import { applyToQueue, waitingOn } from '@/utils/optimisticAnswers'
 
 /** How operations count: the type of one of them, the rules of their labels. */
 export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   const rules = ref<BankTypeRule[] | null>(null)
-  const queue = ref<BankReviewQueue | null>(null)
+  const bank = useBankStore()
+  /** The queue as fetched, and the revision it was asked at: the answers given since read on top. */
+  const queueRead = ref<{ queue: BankReviewQueue; revision: number } | null>(null)
+  const queue = computed(() =>
+    queueRead.value ? applyToQueue(queueRead.value.queue, bank.answersSince(queueRead.value.revision)) : null,
+  )
+  /** Questions answered on part of their operations: answered again once the reload says what is left. */
+  const queueWaiting = computed(() => waitingOn(queueRead.value ? bank.answersSince(queueRead.value.revision) : []))
   /** The year the queue was last asked for, null for every year. */
   const queueYear = ref<number | null>(null)
 
@@ -104,25 +112,26 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   /** Every open question, heaviest first; the year narrows the list, never the years offered. */
   async function fetchReviewQueue(year: number | null = null): Promise<void> {
     queueYear.value = year
+    const revision = bank.dataRevision
     const answer = await apiClient.get<BankReviewQueue>(
       year === null ? '/banking/review-queue' : `/banking/review-queue?year=${year}`,
     )
     // A slower answer for another year never replaces the one asked last.
-    if (queueYear.value === year) queue.value = answer
+    if (queueYear.value === year) queueRead.value = { queue: answer, revision }
   }
 
   function changed(): void {
-    useBankStore().operationsRead()
+    bank.operationsRead()
   }
 
   function reset(): void {
     rules.value = null
-    queue.value = null
+    queueRead.value = null
     queueYear.value = null
   }
 
   return {
-    rules, queue, queueYear, setType, answerFlow, clearOverride, fetchRules, previewRule, writeRule, retypeRule,
+    rules, queue, queueWaiting, queueYear, setType, answerFlow, clearOverride, fetchRules, previewRule, writeRule, retypeRule,
     deleteRule, fetchFlowGroup,
     fetchHistory, undoAnswer, fetchReviewQueue, reset,
   }

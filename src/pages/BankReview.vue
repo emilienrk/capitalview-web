@@ -20,7 +20,8 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
-import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionMessage, contributionNote, ownAnswer } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionMessage, contributionNote, keptByHand, ownAnswer } from '@/utils/cashflowTypes'
+import { contributionAnswerEffect, transferAnswerEffect, typeAnswerEffect } from '@/utils/optimisticAnswers'
 import type {
   BankContributionDecisionKind, BankHistoryKind, BankReviewItem, BankTransactionItem, BankTransactionTypeResult,
   BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope,
@@ -134,7 +135,10 @@ function contributionOf(tx: BankTransactionItem): string | undefined {
 }
 
 // ── Answers ─────────────────────────────────────────────────
+// Each answer moves the queue at the click (`bank.answering`), then the reload
+// it triggers brings the server's own; a failure puts the queue back.
 
+/** Only a recurring decision waits for the API: it moves nothing on this page. */
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
 const showHistory = ref(false)
@@ -152,18 +156,20 @@ const lastAnswer = ref<{
   outranked?: string | null
 } | null>(null)
 
-async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
-  busy.value = tx.id
+async function answer(
+  tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[], members: BankTransactionItem[] = [],
+): Promise<void> {
   error.value = null
   // The operation asked about may have been unticked: the first ticked one carries the answer.
   const [first = tx.id, ...also] = picked
   try {
-    const result = await types.answerFlow(first, type, scope, also)
+    const result = await bank.answering(
+      typeAnswerEffect(tx, type, scope, [first, ...also], members),
+      () => types.answerFlow(first, type, scope, also),
+    )
     remember(result, scope === 'operation' ? [first, ...also] : [result.transaction.id])
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  } finally {
-    busy.value = null
   }
 }
 
@@ -213,19 +219,20 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
 
 /** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
 async function contribution(
-  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), kept: CashflowType | null = null,
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), members: BankTransactionItem[] = [],
 ): Promise<void> {
   const [first, ...also] = answers
   if (!first) return
-  busy.value = tx.id
   error.value = null
+  const ids = answers.map((answer) => answer.transaction_id)
   try {
-    await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
-    rememberContribution(answers.map((answer) => answer.transaction_id), contributionMessage(kind, kept))
+    await bank.answering(
+      contributionAnswerEffect(tx, kind, ids, members),
+      () => bank.decideContribution(first.transaction_id, first.contribution_id, kind, also),
+    )
+    rememberContribution(ids, contributionMessage(kind, keptByHand(tx, ids, members)))
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  } finally {
-    busy.value = null
   }
 }
 
@@ -239,15 +246,13 @@ function rememberContribution(transactionIds: string[], message: string): void {
 }
 
 async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
-  if (!tx.transfer_id) return
-  busy.value = tx.id
+  const other = tx.transfer_id
+  if (!other) return
   error.value = null
   try {
-    await bank.decideTransfer(tx.id, tx.transfer_id, kind)
+    await bank.answering(transferAnswerEffect(tx, kind), () => bank.decideTransfer(tx.id, other, kind))
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  } finally {
-    busy.value = null
   }
 }
 
@@ -341,16 +346,16 @@ async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
           :show-account="true"
           :amount="signedAmount(item.transaction)"
           amount-class="text-text-main dark:text-text-dark-main"
-          :busy="busy === item.transaction.id"
+          :busy="busy === item.transaction.id || types.queueWaiting.has(item.transaction.id)"
           :stake-amount="stakeOf(item)"
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
           @pick="(otherId) => pick(item.transaction, otherId)"
           @deposit="contribution(item.transaction, 'contribution')"
-          @contribution="(kind, answers, kept) => contribution(item.transaction, kind, answers, kept)"
+          @contribution="(kind, answers, members) => contribution(item.transaction, kind, answers, members)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
-          @answer="(type, scope, picked) => answer(item.transaction, type, scope, picked)"
+          @answer="(type, scope, picked, members) => answer(item.transaction, type, scope, picked, members)"
           @retype="retyping = item.transaction"
           @subscribe="(decision) => subscribe(item.transaction, decision)"
         />

@@ -29,8 +29,9 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionMessage, contributionNote, needsReview, ownAnswer, RULES_PAGE,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionMessage, contributionNote, keptByHand, needsReview, ownAnswer, RULES_PAGE,
 } from '@/utils/cashflowTypes'
+import { contributionAnswerEffect, transferAnswerEffect, typeAnswerEffect } from '@/utils/optimisticAnswers'
 import type {
   BankContributionDecisionKind, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
   RecurringDecisionKind, TypeScope,
@@ -280,22 +281,24 @@ function amountClass(tx: BankTransactionItem): string {
 
 // ── Transfer decisions ──────────────────────────────────────
 
-/** The operation whose decision is on its way: its row stands still meanwhile. */
+/**
+ * The operation whose deletion or recurring decision is on its way: its row
+ * stands still meanwhile. Answers move the month at the click instead
+ * (`bank.answering`), and a failure puts it back.
+ */
 const deciding = ref<string | null>(null)
 const decisionError = ref<string | null>(null)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
 
 async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
-  if (!tx.transfer_id) return
-  deciding.value = tx.id
+  const other = tx.transfer_id
+  if (!other) return
   decisionError.value = null
   try {
-    await bank.decideTransfer(tx.id, tx.transfer_id, kind)
+    await bank.answering(transferAnswerEffect(tx, kind), () => bank.decideTransfer(tx.id, other, kind))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  } finally {
-    deciding.value = null
   }
 }
 
@@ -314,19 +317,19 @@ async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
 
 /** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
 async function contribution(
-  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), kept: CashflowType | null = null,
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), members: BankTransactionItem[] = [],
 ): Promise<void> {
   const [first, ...also] = answers
   if (!first) return
-  deciding.value = tx.id
   decisionError.value = null
+  const effect = contributionAnswerEffect(
+    tx, kind, answers.map((answer) => answer.transaction_id), members, month.value?.transactions,
+  )
   try {
-    await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
-    onContribution(contributionMessage(kind, kept))
+    await bank.answering(effect, () => bank.decideContribution(first.transaction_id, first.contribution_id, kind, also))
+    onContribution(contributionMessage(kind, keptByHand(tx, answers.map((answer) => answer.transaction_id), members)))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  } finally {
-    deciding.value = null
   }
 }
 
@@ -381,17 +384,17 @@ function onTyped(result: BankTransactionTypeResult, outranked: string | null = n
   typedOutranked.value = outranked
 }
 
-async function answer(tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[]): Promise<void> {
-  deciding.value = tx.id
+async function answer(
+  tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[], members: BankTransactionItem[] = [],
+): Promise<void> {
   decisionError.value = null
   // The operation asked about may have been unticked: the first ticked one carries the answer.
   const [first = tx.id, ...also] = picked
+  const effect = typeAnswerEffect(tx, type, scope, [first, ...also], members, month.value?.transactions)
   try {
-    onTyped(await cashflowTypes.answerFlow(first, type, scope, also))
+    onTyped(await bank.answering(effect, () => cashflowTypes.answerFlow(first, type, scope, also)))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  } finally {
-    deciding.value = null
   }
 }
 
@@ -739,16 +742,16 @@ onMounted(() => void load())
               :show-account="!accountFilter"
               :amount="signedAmount(tx)"
               :amount-class="amountClass(tx)"
-              :busy="deciding === tx.id"
+              :busy="deciding === tx.id || bank.transactionsWaiting.has(tx.id)"
               :stake-amount="stakeOf(tx)"
               :contribution-note="contributionOf(tx)"
               @decide="(kind) => decide(tx, kind)"
               @pick="(otherId) => pick(tx, otherId)"
               @deposit="contribution(tx, 'contribution')"
-              @contribution="(kind, answers, kept) => contribution(tx, kind, answers, kept)"
+              @contribution="(kind, answers, members) => contribution(tx, kind, answers, members)"
               @link="linking = tx"
               @recurring="filing = tx"
-              @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
+              @answer="(type, scope, picked, members) => answer(tx, type, scope, picked, members)"
               @retype="retyping = tx"
               @subscribe="(decision) => subscribe(tx, decision)"
               @edit="openEntry(tx.account_id, tx)"
@@ -768,16 +771,16 @@ onMounted(() => void load())
                   :show-account="!accountFilter"
                   :amount="signedAmount(tx)"
                   :amount-class="amountClass(tx)"
-                  :busy="deciding === tx.id"
+                  :busy="deciding === tx.id || bank.transactionsWaiting.has(tx.id)"
                   :stake-amount="stakeOf(tx)"
                   :contribution-note="contributionOf(tx)"
                   @decide="(kind) => decide(tx, kind)"
                   @pick="(otherId) => pick(tx, otherId)"
                   @deposit="contribution(tx, 'contribution')"
-                  @contribution="(kind, answers, kept) => contribution(tx, kind, answers, kept)"
+                  @contribution="(kind, answers, members) => contribution(tx, kind, answers, members)"
                   @link="linking = tx"
                   @recurring="filing = tx"
-                  @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
+                  @answer="(type, scope, picked, members) => answer(tx, type, scope, picked, members)"
                   @retype="retyping = tx"
                   @subscribe="(decision) => subscribe(tx, decision)"
                   @edit="openEntry(tx.account_id, tx)"

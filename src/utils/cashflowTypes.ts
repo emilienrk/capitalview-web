@@ -119,6 +119,15 @@ export function ownAnswer(tx: BankTransactionItem): BankContributionAnswer[] {
   return tx.contribution ? [{ transaction_id: tx.id, contribution_id: tx.contribution.id }] : []
 }
 
+/** The type given by hand on the one operation a deposit answer covers, which a No leaves as it was. */
+export function keptByHand(
+  tx: BankTransactionItem, answered: string[], members: BankTransactionItem[],
+): CashflowType | null {
+  if (answered.length !== 1) return null
+  const operation = answered[0] === tx.id ? tx : members.find((member) => member.id === answered[0])
+  return operation?.type_source === 'override' ? operation.cashflow_type : null
+}
+
 /** What an answer to a deposit did, said once it is saved. A No leaves a type given by hand as it was. */
 export function contributionMessage(kind: BankContributionDecisionKind, kept: CashflowType | null): string {
   if (kind === 'contribution') {

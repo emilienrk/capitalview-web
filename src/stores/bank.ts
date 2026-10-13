@@ -36,6 +36,12 @@ import type {
   SavingsInterestResponse,
   AccountHistorySnapshotResponse,
 } from '@/types'
+import {
+  applyToMonth,
+  applyToQuestionCounts,
+  waitingOn,
+  type AnswerEffect,
+} from '@/utils/optimisticAnswers'
 
 // Cache TTL: 1 hour — bank history updates are not real-time for most users.
 const CACHE_TTL_MS = 60 * 60 * 1000
@@ -59,8 +65,8 @@ export const useBankStore = defineStore('bank', () => {
   const observedFlowsLoading = ref(false)
   /** What `observedFlows` answers, as `months:account` ('all' for every account). */
   const observedFlowsKey = ref<string | null>(null)
-  /** The month shown on the Opérations tab, from GET /banking/transactions. */
-  const transactions = ref<BankTransactionsResponse | null>(null)
+  /** The month shown on the Opérations tab, from GET /banking/transactions, and the revision it was asked at. */
+  const transactionsRead = ref<{ month: BankTransactionsResponse; revision: number } | null>(null)
   /** What `transactions` answers, as `period:account` ('all' for every account). */
   const transactionsKey = ref<string | null>(null)
   const transactionsLoading = ref(false)
@@ -73,6 +79,49 @@ export const useBankStore = defineStore('bank', () => {
    * watches it to reload what it shows, whichever one fired the change.
    */
   const dataRevision = ref(0)
+
+  /**
+   * The answers shown before the API holds them: each one reads on top of
+   * what was fetched before it, until a reading asked once it is stored
+   * (`committed`, the revision its reload starts at) replaces it.
+   */
+  const pendingAnswers = ref<Array<{ id: number; effect: AnswerEffect; committed: number | null }>>([])
+  let answerCount = 0
+
+  /** What a reading fetched at `revision` does not hold yet. */
+  function answersSince(revision: number): AnswerEffect[] {
+    return pendingAnswers.value
+      .filter((answer) => answer.committed === null || answer.committed > revision)
+      .map((answer) => answer.effect)
+  }
+
+  /**
+   * Shows `effect` at once, while `request` stores the answer — and reloads,
+   * as every answer does. On failure the screen goes back to what it was.
+   */
+  async function answering<T>(effect: AnswerEffect, request: () => Promise<T>): Promise<T> {
+    const id = ++answerCount
+    pendingAnswers.value = [...pendingAnswers.value, { id, effect, committed: null }]
+    try {
+      const result = await request()
+      pendingAnswers.value = pendingAnswers.value.map((answer) =>
+        answer.id === id ? { ...answer, committed: dataRevision.value } : answer,
+      )
+      return result
+    } catch (e) {
+      pendingAnswers.value = pendingAnswers.value.filter((answer) => answer.id !== id)
+      throw e
+    }
+  }
+
+  const transactions = computed(() => {
+    const read = transactionsRead.value
+    return read ? applyToMonth(read.month, answersSince(read.revision)) : null
+  })
+  /** The month's questions answered on part of their operations, until the reload says what is left. */
+  const transactionsWaiting = computed(() =>
+    waitingOn(transactionsRead.value ? answersSince(transactionsRead.value.revision) : []),
+  )
   const historyCacheKey = 'bank:history:global'
 
   /**
@@ -364,6 +413,7 @@ export const useBankStore = defineStore('bank', () => {
   async function fetchTransactions(period: string, accountId: string | null = null, force = false): Promise<boolean> {
     const key = `${period}:${accountId ?? 'all'}`
     latestTransactionsRequest = key
+    const revision = dataRevision.value
     transactionsLoading.value = true
     const accountQuery = accountId ? `&account_id=${encodeURIComponent(accountId)}` : ''
     try {
@@ -374,7 +424,7 @@ export const useBankStore = defineStore('bank', () => {
         force,
       )
       if (latestTransactionsRequest === key) {
-        transactions.value = month
+        transactionsRead.value = { month, revision }
         transactionsKey.value = key
       }
       return true
@@ -389,14 +439,20 @@ export const useBankStore = defineStore('bank', () => {
   }
 
   /** The pairs waiting for the user across the whole history, for the tab's badge. */
-  const transferQuestions = ref<BankTransferQuestionsResponse | null>(null)
+  const transferQuestionsRead = ref<{ counts: BankTransferQuestionsResponse; revision: number } | null>(null)
+  const transferQuestions = computed(() => {
+    const read = transferQuestionsRead.value
+    return read ? applyToQuestionCounts(read.counts, answersSince(read.revision)) : null
+  })
 
   async function fetchTransferQuestions(): Promise<void> {
+    const revision = dataRevision.value
     try {
-      transferQuestions.value = await apiClient.get<BankTransferQuestionsResponse>('/banking/transfer-questions')
+      const counts = await apiClient.get<BankTransferQuestionsResponse>('/banking/transfer-questions')
+      transferQuestionsRead.value = { counts, revision }
     } catch {
       // A badge that cannot load stays hidden: nothing else depends on it.
-      transferQuestions.value = null
+      transferQuestionsRead.value = null
     }
   }
 
@@ -539,9 +595,10 @@ export const useBankStore = defineStore('bank', () => {
     interestByAccount.value = {}
     observedFlows.value = null
     observedFlowsKey.value = null
-    transactions.value = null
+    transactionsRead.value = null
     transactionsKey.value = null
-    transferQuestions.value = null
+    transferQuestionsRead.value = null
+    pendingAnswers.value = []
     invalidateHistoryCache()
     error.value = null
   }
@@ -563,7 +620,10 @@ export const useBankStore = defineStore('bank', () => {
     transactions,
     transactionsKey,
     transactionsLoading,
+    transactionsWaiting,
     dataRevision,
+    answersSince,
+    answering,
     linkedAccounts,
     syncResultByAccount,
     hasStaleSync,

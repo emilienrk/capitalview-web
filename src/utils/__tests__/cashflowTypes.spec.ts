@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionMessage, contributionNote, matchesCashflowType,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionMessage, contributionNote, keptByHand, matchesCashflowType,
   needsReview, ownAnswer, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
@@ -162,5 +162,19 @@ describe('contributionMessage', () => {
 
   it('counts a Yes as an investment, whatever the type given before', () => {
     expect(contributionMessage('contribution', 'NEUTRAL')).toContain('Comptée en Investissement')
+  })
+})
+
+describe('keptByHand', () => {
+  const typed = anOperation({ id: 'tx-2', type_source: 'override', cashflow_type: 'SAVING' })
+
+  it('finds the type given by hand on the one operation answered, shown or ticked in the list', () => {
+    expect(keptByHand(typed, ['tx-2'], [])).toBe('SAVING')
+    expect(keptByHand(anOperation(), ['tx-2'], [typed])).toBe('SAVING')
+  })
+
+  it('keeps nothing for several answers, or for an operation never typed', () => {
+    expect(keptByHand(typed, ['tx-2', 'tx-1'], [typed])).toBeNull()
+    expect(keptByHand(anOperation(), ['tx-1'], [])).toBeNull()
   })
 })

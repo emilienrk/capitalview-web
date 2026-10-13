@@ -49,11 +49,11 @@ defineEmits<{
   deposit: []
   /** The operation is, or is not, the deposit or withdrawal facing it — or
    * the operations ticked in its group are, each with its own. */
-  /** `kept`: the type given by hand a no leaves on the one operation answered. */
-  contribution: [kind: BankContributionDecisionKind, answers: BankContributionAnswer[], kept: CashflowType | null]
+  contribution: [kind: BankContributionDecisionKind, answers: BankContributionAnswer[], members: BankTransactionItem[]]
   link: []
-  /** `picked`: the operations to type with the operation scope, this one or those ticked in its label. */
-  answer: [type: CashflowType, scope: TypeScope, picked: string[]]
+  /** `picked`: the operations to type with the operation scope, this one or those ticked in its label;
+   * `members`: the label's operations, once its list was opened. */
+  answer: [type: CashflowType, scope: TypeScope, picked: string[], members: BankTransactionItem[]]
   retype: []
   subscribe: [decision: RecurringDecisionKind]
   recurring: []
@@ -80,21 +80,15 @@ function money(value: number): string {
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 /** Asked yes or no, in place of the type question: only the user knows it went there. */
 const asksDeposit = computed(() => props.tx.asks_contribution)
-/** The deposit or withdrawal facing each operation of the group, once its list is open. */
+/** The operations of the group, and the deposit or withdrawal facing each, once its list is open. */
+const members = ref<BankTransactionItem[]>([])
 const facing = ref<Record<string, string>>({})
-const groupOperations = ref<BankTransactionItem[]>([])
 function onGroupLoaded(operations: BankTransactionItem[]): void {
-  groupOperations.value = operations
+  members.value = operations
   facing.value = Object.fromEntries(
     operations.flatMap((operation) => (operation.contribution ? [[operation.id, operation.contribution.id]] : [])),
   )
 }
-const keptType = computed<CashflowType | null>(() => {
-  if (answering.value.length !== 1) return null
-  const id = answering.value[0]
-  const operation = id === props.tx.id ? props.tx : groupOperations.value.find((other) => other.id === id)
-  return operation?.type_source === 'override' ? operation.cashflow_type : null
-})
 /** What a yes or a no covers: this operation, or those ticked, each with what faces it. */
 const depositAnswers = computed<BankContributionAnswer[]>(() =>
   answering.value.flatMap((id) => {
@@ -111,8 +105,8 @@ watch(() => `${props.tx.id}:${props.tx.flow_question?.operation_count ?? ''}`, (
   wholeLabel.value = false
   picking.value = false
   picked.value = [props.tx.id]
+  members.value = []
   facing.value = {}
-  groupOperations.value = []
   swaps.value += 1
 })
 const proved = computed(() => props.tx.type_source === 'contribution')
@@ -250,7 +244,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :disabled="busy || !depositAnswers.length"
           title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('contribution', 'contribution', depositAnswers, keptType)"
+          @click="$emit('contribution', 'contribution', depositAnswers, members)"
         >
           Oui
         </button>
@@ -259,7 +253,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :disabled="busy || !depositAnswers.length"
           title="Ce n'est pas ce mouvement : l'opération compte comme les autres."
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('contribution', 'not_contribution', depositAnswers, keptType)"
+          @click="$emit('contribution', 'not_contribution', depositAnswers, members)"
         >
           Non
         </button>
@@ -351,7 +345,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :disabled="busy || (!wholeLabel && !answering.length)"
           :title="answerHint(choice, tx.is_credit)"
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation', wholeLabel ? [tx.id] : answering)"
+          @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation', wholeLabel ? [tx.id] : answering, members)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </button>
@@ -374,6 +368,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :stake="stake ?? undefined"
           :label="tx.label"
           :picking="!wholeLabel"
+          @loaded="onGroupLoaded"
         />
       </div>
       <!-- A recurring charge or income found but not sure enough to count:
