@@ -95,7 +95,8 @@ const depositAnswers = computed<BankContributionAnswer[]>(() =>
  * the same row (À trier): what was ticked went with the answer, and the new
  * operation shows itself coming in. */
 const swaps = ref(0)
-watch(() => [props.tx.id, props.tx.flow_question?.operation_count], () => {
+// A string, compared by value: every reload hands the row a new `tx`.
+watch(() => `${props.tx.id}:${props.tx.flow_question?.operation_count ?? ''}`, () => {
   wholeLabel.value = false
   picking.value = false
   picked.value = [props.tx.id]
