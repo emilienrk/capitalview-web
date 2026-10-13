@@ -279,22 +279,6 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
-/** The pair set aside, the operation bound to the deposit facing it. */
-async function deposit(tx: BankTransactionItem): Promise<void> {
-  if (!tx.transfer_id || !tx.contribution) return
-  deciding.value = tx.id
-  decisionError.value = null
-  try {
-    await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
-    await bank.decideContribution(tx.id, tx.contribution.id, 'contribution')
-    onContribution('contribution')
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  } finally {
-    deciding.value = null
-  }
-}
-
 /** Yes or no to the deposit or withdrawal facing the operation. */
 async function contribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): Promise<void> {
   if (!tx.contribution) return
@@ -714,7 +698,7 @@ onMounted(() => void load())
             :stake-amount="stakeOf(tx)"
             :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
-            @deposit="deposit(tx)"
+            @deposit="contribution(tx, 'contribution')"
             @contribution="(kind) => contribution(tx, kind)"
             @link="linking = tx"
             @recurring="filing = tx"
@@ -742,7 +726,7 @@ onMounted(() => void load())
                 :stake-amount="stakeOf(tx)"
                 :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
-                @deposit="deposit(tx)"
+                @deposit="contribution(tx, 'contribution')"
                 @contribution="(kind) => contribution(tx, kind)"
                 @link="linking = tx"
                 @recurring="filing = tx"

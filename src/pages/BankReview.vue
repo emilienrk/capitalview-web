@@ -125,8 +125,6 @@ const lastAnswer = ref<{
   ruleId: string | null
   transactionIds: string[]
   message: string
-  /** Answered as its deposit: the pair refused on the way comes back too. */
-  refusedPair?: boolean
   /** Answered yes or no to the deposit facing it: that decision is what goes. */
   contribution?: boolean
   /** The rule written by hand the answer now comes before, by its title. */
@@ -167,7 +165,6 @@ async function undo(): Promise<void> {
     if (answered.contribution) await undoHistory(['contribution', 'not_contribution'], id)
     else if (answered.ruleId) await types.deleteRule(answered.ruleId)
     else await types.clearOverride(...answered.transactionIds)
-    if (answered.refusedPair) await undoHistory(['not_transfer'], id)
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'annuler cette réponse."
   }
@@ -193,22 +190,6 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
   }
 }
 
-/** The pair set aside, the operation bound to the deposit facing it. */
-async function deposit(tx: BankTransactionItem): Promise<void> {
-  if (!tx.transfer_id || !tx.contribution) return
-  busy.value = tx.id
-  error.value = null
-  try {
-    await bank.decideTransfer(tx.id, tx.transfer_id, 'not_transfer')
-    await bank.decideContribution(tx.id, tx.contribution.id, 'contribution')
-    rememberContribution(tx, 'contribution', true)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  } finally {
-    busy.value = null
-  }
-}
-
 /** Yes or no to the deposit or withdrawal facing the operation. */
 async function contribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): Promise<void> {
   if (!tx.contribution) return
@@ -224,7 +205,7 @@ async function contribution(tx: BankTransactionItem, kind: BankContributionDecis
   }
 }
 
-function rememberContribution(tx: BankTransactionItem, kind: BankContributionDecisionKind, refusedPair = false): void {
+function rememberContribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): void {
   lastAnswer.value = {
     ruleId: null,
     transactionIds: [tx.id],
@@ -232,7 +213,6 @@ function rememberContribution(tx: BankTransactionItem, kind: BankContributionDec
       ? 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
       : 'Comptée comme les autres opérations.',
     contribution: true,
-    refusedPair,
   }
 }
 
@@ -331,7 +311,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           :stake-amount="stakeOf(item)"
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
-          @deposit="deposit(item.transaction)"
+          @deposit="contribution(item.transaction, 'contribution')"
           @contribution="(kind) => contribution(item.transaction, kind)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
