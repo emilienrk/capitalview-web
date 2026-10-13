@@ -20,7 +20,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
-import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionNote } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionNote, ownAnswer } from '@/utils/cashflowTypes'
 import type {
   BankContributionDecisionKind, BankHistoryKind, BankReviewItem, BankTransactionItem, BankTransactionTypeResult,
   BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope,
@@ -162,7 +162,7 @@ async function undo(): Promise<void> {
   lastAnswer.value = null
   try {
     const [id] = answered.transactionIds
-    if (answered.contribution) await undoHistory(['contribution', 'not_contribution'], id)
+    if (answered.contribution) await undoHistory(['contribution', 'not_contribution'], ...answered.transactionIds)
     else if (answered.ruleId) await types.deleteRule(answered.ruleId)
     else await types.clearOverride(...answered.transactionIds)
   } catch (e) {
@@ -170,12 +170,12 @@ async function undo(): Promise<void> {
   }
 }
 
-/** Withdraws the decision of these kinds the history holds on this operation. */
-async function undoHistory(kinds: BankHistoryKind[], transactionId: string | undefined): Promise<void> {
-  const decision = (await types.fetchHistory()).find(
-    (item) => kinds.includes(item.kind) && item.operations.some((op) => op.id === transactionId),
+/** Withdraws the decisions of these kinds the history holds on these operations. */
+async function undoHistory(kinds: BankHistoryKind[], ...transactionIds: (string | undefined)[]): Promise<void> {
+  const decisions = (await types.fetchHistory()).filter(
+    (item) => kinds.includes(item.kind) && item.operations.some((op) => transactionIds.includes(op.id)),
   )
-  if (decision) await types.undoAnswer(decision)
+  for (const decision of decisions) await types.undoAnswer(decision)
 }
 
 async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
@@ -190,14 +190,17 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
   }
 }
 
-/** Yes or no to the deposit or withdrawal facing the operation. */
-async function contribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): Promise<void> {
-  if (!tx.contribution) return
+/** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
+async function contribution(
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx),
+): Promise<void> {
+  const [first, ...also] = answers
+  if (!first) return
   busy.value = tx.id
   error.value = null
   try {
-    await bank.decideContribution(tx.id, tx.contribution.id, kind)
-    rememberContribution(tx, kind)
+    await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
+    rememberContribution(answers.map((answer) => answer.transaction_id), kind)
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -205,10 +208,10 @@ async function contribution(tx: BankTransactionItem, kind: BankContributionDecis
   }
 }
 
-function rememberContribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): void {
+function rememberContribution(transactionIds: string[], kind: BankContributionDecisionKind): void {
   lastAnswer.value = {
     ruleId: null,
-    transactionIds: [tx.id],
+    transactionIds,
     message: kind === 'contribution'
       ? 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
       : 'Comptée comme les autres opérations.',
@@ -312,7 +315,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
           @deposit="contribution(item.transaction, 'contribution')"
-          @contribution="(kind) => contribution(item.transaction, kind)"
+          @contribution="(kind, answers) => contribution(item.transaction, kind, answers)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
           @answer="(type, scope, picked) => answer(item.transaction, type, scope, picked)"

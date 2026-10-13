@@ -401,6 +401,12 @@ export type BankTransferDecisionKind = 'transfer' | 'not_transfer' | 'reversal'
 /** POST /banking/contribution-decisions: the operation is the declared deposit or withdrawal facing it, or not. */
 export type BankContributionDecisionKind = 'contribution' | 'not_contribution'
 
+/** An operation, and the declared deposit or withdrawal facing it. */
+export interface BankContributionAnswer {
+  transaction_id: string
+  contribution_id: string
+}
+
 /** Response of GET /banking/transfer-questions — pairs and flow questions waiting for the user, by month. */
 export interface BankTransferQuestionsResponse {
   total: number
@@ -442,6 +448,8 @@ export interface BankTransactionItem {
   flow_question: BankFlowQuestion | null
   /** What the user's investment accounts say about it: the evidence that typed it, or a nearby deposit. */
   contribution: BankContributionMatch | null
+  /** Asked whether it is that deposit or withdrawal, yes or no. */
+  asks_contribution: boolean
   /** The counted recurring payment or income it belongs to. */
   recurring: BankRecurringTag | null
   /** Set on the last operation of a series found but not sure enough to count. */
@@ -511,8 +519,6 @@ export interface BankFlowQuestion {
   operation_count: number
   /** What those operations add up to: what the answer can move. */
   amount: number
-  /** How many of them a deposit declared a few days away could be. */
-  hints: number
 }
 
 // ─── Récurrent ───────────────────────────────────────────────

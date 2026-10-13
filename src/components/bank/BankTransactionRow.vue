@@ -13,14 +13,13 @@ import {
   PAIR_HINTS,
   answerHint,
   answerLabel,
-  asksContribution,
   contributionBadge,
   togetherNote,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
 import type {
-  BankContributionDecisionKind, BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
+  BankContributionAnswer, BankContributionDecisionKind, BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
   TypeScope,
 } from '@/types'
 
@@ -46,8 +45,9 @@ defineEmits<{
   decide: [kind: BankTransferDecisionKind]
   /** A suggested pair is set aside for the deposit facing the operation. */
   deposit: []
-  /** The operation is, or is not, the deposit or withdrawal facing it. */
-  contribution: [kind: BankContributionDecisionKind]
+  /** The operation is, or is not, the deposit or withdrawal facing it — or
+   * the operations ticked in its group are, each with its own. */
+  contribution: [kind: BankContributionDecisionKind, answers: BankContributionAnswer[]]
   link: []
   /** `picked`: the operations to type with the operation scope, this one or those ticked in its label. */
   answer: [type: CashflowType, scope: TypeScope, picked: string[]]
@@ -76,7 +76,21 @@ function money(value: number): string {
 
 const suggested = computed(() => props.tx.transfer_status === 'suggested')
 /** Asked yes or no, in place of the type question: only the user knows it went there. */
-const asksDeposit = computed(() => asksContribution(props.tx))
+const asksDeposit = computed(() => props.tx.asks_contribution)
+/** The deposit or withdrawal facing each operation of the group, once its list is open. */
+const facing = ref<Record<string, string>>({})
+function onGroupLoaded(operations: BankTransactionItem[]): void {
+  facing.value = Object.fromEntries(
+    operations.flatMap((operation) => (operation.contribution ? [[operation.id, operation.contribution.id]] : [])),
+  )
+}
+/** What a yes or a no covers: this operation, or those ticked, each with what faces it. */
+const depositAnswers = computed<BankContributionAnswer[]>(() =>
+  answering.value.flatMap((id) => {
+    const contributionId = id === props.tx.id ? props.tx.contribution?.id : facing.value[id]
+    return contributionId ? [{ transaction_id: id, contribution_id: contributionId }] : []
+  }),
+)
 const proved = computed(() => props.tx.type_source === 'contribution')
 /** A yes counts it as an investment, out of the recurring payment it is one of. */
 const leavesRecurring = computed(() =>
@@ -187,9 +201,10 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <TrendingUp class="w-3.5 h-3.5 shrink-0" />
         {{ contributionNote }}
       </p>
-      <!-- Each operation facing a deposit asks on its own: each has its own
-           deposit. A yes vouches for the label, so the next ones prove
-           themselves; a no puts the operation back with the others. -->
+      <!-- The operations of a label facing a deposit of one investment account
+           ask together, each with its own deposit. A yes vouches for the
+           label, so the next ones prove themselves; a no puts the operation
+           back with the others. Open, the answer goes to those ticked. -->
       <div v-if="asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="inline-flex items-center gap-1 text-warning font-medium">
           <TrendingUp class="w-3.5 h-3.5 shrink-0" />
@@ -197,25 +212,36 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         </span>
         <button
           type="button"
-          :disabled="busy"
+          :disabled="busy || !depositAnswers.length"
           title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('contribution', 'contribution')"
+          @click="$emit('contribution', 'contribution', depositAnswers)"
         >
           Oui
         </button>
         <button
           type="button"
-          :disabled="busy"
+          :disabled="busy || !depositAnswers.length"
           title="Ce n'est pas ce mouvement : l'opération compte comme les autres."
           class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-          @click="$emit('contribution', 'not_contribution')"
+          @click="$emit('contribution', 'not_contribution', depositAnswers)"
         >
           Non
         </button>
         <span v-if="leavesRecurring" class="text-text-muted dark:text-text-dark-muted">
           Oui : sortira du récurrent {{ leavesRecurring }}
         </span>
+        <BankFlowGroup
+          v-if="tx.flow_question && tx.flow_question.operation_count > 1"
+          v-model:open="picking"
+          v-model:picked="picked"
+          :transaction-id="tx.id"
+          :count="tx.flow_question.operation_count"
+          :stake="stake ?? undefined"
+          :label="tx.label"
+          picking
+          @loaded="onGroupLoaded"
+        />
       </div>
       <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
         <span class="truncate" :title="offered">{{ offered }}</span>
@@ -297,14 +323,6 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :label="tx.label"
           :picking="!wholeLabel"
         />
-        <!-- The hints sit on operations the question is not asked on: said
-             here, and shown on each of them once the list is open. -->
-        <span v-if="tx.flow_question.hints" class="basis-full inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted">
-          <TrendingUp class="w-3.5 h-3.5 shrink-0" />
-          {{ tx.flow_question.hints === 1
-            ? "Une de ces opérations pourrait être un versement sur un compte d'investissement."
-            : `${tx.flow_question.hints} de ces opérations pourraient être des versements sur un compte d'investissement.` }}
-        </span>
       </div>
       <!-- A recurring charge or income found but not sure enough to count:
            asked on its last operation, in the same style. The answer moves no

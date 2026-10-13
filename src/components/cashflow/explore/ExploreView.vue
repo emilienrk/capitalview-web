@@ -169,6 +169,7 @@ function asTransaction(entry: LedgerEntry): BankTransactionItem {
     // The ledger carries the type's source but not the deposit behind it: the
     // picker explains the deduction where the operation itself is listed.
     contribution: null,
+    asks_contribution: false,
     recurring: null,
     recurring_question: null,
   }

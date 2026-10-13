@@ -1,5 +1,5 @@
 import type {
-  BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
+  BankContributionAnswer, BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
 } from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
@@ -114,14 +114,9 @@ export function contributionNote(
     : `${format(amount)} retirés de ${match.account_name}, ${format(fee)} de frais.`
 }
 
-/**
- * Whether the operation asks, yes or no, if it is the declared movement facing
- * it. Not once it is proved, typed by hand or paired: a suggested pair asks in
- * its own question, which offers the deposit too (docs/bank-sorting.md).
- */
-export function asksContribution(tx: BankTransactionItem): boolean {
-  return tx.contribution !== null && tx.transfer_status === null
-    && (tx.type_source === 'default' || tx.type_source === 'rule' || tx.type_source === 'recurring')
+/** The operation and the deposit or withdrawal facing it, as one answer. */
+export function ownAnswer(tx: BankTransactionItem): BankContributionAnswer[] {
+  return tx.contribution ? [{ transaction_id: tx.id, contribution_id: tx.contribution.id }] : []
 }
 
 /** The investment account an operation went to or came from, for its badge. */
@@ -170,5 +165,5 @@ export function matchesCashflowType(tx: BankTransactionItem, filter: string): bo
 /** A pair offered to the user, a label only the user can type, or a recurring payment or income to confirm. */
 export function needsReview(tx: BankTransactionItem): boolean {
   return tx.transfer_status === 'suggested' || tx.flow_question !== null || tx.recurring_question !== null
-    || asksContribution(tx)
+    || tx.asks_contribution
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, asksContribution, contributionBadge, contributionNote, matchesCashflowType,
-  needsReview, ruleTitle, togetherNote, typeSourceTitle,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType,
+  needsReview, ownAnswer, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -12,7 +12,8 @@ function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransact
     amount: 40, currency: 'EUR', is_credit: false, is_pending: false, label: 'VIR INST ROUKINE EMILIEN',
     transfer_account_id: null, transfer_account_name: null, transfer_id: null, transfer_status: null,
     cashflow_type: 'EXPENSE', type_source: 'default', type_rule_id: null,
-    flow_question: null, contribution: null, recurring: null, recurring_question: null, ...overrides,
+    flow_question: null, contribution: null, asks_contribution: false, recurring: null, recurring_question: null,
+    ...overrides,
   }
 }
 
@@ -113,21 +114,14 @@ describe('contributionNote', () => {
   })
 })
 
-describe('asksContribution', () => {
+describe('ownAnswer', () => {
   const contribution = { id: 'deposit-1', account_name: 'PEA', day: '2026-03-05', amount: 40, is_deposit: true, exact: true }
 
-  it('asks until the user said, a rule or a recurring payment notwithstanding', () => {
-    expect(asksContribution(anOperation({ contribution }))).toBe(true)
-    expect(asksContribution(anOperation({ contribution, type_source: 'rule' }))).toBe(true)
-    expect(asksContribution(anOperation({ contribution, type_source: 'recurring' }))).toBe(true)
-    expect(needsReview(anOperation({ contribution }))).toBe(true)
-  })
-
-  it('leaves a proved deposit, a type chosen by hand and a pair alone', () => {
-    expect(asksContribution(anOperation())).toBe(false)
-    expect(asksContribution(anOperation({ contribution, type_source: 'contribution', cashflow_type: 'INVESTMENT' }))).toBe(false)
-    expect(asksContribution(anOperation({ contribution, type_source: 'override' }))).toBe(false)
-    expect(asksContribution(anOperation({ contribution, transfer_status: 'suggested' }))).toBe(false)
+  it('answers for the operation with the movement facing it, as the API asks', () => {
+    expect(ownAnswer(anOperation({ contribution }))).toEqual([{ transaction_id: 'tx-1', contribution_id: 'deposit-1' }])
+    expect(ownAnswer(anOperation())).toEqual([])
+    expect(needsReview(anOperation({ contribution, asks_contribution: true }))).toBe(true)
+    expect(needsReview(anOperation({ contribution }))).toBe(false)
   })
 })
 

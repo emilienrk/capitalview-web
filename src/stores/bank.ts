@@ -17,6 +17,7 @@ import type {
   BankAccountSyncResult,
   BankAccountUnlinkResult,
   BankAuthorizeResponse,
+  BankContributionAnswer,
   BankContributionDecisionKind,
   BankFlowsResponse,
   BankTransactionItem,
@@ -432,11 +433,13 @@ export const useBankStore = defineStore('bank', () => {
     transactionId: string,
     contributionId: string,
     kind: BankContributionDecisionKind,
+    also: BankContributionAnswer[] = [],
   ): Promise<void> {
     await apiClient.post('/banking/contribution-decisions', {
       transaction_id: transactionId,
       contribution_id: contributionId,
       kind,
+      also,
     })
     operationsRead()
   }

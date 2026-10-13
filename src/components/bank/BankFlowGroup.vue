@@ -35,6 +35,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 const picked = defineModel<string[]>('picked', { default: () => [] })
+const emit = defineEmits<{ loaded: [operations: BankTransactionItem[]] }>()
 
 const types = useCashflowTypesStore()
 const { formatCurrency } = useFormatters()
@@ -54,6 +55,7 @@ async function toggle(): Promise<void> {
   failed.value = false
   try {
     operations.value = await types.fetchFlowGroup(props.transactionId)
+    emit('loaded', operations.value)
   } catch {
     failed.value = true
   }

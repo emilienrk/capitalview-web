@@ -319,10 +319,11 @@ describe('useBankStore — fetchTransactions', () => {
 
     const store = useBankStore()
     const before = store.dataRevision
-    await store.decideContribution('tx-1', 'deposit-1', 'contribution')
+    await store.decideContribution('tx-1', 'deposit-1', 'contribution', [{ transaction_id: 'tx-2', contribution_id: 'deposit-2' }])
 
     expect(apiClient.post).toHaveBeenCalledWith('/banking/contribution-decisions', {
       transaction_id: 'tx-1', contribution_id: 'deposit-1', kind: 'contribution',
+      also: [{ transaction_id: 'tx-2', contribution_id: 'deposit-2' }],
     })
     expect(store.dataRevision).toBe(before + 1)
   })

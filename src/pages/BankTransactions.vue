@@ -26,7 +26,7 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview, RULES_PAGE,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview, ownAnswer, RULES_PAGE,
 } from '@/utils/cashflowTypes'
 import type {
   BankContributionDecisionKind, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
@@ -279,13 +279,16 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
-/** Yes or no to the deposit or withdrawal facing the operation. */
-async function contribution(tx: BankTransactionItem, kind: BankContributionDecisionKind): Promise<void> {
-  if (!tx.contribution) return
+/** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
+async function contribution(
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx),
+): Promise<void> {
+  const [first, ...also] = answers
+  if (!first) return
   deciding.value = tx.id
   decisionError.value = null
   try {
-    await bank.decideContribution(tx.id, tx.contribution.id, kind)
+    await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
     onContribution(kind)
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
@@ -699,7 +702,7 @@ onMounted(() => void load())
             :contribution-note="contributionOf(tx)"
             @decide="(kind) => decide(tx, kind)"
             @deposit="contribution(tx, 'contribution')"
-            @contribution="(kind) => contribution(tx, kind)"
+            @contribution="(kind, answers) => contribution(tx, kind, answers)"
             @link="linking = tx"
             @recurring="filing = tx"
             @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
@@ -727,7 +730,7 @@ onMounted(() => void load())
                 :contribution-note="contributionOf(tx)"
                 @decide="(kind) => decide(tx, kind)"
                 @deposit="contribution(tx, 'contribution')"
-                @contribution="(kind) => contribution(tx, kind)"
+                @contribution="(kind, answers) => contribution(tx, kind, answers)"
                 @link="linking = tx"
                 @recurring="filing = tx"
                 @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
