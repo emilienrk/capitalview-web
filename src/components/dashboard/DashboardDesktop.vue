@@ -18,7 +18,7 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import { useDashboardTiles } from '@/composables/useDashboardTiles'
 import type { DashboardOverview } from '@/composables/useDashboardOverview'
 import { useSettingsStore } from '@/stores/settings'
-import { exploreLink } from '@/utils/ledger'
+import { operationsSearch } from '@/utils/ledger'
 
 const props = defineProps<{ overview: DashboardOverview }>()
 
@@ -32,10 +32,7 @@ const placementsValue = computed(() => props.overview.investmentRows.find((row) 
 const hasAccounts = computed(
   () => props.overview.bankAccounts.length > 0 || (props.overview.portfolio?.accounts.length ?? 0) > 0 || !!placementsValue.value,
 )
-const monthLink = {
-  name: 'cashflow',
-  query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }),
-}
+const monthLink = operationsSearch({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true })
 const showMonth = computed(() => props.overview.bankEnabled && props.overview.month !== null)
 </script>
 
@@ -59,7 +56,7 @@ const showMonth = computed(() => props.overview.bankEnabled && props.overview.mo
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Mois en cours</h3>
-          <router-link :to="monthLink" class="text-sm font-medium text-primary hover:underline">Explorer</router-link>
+          <router-link :to="monthLink" class="text-sm font-medium text-primary hover:underline">Dépenses du mois</router-link>
         </div>
       </template>
       <RealCashflowPace :data="overview.month" :is-dark="isDark" stacked compact />

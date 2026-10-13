@@ -6,7 +6,7 @@ import { hydrate, type LedgerEntry } from '@/utils/ledger'
 import type { BankLedger } from '@/types'
 
 /**
- * Every operation, typed, for the Explorer. Asked again on every visit and
+ * Every operation, typed, for the Opérations search. Asked again on every visit and
  * after every write: the API answers 304 through the browser's cache while
  * nothing changed, so a reload costs a round trip, not the history.
  */

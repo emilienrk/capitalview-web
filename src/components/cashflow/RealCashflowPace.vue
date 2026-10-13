@@ -15,7 +15,7 @@ import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, mixColor, useChartTheme } from '@/composables/useChartTheme'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { exploreLink } from '@/utils/ledger'
+import { operationsSearch } from '@/utils/ledger'
 import type { RealCashflowCurrent, RealCashflowUpcoming } from '@/types'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
@@ -25,7 +25,7 @@ const props = defineProps<{
   isDark?: boolean
   /** Figures above the curve at every width, for a narrow column. */
   stacked?: boolean
-  /** Two lines of figures and no link: the host puts Explorer in its header, the detail is there. */
+  /** Two lines of figures and no link: the host puts the operations in its header, the detail is there. */
   compact?: boolean
 }>()
 
@@ -148,10 +148,10 @@ const option = computed(() => {
       </p>
       <router-link
         v-if="!compact"
-        :to="{ name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) }"
+        :to="operationsSearch({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true })"
         class="inline-block text-sm font-medium text-primary hover:underline"
       >
-        Explorer ce mois
+        Dépenses du mois
       </router-link>
     </div>
     <div ref="containerRef" class="w-full" :class="[compact ? 'h-28' : 'h-36', stacked ? '' : 'lg:col-span-3']">

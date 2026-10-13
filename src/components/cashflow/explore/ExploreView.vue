@@ -1,39 +1,32 @@
 <script setup lang="ts">
 /**
- * The Explorer: every operation of the history, filtered, split and compared
- * in the browser. Figures move as filters change, without a request; the
- * operations and their types come from the ledger, the same reading the Réel
- * view totals.
+ * The Opérations tab's search: every operation of the history, filtered,
+ * split and compared in the browser. Figures move as filters change, without
+ * a request; the operations and their types come from the ledger, the same
+ * reading the Réel view totals, which draws them over time.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { Compass, Landmark } from 'lucide-vue-next'
 
-import { BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSegmentedControl, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSkeleton } from '@/components'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import ExploreBreakdown from '@/components/cashflow/explore/ExploreBreakdown.vue'
-import ExploreChart from '@/components/cashflow/explore/ExploreChart.vue'
 import ExploreFilters from '@/components/cashflow/explore/ExploreFilters.vue'
 import ExploreOperations from '@/components/cashflow/explore/ExploreOperations.vue'
 import ExploreSummary from '@/components/cashflow/explore/ExploreSummary.vue'
-import { useDarkMode } from '@/composables/useDarkMode'
 import { useExploreFilters } from '@/composables/useExploreFilters'
-import { useFormatters } from '@/composables/useFormatters'
-import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useLedgerStore } from '@/stores/ledger'
 import { CASHFLOW_TYPE_LABELS } from '@/utils/cashflowTypes'
 import {
-  DEFAULT_FILTERS, amountBandFilter, applyFilters, comparePeriods, cumulated, groupBy, periodRange, periodsBetween,
-  shiftPeriod, shiftRange, summarize, timeSeries, toCsv, toPeriod, type Bucket, type LedgerEntry, type LedgerFilters,
+  DEFAULT_FILTERS, amountBandFilter, applyFilters, comparePeriods, groupBy, periodRange, periodsBetween,
+  shiftPeriod, shiftRange, summarize, toCsv, toPeriod, type Bucket, type LedgerEntry, type LedgerFilters,
 } from '@/utils/ledger'
 import type { ExploreState } from '@/utils/ledger'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const ledger = useLedgerStore()
 const bank = useBankStore()
-const { isDark } = useDarkMode()
-const { formatCurrency } = useFormatters()
-const { privacyMode } = usePrivacyMode()
 const { state, reset } = useExploreFilters()
 
 onMounted(() => void ledger.fetchLedger())
@@ -58,22 +51,15 @@ const months = computed(() => {
 })
 const comparisons = computed(() => comparePeriods(entries.value, state.value.filters, range.value, currency.value))
 
-/** The span the chart draws: the period, or the history the selection covers. */
-const chartRange = computed(() => {
+/** The span the selection covers: the period, or the history it reaches. */
+const span = computed(() => {
   if (range.value) return range.value
   const periods = selected.value.map((entry) => entry.period).filter(Boolean).sort()
   return periods.length ? { from: periods[0]!, to: periods[periods.length - 1]! } : null
 })
 
-const series = computed(() =>
-  chartRange.value ? timeSeries(selected.value, chartRange.value, state.value.stack, state.value.filters.direction) : null,
-)
-const cumulative = computed(() =>
-  state.value.cumulative && range.value ? cumulated(entries.value, state.value.filters, range.value, currency.value) : null,
-)
-
 const sparkPeriods = computed(() => {
-  const end = chartRange.value?.to ?? toPeriod(today)
+  const end = span.value?.to ?? toPeriod(today)
   return Array.from({ length: 12 }, (_, i) => shiftPeriod(end, i - 11))
 })
 const buckets = computed(() => groupBy(selected.value, state.value.by, state.value.filters.direction, sparkPeriods.value))
@@ -88,10 +74,6 @@ const previousTotals = computed(() => {
 const groupNames = computed(() =>
   Object.fromEntries((ledger.ledger?.groups ?? []).map((group) => [`${group.is_credit ? 'C' : 'D'}:${group.key}`, group.name])),
 )
-
-function amount(value: number): string {
-  return privacyMode.value ? '•••' : formatCurrency(value, currency.value)
-}
 
 function patchState(patch: Partial<ExploreState>): void {
   state.value = { ...state.value, ...patch }
@@ -135,11 +117,6 @@ function applyView(view: (typeof views)[number]): void {
     filters: { ...DEFAULT_FILTERS, preset: filters.value.preset, from: filters.value.from, to: filters.value.to, ...view.apply },
   }
 }
-
-const stackOptions = [
-  { label: 'Par type', value: 'type' },
-  { label: 'Par contrepartie', value: 'group' },
-]
 
 // ── Actions ─────────────────────────────────────────────────
 
@@ -223,7 +200,7 @@ async function copyLink(): Promise<void> {
     <BaseEmptyState
       v-else-if="ledger.ledger && !entries.length"
       title="Aucune opération à explorer"
-      description="Synchronisez une banque ou importez un relevé : l'Explorer lit vos opérations."
+      description="Synchronisez une banque ou importez un relevé : la recherche lit vos opérations."
     >
       <template #icon><Landmark class="w-8 h-8 text-text-muted dark:text-text-dark-muted" /></template>
       <template #action>
@@ -261,36 +238,6 @@ async function copyLink(): Promise<void> {
         :direction="state.filters.direction"
         :currency="currency"
       />
-
-      <BaseCard>
-        <template #header>
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-base font-semibold text-text-main dark:text-text-dark-main">Dans le temps</h3>
-            <div class="flex flex-wrap items-center gap-3">
-              <BaseSegmentedControl
-                v-if="!state.cumulative"
-                :model-value="state.stack"
-                :options="stackOptions"
-                size="sm"
-                @update:model-value="(value) => patchState({ stack: value as ExploreState['stack'] })"
-              />
-              <label v-if="range" class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted">
-                <BaseToggle :model-value="state.cumulative" aria-label="Cumulé contre un an avant" @update:model-value="(value) => patchState({ cumulative: value })" />
-                Cumulé vs un an avant
-              </label>
-            </div>
-          </div>
-        </template>
-        <ExploreChart
-          v-if="selected.length"
-          :series="series"
-          :cumulative="cumulative"
-          :format="amount"
-          :is-dark="isDark"
-          @select-month="(period) => update({ preset: 'custom', from: period, to: period })"
-        />
-        <p v-else class="text-sm text-text-muted dark:text-text-dark-muted">Aucune opération dans cette sélection.</p>
-      </BaseCard>
 
       <ExploreBreakdown
         :buckets="buckets"

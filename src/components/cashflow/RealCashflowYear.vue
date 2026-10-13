@@ -14,7 +14,7 @@ import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterp
 import RealCashflowNotices from '@/components/cashflow/RealCashflowNotices.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { exploreLink } from '@/utils/ledger'
+import { operationsSearch } from '@/utils/ledger'
 import {
   changePercent, monthlyFigures, type MonthlyStatistic,
 } from '@/utils/realCashflow'
@@ -76,7 +76,7 @@ const splits = computed<Partial<Record<AmountKey, { recurring: number; oneOff: n
 }))
 const isCurrentYear = computed(() => props.data.year === new Date().getFullYear())
 
-/** The months the year covers so far, for the links into the Explorer. */
+/** The months the year covers so far, for the links into the operations. */
 const range = computed(() => ({
   from: `${props.data.year}-01`,
   to: props.data.months[props.data.months.length - 1]?.period ?? `${props.data.year}-12`,
@@ -125,10 +125,7 @@ function comparison(key: keyof RealCashflowTotals): string | null {
 
 function cardLink(type: CashflowType | null) {
   const filters = { preset: 'custom' as const, from: range.value.from, to: range.value.to }
-  return {
-    name: 'cashflow',
-    query: type ? exploreLink({ ...filters, types: [type] }, { by: 'group' }) : exploreLink(filters, { by: 'month' }),
-  }
+  return type ? operationsSearch({ ...filters, types: [type] }, { by: 'group' }) : operationsSearch(filters, { by: 'month' })
 }
 
 const rate = computed(() => props.data.totals.savings_rate)

@@ -2,14 +2,14 @@
 /**
  * Where the money went and where it came from, by counterpart rather than by
  * category: nothing to sort, and most of what a category would have told.
- * Each line opens the Explorer on that counterpart over the same period.
+ * Each line opens the operations of that counterpart over the same period.
  */
 import { computed, ref } from 'vue'
 
 import { BaseCard, BaseSegmentedControl } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { exploreLink, type PeriodRange } from '@/utils/ledger'
+import { operationsSearch, type PeriodRange } from '@/utils/ledger'
 import type { RealCashflowCounterpart, RealCashflowExpense } from '@/types'
 
 const props = defineProps<{
@@ -39,13 +39,10 @@ function amount(value: number): string {
 
 function link(line: RealCashflowCounterpart) {
   const credit = tab.value === 'sources'
-  return {
-    name: 'cashflow',
-    query: exploreLink(
-      { preset: 'custom', from: props.range.from, to: props.range.to, groups: [`${credit ? 'C' : 'D'}:${line.group_key}`] },
-      { by: 'month' },
-    ),
-  }
+  return operationsSearch(
+    { preset: 'custom', from: props.range.from, to: props.range.to, groups: [`${credit ? 'C' : 'D'}:${line.group_key}`] },
+    { by: 'month' },
+  )
 }
 </script>
 

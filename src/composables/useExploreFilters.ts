@@ -4,9 +4,9 @@ import { useRoute, useRouter, type LocationQuery } from 'vue-router'
 import { DEFAULT_STATE, parseState, serializeState, type ExploreState } from '@/utils/ledger'
 
 /**
- * The query keys the Explorer owns, so leaving it clears them and nothing else.
- * `means`, the payment method filter it no longer has, stays owned so that an
- * old link loses it on the first change.
+ * The query keys the search owns, so leaving it clears them and nothing else.
+ * `means`, `stack` and `cum` — the payment method filter and the chart the
+ * Explorer had — stay owned so that an old link loses them on the first change.
  */
 export const EXPLORE_QUERY_KEYS = [
   'p', 'from', 'to', 'acc', 'dir', 'types', 'means', 'min', 'max', 'q', 'groups', 'open', 'pending', 'all', 'by', 'stack', 'cum',
@@ -19,7 +19,7 @@ function flat(query: LocationQuery): Record<string, string | undefined> {
 }
 
 /**
- * The query a state should leave in the URL, the keys the Explorer does not
+ * The query a state should leave in the URL, the keys the search does not
  * own kept as they were; null when the URL already says it.
  */
 export function exploreQuery(current: LocationQuery, state: ExploreState): LocationQuery | null {
@@ -30,13 +30,13 @@ export function exploreQuery(current: LocationQuery, state: ExploreState): Locat
   return { ...kept, ...wanted } as LocationQuery
 }
 
-/** The query without any of the Explorer's keys. */
+/** The query without any of the search's keys. */
 export function withoutExploreQuery(current: LocationQuery): LocationQuery {
   return Object.fromEntries(Object.entries(current).filter(([key]) => !EXPLORE_QUERY_KEYS.includes(key)))
 }
 
 /**
- * The Explorer's filters, kept in the URL both ways: a link from the Réel view
+ * The search's filters, kept in the URL both ways: a link from the Réel view
  * opens it filtered, the back button undoes a filter, and a copied address
  * reopens the same selection. Written with `replace`, so typing a search does
  * not stack a history entry per keystroke.

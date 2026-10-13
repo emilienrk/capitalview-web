@@ -8,7 +8,7 @@ import RealCashflowCounterparts from '@/components/cashflow/RealCashflowCounterp
 import RealCashflowNotices from '@/components/cashflow/RealCashflowNotices.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { exploreLink } from '@/utils/ledger'
+import { operationsSearch } from '@/utils/ledger'
 import type { RealCashflowMonthDetail } from '@/types'
 
 const props = defineProps<{ data: RealCashflowMonthDetail }>()
@@ -44,10 +44,7 @@ const recurringLines = computed(() => [
   { key: 'income', title: 'Revenus récurrents', query: { direction: 'income' }, items: props.data.recurring_income ?? [] },
 ].filter((line) => line.items.length))
 const range = computed(() => ({ from: props.data.period, to: props.data.period }))
-const explore = computed(() => ({
-  name: 'cashflow',
-  query: exploreLink({ preset: 'custom', from: props.data.period, to: props.data.period }, { by: 'group' }),
-}))
+const operations = computed(() => operationsSearch({ preset: 'custom', from: props.data.period, to: props.data.period }, { by: 'group' }))
 </script>
 
 <template>
@@ -91,8 +88,8 @@ const explore = computed(() => ({
             Taux d'épargne : <strong class="text-text-main dark:text-text-dark-main tabular-nums">{{ Number(data.totals.savings_rate).toLocaleString('fr-FR') }} %</strong>
           </template>
         </p>
-        <router-link :to="explore" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-          <Search class="w-4 h-4" /> Explorer ce mois
+        <router-link :to="operations" class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+          <Search class="w-4 h-4" /> Opérations du mois
         </router-link>
       </div>
       <p

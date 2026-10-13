@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The Explorer's filters: the period always in sight, the rest folded behind
+ * The search's filters: the period always in sight, the rest folded behind
  * one button on a phone. Every change replaces the whole filter object, so the
  * page's URL follows it.
  */

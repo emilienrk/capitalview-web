@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * The Banque section's Opérations tab: one month of stored movements, all
- * accounts or one, with that month's totals on top.
+ * accounts or one, with that month's totals on top — or the whole history
+ * searched, split and exported (`?view=search`).
  *
  * Month by month because the API can only filter dates on a month — they are
  * stored encrypted. The month and the account live in the query string, so an
@@ -19,8 +20,10 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
 import { useBankSection } from '@/composables/useBankSection'
 import {
-  BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSelect, BaseSkeleton, BaseToggle,
+  BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSegmentedControl, BaseSelect, BaseSkeleton, BaseToggle,
 } from '@/components'
+import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
+import { withoutExploreQuery } from '@/composables/useExploreFilters'
 import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
@@ -81,6 +84,23 @@ const accountChips = computed(() => [
   { label: 'Tous les comptes', value: ALL_ACCOUNTS },
   ...(bank.summary?.accounts ?? []).map((account) => ({ label: account.name, value: account.id })),
 ])
+
+// ── Month or search ─────────────────────────────────────────
+
+/** The month, each operation with what it asks; or every month, filtered at once. */
+const searching = computed(() => route.query.view === 'search')
+const modeOptions = [
+  { label: 'Par mois', value: 'month' },
+  { label: 'Recherche', value: 'search' },
+]
+
+function chooseMode(value: string | number): void {
+  // The search's filters mean nothing to the month: leaving it drops them.
+  const query = withoutExploreQuery(route.query)
+  if (value === 'search') query.view = 'search'
+  else delete query.view
+  void router.replace({ query })
+}
 
 // ── The month strip ─────────────────────────────────────────
 
@@ -448,318 +468,331 @@ onMounted(() => void load())
 
 <template>
   <div>
-    <BaseCard class="mb-6">
-      <template #header>
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1 min-w-0">
-            <BaseButton icon size="sm" variant="ghost" aria-label="Mois précédent" @click="period = shiftPeriod(period, -1)">
-              <ChevronLeft class="w-4 h-4" />
-            </BaseButton>
-            <h3 class="w-40 text-center text-lg font-semibold capitalize text-text-main dark:text-text-dark-main">
-              {{ periodLabel }}
-            </h3>
+    <BaseSegmentedControl
+      class="mb-4"
+      :model-value="searching ? 'search' : 'month'"
+      :options="modeOptions"
+      size="sm"
+      @update:model-value="chooseMode"
+    />
+
+    <ExploreView v-if="searching" />
+
+    <template v-else>
+      <BaseCard class="mb-6">
+        <template #header>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1 min-w-0">
+              <BaseButton icon size="sm" variant="ghost" aria-label="Mois précédent" @click="period = shiftPeriod(period, -1)">
+                <ChevronLeft class="w-4 h-4" />
+              </BaseButton>
+              <h3 class="w-40 text-center text-lg font-semibold capitalize text-text-main dark:text-text-dark-main">
+                {{ periodLabel }}
+              </h3>
+              <BaseButton
+                icon size="sm" variant="ghost" aria-label="Mois suivant"
+                :disabled="period >= currentPeriod"
+                @click="period = shiftPeriod(period, 1)"
+              >
+                <ChevronRight class="w-4 h-4" />
+              </BaseButton>
+            </div>
             <BaseButton
-              icon size="sm" variant="ghost" aria-label="Mois suivant"
-              :disabled="period >= currentPeriod"
-              @click="period = shiftPeriod(period, 1)"
+              v-if="entryAccount"
+              class="ml-auto"
+              size="sm" variant="outline"
+              :aria-label="`Ajouter une opération sur ${entryAccount.name}`"
+              @click="openEntry(entryAccount.id)"
             >
-              <ChevronRight class="w-4 h-4" />
+              <Plus class="w-4 h-4" />
+              Ajouter
             </BaseButton>
           </div>
-          <BaseButton
-            v-if="entryAccount"
-            class="ml-auto"
-            size="sm" variant="outline"
-            :aria-label="`Ajouter une opération sur ${entryAccount.name}`"
-            @click="openEntry(entryAccount.id)"
-          >
-            <Plus class="w-4 h-4" />
-            Ajouter
-          </BaseButton>
-        </div>
-        <!-- Every account one click away, and the one shown always in sight:
-             a select hid which account the figures below were about. -->
-        <div class="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Compte">
-          <button
-            v-for="chip in accountChips"
-            :key="chip.value"
-            type="button"
-            :aria-pressed="accountId === chip.value"
-            :class="[
-              'shrink-0 px-3 py-1.5 rounded-button text-sm font-medium transition-colors whitespace-nowrap',
-              accountId === chip.value
-                ? 'bg-primary text-primary-content'
-                : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
-            ]"
-            @click="accountId = chip.value"
-          >
-            {{ chip.label }}
-          </button>
-        </div>
-      </template>
-
-      <!-- Twelve months at a glance; a click opens one. -->
-      <div
-        v-if="strip.length"
-        :class="['grid grid-cols-12 gap-0.5 sm:gap-2 mb-5 transition-opacity', flowsStale ? 'opacity-50' : '']"
-      >
-        <button
-          v-for="m in strip"
-          :key="m.period"
-          type="button"
-          :aria-label="`${monthLong(m.period)} : entrées ${amount(m.inflow)}, sorties ${amount(m.outflow)}`"
-          :aria-pressed="m.period === period"
-          :title="`${monthShort(m.period)} : +${amount(m.inflow)} / −${amount(m.outflow)}`"
-          :class="[
-            'flex flex-col items-center gap-1 rounded-button pt-2 pb-1 transition-colors',
-            m.period === period
-              ? 'bg-primary/10'
-              : 'hover:bg-surface-hover dark:hover:bg-surface-dark-hover',
-          ]"
-          @click="period = m.period"
-        >
-          <span class="flex items-end justify-center gap-0.5 h-14 w-full">
-            <span class="w-1.5 sm:w-2 rounded-t-sm bg-success/70" :style="{ height: barHeight(m.inflow) }" />
-            <span class="w-1.5 sm:w-2 rounded-t-sm bg-danger/70" :style="{ height: barHeight(m.outflow) }" />
-          </span>
-          <span
-            :class="[
-              'text-xs uppercase sm:normal-case',
-              m.period === period ? 'text-primary font-semibold' : 'text-text-muted dark:text-text-dark-muted',
-            ]"
-          >
-            <!-- One letter on a phone: twelve abbreviations do not fit in 24 px columns. -->
-            <span class="sm:hidden">{{ monthShort(m.period).charAt(0) }}</span>
-            <span class="hidden sm:inline">{{ monthShort(m.period) }}</span>
-          </span>
-        </button>
-      </div>
-
-      <div v-if="loadFailed" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <p class="text-sm text-text-muted dark:text-text-dark-muted">
-          Impossible de charger les opérations de {{ periodLabel }}.
-        </p>
-        <BaseButton size="sm" variant="outline" @click="load(true)">Réessayer</BaseButton>
-      </div>
-      <div v-else-if="!month" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <BaseSkeleton v-for="i in 3" :key="i" variant="rect" width="100%" height="3.5rem" />
-      </div>
-      <template v-else>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <!-- The monthly average is what this month is read against, but it is
-               a second figure next to the one being read: it stays available on
-               hover rather than doubling every tile. -->
-          <div :title="averages ? `Moyenne : ${averages.inflow} / mois` : undefined">
-            <p class="text-sm text-text-muted dark:text-text-dark-muted">Entrées</p>
-            <p class="text-xl font-bold text-success">{{ amount(month.inflow) }}</p>
-          </div>
-          <div :title="averages ? `Moyenne : ${averages.outflow} / mois` : undefined">
-            <p class="text-sm text-text-muted dark:text-text-dark-muted">Sorties</p>
-            <p class="text-xl font-bold text-danger">{{ amount(month.outflow) }}</p>
-          </div>
-          <div>
-            <p class="text-sm text-text-muted dark:text-text-dark-muted">Solde du mois</p>
-            <p class="text-xl font-bold" :class="Number(month.net) >= 0 ? 'text-success' : 'text-danger'">
-              {{ amount(month.net) }}
-            </p>
-            <!-- Said next to the figure someone compares with their bank app,
-                 the one place the gap would otherwise look like an error. -->
-            <p
-              v-if="month.pending_count > 0"
-              class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5"
-              :title="`${amount(month.pending_outflow)} en sortie, ${amount(month.pending_inflow)} en entrée`"
+          <!-- Every account one click away, and the one shown always in sight:
+               a select hid which account the figures below were about. -->
+          <div class="mt-3 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Compte">
+            <button
+              v-for="chip in accountChips"
+              :key="chip.value"
+              type="button"
+              :aria-pressed="accountId === chip.value"
+              :class="[
+                'shrink-0 px-3 py-1.5 rounded-button text-sm font-medium transition-colors whitespace-nowrap',
+                accountId === chip.value
+                  ? 'bg-primary text-primary-content'
+                  : 'bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main',
+              ]"
+              @click="accountId = chip.value"
             >
-              hors {{ month.pending_count }} opération{{ month.pending_count > 1 ? 's' : '' }} en attente
-            </p>
+              {{ chip.label }}
+            </button>
           </div>
-        </div>
-        <p
-          v-if="month.internal_transfers_excluded > 0"
-          class="mt-4 flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
-          {{ amount(month.internal_transfers_amount) }} déplacés entre vos comptes, hors des totaux.
-        </p>
-        <p
-          v-if="month.reversals_excluded > 0"
-          class="mt-1 flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          <Undo2 class="w-3.5 h-3.5 shrink-0" />
-          {{ amount(month.reversals_amount) }} remboursés ou annulés sur un même compte, hors des totaux.
-        </p>
-        <!-- What only the user can say: a pair seen once between two current
-             accounts — as often a third party refunding a purchase as a transfer —
-             and a label nothing types. Both count by default until answered. -->
-        <p
-          v-if="month.transfer_questions > 0"
-          class="mt-1 flex items-center gap-1.5 text-xs text-warning"
-        >
-          <HelpCircle class="w-3.5 h-3.5 shrink-0" />
-          <button
-            type="button"
-            :aria-pressed="toReviewOnly"
-            class="font-medium hover:underline"
-            @click="toReviewOnly = !toReviewOnly"
-          >
-            {{ month.transfer_questions }} point{{ month.transfer_questions > 1 ? 's' : '' }} à vérifier
-          </button>
-          <span class="text-text-muted dark:text-text-dark-muted">— comptés par défaut d'ici là.</span>
-        </p>
-        <!-- The other months still holding a question: the tab's badge counts
-             them all, this is where to find them. -->
-        <div v-if="otherQuestionMonths.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
-          <span>À vérifier aussi :</span>
-          <button
-            v-for="q in otherQuestionMonths"
-            :key="q.period"
-            type="button"
-            class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
-            @click="period = q.period; toReviewOnly = true"
-          >
-            {{ monthShort(q.period) }} {{ q.period.slice(0, 4) }} ({{ q.count }})
-          </button>
-          <span v-if="olderQuestionMonths">et {{ olderQuestionMonths }} mois plus ancien{{ olderQuestionMonths > 1 ? 's' : '' }}</span>
-        </div>
-        <!-- No exchange rate ever arrives with a movement, so these never join a total. -->
-        <p
-          v-for="other in month.other_currencies"
-          :key="other.currency"
-          class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
-        >
-          En {{ other.currency }}, à part faute de taux :
-          {{ amount(other.outflow, other.currency) }} en sortie,
-          {{ amount(other.inflow, other.currency) }} en entrée.
-        </p>
-      </template>
-    </BaseCard>
-
-    <BaseCard v-if="!month && !loadFailed" :padding="false">
-      <div class="p-4 sm:p-6 space-y-3">
-        <BaseSkeleton v-for="i in 5" :key="i" variant="rect" width="100%" height="2.75rem" />
-      </div>
-    </BaseCard>
-
-    <template v-else-if="month?.transactions.length">
-      <div class="mb-4 space-y-3">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div class="relative w-full sm:w-72">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
-            <input
-              v-model="search"
-              type="text"
-              placeholder="Rechercher un libellé…"
-              aria-label="Rechercher un libellé"
-              class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-            />
-          </div>
-          <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted whitespace-nowrap sm:ml-auto">
-            <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
-            Virements internes
-          </label>
-        </div>
-        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <BaseSelect v-model="direction" :options="directionOptions" />
-          <BaseSelect v-model="sortBy" :options="sortOptions" />
-          <BaseSelect v-model="typeFilter" :options="typeOptions" />
-        </div>
-      </div>
-
-      <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
-        {{ typedMessage }}
-        <template v-if="typedRule">
-          Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
         </template>
-        <!-- Never silent: a rule given from an answer, or a choice by hand, comes before a rule written by hand. -->
-        <template v-if="typedOutranked">
-          {{ typedRule ? 'Pour ce libellé, elle' : 'Ce choix' }} passe avant la règle {{ typedOutranked }}.
-        </template>
-      </BaseAlert>
 
-      <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
-        {{ decisionError }}
-      </BaseAlert>
+        <!-- Twelve months at a glance; a click opens one. -->
+        <div
+          v-if="strip.length"
+          :class="['grid grid-cols-12 gap-0.5 sm:gap-2 mb-5 transition-opacity', flowsStale ? 'opacity-50' : '']"
+        >
+          <button
+            v-for="m in strip"
+            :key="m.period"
+            type="button"
+            :aria-label="`${monthLong(m.period)} : entrées ${amount(m.inflow)}, sorties ${amount(m.outflow)}`"
+            :aria-pressed="m.period === period"
+            :title="`${monthShort(m.period)} : +${amount(m.inflow)} / −${amount(m.outflow)}`"
+            :class="[
+              'flex flex-col items-center gap-1 rounded-button pt-2 pb-1 transition-colors',
+              m.period === period
+                ? 'bg-primary/10'
+                : 'hover:bg-surface-hover dark:hover:bg-surface-dark-hover',
+            ]"
+            @click="period = m.period"
+          >
+            <span class="flex items-end justify-center gap-0.5 h-14 w-full">
+              <span class="w-1.5 sm:w-2 rounded-t-sm bg-success/70" :style="{ height: barHeight(m.inflow) }" />
+              <span class="w-1.5 sm:w-2 rounded-t-sm bg-danger/70" :style="{ height: barHeight(m.outflow) }" />
+            </span>
+            <span
+              :class="[
+                'text-xs uppercase sm:normal-case',
+                m.period === period ? 'text-primary font-semibold' : 'text-text-muted dark:text-text-dark-muted',
+              ]"
+            >
+              <!-- One letter on a phone: twelve abbreviations do not fit in 24 px columns. -->
+              <span class="sm:hidden">{{ monthShort(m.period).charAt(0) }}</span>
+              <span class="hidden sm:inline">{{ monthShort(m.period) }}</span>
+            </span>
+          </button>
+        </div>
 
-      <p v-if="hasFilters && filtered.length" class="mb-3 text-sm text-text-muted dark:text-text-dark-muted">
-        {{ filtered.length }} opération{{ filtered.length > 1 ? 's' : '' }} ·
-        <span class="font-semibold tabular-nums" :class="filteredTotal >= 0 ? 'text-success' : 'text-text-main dark:text-text-dark-main'">
-          {{ amount(filteredTotal) }}
-        </span>
-      </p>
-
-      <BaseCard v-if="filtered.length" :padding="false" class="overflow-hidden">
-        <!-- Sorted by amount, days no longer group anything: each row carries its own date. -->
-        <ul v-if="sortBy === 'amount'" class="divide-y divide-surface-border dark:divide-surface-dark-border">
-          <BankTransactionRow
-            v-for="tx in byAmount"
-            :key="tx.id"
-            :tx="tx"
-            :date="shortDay(tx.operation_date)"
-            :show-account="!accountFilter"
-            :amount="signedAmount(tx)"
-            :amount-class="amountClass(tx)"
-            :busy="deciding === tx.id"
-            :stake-amount="stakeOf(tx)"
-            :contribution-note="contributionOf(tx)"
-            @decide="(kind) => decide(tx, kind)"
-            @deposit="contribution(tx, 'contribution')"
-            @contribution="(kind, answers) => contribution(tx, kind, answers)"
-            @link="linking = tx"
-            @recurring="filing = tx"
-            @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
-            @retype="retyping = tx"
-            @subscribe="(decision) => subscribe(tx, decision)"
-            @edit="openEntry(tx.account_id, tx)"
-            @remove="removeOperation(tx)"
-          />
-        </ul>
+        <div v-if="loadFailed" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p class="text-sm text-text-muted dark:text-text-dark-muted">
+            Impossible de charger les opérations de {{ periodLabel }}.
+          </p>
+          <BaseButton size="sm" variant="outline" @click="load(true)">Réessayer</BaseButton>
+        </div>
+        <div v-else-if="!month" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <BaseSkeleton v-for="i in 3" :key="i" variant="rect" width="100%" height="3.5rem" />
+        </div>
         <template v-else>
-          <section v-for="group in days" :key="group.day ?? 'undated'">
-            <h4 class="px-4 sm:px-6 py-2 text-xs font-medium bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted">
-              {{ dayLabel(group.day) }}
-            </h4>
-            <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
-              <BankTransactionRow
-                v-for="tx in group.items"
-                :key="tx.id"
-                :tx="tx"
-                :show-account="!accountFilter"
-                :amount="signedAmount(tx)"
-                :amount-class="amountClass(tx)"
-                :busy="deciding === tx.id"
-                :stake-amount="stakeOf(tx)"
-                :contribution-note="contributionOf(tx)"
-                @decide="(kind) => decide(tx, kind)"
-                @deposit="contribution(tx, 'contribution')"
-                @contribution="(kind, answers) => contribution(tx, kind, answers)"
-                @link="linking = tx"
-                @recurring="filing = tx"
-                @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
-                @retype="retyping = tx"
-                @subscribe="(decision) => subscribe(tx, decision)"
-                @edit="openEntry(tx.account_id, tx)"
-                @remove="removeOperation(tx)"
-              />
-            </ul>
-          </section>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- The monthly average is what this month is read against, but it is
+                 a second figure next to the one being read: it stays available on
+                 hover rather than doubling every tile. -->
+            <div :title="averages ? `Moyenne : ${averages.inflow} / mois` : undefined">
+              <p class="text-sm text-text-muted dark:text-text-dark-muted">Entrées</p>
+              <p class="text-xl font-bold text-success">{{ amount(month.inflow) }}</p>
+            </div>
+            <div :title="averages ? `Moyenne : ${averages.outflow} / mois` : undefined">
+              <p class="text-sm text-text-muted dark:text-text-dark-muted">Sorties</p>
+              <p class="text-xl font-bold text-danger">{{ amount(month.outflow) }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-text-muted dark:text-text-dark-muted">Solde du mois</p>
+              <p class="text-xl font-bold" :class="Number(month.net) >= 0 ? 'text-success' : 'text-danger'">
+                {{ amount(month.net) }}
+              </p>
+              <!-- Said next to the figure someone compares with their bank app,
+                   the one place the gap would otherwise look like an error. -->
+              <p
+                v-if="month.pending_count > 0"
+                class="text-xs text-text-muted dark:text-text-dark-muted mt-0.5"
+                :title="`${amount(month.pending_outflow)} en sortie, ${amount(month.pending_inflow)} en entrée`"
+              >
+                hors {{ month.pending_count }} opération{{ month.pending_count > 1 ? 's' : '' }} en attente
+              </p>
+            </div>
+          </div>
+          <p
+            v-if="month.internal_transfers_excluded > 0"
+            class="mt-4 flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted"
+          >
+            <ArrowLeftRight class="w-3.5 h-3.5 shrink-0" />
+            {{ amount(month.internal_transfers_amount) }} déplacés entre vos comptes, hors des totaux.
+          </p>
+          <p
+            v-if="month.reversals_excluded > 0"
+            class="mt-1 flex items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted"
+          >
+            <Undo2 class="w-3.5 h-3.5 shrink-0" />
+            {{ amount(month.reversals_amount) }} remboursés ou annulés sur un même compte, hors des totaux.
+          </p>
+          <!-- What only the user can say: a pair seen once between two current
+               accounts — as often a third party refunding a purchase as a transfer —
+               and a label nothing types. Both count by default until answered. -->
+          <p
+            v-if="month.transfer_questions > 0"
+            class="mt-1 flex items-center gap-1.5 text-xs text-warning"
+          >
+            <HelpCircle class="w-3.5 h-3.5 shrink-0" />
+            <button
+              type="button"
+              :aria-pressed="toReviewOnly"
+              class="font-medium hover:underline"
+              @click="toReviewOnly = !toReviewOnly"
+            >
+              {{ month.transfer_questions }} point{{ month.transfer_questions > 1 ? 's' : '' }} à vérifier
+            </button>
+            <span class="text-text-muted dark:text-text-dark-muted">— comptés par défaut d'ici là.</span>
+          </p>
+          <!-- The other months still holding a question: the tab's badge counts
+               them all, this is where to find them. -->
+          <div v-if="otherQuestionMonths.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
+            <span>À vérifier aussi :</span>
+            <button
+              v-for="q in otherQuestionMonths"
+              :key="q.period"
+              type="button"
+              class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
+              @click="period = q.period; toReviewOnly = true"
+            >
+              {{ monthShort(q.period) }} {{ q.period.slice(0, 4) }} ({{ q.count }})
+            </button>
+            <span v-if="olderQuestionMonths">et {{ olderQuestionMonths }} mois plus ancien{{ olderQuestionMonths > 1 ? 's' : '' }}</span>
+          </div>
+          <!-- No exchange rate ever arrives with a movement, so these never join a total. -->
+          <p
+            v-for="other in month.other_currencies"
+            :key="other.currency"
+            class="mt-1 text-xs text-text-muted dark:text-text-dark-muted"
+          >
+            En {{ other.currency }}, à part faute de taux :
+            {{ amount(other.outflow, other.currency) }} en sortie,
+            {{ amount(other.inflow, other.currency) }} en entrée.
+          </p>
         </template>
       </BaseCard>
 
-      <BaseEmptyState
-        v-else
-        title="Aucune opération ne correspond"
-        description="Aucune opération de ce mois ne passe ces filtres."
-      >
-        <template #action>
-          <BaseButton v-if="hasFilters" variant="outline" @click="resetFilters">Réinitialiser les filtres</BaseButton>
-        </template>
-      </BaseEmptyState>
-    </template>
+      <BaseCard v-if="!month && !loadFailed" :padding="false">
+        <div class="p-4 sm:p-6 space-y-3">
+          <BaseSkeleton v-for="i in 5" :key="i" variant="rect" width="100%" height="2.75rem" />
+        </div>
+      </BaseCard>
 
-    <BaseEmptyState
-      v-else-if="month"
-      :title="`Aucune opération en ${periodLabel}`"
-      description="Synchronisez une banque ou importez un relevé d'opérations depuis le menu Importer."
-    />
+      <template v-else-if="month?.transactions.length">
+        <div class="mb-4 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="relative w-full sm:w-72">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted dark:text-text-dark-muted" />
+              <input
+                v-model="search"
+                type="text"
+                placeholder="Rechercher un libellé…"
+                aria-label="Rechercher un libellé"
+                class="w-full pl-10 pr-4 py-2.5 rounded-input border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark text-text-main dark:text-text-dark-main placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+              />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-text-muted dark:text-text-dark-muted whitespace-nowrap sm:ml-auto">
+              <BaseToggle v-model="showTransfers" aria-label="Afficher les virements internes" />
+              Virements internes
+            </label>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            <BaseSelect v-model="direction" :options="directionOptions" />
+            <BaseSelect v-model="sortBy" :options="sortOptions" />
+            <BaseSelect v-model="typeFilter" :options="typeOptions" />
+          </div>
+        </div>
+
+        <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
+          {{ typedMessage }}
+          <template v-if="typedRule">
+            Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
+          </template>
+          <!-- Never silent: a rule given from an answer, or a choice by hand, comes before a rule written by hand. -->
+          <template v-if="typedOutranked">
+            {{ typedRule ? 'Pour ce libellé, elle' : 'Ce choix' }} passe avant la règle {{ typedOutranked }}.
+          </template>
+        </BaseAlert>
+
+        <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
+          {{ decisionError }}
+        </BaseAlert>
+
+        <p v-if="hasFilters && filtered.length" class="mb-3 text-sm text-text-muted dark:text-text-dark-muted">
+          {{ filtered.length }} opération{{ filtered.length > 1 ? 's' : '' }} ·
+          <span class="font-semibold tabular-nums" :class="filteredTotal >= 0 ? 'text-success' : 'text-text-main dark:text-text-dark-main'">
+            {{ amount(filteredTotal) }}
+          </span>
+        </p>
+
+        <BaseCard v-if="filtered.length" :padding="false" class="overflow-hidden">
+          <!-- Sorted by amount, days no longer group anything: each row carries its own date. -->
+          <ul v-if="sortBy === 'amount'" class="divide-y divide-surface-border dark:divide-surface-dark-border">
+            <BankTransactionRow
+              v-for="tx in byAmount"
+              :key="tx.id"
+              :tx="tx"
+              :date="shortDay(tx.operation_date)"
+              :show-account="!accountFilter"
+              :amount="signedAmount(tx)"
+              :amount-class="amountClass(tx)"
+              :busy="deciding === tx.id"
+              :stake-amount="stakeOf(tx)"
+              :contribution-note="contributionOf(tx)"
+              @decide="(kind) => decide(tx, kind)"
+              @deposit="contribution(tx, 'contribution')"
+              @contribution="(kind, answers) => contribution(tx, kind, answers)"
+              @link="linking = tx"
+              @recurring="filing = tx"
+              @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
+              @retype="retyping = tx"
+              @subscribe="(decision) => subscribe(tx, decision)"
+              @edit="openEntry(tx.account_id, tx)"
+              @remove="removeOperation(tx)"
+            />
+          </ul>
+          <template v-else>
+            <section v-for="group in days" :key="group.day ?? 'undated'">
+              <h4 class="px-4 sm:px-6 py-2 text-xs font-medium bg-background-subtle dark:bg-background-dark-subtle text-text-muted dark:text-text-dark-muted">
+                {{ dayLabel(group.day) }}
+              </h4>
+              <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
+                <BankTransactionRow
+                  v-for="tx in group.items"
+                  :key="tx.id"
+                  :tx="tx"
+                  :show-account="!accountFilter"
+                  :amount="signedAmount(tx)"
+                  :amount-class="amountClass(tx)"
+                  :busy="deciding === tx.id"
+                  :stake-amount="stakeOf(tx)"
+                  :contribution-note="contributionOf(tx)"
+                  @decide="(kind) => decide(tx, kind)"
+                  @deposit="contribution(tx, 'contribution')"
+                  @contribution="(kind, answers) => contribution(tx, kind, answers)"
+                  @link="linking = tx"
+                  @recurring="filing = tx"
+                  @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
+                  @retype="retyping = tx"
+                  @subscribe="(decision) => subscribe(tx, decision)"
+                  @edit="openEntry(tx.account_id, tx)"
+                  @remove="removeOperation(tx)"
+                />
+              </ul>
+            </section>
+          </template>
+        </BaseCard>
+
+        <BaseEmptyState
+          v-else
+          title="Aucune opération ne correspond"
+          description="Aucune opération de ce mois ne passe ces filtres."
+        >
+          <template #action>
+            <BaseButton v-if="hasFilters" variant="outline" @click="resetFilters">Réinitialiser les filtres</BaseButton>
+          </template>
+        </BaseEmptyState>
+      </template>
+
+      <BaseEmptyState
+        v-else-if="month"
+        :title="`Aucune opération en ${periodLabel}`"
+        description="Synchronisez une banque ou importez un relevé d'opérations depuis le menu Importer."
+      />
+
+    </template>
 
     <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />

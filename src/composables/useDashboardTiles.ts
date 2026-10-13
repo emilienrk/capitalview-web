@@ -4,7 +4,7 @@ import { useDisplayLocale } from '@/composables/useDisplayLocale'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import type { DashboardOverview } from '@/composables/useDashboardOverview'
-import { exploreLink } from '@/utils/ledger'
+import { operationsSearch } from '@/utils/ledger'
 
 export interface TileContent {
   key: string
@@ -82,7 +82,7 @@ export function useDashboardTiles(overview: DashboardOverview) {
       note: upcoming
         ? `${upcoming} prélèvement${upcoming > 1 ? 's' : ''} à venir, ${maskValue(formatCurrency(m.upcoming_amount, m.currency))}`
         : undefined,
-      to: { name: 'cashflow', query: exploreLink({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }) },
+      to: operationsSearch({ preset: 'month', direction: 'out', types: ['EXPENSE'], includePending: true }),
     }
   })
 

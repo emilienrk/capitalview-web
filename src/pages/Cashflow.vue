@@ -12,8 +12,6 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
 import CashflowSankeyChart from '@/components/charts/CashflowSankeyChart.vue'
 import RealCashflowView from '@/components/cashflow/RealCashflowView.vue'
-import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
-import { withoutExploreQuery } from '@/composables/useExploreFilters'
 import {
   defaultCashflowView, readCashflowView, writeCashflowView, type CashflowView,
 } from '@/utils/realCashflow'
@@ -41,8 +39,11 @@ const route = useRoute()
 const router = useRouter()
 
 function viewFromQuery(value: unknown): CashflowView | null {
-  return value === 'planned' || value === 'real' || value === 'explore' ? value : null
+  return value === 'planned' || value === 'real' ? value : null
 }
+
+// The Explorer became the Opérations tab's search: an old link lands there, filters kept.
+if (route.query.view === 'explore') void router.replace({ name: 'bank-transactions', query: { ...route.query, view: 'search' } })
 
 const settings = useSettingsStore()
 const hasBankAccounts = computed(() =>
@@ -50,9 +51,9 @@ const hasBankAccounts = computed(() =>
 )
 
 /**
- * Observed (réel), declared (visé) or explored, remembered on this browser once
- * chosen. A link can open one directly, the Explorer with its filters in the
- * query. Nothing chosen: the default waits for the accounts to be known.
+ * Observed (réel) or declared (visé), remembered on this browser once chosen.
+ * A link can open one directly. Nothing chosen: the default waits for the
+ * accounts to be known.
  */
 const view = ref<CashflowView | null>(
   viewFromQuery(route.query.view) ?? readCashflowView() ?? (bank.summary ? defaultCashflowView(hasBankAccounts.value) : null),
@@ -62,20 +63,12 @@ watch(() => route.query.view, (value) => {
   if (asked) view.value = asked
 })
 watch(view, (value, previous) => {
-  if (value === null) return
   // Only a pick is remembered: the default is none.
-  if (previous !== null) writeCashflowView(value)
-  // The Explorer's filters mean nothing to the other views: leaving it drops them.
-  if (value !== 'explore' && route.name === 'cashflow') {
-    const query = withoutExploreQuery(route.query)
-    delete query.view
-    if (Object.keys(query).length !== Object.keys(route.query).length) void router.replace({ query })
-  }
+  if (value !== null && previous !== null) writeCashflowView(value)
 })
 const viewOptions = [
   { label: 'Réel', value: 'real' },
   { label: 'Visé', value: 'planned' },
-  { label: 'Explorer', value: 'explore' },
 ]
 
 const form = reactive<CashflowCreate>({
@@ -417,7 +410,6 @@ onMounted(async () => {
     </PageHeader>
 
     <RealCashflowView v-if="view === 'real'" />
-    <ExploreView v-else-if="view === 'explore'" />
 
     <template v-else-if="view === 'planned'">
       <!-- Error -->

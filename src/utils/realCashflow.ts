@@ -1,6 +1,6 @@
 import type { RealCashflowCoverageGap, RealCashflowTotals, RealCashflowYear } from '@/types'
 
-export type CashflowView = 'planned' | 'real' | 'explore'
+export type CashflowView = 'planned' | 'real'
 export type MonthlyStatistic = 'mean' | 'median'
 
 const VIEW_STORAGE_KEY = 'cashflow:view'
@@ -62,7 +62,7 @@ export function coverageNotice(gap: RealCashflowCoverageGap, format: (day: strin
 export function readCashflowView(): CashflowView | null {
   try {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY)
-    return stored === 'planned' || stored === 'real' || stored === 'explore' ? stored : null
+    return stored === 'planned' || stored === 'real' ? stored : null
   } catch {
     return null
   }

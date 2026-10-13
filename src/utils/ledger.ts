@@ -1,6 +1,7 @@
 /**
- * The Explorer's engine: filters, groups and compares the ledger's operations
- * in the browser, so no filter change waits on a request.
+ * The search of the Opérations tab: filters, groups and compares the ledger's
+ * operations across the whole history in the browser, so no filter change
+ * waits on a request.
  *
  * Nothing here decides how an operation counts. The API sends each row's type,
  * whether the real cashflow counts it and its amount signed in its type's
@@ -42,7 +43,6 @@ export interface LedgerEntry {
 export type PeriodPreset = 'month' | 'last-month' | '3m' | '12m' | 'ytd' | 'last-year' | 'all' | 'custom'
 export type Direction = 'all' | 'in' | 'out'
 export type Dimension = 'group' | 'month' | 'week' | 'account' | 'type' | 'weekday' | 'amount-band'
-export type ChartStack = 'type' | 'group'
 
 export interface LedgerFilters {
   preset: PeriodPreset
@@ -65,8 +65,6 @@ export interface LedgerFilters {
 export interface ExploreState {
   filters: LedgerFilters
   by: Dimension
-  stack: ChartStack
-  cumulative: boolean
 }
 
 export const DEFAULT_FILTERS: LedgerFilters = {
@@ -85,7 +83,7 @@ export const DEFAULT_FILTERS: LedgerFilters = {
   includeUncounted: false,
 }
 
-export const DEFAULT_STATE: ExploreState = { filters: DEFAULT_FILTERS, by: 'group', stack: 'type', cumulative: false }
+export const DEFAULT_STATE: ExploreState = { filters: DEFAULT_FILTERS, by: 'group' }
 
 export interface PeriodRange {
   from: string
@@ -463,96 +461,6 @@ export function groupBy(
     : all.sort((a, b) => Math.abs(b.total) - Math.abs(a.total) || a.label.localeCompare(b.label))
 }
 
-// ── Over time ───────────────────────────────────────────────
-
-export interface Series {
-  key: string
-  label: string
-  values: number[]
-}
-
-export interface TimeSeries {
-  granularity: 'week' | 'month'
-  buckets: string[]
-  series: Series[]
-}
-
-export const OTHERS = 'others'
-const TOP_SERIES = 5
-
-/** A period of three months or less reads by week, anything longer by month. */
-export function timeSeries(
-  entries: LedgerEntry[], range: PeriodRange, stack: ChartStack, direction: Direction,
-): TimeSeries {
-  const periods = periodsBetween(range)
-  const granularity = periods.length <= 3 ? 'week' : 'month'
-  let buckets: string[]
-  if (granularity === 'month') {
-    buckets = periods
-  } else {
-    buckets = []
-    const end = dayDate(`${shiftPeriod(range.to, 1)}-01`)
-    for (let day = dayDate(weekStart(`${range.from}-01`)); day < end; day.setDate(day.getDate() + 7)) {
-      buckets.push(`${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`)
-    }
-  }
-  const indexOf = new Map(buckets.map((bucket, index) => [bucket, index]))
-  const bucketKey = (entry: LedgerEntry) => (granularity === 'month' ? entry.period : entry.day ? weekStart(entry.day) : '')
-
-  if (stack === 'type') {
-    const series = CASHFLOW_TYPES.filter((type) => type !== 'NEUTRAL').map((type) => ({
-      key: type, label: CASHFLOW_TYPE_LABELS[type], values: buckets.map(() => 0),
-    }))
-    const byKey = new Map<string, Series>(series.map((s) => [s.key, s]))
-    for (const entry of entries) {
-      const index = indexOf.get(bucketKey(entry))
-      const target = byKey.get(entry.cashflowType)
-      if (index !== undefined && target) target.values[index]! += typedValue(entry)
-    }
-    return { granularity, buckets, series: series.filter((s) => s.values.some((value) => value !== 0)) }
-  }
-
-  const top = groupBy(entries, 'group', direction).slice(0, TOP_SERIES)
-  const topIds = new Set(top.map((bucket) => bucket.key))
-  const series: Series[] = [
-    ...top.map((bucket) => ({ key: bucket.key, label: bucket.label, values: buckets.map(() => 0) })),
-    { key: OTHERS, label: 'Autres', values: buckets.map(() => 0) },
-  ]
-  const byKey = new Map(series.map((s) => [s.key, s]))
-  for (const entry of entries) {
-    const index = indexOf.get(bucketKey(entry))
-    if (index === undefined) continue
-    byKey.get(topIds.has(entry.group.id) ? entry.group.id : OTHERS)!.values[index]! += flowValue(entry, direction)
-  }
-  return { granularity, buckets, series: series.filter((s) => s.values.some((value) => value !== 0)) }
-}
-
-/**
- * The period and the same months a year earlier, each added up month after
- * month: where this year stands against the last one at the same point.
- */
-export function cumulated(
-  entries: LedgerEntry[], filters: LedgerFilters, range: PeriodRange, currency: string,
-): { periods: string[]; current: number[]; lastYear: number[] } {
-  const periods = periodsBetween(range)
-  const earlier = { from: shiftPeriod(range.from, -12), to: shiftPeriod(range.to, -12) }
-  const running = (selected: LedgerEntry[], months: string[]) => {
-    const index = new Map(months.map((period, i) => [period, i]))
-    const values = months.map(() => 0)
-    for (const entry of selected) {
-      const i = index.get(entry.period)
-      if (i !== undefined) values[i]! += flowValue(entry, filters.direction)
-    }
-    for (let i = 1; i < values.length; i++) values[i]! += values[i - 1]!
-    return values
-  }
-  return {
-    periods,
-    current: running(applyFilters(entries, filters, range, currency), periods),
-    lastYear: running(applyFilters(entries, filters, earlier, currency), periodsBetween(earlier)),
-  }
-}
-
 // ── Export ──────────────────────────────────────────────────
 
 function csvCell(value: string): string {
@@ -594,7 +502,7 @@ function amount(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
-/** Only what differs from the defaults, so a plain Explorer has a plain URL. */
+/** Only what differs from the defaults, so a plain search has a plain URL. */
 export function serializeState(state: ExploreState): Query {
   const f = state.filters
   const query: Query = {}
@@ -615,8 +523,6 @@ export function serializeState(state: ExploreState): Query {
   if (f.includePending) query.pending = '1'
   if (f.includeUncounted) query.all = '1'
   if (state.by !== DEFAULT_STATE.by) query.by = state.by
-  if (state.stack !== DEFAULT_STATE.stack) query.stack = state.stack
-  if (state.cumulative) query.cum = '1'
   return query
 }
 
@@ -640,12 +546,18 @@ export function parseState(query: Query): ExploreState {
       includeUncounted: query.all === '1',
     },
     by: DIMENSIONS.includes(query.by as Dimension) ? (query.by as Dimension) : DEFAULT_STATE.by,
-    stack: query.stack === 'group' ? 'group' : 'type',
-    cumulative: query.cum === '1',
   }
 }
 
-/** The route query opening the Explorer on these filters, from another view. */
-export function exploreLink(filters: Partial<LedgerFilters>, view: Partial<Omit<ExploreState, 'filters'>> = {}): Query {
-  return { view: 'explore', ...serializeState({ ...DEFAULT_STATE, ...view, filters: { ...DEFAULT_FILTERS, ...filters } }) }
+/** The query of the Opérations tab searching the whole history, the search-only keys left out. */
+export function searchQuery(state: ExploreState): Query {
+  return { view: 'search', ...serializeState(state) }
+}
+
+/** The Opérations tab searching the whole history on these filters, from another page. */
+export function operationsSearch(filters: Partial<LedgerFilters>, view: Partial<Omit<ExploreState, 'filters'>> = {}) {
+  return {
+    name: 'bank-transactions',
+    query: searchQuery({ ...DEFAULT_STATE, ...view, filters: { ...DEFAULT_FILTERS, ...filters } }),
+  } as const
 }

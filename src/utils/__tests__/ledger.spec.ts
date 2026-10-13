@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  DEFAULT_FILTERS, DEFAULT_STATE, amountBandFilter, applyFilters, bucketOf, comparePeriods, cumulated, exploreLink, flowValue, groupBy, hydrate,
-  matchesQuery, parseState, periodRange, serializeState, shiftRange, summarize, timeSeries, toCsv, typedValue,
+  DEFAULT_FILTERS, DEFAULT_STATE, amountBandFilter, applyFilters, bucketOf, comparePeriods, flowValue, groupBy, hydrate,
+  matchesQuery, operationsSearch, parseState, periodRange, serializeState, shiftRange, summarize, toCsv, typedValue,
   weekStart, type LedgerFilters,
 } from '@/utils/ledger'
 import type { BankLedger, BankLedgerRow } from '@/types'
@@ -232,52 +232,6 @@ describe('groupBy', () => {
   })
 })
 
-describe('timeSeries', () => {
-  const entries = hydrate(ledger([
-    row({ day: '2026-08-10', amount: 30, signed: 30 }),
-    row({ day: '2026-07-01', amount: 20, signed: 20, group: 2 }),
-    row({ day: '2026-08-03', amount: 1000, signed: 1000, is_credit: true, cashflow_type: 'INCOME', group: 1 }),
-  ]))
-
-  it('reads a long period by month, stacked by type, empty types left out', () => {
-    const series = timeSeries(entries, { from: '2026-04', to: '2026-08' }, 'type', 'all')
-    expect(series.granularity).toBe('month')
-    expect(series.buckets).toEqual(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08'])
-    expect(series.series.map((s) => [s.key, s.values])).toEqual([
-      ['INCOME', [0, 0, 0, 0, 1000]],
-      ['EXPENSE', [0, 0, 0, 20, 30]],
-    ])
-  })
-
-  it('reads three months or less by week, stacked by counterpart', () => {
-    const series = timeSeries(entries, { from: '2026-07', to: '2026-08' }, 'group', 'out')
-    expect(series.granularity).toBe('week')
-    expect(timeSeries(entries, { from: '2026-06', to: '2026-08' }, 'group', 'out').granularity).toBe('week')
-    expect(timeSeries(entries, { from: '2026-05', to: '2026-08' }, 'group', 'out').granularity).toBe('month')
-    expect(series.buckets[0]).toBe('2026-06-29')
-    expect(series.buckets.at(-1)).toBe('2026-08-31')
-    const aug10 = series.buckets.indexOf('2026-08-10')
-    expect(series.series.find((s) => s.key === 'D:annecy carrefour')?.values[aug10]).toBe(30)
-    expect(series.series.find((s) => s.key === 'C:employeur')?.values[series.buckets.indexOf('2026-08-03')]).toBe(-1000)
-  })
-})
-
-describe('cumulated', () => {
-  it('adds the period and the year before month after month', () => {
-    const entries = hydrate(ledger([
-      row({ day: '2026-01-10', amount: 10 }),
-      row({ day: '2026-03-10', amount: 30 }),
-      row({ day: '2025-02-10', amount: 5 }),
-    ]))
-    const selection = filters({ preset: 'custom', from: '2026-01', to: '2026-03', direction: 'out' })
-    expect(cumulated(entries, selection, { from: '2026-01', to: '2026-03' }, 'EUR')).toEqual({
-      periods: ['2026-01', '2026-02', '2026-03'],
-      current: [10, 10, 40],
-      lastYear: [0, 5, 5],
-    })
-  })
-})
-
 describe('toCsv', () => {
   it('writes French decimals, quotes what needs it and starts with a BOM', () => {
     const [entry] = hydrate(ledger([row({ day: '2026-08-10', amount: 42.5, label: 'CARTE "A;B"' })]))
@@ -300,8 +254,6 @@ describe('the URL', () => {
         onlyOpen: true, includePending: true, includeUncounted: true,
       }),
       by: 'month',
-      stack: 'group',
-      cumulative: true,
     } as const
     expect(parseState(serializeState(state))).toEqual(state)
   })
@@ -314,10 +266,11 @@ describe('the URL', () => {
   })
 })
 
-describe('exploreLink', () => {
-  it('opens the Explorer on a year of one counterpart', () => {
-    expect(exploreLink({ preset: 'custom', from: '2026-01', to: '2026-08', groups: ['D:lidl'] }, { by: 'month' })).toEqual({
-      view: 'explore', p: 'custom', from: '2026-01', to: '2026-08', groups: 'D:lidl', by: 'month',
+describe('operationsSearch', () => {
+  it('opens the Opérations search on a year of one counterpart', () => {
+    expect(operationsSearch({ preset: 'custom', from: '2026-01', to: '2026-08', groups: ['D:lidl'] }, { by: 'month' })).toEqual({
+      name: 'bank-transactions',
+      query: { view: 'search', p: 'custom', from: '2026-01', to: '2026-08', groups: 'D:lidl', by: 'month' },
     })
   })
 })

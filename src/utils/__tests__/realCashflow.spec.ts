@@ -100,8 +100,11 @@ describe('the remembered view', () => {
     })
     writeCashflowView('real')
     expect(readCashflowView()).toBe('real')
-    writeCashflowView('explore')
-    expect(readCashflowView()).toBe('explore')
+    writeCashflowView('planned')
+    expect(readCashflowView()).toBe('planned')
+    // The Explorer it could hold is now the Opérations search.
+    stored.set('cashflow:view', 'explore')
+    expect(readCashflowView()).toBeNull()
   })
 
   it('reads nothing when storage throws, leaving the choice to the default', () => {
