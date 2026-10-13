@@ -78,6 +78,10 @@ const suggested = computed(() => props.tx.transfer_status === 'suggested')
 /** Asked yes or no, in place of the type question: only the user knows it went there. */
 const asksDeposit = computed(() => asksContribution(props.tx))
 const proved = computed(() => props.tx.type_source === 'contribution')
+/** A yes counts it as an investment, out of the recurring payment it is one of. */
+const leavesRecurring = computed(() =>
+  props.tx.type_source === 'recurring' && props.tx.recurring ? props.tx.recurring.name : null,
+)
 /** The other side of a pair offered to the user: what the pair is judged by. */
 const offered = computed(() => {
   const { transfer_label: label, transfer_date: day } = props.tx
@@ -209,6 +213,9 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         >
           Non
         </button>
+        <span v-if="leavesRecurring" class="text-text-muted dark:text-text-dark-muted">
+          Oui : sortira du récurrent {{ leavesRecurring }}
+        </span>
       </div>
       <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
         <span class="truncate" :title="offered">{{ offered }}</span>
