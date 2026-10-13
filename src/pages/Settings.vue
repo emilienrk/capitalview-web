@@ -30,7 +30,7 @@ const tabs: Tab[] = [
   { id: 'modules', label: 'Modules', icon: LayoutGrid },
   { id: 'ia', label: 'IA', icon: Sparkles },
   { id: 'analyse', label: 'Analyse', icon: Microscope },
-  { id: 'banque', label: 'Synchronisation bancaire', icon: Landmark },
+  { id: 'banque', label: 'Synchronisation', icon: Landmark },
   { id: 'communaute', label: 'Communauté', icon: Users },
   { id: 'securite', label: 'Sécurité', icon: Lock },
 ]

@@ -265,8 +265,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           </p>
           <BaseSkeleton v-else variant="rect" width="10rem" height="2.25rem" />
           <p v-if="queue" class="mt-1 text-sm text-text-muted dark:text-text-dark-muted">
-            {{ queue.total_count }} question{{ queue.total_count > 1 ? 's' : '' }}, les plus gros montants d'abord :
-            quelques réponses suffisent à rendre le Réel juste.
+            {{ queue.total_count }} question{{ queue.total_count > 1 ? 's' : '' }}
           </p>
           <!-- Asked in their own tab: saying yes or no to one moves no total. -->
           <p v-if="queue?.recurring_count" class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
