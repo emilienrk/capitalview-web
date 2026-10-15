@@ -29,7 +29,7 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview, ownAnswer, RULES_PAGE,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionMessage, contributionNote, needsReview, ownAnswer, RULES_PAGE,
 } from '@/utils/cashflowTypes'
 import type {
   BankContributionDecisionKind, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
@@ -314,7 +314,7 @@ async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
 
 /** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
 async function contribution(
-  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx),
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), kept: CashflowType | null = null,
 ): Promise<void> {
   const [first, ...also] = answers
   if (!first) return
@@ -322,7 +322,7 @@ async function contribution(
   decisionError.value = null
   try {
     await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
-    onContribution(kind)
+    onContribution(contributionMessage(kind, kept))
   } catch (e) {
     decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -330,10 +330,8 @@ async function contribution(
   }
 }
 
-function onContribution(kind: BankContributionDecisionKind): void {
-  typedMessage.value = kind === 'contribution'
-    ? 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
-    : 'Comptée comme les autres opérations.'
+function onContribution(message: string): void {
+  typedMessage.value = message
   typedRule.value = false
   typedOutranked.value = null
 }
@@ -747,7 +745,7 @@ onMounted(() => void load())
               @decide="(kind) => decide(tx, kind)"
               @pick="(otherId) => pick(tx, otherId)"
               @deposit="contribution(tx, 'contribution')"
-              @contribution="(kind, answers) => contribution(tx, kind, answers)"
+              @contribution="(kind, answers, kept) => contribution(tx, kind, answers, kept)"
               @link="linking = tx"
               @recurring="filing = tx"
               @answer="(type, scope, picked) => answer(tx, type, scope, picked)"
@@ -776,7 +774,7 @@ onMounted(() => void load())
                   @decide="(kind) => decide(tx, kind)"
                   @pick="(otherId) => pick(tx, otherId)"
                   @deposit="contribution(tx, 'contribution')"
-                  @contribution="(kind, answers) => contribution(tx, kind, answers)"
+                  @contribution="(kind, answers, kept) => contribution(tx, kind, answers, kept)"
                   @link="linking = tx"
                   @recurring="filing = tx"
                   @answer="(type, scope, picked) => answer(tx, type, scope, picked)"

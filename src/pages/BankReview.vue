@@ -20,7 +20,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
-import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionNote, ownAnswer } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionMessage, contributionNote, ownAnswer } from '@/utils/cashflowTypes'
 import type {
   BankContributionDecisionKind, BankHistoryKind, BankReviewItem, BankTransactionItem, BankTransactionTypeResult,
   BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope,
@@ -213,7 +213,7 @@ async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKin
 
 /** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
 async function contribution(
-  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx),
+  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), kept: CashflowType | null = null,
 ): Promise<void> {
   const [first, ...also] = answers
   if (!first) return
@@ -221,7 +221,7 @@ async function contribution(
   error.value = null
   try {
     await bank.decideContribution(first.transaction_id, first.contribution_id, kind, also)
-    rememberContribution(answers.map((answer) => answer.transaction_id), kind)
+    rememberContribution(answers.map((answer) => answer.transaction_id), contributionMessage(kind, kept))
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
   } finally {
@@ -229,13 +229,11 @@ async function contribution(
   }
 }
 
-function rememberContribution(transactionIds: string[], kind: BankContributionDecisionKind): void {
+function rememberContribution(transactionIds: string[], message: string): void {
   lastAnswer.value = {
     ruleId: null,
     transactionIds,
-    message: kind === 'contribution'
-      ? 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
-      : 'Comptée comme les autres opérations.',
+    message,
     contribution: true,
   }
 }
@@ -349,7 +347,7 @@ async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
           @decide="(kind) => decide(item.transaction, kind)"
           @pick="(otherId) => pick(item.transaction, otherId)"
           @deposit="contribution(item.transaction, 'contribution')"
-          @contribution="(kind, answers) => contribution(item.transaction, kind, answers)"
+          @contribution="(kind, answers, kept) => contribution(item.transaction, kind, answers, kept)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
           @answer="(type, scope, picked) => answer(item.transaction, type, scope, picked)"

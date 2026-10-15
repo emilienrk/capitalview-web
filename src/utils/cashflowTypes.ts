@@ -1,5 +1,5 @@
 import type {
-  BankContributionAnswer, BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
+  BankContributionAnswer, BankContributionDecisionKind, BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
 } from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
@@ -117,6 +117,14 @@ export function contributionNote(
 /** The operation and the deposit or withdrawal facing it, as one answer. */
 export function ownAnswer(tx: BankTransactionItem): BankContributionAnswer[] {
   return tx.contribution ? [{ transaction_id: tx.id, contribution_id: tx.contribution.id }] : []
+}
+
+/** What an answer to a deposit did, said once it is saved. A No leaves a type given by hand as it was. */
+export function contributionMessage(kind: BankContributionDecisionKind, kept: CashflowType | null): string {
+  if (kind === 'contribution') {
+    return 'Comptée en Investissement, avec celles de ce libellé qui ont leur propre versement ou retrait en face.'
+  }
+  return kept ? `Reste en ${CASHFLOW_TYPE_LABELS[kept]}.` : 'Comptée comme les autres opérations.'
 }
 
 /** The investment account an operation went to or came from, for its badge. */

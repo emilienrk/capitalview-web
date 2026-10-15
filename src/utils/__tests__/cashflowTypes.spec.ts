@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionNote, matchesCashflowType,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionMessage, contributionNote, matchesCashflowType,
   needsReview, ownAnswer, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
@@ -148,5 +148,19 @@ describe('ruleTitle', () => {
     expect(ruleTitle({ match: 'similar', signature: 'spotify', label: null })).toBe('spotify')
     expect(ruleTitle({ match: 'contains', signature: 'spotify', label: 'PRLV SEPA Spotify' })).toBe('Contient « spotify »')
     expect(ruleTitle({ match: 'starts_with', signature: 'carte', label: null })).toBe('Commence par « carte »')
+  })
+})
+
+describe('contributionMessage', () => {
+  it('says a No keeps the type the user gave by hand', () => {
+    expect(contributionMessage('not_contribution', 'NEUTRAL')).toBe('Reste en Non compté.')
+  })
+
+  it('reads a No on an operation never typed as any other operation', () => {
+    expect(contributionMessage('not_contribution', null)).toBe('Comptée comme les autres opérations.')
+  })
+
+  it('counts a Yes as an investment, whatever the type given before', () => {
+    expect(contributionMessage('contribution', 'NEUTRAL')).toContain('Comptée en Investissement')
   })
 })

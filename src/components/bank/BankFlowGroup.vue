@@ -19,7 +19,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
-import { contributionNote } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionNote } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   transactionId: string
@@ -129,6 +129,13 @@ function day(value: string | null): string {
                        one operation to the next; the words they share are what groups them. -->
                   <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
                     {{ operation.label }}
+                  </span>
+                  <!-- Typed by hand, an operation keeps that type until a Oui replaces it. -->
+                  <span
+                    v-if="operation.type_source === 'override'"
+                    :class="['shrink-0 px-2 rounded-full font-medium', CASHFLOW_TYPE_TONES[operation.cashflow_type]]"
+                  >
+                    {{ CASHFLOW_TYPE_LABELS[operation.cashflow_type] }}
                   </span>
                   <span class="ml-auto shrink-0 font-medium tabular-nums text-text-main dark:text-text-dark-main">
                     {{ signed(operation) }}
