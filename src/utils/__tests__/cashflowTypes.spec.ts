@@ -97,19 +97,19 @@ describe('contributionNote', () => {
 
   it('asks about a nearby deposit without deciding for the user', () => {
     expect(contributionNote(deposit, 200, euros, '7 mars', false)).toBe(
-      'Un versement de 200,00 € sur PEA le 7 mars : est-ce celui-ci ?',
+      'Versement de 200,00 € sur PEA le 7 mars ?',
     )
   })
 
   it('asks about a same-day deposit until the user vouches for it', () => {
     expect(contributionNote({ ...deposit, exact: true }, 200, euros, '5 mars', false)).toBe(
-      'Un versement de 200,00 € sur PEA le même jour : est-ce celui-ci ?',
+      'Versement de 200,00 € sur PEA le même jour ?',
     )
   })
 
   it('reads a withdrawal as money coming back', () => {
     const withdrawal = { ...deposit, is_deposit: false }
-    expect(contributionNote(withdrawal, 80, euros, '5 mars', false)).toContain('retrait de 200,00 € depuis PEA')
+    expect(contributionNote(withdrawal, 80, euros, '5 mars', false)).toBe('Retrait de 200,00 € depuis PEA le 5 mars ?')
     expect(contributionBadge({ ...withdrawal, exact: true })).toBe('depuis PEA')
   })
 })

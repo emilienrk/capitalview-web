@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed, ref, watch } from 'vue'
-import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
@@ -111,6 +111,11 @@ watch(() => `${props.tx.id}:${props.tx.flow_question?.operation_count ?? ''}`, (
   swaps.value += 1
 })
 const proved = computed(() => props.tx.type_source === 'contribution')
+/** Same day, same amount: the badge "vers PEA ?" asks it all, the answers follow it alone. */
+const badgeAsks = computed(() => {
+  const match = props.tx.contribution
+  return !!match?.exact && Math.abs(Number(props.tx.amount) - Number(match.amount)) < 0.005
+})
 /** A yes counts it as an investment, out of the recurring payment it is one of. */
 const leavesRecurring = computed(() =>
   props.tx.type_source === 'recurring' && props.tx.recurring ? props.tx.recurring.name : null,
@@ -120,11 +125,11 @@ function onDay(day: string | null | undefined): string {
     ? ` le ${new Date(`${day}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : ''
 }
-/** The other side of a pair offered to the user: what the pair is judged by. */
+/** The other side of a pair offered to the user: what the pair is judged by. Its account is in the badge. */
 const offered = computed(() => {
   const { transfer_label: label, transfer_date: day } = props.tx
   if (!suggested.value || !label) return null
-  return `En face, sur ${props.tx.transfer_account_name}${onDay(day)} : ${label}`
+  return `En face${onDay(day)} : ${label}`
 })
 /** Others as close as the one named, said the same way: the user may pick one instead. */
 const alternatives = computed(() =>
@@ -236,7 +241,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
            label, so the next ones prove themselves; a no puts the operation
            back with the others. Open, the answer goes to those ticked. -->
       <div v-if="asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-        <span class="inline-flex items-center gap-1 text-warning font-medium">
+        <span v-if="!badgeAsks" class="inline-flex items-center gap-1 text-warning font-medium">
           <TrendingUp class="w-3.5 h-3.5 shrink-0" />
           {{ contributionNote }}
         </span>
@@ -287,14 +292,10 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           Plutôt celle-ci
         </BankAnswerButton>
       </p>
-      <!-- A pair offered, asked in words: the refusal says what it does, so it
-           is not read as "count it as spent". A deposit facing the same
-           operation joins the same question, so neither hides the other. -->
+      <!-- A pair offered: the badge asks, the line under it says what "Ensemble"
+           counts. A deposit facing the same operation joins the same question,
+           so neither hides the other. -->
       <div v-if="suggested" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-        <span class="inline-flex items-center gap-1 text-warning font-medium">
-          <HelpCircle class="w-3.5 h-3.5" />
-          C'est…
-        </span>
         <BankAnswerButton
           :disabled="busy"
           :title="PAIR_HINTS.transfer"
@@ -319,16 +320,12 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           Pas ensemble
         </BankAnswerButton>
         <span class="basis-full text-text-muted dark:text-text-dark-muted">
-          {{ togetherNote(tx.together_type) }} Pas ensemble : chacune restera comptée de son côté.
+          {{ togetherNote(tx.together_type) }}
         </span>
       </div>
       <!-- Asked on the last operation of a label only the user can type, beside
            the transfer questions and in their style. -->
       <div v-if="tx.flow_question && !asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-        <span class="inline-flex items-center gap-1 text-warning font-medium">
-          <HelpCircle class="w-3.5 h-3.5" />
-          {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Cette sortie, c\'est…' }}
-        </span>
         <BankAnswerButton
           v-for="choice in tx.flow_question.choices"
           :key="choice"
@@ -384,9 +381,9 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         >
           Non
         </BankAnswerButton>
-        <span class="basis-full text-text-muted dark:text-text-dark-muted">
-          {{ tx.recurring_question.occurrence_count }} échéances, ≈ {{ money(tx.recurring_question.annual_estimate) }} par an<template
-            v-if="tx.recurring_question.renamed_from.length"> · a changé de nom, anciennement {{ tx.recurring_question.renamed_from.join(', ') }}</template>
+        <!-- A series that changed its name would not be recognised by the one it bears now. -->
+        <span v-if="tx.recurring_question.renamed_from.length" class="basis-full text-text-muted dark:text-text-dark-muted">
+          Anciennement {{ tx.recurring_question.renamed_from.join(', ') }}
         </span>
       </div>
     </div>

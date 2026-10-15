@@ -95,17 +95,11 @@ export function contributionNote(
   proved: boolean,
 ): string | null {
   const amount = Number(match.amount)
-  if (match.exact && !proved) {
+  if (!match.exact || !proved) {
     const movement = match.is_deposit
-      ? `Un versement de ${format(amount)} sur ${match.account_name}`
-      : `Un retrait de ${format(amount)} depuis ${match.account_name}`
-    return `${movement} le même jour : est-ce celui-ci ?`
-  }
-  if (!match.exact) {
-    const movement = match.is_deposit
-      ? `Un versement de ${format(amount)} sur ${match.account_name}`
-      : `Un retrait de ${format(amount)} depuis ${match.account_name}`
-    return `${movement} le ${day} : est-ce celui-ci ?`
+      ? `Versement de ${format(amount)} sur ${match.account_name}`
+      : `Retrait de ${format(amount)} depuis ${match.account_name}`
+    return `${movement} ${match.exact ? 'le même jour' : `le ${day}`} ?`
   }
   const fee = Math.abs(Number(operationAmount) - amount)
   if (fee < 0.005) return null
