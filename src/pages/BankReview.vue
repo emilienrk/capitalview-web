@@ -252,6 +252,19 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
     busy.value = null
   }
 }
+
+/** The offered pair made with another operation as close, the one the user picked. */
+async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
+  busy.value = tx.id
+  error.value = null
+  try {
+    await bank.decideTransfer(tx.id, otherId, 'transfer')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    busy.value = null
+  }
+}
 </script>
 
 <template>
@@ -334,6 +347,7 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
           :stake-amount="stakeOf(item)"
           :contribution-note="contributionOf(item.transaction)"
           @decide="(kind) => decide(item.transaction, kind)"
+          @pick="(otherId) => pick(item.transaction, otherId)"
           @deposit="contribution(item.transaction, 'contribution')"
           @contribution="(kind, answers) => contribution(item.transaction, kind, answers)"
           @link="linking = item.transaction"

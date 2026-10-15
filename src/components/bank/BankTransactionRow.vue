@@ -43,6 +43,8 @@ const stake = computed(() => props.stakeAmount ?? null)
 
 defineEmits<{
   decide: [kind: BankTransferDecisionKind]
+  /** The offered pair is made with this other operation instead. */
+  pick: [otherId: string]
   /** A suggested pair is set aside for the deposit facing the operation. */
   deposit: []
   /** The operation is, or is not, the deposit or withdrawal facing it — or
@@ -108,15 +110,26 @@ const proved = computed(() => props.tx.type_source === 'contribution')
 const leavesRecurring = computed(() =>
   props.tx.type_source === 'recurring' && props.tx.recurring ? props.tx.recurring.name : null,
 )
+function onDay(day: string | null | undefined): string {
+  return day
+    ? ` le ${new Date(`${day}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    : ''
+}
 /** The other side of a pair offered to the user: what the pair is judged by. */
 const offered = computed(() => {
   const { transfer_label: label, transfer_date: day } = props.tx
   if (!suggested.value || !label) return null
-  const when = day
-    ? new Date(`${day}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null
-  return `En face, sur ${props.tx.transfer_account_name}${when ? ` le ${when}` : ''} : ${label}`
+  return `En face, sur ${props.tx.transfer_account_name}${onDay(day)} : ${label}`
 })
+/** Others as close as the one named, said the same way: the user may pick one instead. */
+const alternatives = computed(() =>
+  suggested.value
+    ? (props.tx.transfer_alternatives ?? []).map((alternative) => ({
+        id: alternative.id,
+        text: `Ou, sur ${alternative.account_name}${onDay(alternative.day)} : ${alternative.label ?? 'Opération sans libellé'}`,
+      }))
+    : [],
+)
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
 )
@@ -258,6 +271,21 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       </div>
       <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
         <span class="truncate" :title="offered">{{ offered }}</span>
+      </p>
+      <p
+        v-for="alternative in alternatives"
+        :key="alternative.id"
+        class="mt-1 flex items-center gap-2 text-xs text-text-muted dark:text-text-dark-muted"
+      >
+        <span class="truncate" :title="alternative.text">{{ alternative.text }}</span>
+        <button
+          type="button"
+          :disabled="busy"
+          class="shrink-0 px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          @click="$emit('pick', alternative.id)"
+        >
+          Plutôt celle-ci
+        </button>
       </p>
       <!-- A pair offered, asked in words: the refusal says what it does, so it
            is not read as "count it as spent". A deposit facing the same

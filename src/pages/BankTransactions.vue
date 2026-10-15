@@ -299,6 +299,19 @@ async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): 
   }
 }
 
+/** The offered pair made with another operation as close, the one the user picked. */
+async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
+  deciding.value = tx.id
+  decisionError.value = null
+  try {
+    await bank.decideTransfer(tx.id, otherId, 'transfer')
+  } catch (e) {
+    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  } finally {
+    deciding.value = null
+  }
+}
+
 /** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
 async function contribution(
   tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx),
@@ -732,6 +745,7 @@ onMounted(() => void load())
               :stake-amount="stakeOf(tx)"
               :contribution-note="contributionOf(tx)"
               @decide="(kind) => decide(tx, kind)"
+              @pick="(otherId) => pick(tx, otherId)"
               @deposit="contribution(tx, 'contribution')"
               @contribution="(kind, answers) => contribution(tx, kind, answers)"
               @link="linking = tx"
@@ -760,6 +774,7 @@ onMounted(() => void load())
                   :stake-amount="stakeOf(tx)"
                   :contribution-note="contributionOf(tx)"
                   @decide="(kind) => decide(tx, kind)"
+                  @pick="(otherId) => pick(tx, otherId)"
                   @deposit="contribution(tx, 'contribution')"
                   @contribution="(kind, answers) => contribution(tx, kind, answers)"
                   @link="linking = tx"

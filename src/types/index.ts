@@ -416,6 +416,14 @@ export interface BankTransferQuestionsResponse {
 }
 
 /** One stored movement, as the bank reported it. */
+/** Another operation as close as the one an offered pair names, to pick instead. */
+export interface BankTransferAlternative {
+  id: string
+  account_name: string
+  day: string | null
+  label: string | null
+}
+
 export interface BankTransactionItem {
   id: string
   account_id: string
@@ -440,6 +448,8 @@ export interface BankTransactionItem {
   transfer_date?: string | null
   /** Only on a suggested pair: what both sides count as once said to go together. */
   together_type?: CashflowType | null
+  /** Only on the leg an offered pair asks on, when others are as close: what to pick instead. */
+  transfer_alternatives?: BankTransferAlternative[]
   cashflow_type: CashflowType
   type_source: TypeSource
   /** The rule typing it, exact or reached from a nearby label. */
