@@ -13,37 +13,32 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeftRight, ChevronLeft, ChevronRight, HelpCircle, Plus, Search, Undo2 } from 'lucide-vue-next'
 
 import { useBankStore } from '@/stores/bank'
-import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { useRecurringStore } from '@/stores/recurring'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
+import { useBankAnswers } from '@/composables/useBankAnswers'
 import { useBankSection } from '@/composables/useBankSection'
 import {
-  BaseAlert, BaseButton, BaseCard, BaseEmptyState, BaseSegmentedControl, BaseSelect, BaseSkeleton, BaseToggle,
+  BaseButton, BaseCard, BaseEmptyState, BaseSegmentedControl, BaseSelect, BaseSkeleton, BaseToggle,
 } from '@/components'
 import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
 import { withoutExploreQuery } from '@/composables/useExploreFilters'
+import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
+import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionMessage, contributionNote, keptByHand, needsReview, ownAnswer, RULES_PAGE,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview,
 } from '@/utils/cashflowTypes'
-import { contributionAnswerEffect, transferAnswerEffect, typeAnswerEffect } from '@/utils/optimisticAnswers'
-import type {
-  BankContributionDecisionKind, BankTransactionItem, BankTransactionTypeResult, BankTransferDecisionKind, CashflowType,
-  RecurringDecisionKind, TypeScope,
-} from '@/types'
+import type { BankTransactionItem } from '@/types'
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 const ALL_ACCOUNTS = 'all'
 const STRIP_MONTHS = 12
 
 const bank = useBankStore()
-const cashflowTypes = useCashflowTypesStore()
-const recurring = useRecurringStore()
 const route = useRoute()
 const router = useRouter()
 const { formatCurrency } = useFormatters()
@@ -279,65 +274,13 @@ function amountClass(tx: BankTransactionItem): string {
   return tx.is_credit ? 'text-success' : 'text-text-main dark:text-text-dark-main'
 }
 
-// ── Transfer decisions ──────────────────────────────────────
+// ── Answers ─────────────────────────────────────────────────
 
-/**
- * The operation whose deletion or recurring decision is on its way: its row
- * stands still meanwhile. Answers move the month at the click instead
- * (`bank.answering`), and a failure puts it back.
- */
-const deciding = ref<string | null>(null)
-const decisionError = ref<string | null>(null)
+const {
+  busy: deciding, error: decisionError, notice, typed, answer, contribution, decide, pick, subscribe, undo,
+} = useBankAnswers(() => month.value?.transactions)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
-
-async function decide(tx: BankTransactionItem, kind: BankTransferDecisionKind): Promise<void> {
-  const other = tx.transfer_id
-  if (!other) return
-  decisionError.value = null
-  try {
-    await bank.answering(transferAnswerEffect(tx, kind), () => bank.decideTransfer(tx.id, other, kind))
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  }
-}
-
-/** The offered pair made with another operation as close, the one the user picked. */
-async function pick(tx: BankTransactionItem, otherId: string): Promise<void> {
-  deciding.value = tx.id
-  decisionError.value = null
-  try {
-    await bank.decideTransfer(tx.id, otherId, 'transfer')
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
-  } finally {
-    deciding.value = null
-  }
-}
-
-/** Yes or no to the deposit or withdrawal facing the operation, or each of those ticked. */
-async function contribution(
-  tx: BankTransactionItem, kind: BankContributionDecisionKind, answers = ownAnswer(tx), members: BankTransactionItem[] = [],
-): Promise<void> {
-  const [first, ...also] = answers
-  if (!first) return
-  decisionError.value = null
-  const effect = contributionAnswerEffect(
-    tx, kind, answers.map((answer) => answer.transaction_id), members, month.value?.transactions,
-  )
-  try {
-    await bank.answering(effect, () => bank.decideContribution(first.transaction_id, first.contribution_id, kind, also))
-    onContribution(contributionMessage(kind, keptByHand(tx, answers.map((answer) => answer.transaction_id), members)))
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  }
-}
-
-function onContribution(message: string): void {
-  typedMessage.value = message
-  typedRule.value = false
-  typedOutranked.value = null
-}
 
 // ── Entries on an account no bank feeds ────────────────────
 
@@ -365,54 +308,7 @@ async function removeOperation(tx: BankTransactionItem): Promise<void> {
   }
 }
 
-// ── Cashflow types ──────────────────────────────────────────
-
 const retyping = ref<BankTransactionItem | null>(null)
-/** What the last correction did, said once under the filters. */
-const typedMessage = ref<string | null>(null)
-/** The last correction wrote a rule: the message says where it went. */
-const typedRule = ref(false)
-
-/** The rule written by hand the last correction now comes before, by its title. */
-const typedOutranked = ref<string | null>(null)
-
-function onTyped(result: BankTransactionTypeResult, outranked: string | null = null): void {
-  const count = result.covered_count
-  const label = CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]
-  typedMessage.value = `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`
-  typedRule.value = result.transaction.type_rule_id !== null
-  typedOutranked.value = outranked
-}
-
-async function answer(
-  tx: BankTransactionItem, type: CashflowType, scope: TypeScope, picked: string[], members: BankTransactionItem[] = [],
-): Promise<void> {
-  decisionError.value = null
-  // The operation asked about may have been unticked: the first ticked one carries the answer.
-  const [first = tx.id, ...also] = picked
-  const effect = typeAnswerEffect(tx, type, scope, [first, ...also], members, month.value?.transactions)
-  try {
-    onTyped(await bank.answering(effect, () => cashflowTypes.answerFlow(first, type, scope, also)))
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  }
-}
-
-async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
-  deciding.value = tx.id
-  decisionError.value = null
-  const kind = tx.recurring_question?.direction === 'income' ? 'revenus' : 'paiements'
-  try {
-    await recurring.decide(tx.id, decision)
-    typedMessage.value = decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.'
-    typedRule.value = false
-    typedOutranked.value = null
-  } catch (e) {
-    decisionError.value = e instanceof Error ? e.message : "Impossible d'enregistrer cette réponse."
-  } finally {
-    deciding.value = null
-  }
-}
 
 const QUESTION_MONTHS_SHOWN = 4
 /** The most recent months still holding a question, besides this one. */
@@ -654,15 +550,13 @@ onMounted(() => void load())
                them all, this is where to find them. -->
           <div v-if="otherQuestionMonths.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
             <span>À vérifier aussi :</span>
-            <button
+            <BankAnswerButton
               v-for="q in otherQuestionMonths"
               :key="q.period"
-              type="button"
-              class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20"
               @click="period = q.period; toReviewOnly = true"
             >
               {{ monthShort(q.period) }} {{ q.period.slice(0, 4) }} ({{ q.count }})
-            </button>
+            </BankAnswerButton>
             <span v-if="olderQuestionMonths">et {{ olderQuestionMonths }} mois plus ancien{{ olderQuestionMonths > 1 ? 's' : '' }}</span>
           </div>
           <!-- No exchange rate ever arrives with a movement, so these never join a total. -->
@@ -709,20 +603,7 @@ onMounted(() => void load())
           </div>
         </div>
 
-        <BaseAlert v-if="typedMessage" variant="success" dismissible class="mb-3" @dismiss="typedMessage = null">
-          {{ typedMessage }}
-          <template v-if="typedRule">
-            Règle créée, dans <router-link :to="RULES_PAGE" class="font-medium underline">Règles de tri</router-link>.
-          </template>
-          <!-- Never silent: a rule given from an answer, or a choice by hand, comes before a rule written by hand. -->
-          <template v-if="typedOutranked">
-            {{ typedRule ? 'Pour ce libellé, elle' : 'Ce choix' }} passe avant la règle {{ typedOutranked }}.
-          </template>
-        </BaseAlert>
-
-        <BaseAlert v-if="decisionError" variant="danger" dismissible class="mb-3" @dismiss="decisionError = null">
-          {{ decisionError }}
-        </BaseAlert>
+        <BankAnswerNotices v-model:notice="notice" v-model:error="decisionError" @undo="undo" />
 
         <p v-if="hasFilters && filtered.length" class="mb-3 text-sm text-text-muted dark:text-text-dark-muted">
           {{ filtered.length }} opération{{ filtered.length > 1 ? 's' : '' }} ·
@@ -816,8 +697,8 @@ onMounted(() => void load())
       :open="retyping !== null"
       :tx="retyping"
       @close="retyping = null"
-      @saved="onTyped"
-      @cleared="typedMessage = null"
+      @saved="(result, outranked) => typed(result, undefined, outranked)"
+      @cleared="notice = null"
     />
   </div>
 </template>

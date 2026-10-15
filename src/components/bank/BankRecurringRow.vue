@@ -8,6 +8,7 @@ import { computed, ref, watch } from 'vue'
 import { ChevronDown, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton, BaseInput, BaseSelect, BaseSkeleton } from '@/components'
+import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useRecurringStore } from '@/stores/recurring'
@@ -198,20 +199,12 @@ function today(): string {
     <!-- A found series not counted yet: the same yes or no as on its operation. -->
     <div v-if="item.state === 'candidate'" class="mt-2 flex items-center gap-1.5 text-xs">
       <span class="text-warning font-medium">C'est un {{ income ? 'revenu' : 'paiement' }} récurrent ?</span>
-      <button
-        type="button" :disabled="busy"
-        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-        @click="decide('confirm')"
-      >
+      <BankAnswerButton :disabled="busy" @click="decide('confirm')">
         Oui
-      </button>
-      <button
-        type="button" :disabled="busy"
-        class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
-        @click="decide('refuse')"
-      >
+      </BankAnswerButton>
+      <BankAnswerButton :disabled="busy" @click="decide('refuse')">
         Non
-      </button>
+      </BankAnswerButton>
     </div>
 
     <Transition name="cv-expand">

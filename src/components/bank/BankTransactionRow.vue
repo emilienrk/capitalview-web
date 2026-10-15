@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { ArrowLeftRight, Check, HelpCircle, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
+import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
 import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -239,24 +240,20 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           <TrendingUp class="w-3.5 h-3.5 shrink-0" />
           {{ contributionNote }}
         </span>
-        <button
-          type="button"
+        <BankAnswerButton
           :disabled="busy || !depositAnswers.length"
           title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('contribution', 'contribution', depositAnswers, members)"
         >
           Oui
-        </button>
-        <button
-          type="button"
+        </BankAnswerButton>
+        <BankAnswerButton
           :disabled="busy || !depositAnswers.length"
           title="Ce n'est pas ce mouvement : l'opération compte comme les autres."
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('contribution', 'not_contribution', depositAnswers, members)"
         >
           Non
-        </button>
+        </BankAnswerButton>
         <span v-if="leavesRecurring" class="text-text-muted dark:text-text-dark-muted">
           Oui : sortira du récurrent {{ leavesRecurring }}
         </span>
@@ -282,14 +279,13 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         class="mt-1 flex items-center gap-2 text-xs text-text-muted dark:text-text-dark-muted"
       >
         <span class="truncate" :title="alternative.text">{{ alternative.text }}</span>
-        <button
-          type="button"
+        <BankAnswerButton
           :disabled="busy"
-          class="shrink-0 px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          class="shrink-0"
           @click="$emit('pick', alternative.id)"
         >
           Plutôt celle-ci
-        </button>
+        </BankAnswerButton>
       </p>
       <!-- A pair offered, asked in words: the refusal says what it does, so it
            is not read as "count it as spent". A deposit facing the same
@@ -299,34 +295,29 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           <HelpCircle class="w-3.5 h-3.5" />
           C'est…
         </span>
-        <button
-          type="button"
+        <BankAnswerButton
           :disabled="busy"
           :title="PAIR_HINTS.transfer"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('decide', 'transfer')"
         >
           Ensemble
-        </button>
-        <button
+        </BankAnswerButton>
+        <BankAnswerButton
           v-if="tx.contribution"
-          type="button"
           :disabled="busy"
           title="Compté en investissement, et la paire n'est plus proposée."
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('deposit')"
         >
           {{ tx.contribution.is_deposit ? 'Versement sur' : 'Retrait depuis' }} {{ tx.contribution.account_name }}
-        </button>
-        <button
-          type="button"
+        </BankAnswerButton>
+        <BankAnswerButton
           :disabled="busy"
           :title="PAIR_HINTS.notTransfer"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main font-medium hover:bg-surface-border dark:hover:bg-surface-dark-border disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
+          muted
           @click="$emit('decide', 'not_transfer')"
         >
           Pas ensemble
-        </button>
+        </BankAnswerButton>
         <span class="basis-full text-text-muted dark:text-text-dark-muted">
           {{ togetherNote(tx.together_type) }} Pas ensemble : chacune restera comptée de son côté.
         </span>
@@ -338,17 +329,15 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           <HelpCircle class="w-3.5 h-3.5" />
           {{ tx.is_credit ? 'Cette entrée, c\'est…' : 'Cette sortie, c\'est…' }}
         </span>
-        <button
+        <BankAnswerButton
           v-for="choice in tx.flow_question.choices"
           :key="choice"
-          type="button"
           :disabled="busy || (!wholeLabel && !answering.length)"
           :title="answerHint(choice, tx.is_credit)"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('answer', choice, wholeLabel ? 'label' : 'operation', wholeLabel ? [tx.id] : answering, members)"
         >
           {{ answerLabel(choice, tx.is_credit) }}
-        </button>
+        </BankAnswerButton>
         <label
           class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
           title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans l'onglet Règles."
@@ -379,26 +368,22 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           <Repeat class="w-3.5 h-3.5" />
           {{ questionText(tx.recurring_question, money(tx.recurring_question.amount)) }}
         </span>
-        <button
-          type="button"
+        <BankAnswerButton
           :disabled="busy"
           :title="`Compté dans les ${incomeQuestion ? 'revenus' : 'paiements'} récurrents, et ses prochaines échéances avec lui.`"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('subscribe', 'confirm')"
         >
           Oui
-        </button>
-        <button
-          type="button"
+        </BankAnswerButton>
+        <BankAnswerButton
           :disabled="busy"
           :title="incomeQuestion
             ? 'Pas un revenu récurrent : il ne sera plus proposé.'
             : 'Ce n\'est pas récurrent : il ne sera plus proposé.'"
-          class="px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button bg-warning/10 text-warning font-medium hover:bg-warning/20 disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]"
           @click="$emit('subscribe', 'refuse')"
         >
           Non
-        </button>
+        </BankAnswerButton>
         <span class="basis-full text-text-muted dark:text-text-dark-muted">
           {{ tx.recurring_question.occurrence_count }} échéances, ≈ {{ money(tx.recurring_question.annual_estimate) }} par an<template
             v-if="tx.recurring_question.renamed_from.length"> · a changé de nom, anciennement {{ tx.recurring_question.renamed_from.join(', ') }}</template>
