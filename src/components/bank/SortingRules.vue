@@ -8,7 +8,8 @@
 import { BookMarked, Plus } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 
-import { BaseAlert, BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
+import { BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
+import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import SortingRuleModal from '@/components/bank/SortingRuleModal.vue'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTypeRule, CashflowType } from '@/types'
@@ -19,7 +20,6 @@ const types = useCashflowTypesStore()
 
 const failed = ref(false)
 const busy = ref<string | null>(null)
-const removing = ref<string | null>(null)
 /** The rule being written: null when the form is closed, 'new' for a new one. */
 const editing = ref<BankTypeRule | 'new' | null>(null)
 const error = ref<string | null>(null)
@@ -51,7 +51,6 @@ async function retype(rule: BankTypeRule, type: CashflowType): Promise<void> {
 
 async function remove(rule: BankTypeRule): Promise<void> {
   busy.value = rule.id
-  removing.value = rule.id
   error.value = null
   try {
     await types.deleteRule(rule.id)
@@ -59,7 +58,6 @@ async function remove(rule: BankTypeRule): Promise<void> {
     error.value = e instanceof Error ? e.message : 'Impossible de supprimer cette règle.'
   } finally {
     busy.value = null
-    removing.value = null
   }
 }
 
@@ -83,7 +81,7 @@ function details(rule: BankTypeRule): string {
         <span class="sr-only sm:hidden">Nouvelle règle</span>
       </BaseButton>
     </template>
-    <BaseAlert v-if="error" variant="danger" dismissible class="mb-3" @dismiss="error = null">{{ error }}</BaseAlert>
+    <BankAnswerNotices v-model:error="error" />
 
     <div v-if="failed" class="flex items-center justify-between gap-3">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">Impossible de charger les règles.</p>
@@ -120,13 +118,7 @@ function details(rule: BankTypeRule): string {
             <option v-for="type in CASHFLOW_TYPES" :key="type" :value="type">{{ answerLabel(type, rule.is_credit) }}</option>
           </select>
           <BaseButton size="sm" variant="ghost" :disabled="busy !== null" @click="editing = rule">Modifier</BaseButton>
-          <BaseButton
-            size="sm" variant="outline"
-            :loading="removing === rule.id" :disabled="busy !== null"
-            @click="remove(rule)"
-          >
-            Supprimer
-          </BaseButton>
+          <BaseButton size="sm" variant="outline" :disabled="busy !== null" @click="remove(rule)">Supprimer</BaseButton>
         </div>
       </li>
     </ul>

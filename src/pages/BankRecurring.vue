@@ -11,15 +11,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { Repeat } from 'lucide-vue-next'
 
 import {
-  BaseAlert, BaseButton, BaseCard, BaseCollapsible, BaseEmptyState, BaseSegmentedControl, BaseSkeleton,
+  BaseButton, BaseCard, BaseCollapsible, BaseEmptyState, BaseSegmentedControl, BaseSkeleton,
 } from '@/components'
+import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import BankRecurringRow from '@/components/bank/BankRecurringRow.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
 import { NATURE_LABELS, isCounted, isCurrent, isInTotal } from '@/utils/recurring'
-import type { BankRecurringItem, RecurringDirection } from '@/types'
+import type { BankRecurringItem, RecurringDecisionKind, RecurringDirection } from '@/types'
 
 const bank = useBankStore()
 const store = useRecurringStore()
@@ -103,6 +104,15 @@ const folded = computed(() => [
 // payment with an income anyway.
 const mergeable = computed(() => items.value.filter((item) => item.state !== 'refused'))
 
+/** Said here: the row answered has moved to another section by the time a failure comes back. */
+async function answer(item: BankRecurringItem, decision: RecurringDecisionKind, name?: string): Promise<void> {
+  try {
+    await store.answer(item, decision, name)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce choix."
+  }
+}
+
 function amount(value: number): string {
   return maskValue(formatCurrency(Number(value), list.value?.currency ?? 'EUR'))
 }
@@ -138,7 +148,7 @@ function amount(value: number): string {
       </p>
     </BaseCard>
 
-    <BaseAlert v-if="error" variant="danger" dismissible class="mb-3" @dismiss="error = null">{{ error }}</BaseAlert>
+    <BankAnswerNotices v-model:error="error" />
 
     <div v-if="failed" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">
@@ -178,6 +188,7 @@ function amount(value: number): string {
             <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
               <BankRecurringRow
                 v-for="item in group.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+                @answer="(decision, name) => answer(item, decision, name)"
               />
             </ul>
           </BaseCard>
@@ -186,7 +197,10 @@ function amount(value: number): string {
 
       <BaseCard v-else-if="current.length" :padding="false" class="overflow-hidden">
         <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
-          <BankRecurringRow v-for="item in current" :key="item.key" :item="item" :others="mergeable" @failed="error = $event" />
+          <BankRecurringRow
+            v-for="item in current" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+            @answer="(decision, name) => answer(item, decision, name)"
+          />
         </ul>
       </BaseCard>
 
@@ -197,7 +211,10 @@ function amount(value: number): string {
         :default-open="section.open"
       >
         <ul class="-mx-4 divide-y divide-surface-border dark:divide-surface-dark-border">
-          <BankRecurringRow v-for="item in section.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event" />
+          <BankRecurringRow
+            v-for="item in section.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+            @answer="(decision, name) => answer(item, decision, name)"
+          />
         </ul>
       </BaseCollapsible>
     </div>

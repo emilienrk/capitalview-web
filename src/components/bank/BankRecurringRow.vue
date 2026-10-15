@@ -21,7 +21,11 @@ const props = defineProps<{
   others?: BankRecurringItem[]
 }>()
 
-const emit = defineEmits<{ failed: [message: string] }>()
+const emit = defineEmits<{
+  failed: [message: string]
+  /** Yes or no, a name given with the yes: the row moves at once, so the list says a failure. */
+  answer: [decision: RecurringDecisionKind, name?: string]
+}>()
 
 const store = useRecurringStore()
 const { formatCurrency, formatDate } = useFormatters()
@@ -76,6 +80,10 @@ const busy = ref(false)
 const renaming = ref(false)
 const name = ref('')
 
+function fail(e: unknown): void {
+  emit('failed', e instanceof Error ? e.message : "Impossible d'enregistrer ce choix.")
+}
+
 /** Whether the write went through: a caller showing what it wrote needs to know. */
 async function act(action: () => Promise<unknown>): Promise<boolean> {
   busy.value = true
@@ -83,15 +91,15 @@ async function act(action: () => Promise<unknown>): Promise<boolean> {
     await action()
     return true
   } catch (e) {
-    emit('failed', e instanceof Error ? e.message : "Impossible d'enregistrer ce choix.")
+    fail(e)
     return false
   } finally {
     busy.value = false
   }
 }
 
-async function decide(decision: RecurringDecisionKind): Promise<void> {
-  await act(() => store.decide(props.item.transaction_id, decision))
+function decide(decision: RecurringDecisionKind): void {
+  emit('answer', decision)
 }
 
 function decisionId(): Promise<string> {
@@ -108,8 +116,15 @@ async function saveName(): Promise<void> {
   renaming.value = false
   if (!next || next === props.item.name) return
   // A name given with the yes is kept with it, in one write.
-  if (!props.item.id) await act(() => store.decide(props.item.transaction_id, 'confirm', next))
-  else await act(async () => store.update(await decisionId(), { name: next }))
+  if (!props.item.id) {
+    emit('answer', 'confirm', next)
+    return
+  }
+  try {
+    await store.rename(props.item, next)
+  } catch (e) {
+    fail(e)
+  }
 }
 
 async function setEnded(endedOn: string | null): Promise<void> {

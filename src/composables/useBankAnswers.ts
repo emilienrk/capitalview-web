@@ -13,7 +13,9 @@ import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
 import { CASHFLOW_TYPE_LABELS, contributionMessage, keptByHand, ownAnswer } from '@/utils/cashflowTypes'
-import { contributionAnswerEffect, transferAnswerEffect, typeAnswerEffect } from '@/utils/optimisticAnswers'
+import {
+  contributionAnswerEffect, recurringAnswerEffect, transferAnswerEffect, typeAnswerEffect,
+} from '@/utils/optimisticAnswers'
 import type {
   BankContributionDecisionKind, BankHistoryKind, BankTransactionItem, BankTransactionTypeResult,
   BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope,
@@ -128,11 +130,10 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
   }
 
   async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
-    busy.value = tx.id
     error.value = null
     const kind = tx.recurring_question?.direction === 'income' ? 'revenus' : 'paiements'
     try {
-      await recurring.decide(tx.id, decision)
+      await bank.answering(recurringAnswerEffect(tx), () => recurring.decide(tx.id, decision))
       notice.value = {
         message: decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.',
         ruleId: null,
@@ -141,8 +142,6 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
       }
     } catch (e) {
       error.value = failure(e, "Impossible d'enregistrer cette réponse.")
-    } finally {
-      busy.value = null
     }
   }
 

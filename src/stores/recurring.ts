@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
+import { applyToRecurringList, renameEffect, seriesAnswerEffect } from '@/utils/optimisticAnswers'
 import type {
   BankRecurringItem, BankRecurringUpdate, BankRecurringResponse, BankTransactionItem,
   RecurringCadence, RecurringDecisionKind, RecurringDirection, RecurringOperationAction,
@@ -13,10 +14,25 @@ import type {
  * decided about them. The API lists one direction at a time.
  */
 export const useRecurringStore = defineStore('recurring', () => {
-  const lists = ref<Record<RecurringDirection, BankRecurringResponse | null>>({ expense: null, income: null })
+  /** Each direction as fetched, and the revision it was asked at. */
+  const listsRead = ref<Record<RecurringDirection, { list: BankRecurringResponse; revision: number } | null>>({
+    expense: null, income: null,
+  })
+
+  /** Each direction with the answers given since it was fetched, as `bank.transactions` reads them. */
+  const lists = computed<Record<RecurringDirection, BankRecurringResponse | null>>(() => {
+    const bank = useBankStore()
+    const shown = (direction: RecurringDirection) => {
+      const read = listsRead.value[direction]
+      return read ? applyToRecurringList(read.list, bank.answersSince(read.revision)) : null
+    }
+    return { expense: shown('expense'), income: shown('income') }
+  })
 
   async function fetchList(direction: RecurringDirection = 'expense'): Promise<void> {
-    lists.value[direction] = await apiClient.get<BankRecurringResponse>(`/banking/recurring?direction=${direction}`)
+    const revision = useBankStore().dataRevision
+    const list = await apiClient.get<BankRecurringResponse>(`/banking/recurring?direction=${direction}`)
+    listsRead.value[direction] = { list, revision }
   }
 
   /** Yes or no to the series the operation belongs to; the refusal is kept. */
@@ -28,6 +44,20 @@ export const useRecurringStore = defineStore('recurring', () => {
     })
     changed()
     return item
+  }
+
+  /** Yes or no said in the Récurrent tab, shown at once; a failure puts the list back. */
+  async function answer(item: BankRecurringItem, decision: RecurringDecisionKind, name?: string): Promise<void> {
+    await useBankStore().answering(
+      seriesAnswerEffect(item, decision, name), () => decide(item.transaction_id, decision, name),
+    )
+  }
+
+  /** The new name shown at once; one never decided takes it with its yes, in one write. */
+  async function rename(item: BankRecurringItem, name: string): Promise<void> {
+    const id = item.id
+    if (!id) return answer(item, 'confirm', name)
+    await useBankStore().answering(renameEffect(item, name), () => update(id, { name }))
   }
 
   /** One counted without asking has no decision yet to edit: saying yes makes it. */
@@ -91,8 +121,8 @@ export const useRecurringStore = defineStore('recurring', () => {
   }
 
   function reset(): void {
-    lists.value = { expense: null, income: null }
+    listsRead.value = { expense: null, income: null }
   }
 
-  return { lists, fetchList, decide, decisionId, mark, update, correct, merge, remove, fetchOperations, reset }
+  return { lists, fetchList, decide, answer, rename, decisionId, mark, update, correct, merge, remove, fetchOperations, reset }
 })

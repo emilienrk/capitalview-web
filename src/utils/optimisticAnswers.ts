@@ -6,10 +6,12 @@
  * Only what the answer settles for certain is foreseen. Which operation
  * carries a label's question next, a question a "Non" or a "Pas ensemble"
  * may raise, the pairs an "Ensemble" teaches: all of that waits for the reload.
+ * So do what a recurring yes adds up to and the totals of the Récurrent tab.
  */
 import type {
-  BankContributionDecisionKind, BankReviewQueue, BankTransactionItem, BankTransactionsResponse,
-  BankTransferDecisionKind, BankTransferQuestionsResponse, CashflowType, TypeScope,
+  BankContributionDecisionKind, BankRecurringItem, BankRecurringResponse, BankReviewQueue, BankTransactionItem,
+  BankTransactionsResponse, BankTransferDecisionKind, BankTransferQuestionsResponse, CashflowType,
+  RecurringDecisionKind, TypeScope,
 } from '@/types'
 
 export interface AnswerEffect {
@@ -21,6 +23,10 @@ export interface AnswerEffect {
   shrunk: Record<string, { count: number; amount: number }>
   /** Of those, the ones leaving the month shown with the operation that carried them. */
   movedOut?: string[]
+  /** The recurring questions it answers, by the operation carrying them: counted apart from the others. */
+  recurring?: string[]
+  /** What each recurring series it decides now shows in the Récurrent tab, by its key. */
+  series?: Record<string, Partial<BankRecurringItem>>
 }
 
 function cents(value: number): number {
@@ -194,10 +200,47 @@ export function transferAnswerEffect(tx: BankTransactionItem, kind: BankTransfer
   return effect
 }
 
+/** Yes or no to the recurring series asked about on an operation: the question goes, the rest waits. */
+export function recurringAnswerEffect(tx: BankTransactionItem): AnswerEffect {
+  const effect: AnswerEffect = { operations: {}, settled: [], shrunk: {} }
+  if (!tx.recurring_question) return effect
+  effect.operations[tx.id] = { recurring_question: null }
+  effect.recurring = [tx.id]
+  return effect
+}
+
+/**
+ * Yes or no said in the Récurrent tab, a name given with the yes: the series
+ * takes its new state, and a candidate's question, carried by the operation
+ * the series is answered through, goes with it.
+ */
+export function seriesAnswerEffect(
+  item: BankRecurringItem, decision: RecurringDecisionKind, name?: string,
+): AnswerEffect {
+  const state = decision === 'confirm' ? 'confirmed' : 'refused'
+  const effect: AnswerEffect = {
+    operations: {}, settled: [], shrunk: {}, series: { [item.key]: name ? { state, name } : { state } },
+  }
+  if (item.state === 'candidate') {
+    effect.operations[item.transaction_id] = { recurring_question: null }
+    effect.recurring = [item.transaction_id]
+  }
+  return effect
+}
+
+/** A decided series renamed. */
+export function renameEffect(item: BankRecurringItem, name: string): AnswerEffect {
+  return { operations: {}, settled: [], shrunk: {}, series: { [item.key]: { name } } }
+}
+
 // ── Applying them ───────────────────────────────────────────
 
 function settles(effects: AnswerEffect[], id: string): boolean {
   return effects.some((effect) => effect.settled.some((question) => question.ids.includes(id)))
+}
+
+function recurringAnswered(effects: AnswerEffect[]): Set<string> {
+  return new Set(effects.flatMap((effect) => effect.recurring ?? []))
 }
 
 function yearOf(value: string | null): number | null {
@@ -217,8 +260,11 @@ export function applyToQueue(queue: BankReviewQueue, effects: AnswerEffect[]): B
     if (closed) entry.count -= 1
   }
 
+  const recurring = recurringAnswered(effects)
   const questions = queue.questions.flatMap((item) => {
-    const tx = item.transaction
+    const tx = recurring.has(item.transaction.id) && item.transaction.recurring_question
+      ? { ...item.transaction, recurring_question: null }
+      : item.transaction
     if (settles(effects, tx.id)) {
       count -= 1
       total -= Number(item.amount)
@@ -235,7 +281,7 @@ export function applyToQueue(queue: BankReviewQueue, effects: AnswerEffect[]): B
       total -= gone.amount
       lower(tx.operation_date, gone.amount, false)
     }
-    if (operations === item.operation_count) return [item]
+    if (operations === item.operation_count) return [tx === item.transaction ? item : { ...item, transaction: tx }]
     const question = tx.flow_question && { ...tx.flow_question, operation_count: operations, amount }
     return [{ ...item, operation_count: operations, amount, transaction: { ...tx, flow_question: question } }]
   })
@@ -243,6 +289,8 @@ export function applyToQueue(queue: BankReviewQueue, effects: AnswerEffect[]): B
     ...queue,
     total_count: count,
     total_amount: cents(total),
+    // Counted over every year, whatever the queue is narrowed to.
+    recurring_count: Math.max(0, queue.recurring_count - recurring.size),
     years: years.filter((entry) => entry.count > 0),
     questions,
   }
@@ -339,7 +387,8 @@ export function applyToQuestionCounts(
 ): BankTransferQuestionsResponse {
   const closed = new Map<string, string | null>()
   for (const effect of effects) for (const question of effect.settled) closed.set(question.ids[0]!, question.day)
-  if (!closed.size) return counts
+  const recurring = recurringAnswered(effects).size
+  if (!closed.size && !recurring) return counts
   const months = counts.months.map((entry) => ({ ...entry }))
   for (const value of closed.values()) {
     const entry = value ? months.find((m) => m.period === value.slice(0, 7)) : undefined
@@ -348,8 +397,21 @@ export function applyToQuestionCounts(
   return {
     ...counts,
     total: Math.max(0, counts.total - closed.size),
+    recurring: Math.max(0, counts.recurring - recurring),
     months: months.filter((entry) => entry.count > 0),
   }
+}
+
+/** A direction of the Récurrent tab once these answers are in: its totals wait for the reload. */
+export function applyToRecurringList(list: BankRecurringResponse, effects: AnswerEffect[]): BankRecurringResponse {
+  const patches = effects.flatMap((effect) => (effect.series ? [effect.series] : []))
+  if (!patches.length) return list
+  const items = list.items.map((item) => {
+    let read = item
+    for (const patch of patches) if (patch[item.key]) read = { ...read, ...patch[item.key] }
+    return read
+  })
+  return { ...list, items }
 }
 
 /** The operations whose question stays open, fewer: answered again only once the reload says what is left. */

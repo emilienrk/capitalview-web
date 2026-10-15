@@ -10,13 +10,17 @@ import { computed, ref, watch } from 'vue'
 import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { CASHFLOW_TYPES, RULES_PAGE, answerHint, answerLabel, contributionNote, ruleTitle } from '@/utils/cashflowTypes'
+import { retypeEffect } from '@/utils/optimisticRetype'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
 
 const props = defineProps<{
   open: boolean
   tx: BankTransactionItem | null
+  /** The other operations on screen (the month's), which a label's rule may type too. */
+  neighbours?: BankTransactionItem[]
 }>()
 
 const emit = defineEmits<{
@@ -24,14 +28,17 @@ const emit = defineEmits<{
   /** `outranked`: the rule written by hand the choice now comes before, by its title. */
   saved: [result: BankTransactionTypeResult, outranked: string | null]
   cleared: []
+  /** The type chosen could not be saved: the list is back as it was, the page says why. */
+  failed: [message: string]
 }>()
 
+const bank = useBankStore()
 const types = useCashflowTypesStore()
 const { formatCurrency, formatDateShort } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
 const byLabel = ref(true)
-const saving = ref<CashflowType | 'clear' | null>(null)
+const clearing = ref(false)
 const error = ref<string | null>(null)
 
 const hasLabel = computed(() => Boolean(props.tx?.label?.trim()))
@@ -61,7 +68,7 @@ watch(
   () => [props.open, props.tx?.id] as const,
   () => {
     error.value = null
-    saving.value = null
+    clearing.value = false
     byLabel.value = hasLabel.value
     // Which kind of rule types it is only known from the list of rules.
     if (props.open && props.tx?.type_source === 'rule' && !types.rules) types.fetchRules().catch(() => {})
@@ -75,24 +82,26 @@ function signed(tx: BankTransactionItem): string {
 }
 
 async function choose(type: CashflowType): Promise<void> {
-  if (!props.tx) return
-  saving.value = type
-  error.value = null
+  const tx = props.tx
+  if (!tx) return
+  const scope = byLabel.value ? 'label' : 'operation'
+  const outranked = writtenRule.value ? ruleTitle(writtenRule.value) : null
+  // The list shows the type at once: the modal has nothing left to wait for.
+  emit('close')
   try {
-    const outranked = writtenRule.value ? ruleTitle(writtenRule.value) : null
-    emit('saved', await types.setType(props.tx.id, type, byLabel.value ? 'label' : 'operation'), outranked)
-    emit('close')
+    const result = await bank.answering(
+      retypeEffect(tx, type, scope, props.neighbours), () => types.setType(tx.id, type, scope),
+    )
+    emit('saved', result, outranked)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : "Impossible d'enregistrer ce type."
-  } finally {
-    saving.value = null
+    emit('failed', e instanceof Error ? e.message : "Impossible d'enregistrer ce type.")
   }
 }
 
 async function backToDetected(): Promise<void> {
   const tx = props.tx
   if (!tx) return
-  saving.value = 'clear'
+  clearing.value = true
   error.value = null
   try {
     if (tx.type_source === 'override') await types.clearOverride(tx.id)
@@ -102,7 +111,7 @@ async function backToDetected(): Promise<void> {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Impossible de revenir au type détecté.'
   } finally {
-    saving.value = null
+    clearing.value = false
   }
 }
 </script>
@@ -126,7 +135,7 @@ async function backToDetected(): Promise<void> {
           :autofocus="tx.cashflow_type === type"
           type="button"
           :aria-pressed="tx.cashflow_type === type"
-          :disabled="saving !== null"
+          :disabled="clearing"
           :title="answerHint(type, tx.is_credit)"
           :class="[
             'flex items-center px-3 py-2.5 rounded-button border text-sm font-medium transition-colors',
@@ -161,7 +170,7 @@ async function backToDetected(): Promise<void> {
         <router-link :to="RULES_PAGE" class="font-medium text-primary hover:underline" @click="emit('close')">la modifier</router-link>
       </p>
       <BaseButton
-        v-else variant="ghost" size="sm" :loading="saving === 'clear'" :disabled="saving !== null" @click="backToDetected"
+        v-else variant="ghost" size="sm" :loading="clearing" :disabled="clearing" @click="backToDetected"
       >
         {{ tx.type_source === 'override' ? 'Revenir au type détecté' : 'Retirer la règle de ce libellé' }}
       </BaseButton>

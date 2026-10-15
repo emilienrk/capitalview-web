@@ -4,10 +4,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
+import type { BankRecurringItem, BankRecurringResponse } from '@/types'
 
 vi.mock('@/api/client', () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }))
+
+function aSeries(overrides: Partial<BankRecurringItem> = {}): BankRecurringItem {
+  return {
+    id: null, key: 'k-1', direction: 'expense', transaction_id: 'tx-1', name: 'NETFLIX', nature: null,
+    state: 'candidate', status: 'active', covered_until: null, cadence: 'monthly', variable: false, amount: 40,
+    currency: 'EUR', monthly_equivalent: 40, annual_estimate: 480, paid_last_12_months: 240,
+    first_date: '2025-10-05', since_at_least: false, last_date: '2026-03-05', next_date: '2026-04-05',
+    occurrence_count: 6, extra_count: 0, accounts: ['Compte courant'], price_changes: [], episodes: [], renamed: [],
+    refunds: { total: 0, items: [] }, ended_on: null,
+    ...overrides,
+  }
+}
+
+function aList(items: BankRecurringItem[]): BankRecurringResponse {
+  return { direction: 'expense', currency: 'EUR', monthly_total: 0, annual_total: 0, items }
+}
 
 describe('useRecurringStore', () => {
   beforeEach(() => {
@@ -111,5 +128,52 @@ describe('useRecurringStore', () => {
 
     expect(apiClient.get).toHaveBeenCalledWith('/banking/recurring/d1/operations')
     expect(apiClient.get).toHaveBeenCalledWith('/banking/recurring/operations?transaction_id=tx%202')
+  })
+
+  it('shows a yes said in its tab at once, and the reading asked once it is stored as it comes', async () => {
+    const store = useRecurringStore()
+    vi.mocked(apiClient.get).mockResolvedValueOnce(aList([aSeries()]))
+    await store.fetchList()
+    let stored!: (value: unknown) => void
+    vi.mocked(apiClient.post).mockReturnValueOnce(new Promise((resolve) => { stored = resolve }))
+
+    const answered = store.answer(store.lists.expense!.items[0]!, 'confirm')
+
+    expect(store.lists.expense!.items[0]!.state).toBe('confirmed')
+    stored({ id: 'd1' })
+    await answered
+    expect(store.lists.expense!.items[0]!.state).toBe('confirmed')
+    vi.mocked(apiClient.get).mockResolvedValueOnce(aList([aSeries({ id: 'd1', key: 'd1', state: 'confirmed', name: 'Netflix' })]))
+    await store.fetchList()
+    expect(store.lists.expense!.items[0]).toMatchObject({ key: 'd1', name: 'Netflix' })
+  })
+
+  it('puts the list back when the answer fails', async () => {
+    const store = useRecurringStore()
+    vi.mocked(apiClient.get).mockResolvedValueOnce(aList([aSeries()]))
+    await store.fetchList()
+    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('Hors ligne.'))
+
+    await expect(store.answer(store.lists.expense!.items[0]!, 'refuse')).rejects.toThrow('Hors ligne.')
+    expect(store.lists.expense!.items[0]!.state).toBe('candidate')
+    expect(useBankStore().dataRevision).toBe(0)
+  })
+
+  it('renames a decided one by its id, and gives one never decided its name with the yes', async () => {
+    const store = useRecurringStore()
+    vi.mocked(apiClient.get).mockResolvedValueOnce(aList([aSeries({ id: 'd1', key: 'd1', state: 'confirmed' }), aSeries()]))
+    await store.fetchList()
+    const [decided, candidate] = store.lists.expense!.items
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 'd2' })
+
+    await store.rename(decided!, 'Netflix')
+    await store.rename(candidate!, 'Spotify')
+
+    expect(apiClient.patch).toHaveBeenCalledWith('/banking/recurring/d1', { name: 'Netflix' })
+    expect(apiClient.post).toHaveBeenCalledWith('/banking/recurring/decisions', {
+      transaction_id: 'tx-1', decision: 'confirm', name: 'Spotify',
+    })
+    expect(store.lists.expense!.items.map((item) => [item.name, item.state]))
+      .toEqual([['Netflix', 'confirmed'], ['Spotify', 'confirmed']])
   })
 })

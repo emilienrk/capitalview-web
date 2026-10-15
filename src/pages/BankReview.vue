@@ -282,6 +282,7 @@ const retyping = ref<BankTransactionItem | null>(null)
     <BankTypePicker
       :open="retyping !== null" :tx="retyping"
       @close="retyping = null" @saved="(result, outranked) => typed(result, undefined, outranked)"
+      @failed="(message) => error = message"
     />
   </div>
 </template>

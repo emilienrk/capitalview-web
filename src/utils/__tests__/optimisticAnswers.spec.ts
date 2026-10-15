@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  applyToMonth, applyToQuestionCounts, applyToQueue, contributionAnswerEffect, transferAnswerEffect, typeAnswerEffect,
-  waitingOn,
+  applyToMonth, applyToQuestionCounts, applyToQueue, applyToRecurringList, contributionAnswerEffect,
+  recurringAnswerEffect, renameEffect, seriesAnswerEffect, transferAnswerEffect, typeAnswerEffect, waitingOn,
 } from '@/utils/optimisticAnswers'
 import type {
-  BankReviewItem, BankReviewQueue, BankTransactionItem, BankTransactionsResponse, BankTransferQuestionsResponse,
+  BankRecurringItem, BankRecurringResponse, BankReviewItem, BankReviewQueue, BankTransactionItem,
+  BankTransactionsResponse, BankTransferQuestionsResponse,
 } from '@/types'
 
 function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransactionItem {
@@ -235,5 +236,78 @@ describe('the question counts', () => {
   it('stay as they are when a question is only answered on part of its operations', () => {
     const tx = asking({}, 3, 120)
     expect(applyToQuestionCounts(counts, [typeAnswerEffect(tx, 'EXPENSE', 'operation', ['tx-1'])])).toBe(counts)
+  })
+})
+
+describe('a recurring answer', () => {
+  const question = {
+    direction: 'expense' as const, cadence: 'monthly' as const, amount: 40, variable: false, occurrence_count: 6,
+    since: '2025-10-05', annual_estimate: 480, renamed_from: [],
+  }
+
+  function aSeries(overrides: Partial<BankRecurringItem> = {}): BankRecurringItem {
+    return {
+      id: null, key: 'k-1', direction: 'expense', transaction_id: 'tx-1', name: 'NETFLIX', nature: null,
+      state: 'candidate', status: 'active', covered_until: null, cadence: 'monthly', variable: false, amount: 40,
+      currency: 'EUR', monthly_equivalent: 40, annual_estimate: 480, paid_last_12_months: 240,
+      first_date: '2025-10-05', since_at_least: false, last_date: '2026-03-05', next_date: '2026-04-05',
+      occurrence_count: 6, extra_count: 0, accounts: ['Compte courant'], price_changes: [], episodes: [], renamed: [],
+      refunds: { total: 0, items: [] }, ended_on: null,
+      ...overrides,
+    }
+  }
+
+  function aList(items: BankRecurringItem[]): BankRecurringResponse {
+    return { direction: 'expense', currency: 'EUR', monthly_total: 100, annual_total: 1200, items }
+  }
+
+  const counts: BankTransferQuestionsResponse = { total: 3, recurring: 2, months: [{ period: '2026-03', count: 3 }] }
+
+  it('takes the question off the operation in the month, its other questions and the totals untouched', () => {
+    const tx = asking({ recurring_question: question })
+    const month = applyToMonth(aMonth([tx]), [recurringAnswerEffect(tx)])
+    expect(month.transactions[0]).toMatchObject({ recurring_question: null, flow_question: tx.flow_question })
+    expect(month).toMatchObject({ inflow: 1000, outflow: 600, transfer_questions: 2 })
+  })
+
+  it('takes it off the row of the queue, which stays for its other question, and lowers the recurring count', () => {
+    const tx = asking({ recurring_question: question })
+    const queue = applyToQueue({ ...aQueue([item(tx)]), recurring_count: 2 }, [recurringAnswerEffect(tx)])
+    expect(queue).toMatchObject({ total_count: 1, total_amount: 40, recurring_count: 1 })
+    expect(queue.questions[0]!.transaction.recurring_question).toBeNull()
+    expect(queue.questions[0]!.transaction.flow_question).toEqual(tx.flow_question)
+  })
+
+  it('lowers the count of the Récurrent tab only', () => {
+    const tx = anOperation({ recurring_question: question })
+    expect(applyToQuestionCounts(counts, [recurringAnswerEffect(tx)])).toEqual({ ...counts, recurring: 1 })
+  })
+
+  it('does nothing on an operation asking no such question', () => {
+    const effect = recurringAnswerEffect(anOperation())
+    expect(effect).toEqual({ operations: {}, settled: [], shrunk: {} })
+    expect(applyToQuestionCounts(counts, [effect])).toBe(counts)
+  })
+
+  it('confirms a candidate in its tab, with the name given, and closes its question', () => {
+    const effect = seriesAnswerEffect(aSeries(), 'confirm', 'Netflix')
+    const list = applyToRecurringList(aList([aSeries(), aSeries({ key: 'k-2', name: 'EDF' })]), [effect])
+    expect(list.items.map((series) => [series.state, series.name])).toEqual([['confirmed', 'Netflix'], ['candidate', 'EDF']])
+    expect(list).toMatchObject({ monthly_total: 100, annual_total: 1200 })
+    expect(effect.operations).toEqual({ 'tx-1': { recurring_question: null } })
+    expect(applyToQuestionCounts(counts, [effect]).recurring).toBe(1)
+  })
+
+  it('refuses a series already counted with no question to close', () => {
+    const effect = seriesAnswerEffect(aSeries({ id: 'd1', state: 'confirmed' }), 'refuse')
+    expect(applyToRecurringList(aList([aSeries({ id: 'd1', state: 'confirmed' })]), [effect]).items[0]!.state).toBe('refused')
+    expect(effect.recurring).toBeUndefined()
+    expect(applyToQuestionCounts(counts, [effect])).toBe(counts)
+  })
+
+  it('renames a decided series, and leaves the list as it is with no series answered', () => {
+    const list = aList([aSeries({ id: 'd1', state: 'confirmed' })])
+    expect(applyToRecurringList(list, [renameEffect(list.items[0]!, 'Netflix')]).items[0]!.name).toBe('Netflix')
+    expect(applyToRecurringList(list, [recurringAnswerEffect(anOperation({ recurring_question: question }))])).toBe(list)
   })
 })

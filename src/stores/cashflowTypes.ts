@@ -77,17 +77,41 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     return saved
   }
 
-  /** Gives a rule another type: it comes back under a new id. */
-  async function retypeRule(ruleId: string, type: CashflowType): Promise<BankTypeRule> {
-    const rule = await apiClient.patch<BankTypeRule>(`/banking/type-rules/${encodeURIComponent(ruleId)}`, { type })
+  function replaceRule(ruleId: string, rule: BankTypeRule): void {
     if (rules.value) rules.value = rules.value.map((other) => (other.id === ruleId ? rule : other))
-    changed()
-    return rule
   }
 
+  /**
+   * Gives a rule another type, shown at once: it comes back under a new id.
+   * What it reaches then is the server's to count.
+   */
+  async function retypeRule(ruleId: string, type: CashflowType): Promise<BankTypeRule> {
+    const before = rules.value?.find((rule) => rule.id === ruleId)
+    if (before) replaceRule(ruleId, { ...before, type })
+    try {
+      const rule = await apiClient.patch<BankTypeRule>(`/banking/type-rules/${encodeURIComponent(ruleId)}`, { type })
+      replaceRule(ruleId, rule)
+      changed()
+      return rule
+    } catch (e) {
+      if (before) replaceRule(ruleId, before)
+      throw e
+    }
+  }
+
+  /** Drops a rule from the list at once; it comes back where it was if the API fails. */
   async function deleteRule(ruleId: string): Promise<void> {
-    await apiClient.delete(`/banking/type-rules/${encodeURIComponent(ruleId)}`)
-    if (rules.value) rules.value = rules.value.filter((rule) => rule.id !== ruleId)
+    const index = rules.value?.findIndex((rule) => rule.id === ruleId) ?? -1
+    const removed = index >= 0 ? rules.value![index] : undefined
+    if (removed) rules.value = rules.value!.filter((rule) => rule.id !== ruleId)
+    try {
+      await apiClient.delete(`/banking/type-rules/${encodeURIComponent(ruleId)}`)
+    } catch (e) {
+      if (removed && rules.value && !rules.value.some((rule) => rule.id === ruleId)) {
+        rules.value = [...rules.value.slice(0, index), removed, ...rules.value.slice(index)]
+      }
+      throw e
+    }
     changed()
   }
 

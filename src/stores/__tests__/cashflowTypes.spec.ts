@@ -95,6 +95,38 @@ describe('useCashflowTypesStore', () => {
     expect(store.rules?.map((rule) => rule.id)).toEqual(['r3', 'r2'])
   })
 
+  it('shows the new type of a rule at the click, and its old one back when the API fails', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce([{ id: 'r1', type: 'EXPENSE' }, { id: 'r2', type: 'SAVING' }])
+    let fail!: (error: Error) => void
+    vi.mocked(apiClient.patch).mockImplementationOnce(() => new Promise((_, reject) => { fail = reject }))
+    const store = useCashflowTypesStore()
+    await store.fetchRules()
+
+    const pending = store.retypeRule('r1', 'INVESTMENT')
+    expect(store.rules?.map((rule) => [rule.id, rule.type])).toEqual([['r1', 'INVESTMENT'], ['r2', 'SAVING']])
+
+    fail(new Error('Erreur serveur'))
+    await expect(pending).rejects.toThrow('Erreur serveur')
+    expect(store.rules?.map((rule) => [rule.id, rule.type])).toEqual([['r1', 'EXPENSE'], ['r2', 'SAVING']])
+    expect(useBankStore().dataRevision).toBe(0)
+  })
+
+  it('drops a rule at the click, and puts it back in its place when the API fails', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce([{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }])
+    let fail!: (error: Error) => void
+    vi.mocked(apiClient.delete).mockImplementationOnce(() => new Promise((_, reject) => { fail = reject }))
+    const store = useCashflowTypesStore()
+    await store.fetchRules()
+
+    const pending = store.deleteRule('r2')
+    expect(store.rules?.map((rule) => rule.id)).toEqual(['r1', 'r3'])
+
+    fail(new Error('Erreur serveur'))
+    await expect(pending).rejects.toThrow('Erreur serveur')
+    expect(store.rules?.map((rule) => rule.id)).toEqual(['r1', 'r2', 'r3'])
+    expect(useBankStore().dataRevision).toBe(0)
+  })
+
   it('reads the review queue, for every year or one', async () => {
     const store = useCashflowTypesStore()
     vi.mocked(apiClient.get).mockResolvedValueOnce({ total_amount: 10, total_count: 1, years: [], questions: [] })

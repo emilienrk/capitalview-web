@@ -45,10 +45,15 @@ watch(() => props.open, (open) => {
 async function undo(item: BankHistoryItem): Promise<void> {
   undoing.value = item.id
   error.value = null
+  const index = items.value?.indexOf(item) ?? -1
+  items.value = items.value?.filter((other) => other !== item) ?? null
   try {
     await types.undoAnswer(item)
-    items.value = items.value?.filter((other) => other !== item) ?? null
   } catch (e) {
+    // Back where it was, unless a list read again meanwhile already holds it.
+    if (items.value && index >= 0 && !items.value.some((other) => other.kind === item.kind && other.id === item.id)) {
+      items.value = [...items.value.slice(0, index), item, ...items.value.slice(index)]
+    }
     error.value = e instanceof Error ? e.message : "Impossible d'annuler cette réponse."
   } finally {
     undoing.value = null
@@ -115,7 +120,7 @@ function signed(op: BankHistoryOperation): string {
           </div>
           <BaseButton
             size="sm" variant="outline" class="shrink-0"
-            :loading="undoing === item.id" :disabled="undoing !== null"
+            :disabled="undoing !== null"
             @click="undo(item)"
           >
             Annuler

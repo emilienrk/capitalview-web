@@ -696,9 +696,11 @@ onMounted(() => void load())
     <BankTypePicker
       :open="retyping !== null"
       :tx="retyping"
+      :neighbours="month?.transactions"
       @close="retyping = null"
       @saved="(result, outranked) => typed(result, undefined, outranked)"
       @cleared="notice = null"
+      @failed="(message) => decisionError = message"
     />
   </div>
 </template>
