@@ -13,9 +13,9 @@ import { Repeat } from 'lucide-vue-next'
 import {
   BaseButton, BaseCard, BaseCollapsible, BaseEmptyState, BaseSegmentedControl, BaseSkeleton,
 } from '@/components'
-import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import BankRecurringRow from '@/components/bank/BankRecurringRow.vue'
 import { useFormatters } from '@/composables/useFormatters'
+import { toastWhileSet } from '@/composables/useToast'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
@@ -48,6 +48,7 @@ function chooseDirection(value: string | number): void {
 
 const failed = ref(false)
 const error = ref<string | null>(null)
+toastWhileSet(error)
 
 async function load(): Promise<void> {
   failed.value = false
@@ -147,8 +148,6 @@ function amount(value: number): string {
         loyer, énergie, forfaits, assurances, abonnements… toute dépense qui revient.
       </p>
     </BaseCard>
-
-    <BankAnswerNotices v-model:error="error" />
 
     <div v-if="failed" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">

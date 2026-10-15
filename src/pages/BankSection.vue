@@ -6,7 +6,7 @@
  * or losing its actions.
  */
 import { ArrowLeftRight, FileJson, Landmark, RefreshCw } from 'lucide-vue-next'
-import { computed, nextTick, onMounted, provide, ref } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useBankStore } from '@/stores/bank'
@@ -20,10 +20,12 @@ import BankEntryModal from '@/components/bank/BankEntryModal.vue'
 import ImportMenu, { type ImportMenuItem } from '@/components/imports/ImportMenu.vue'
 import PlatformImportModal from '@/components/imports/PlatformImportModal.vue'
 import BankingExportImportModal from '@/components/banking/BankingExportImportModal.vue'
-import { BaseAddButton, BaseAlert, BaseButton } from '@/components'
+import { BaseAddButton, BaseButton } from '@/components'
 import type { BankTransactionItem } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 const bank = useBankStore()
+toastWhileSet(toRef(bank, 'error'))
 const router = useRouter()
 const settingsStore = useSettingsStore()
 
@@ -152,9 +154,6 @@ onMounted(async () => {
 
     <BankTabs />
 
-    <BaseAlert v-if="bank.error" variant="danger" dismissible @dismiss="bank.error = null" class="mb-6">
-      {{ bank.error }}
-    </BaseAlert>
 
     <router-view />
 

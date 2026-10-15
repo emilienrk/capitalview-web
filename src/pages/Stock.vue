@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Pencil, TrendingUp, Upload, RefreshCw, ChevronLeft, ChevronRight, Camera, BarChart3 } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { onMounted, ref, reactive, computed, watch, toRef } from 'vue'
 import { apiClient } from '@/api/client'
 import { useStocksStore } from '@/stores/stocks'
 import { useBankStore } from '@/stores/bank'
@@ -29,9 +29,11 @@ import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import { accountHeadline, fiveYearMark, readDepositCeiling, STOCK_TX_TYPE_LABELS, type AccountHeadline } from '@/utils/stockAccount'
 import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 
 const stocks = useStocksStore()
+toastWhileSet(toRef(stocks, 'error'))
 const bank = useBankStore()
 const { formatCurrency, formatPercent, formatNumber, formatDate, formatDateShort, profitLossClass } = useFormatters()
 const { effectiveTimezoneLabel } = useDisplayTimezone()
@@ -1388,9 +1390,6 @@ onMounted(async () => {
     </div>
 
     <!-- Error -->
-    <BaseAlert v-if="stocks.error" variant="danger" dismissible @dismiss="stocks.error = null" class="mb-6">
-      {{ stocks.error }}
-    </BaseAlert>
 
     <BaseCard v-if="stocks.accounts.length" title="Analyse du portefeuille bourse" subtitle="Évolution, répartition et performance" class="mb-6">
       <!-- Nav row: slide label + arrows + inline performance -->

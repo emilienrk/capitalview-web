@@ -9,8 +9,8 @@ import { BookMarked, Plus } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 
 import { BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
-import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import SortingRuleModal from '@/components/bank/SortingRuleModal.vue'
+import { toastWhileSet } from '@/composables/useToast'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTypeRule, CashflowType } from '@/types'
 import { CASHFLOW_TYPES, answerLabel, ruleTitle } from '@/utils/cashflowTypes'
@@ -23,6 +23,7 @@ const busy = ref<string | null>(null)
 /** The rule being written: null when the form is closed, 'new' for a new one. */
 const editing = ref<BankTypeRule | 'new' | null>(null)
 const error = ref<string | null>(null)
+toastWhileSet(error)
 
 async function load(): Promise<void> {
   failed.value = false
@@ -81,7 +82,6 @@ function details(rule: BankTypeRule): string {
         <span class="sr-only sm:hidden">Nouvelle règle</span>
       </BaseButton>
     </template>
-    <BankAnswerNotices v-model:error="error" />
 
     <div v-if="failed" class="flex items-center justify-between gap-3">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">Impossible de charger les règles.</p>

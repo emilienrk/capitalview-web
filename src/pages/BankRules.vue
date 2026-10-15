@@ -6,15 +6,17 @@
  */
 import { onMounted, ref } from 'vue'
 
-import { BaseAlert, BaseCard } from '@/components'
+import { BaseCard } from '@/components'
 import SortingRules from '@/components/bank/SortingRules.vue'
 import BankQuestionThreshold from '@/components/bank/BankQuestionThreshold.vue'
 import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
+import { toastWhileSet } from '@/composables/useToast'
 
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
 const error = ref<string | null>(null)
+toastWhileSet(error)
 
 onMounted(() => {
   if (!settingsStore.settings) void settingsStore.fetchSettings()
@@ -34,7 +36,6 @@ async function saveThreshold(threshold: number): Promise<void> {
 <template>
   <div class="space-y-6">
     <BaseCard>
-      <BaseAlert v-if="error" variant="danger" dismissible class="mb-3" @dismiss="error = null">{{ error }}</BaseAlert>
       <BankQuestionThreshold
         :threshold="settingsStore.settings?.bank_question_threshold ?? 500"
         @save="saveThreshold"

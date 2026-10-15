@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { Check, Grid2x2, Trash2, X } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, ref, reactive, toRef } from 'vue'
 import draggable from 'vuedraggable'
 import { useNotesStore } from '@/stores/notes'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseButton, BaseAddButton, BaseCard, BaseInput, BaseModal, BaseAlert, BaseEmptyState, BaseTextarea, BaseSpinner } from '@/components'
+import { BaseButton, BaseAddButton, BaseCard, BaseInput, BaseModal, BaseEmptyState, BaseTextarea, BaseSpinner } from '@/components'
 import type { NoteCreate, NoteResponse } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 const notes = useNotesStore()
+toastWhileSet(toRef(notes, 'error'))
 
 const showModal = ref(false)
 const editingId = ref<string | null>(null)
@@ -83,9 +85,6 @@ onMounted(() => {
       <BaseSpinner size="lg" label="Chargement..." />
     </div>
 
-    <BaseAlert v-if="notes.error" variant="danger" dismissible @dismiss="notes.error = null" class="mb-6">
-      {{ notes.error }}
-    </BaseAlert>
 
     <!-- Notes grid with drag-and-drop -->
     <draggable

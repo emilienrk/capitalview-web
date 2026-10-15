@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useSwipe } from '@/composables/useSwipe'
 import CvLogo from '@/components/CvLogo.vue'
+import BaseToasts from '@/components/base/BaseToasts.vue'
 import { useSettingsStore } from '@/stores/settings'
 
 const auth = useAuthStore()
@@ -235,5 +236,7 @@ onMounted(async () => {
         </div>
       </main>
     </div>
+
+    <BaseToasts />
   </div>
 </template>

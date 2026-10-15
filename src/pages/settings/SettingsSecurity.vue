@@ -3,6 +3,7 @@ import { Lock, User as UserIcon, Mail, KeyRound, ShieldCheck, LifeBuoy } from 'l
 import { ref, reactive, onMounted, computed } from 'vue'
 import { BaseButton, BaseInput, BaseAlert, BaseBadge, BaseHelpPopover } from '@/components'
 import SettingsSection from './SettingsSection.vue'
+import { useToast } from '@/composables/useToast'
 import AgentAccessCard from '@/components/security/AgentAccessCard.vue'
 import DataExportCard from '@/components/security/DataExportCard.vue'
 import DeleteAccountCard from '@/components/security/DeleteAccountCard.vue'
@@ -12,17 +13,16 @@ import SecretRevealModal from '@/components/security/SecretRevealModal.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 const newUsername = ref('')
 const newEmail = ref('')
 
 const isSavingUsername = ref(false)
 const usernameError = ref('')
-const usernameSuccess = ref('')
 
 const isSavingEmail = ref(false)
 const emailError = ref('')
-const emailSuccess = ref('')
 
 // ── Password change ──────────────────────────────────────────
 const currentPassword = ref('')
@@ -31,7 +31,6 @@ const confirmPassword = ref('')
 const passwordTotp = ref('')
 const isSavingPassword = ref(false)
 const passwordError = ref('')
-const passwordSuccess = ref('')
 
 // ── 2FA ──────────────────────────────────────────────────────
 const showSetupModal = ref(false)
@@ -89,7 +88,6 @@ const canSubmitPassword = computed(() =>
 
 async function handleUsernameChange() {
   usernameError.value = ''
-  usernameSuccess.value = ''
 
   if (!newUsername.value || newUsername.value === authStore.user?.username) {
     return
@@ -98,8 +96,7 @@ async function handleUsernameChange() {
   isSavingUsername.value = true
   try {
     await authStore.updateProfile({ username: newUsername.value })
-    usernameSuccess.value = "Nom d'utilisateur mis à jour avec succès."
-    setTimeout(() => { usernameSuccess.value = '' }, 5000)
+    toast.show("Nom d'utilisateur mis à jour avec succès.")
   } catch (error: any) {
     usernameError.value = error.message || "Erreur lors de la mise à jour."
   } finally {
@@ -109,7 +106,6 @@ async function handleUsernameChange() {
 
 async function handleEmailChange() {
   emailError.value = ''
-  emailSuccess.value = ''
 
   if (!newEmail.value || newEmail.value === authStore.user?.email) {
     return
@@ -118,8 +114,7 @@ async function handleEmailChange() {
   isSavingEmail.value = true
   try {
     await authStore.updateProfile({ email: newEmail.value })
-    emailSuccess.value = "Adresse email mise à jour avec succès."
-    setTimeout(() => { emailSuccess.value = '' }, 5000)
+    toast.show("Adresse email mise à jour avec succès.")
   } catch (error: any) {
     emailError.value = error.message || "Erreur lors de la mise à jour."
   } finally {
@@ -129,7 +124,6 @@ async function handleEmailChange() {
 
 async function handlePasswordChange() {
   passwordError.value = ''
-  passwordSuccess.value = ''
 
   if (!passwordsMatch.value) {
     passwordError.value = 'Les mots de passe ne correspondent pas.'
@@ -143,12 +137,11 @@ async function handlePasswordChange() {
       new_password: newPassword.value,
       totp_code: totpEnabled.value ? passwordTotp.value.trim() : undefined,
     })
-    passwordSuccess.value = 'Mot de passe modifié avec succès. Vos autres sessions ont été déconnectées.'
+    toast.show('Mot de passe modifié avec succès. Vos autres sessions ont été déconnectées.')
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
     passwordTotp.value = ''
-    setTimeout(() => { passwordSuccess.value = '' }, 6000)
   } catch (error: any) {
     passwordError.value = error.message || 'Erreur lors de la modification.'
   } finally {
@@ -247,7 +240,6 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </div>
 
           <BaseAlert v-if="usernameError" variant="danger">{{ usernameError }}</BaseAlert>
-          <BaseAlert v-if="usernameSuccess" variant="success">{{ usernameSuccess }}</BaseAlert>
 
           <div v-if="hasChangedUsername" class="px-4 py-3 bg-surface-alt dark:bg-surface-dark-alt rounded-secondary border border-surface-border dark:border-surface-dark-border">
             <p class="text-text-main dark:text-text-dark-main font-medium">{{ authStore.user?.username }}</p>
@@ -300,7 +292,6 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
           </div>
 
           <BaseAlert v-if="emailError" variant="danger">{{ emailError }}</BaseAlert>
-          <BaseAlert v-if="emailSuccess" variant="success">{{ emailSuccess }}</BaseAlert>
           <BaseAlert v-if="isEmailLocked" variant="warning">{{ emailLockMessage }}</BaseAlert>
 
           <form @submit.prevent="handleEmailChange">
@@ -338,7 +329,6 @@ async function handleGenerateRecoveryKey({ password }: { password: string }) {
 
       <div class="space-y-4">
         <BaseAlert v-if="passwordError" variant="danger">{{ passwordError }}</BaseAlert>
-        <BaseAlert v-if="passwordSuccess" variant="success">{{ passwordSuccess }}</BaseAlert>
 
         <form @submit.prevent="handlePasswordChange" class="space-y-4">
           <BaseInput

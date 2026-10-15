@@ -18,6 +18,7 @@ export { default as BaseStatCard } from './base/BaseStatCard.vue'
 export { default as BaseTerm } from './base/BaseTerm.vue'
 export { default as BaseTextarea } from './base/BaseTextarea.vue'
 export { default as BaseTooltip } from './base/BaseTooltip.vue'
+export { default as BaseToasts } from './base/BaseToasts.vue'
 export { default as BaseToggle } from './base/BaseToggle.vue'
 
 export { default as AssetPriceHistoryChart } from './charts/AssetPriceHistoryChart.vue'

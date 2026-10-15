@@ -6,6 +6,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { apiClient } from '@/api/client'
 import { BaseButton, BaseAlert, BaseBadge, BaseInput, BaseSelect, BaseSkeleton, BaseSpinner, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
+import { useToast } from '@/composables/useToast'
 import type { AIOptionsResponse, AIProviderUpdate, AIProviderConfig, AIModelsResponse } from '@/types'
 import { AUTO_MODEL, callsAModelThatReadsImages, modelSelectOptions } from '@/utils/aiModels'
 
@@ -13,6 +14,7 @@ import { AUTO_MODEL, callsAModelThatReadsImages, modelSelectOptions } from '@/ut
 const MODEL_FILTER_THRESHOLD = 15
 
 const settingsStore = useSettingsStore()
+const toast = useToast()
 const { confirmDialog } = useConfirm()
 
 // --- State ---
@@ -21,7 +23,6 @@ const isLoadingOptions = ref(false)
 const savingProvider = ref<string | null>(null)
 const savingPreference = ref<'vision' | 'chat' | null>(null)
 const providerError = ref<Record<string, string>>({})
-const providerSuccess = ref<Record<string, string>>({})
 const apiKeyInputs = ref<Record<string, string>>({})
 // Models detected per provider, read live from it with the user's key
 const providerModels = ref<Record<string, AIModelsResponse>>({})
@@ -141,7 +142,6 @@ async function saveProviderKey(providerId: string) {
   const key = apiKeyInputs.value[providerId]?.trim()
   savingProvider.value = providerId
   delete providerError.value[providerId]
-  delete providerSuccess.value[providerId]
 
   try {
     const payload: AIProviderUpdate = { api_key: key || null }
@@ -161,8 +161,7 @@ async function saveProviderKey(providerId: string) {
     apiKeyInputs.value[providerId] = ''
     if (key) loadModels(providerId)
     else delete providerModels.value[providerId]
-    providerSuccess.value[providerId] = key ? 'Clé enregistrée.' : 'Clé supprimée.'
-    setTimeout(() => delete providerSuccess.value[providerId], 3000)
+    toast.show(`Clé ${providerLabel(providerId)} ${key ? 'enregistrée' : 'supprimée'}.`)
   } catch (e: any) {
     providerError.value[providerId] = e?.message ?? 'Erreur lors de la sauvegarde.'
   } finally {
@@ -170,10 +169,14 @@ async function saveProviderKey(providerId: string) {
   }
 }
 
-async function clearProviderKey(providerId: string) {
-  const label = aiOptions.value?.capabilities.vision.find(o => o.provider === providerId)?.label
+function providerLabel(providerId: string): string {
+  return aiOptions.value?.capabilities.vision.find(o => o.provider === providerId)?.label
     ?? aiOptions.value?.capabilities.chat.find(o => o.provider === providerId)?.label
     ?? providerId
+}
+
+async function clearProviderKey(providerId: string) {
+  const label = providerLabel(providerId)
   const confirmed = await confirmDialog({
     title: 'Supprimer la clé API',
     message: `Supprimer la clé API ${label} ?`,
@@ -190,8 +193,7 @@ async function clearProviderKey(providerId: string) {
     }
     delete providerModels.value[providerId]
     aiOptions.value = await apiClient.get<AIOptionsResponse>('/settings/ai/options')
-    providerSuccess.value[providerId] = 'Clé supprimée.'
-    setTimeout(() => delete providerSuccess.value[providerId], 3000)
+    toast.show(`Clé ${label} supprimée.`)
   } catch (e: any) {
     providerError.value[providerId] = e?.message ?? 'Erreur.'
   } finally {
@@ -209,8 +211,7 @@ async function saveModel(providerId: string, value: string | number | undefined)
     )
     const p = settings.value?.ai_providers?.find(x => x.provider === providerId)
     if (p) p.selected_model = result.selected_model
-    providerSuccess.value[providerId] = 'Modèle enregistré.'
-    setTimeout(() => delete providerSuccess.value[providerId], 3000)
+    toast.show(`Modèle ${providerLabel(providerId)} enregistré.`)
   } catch (e: any) {
     providerError.value[providerId] = e?.message ?? 'Erreur lors de l\'enregistrement du modèle.'
   } finally {
@@ -339,8 +340,7 @@ const allProviders = computed(() => {
               </template>
             </BaseInput>
 
-            <!-- Success / Error feedback -->
-            <p v-if="providerSuccess[p.provider]" class="text-xs text-success">{{ providerSuccess[p.provider] }}</p>
+            <!-- Error feedback -->
             <p v-if="providerError[p.provider]" class="text-xs text-danger">{{ providerError[p.provider] }}</p>
 
             <!-- Model selector: the list is read from the provider with the key -->

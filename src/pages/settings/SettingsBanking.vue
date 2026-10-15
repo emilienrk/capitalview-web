@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useBankStore } from '@/stores/bank'
 import { useConfirm } from '@/composables/useConfirm'
+import { toastWhileSet } from '@/composables/useToast'
 import { BaseAlert, BaseBadge, BaseButton, BaseCollapsible, BaseInput, BaseModal, BaseSkeleton, BaseToggle } from '@/components'
 import type { BankSessionLinkedAccount, BankSessionSummary } from '@/types'
 import { useFormatters } from '@/composables/useFormatters'
@@ -24,6 +25,7 @@ const isSaving = ref(false)
 const isChecking = ref(false)
 const error = ref<string | null>(null)
 const success = ref<string | null>(null)
+toastWhileSet(success, 'success')
 
 const applicationId = ref('')
 // Key material stays here until it is sent, and is never rendered back: the API
@@ -275,10 +277,10 @@ function dismissLinkModal(): void {
 }
 
 const disconnectingUuid = ref<string | null>(null)
-// Its own pair: the credentials section renders `error`/`success`, and the
-// connections panel sits outside it — sharing them would print each message twice.
 const disconnectError = ref<string | null>(null)
 const disconnectSuccess = ref<string | null>(null)
+toastWhileSet(disconnectError)
+toastWhileSet(disconnectSuccess, 'success')
 
 /**
  * Disconnecting costs more than the consent: the API drops the account
@@ -323,6 +325,7 @@ const unlinkTarget = ref<BankSessionLinkedAccount | null>(null)
 const unlinkDeleteTransactions = ref(false)
 const isUnlinking = ref(false)
 const unlinkResult = ref<string | null>(null)
+toastWhileSet(unlinkResult, 'success')
 
 function askUnlink(account: BankSessionLinkedAccount): void {
   unlinkTarget.value = account
@@ -484,9 +487,6 @@ onMounted(async () => {
         </p>
       </BaseAlert>
 
-      <p v-if="disconnectSuccess" class="mb-3 text-xs text-success">{{ disconnectSuccess }}</p>
-      <p v-if="unlinkResult" class="mb-3 text-xs text-success">{{ unlinkResult }}</p>
-      <p v-if="disconnectError" class="mb-3 text-xs text-danger">{{ disconnectError }}</p>
 
       <ul class="space-y-3">
         <li
@@ -637,7 +637,6 @@ onMounted(async () => {
           </p>
         </div>
 
-        <p v-if="success" class="text-xs text-success">{{ success }}</p>
         <p v-if="error" class="text-xs text-danger">{{ error }}</p>
 
         <div class="flex items-center gap-2">

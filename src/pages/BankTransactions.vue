@@ -24,7 +24,6 @@ import {
 import ExploreView from '@/components/cashflow/explore/ExploreView.vue'
 import { withoutExploreQuery } from '@/composables/useExploreFilters'
 import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
-import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
@@ -277,7 +276,7 @@ function amountClass(tx: BankTransactionItem): string {
 // ── Answers ─────────────────────────────────────────────────
 
 const {
-  busy: deciding, error: decisionError, notice, typed, answer, contribution, decide, pick, subscribe, undo,
+  busy: deciding, error: decisionError, typed, clearNotice, answer, contribution, decide, pick, subscribe,
 } = useBankAnswers(() => month.value?.transactions)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
@@ -603,8 +602,6 @@ onMounted(() => void load())
           </div>
         </div>
 
-        <BankAnswerNotices v-model:notice="notice" v-model:error="decisionError" @undo="undo" />
-
         <p v-if="hasFilters && filtered.length" class="mb-3 text-sm text-text-muted dark:text-text-dark-muted">
           {{ filtered.length }} opération{{ filtered.length > 1 ? 's' : '' }} ·
           <span class="font-semibold tabular-nums" :class="filteredTotal >= 0 ? 'text-success' : 'text-text-main dark:text-text-dark-main'">
@@ -699,7 +696,7 @@ onMounted(() => void load())
       :neighbours="month?.transactions"
       @close="retyping = null"
       @saved="(result, outranked) => typed(result, undefined, outranked)"
-      @cleared="notice = null"
+      @cleared="clearNotice"
       @failed="(message) => decisionError = message"
     />
   </div>

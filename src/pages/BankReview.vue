@@ -10,7 +10,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { CheckCircle2 } from 'lucide-vue-next'
 
 import { BaseButton, BaseCard, BaseEmptyState, BaseSkeleton } from '@/components'
-import BankAnswerNotices from '@/components/bank/BankAnswerNotices.vue'
 import BankHistoryModal from '@/components/bank/BankHistoryModal.vue'
 import BankRecurringAttachModal from '@/components/bank/BankRecurringAttachModal.vue'
 import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
@@ -132,7 +131,7 @@ function contributionOf(tx: BankTransactionItem): string | undefined {
 
 // ── Answers ─────────────────────────────────────────────────
 
-const { busy, error, notice, typed, answer, contribution, decide, pick, subscribe, undo } = useBankAnswers()
+const { busy, error, typed, answer, contribution, decide, pick, subscribe } = useBankAnswers()
 const showHistory = ref(false)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
@@ -181,8 +180,6 @@ const retyping = ref<BankTransactionItem | null>(null)
         </button>
       </div>
     </BaseCard>
-
-    <BankAnswerNotices v-model:notice="notice" v-model:error="error" @undo="undo" />
 
     <div v-if="failed" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <p class="text-sm text-text-muted dark:text-text-dark-muted">Impossible de charger les questions.</p>

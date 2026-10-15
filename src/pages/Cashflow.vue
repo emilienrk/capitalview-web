@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, Circle, DollarSign, Pencil, Scale, Search, Trash2 } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { onMounted, ref, reactive, computed, watch, toRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCashflowStore } from '@/stores/cashflow'
 import { useBankStore } from '@/stores/bank'
@@ -17,11 +17,13 @@ import {
 } from '@/utils/realCashflow'
 import {
   BaseCard, BaseButton, BaseAddButton, BaseInput, BaseSelect, BaseModal,
-  BaseAlert, BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseSegmentedControl,
+  BaseEmptyState, BaseBadge, BaseStatCard, BaseAutocomplete, BaseSegmentedControl,
 } from '@/components'
 import type { CashflowCreate, CashflowResponse, FlowType, Frequency } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 const cashflow = useCashflowStore()
+toastWhileSet(toRef(cashflow, 'error'))
 const bank = useBankStore()
 const { formatCurrency } = useFormatters()
 const { privacyMode, togglePrivacyMode, maskValue } = usePrivacyMode()
@@ -413,9 +415,6 @@ onMounted(async () => {
 
     <template v-else-if="view === 'planned'">
       <!-- Error -->
-      <BaseAlert v-if="cashflow.error" variant="danger" dismissible @dismiss="cashflow.error = null" class="mb-6">
-        {{ cashflow.error }}
-      </BaseAlert>
 
 
       <!-- ── Stats Cards ──────────────────────────────────── -->

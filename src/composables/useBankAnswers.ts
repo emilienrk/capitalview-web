@@ -4,15 +4,17 @@
  *
  * Each answer moves the list at the click (`bank.answering`), then the reload
  * it triggers brings the server's own; a failure puts the list back and says
- * why. Only picking another pair waits for the API: which pairs it undoes is
- * the server's to say.
+ * why, at the foot of the screen (`useToast`). Only picking another pair waits
+ * for the API: which pairs it undoes is the server's to say.
  */
 import { ref } from 'vue'
+
+import { toastWhileSet, useToast, type ToastPart } from '@/composables/useToast'
 
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
-import { CASHFLOW_TYPE_LABELS, contributionMessage, keptByHand, ownAnswer } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, RULES_PAGE, contributionMessage, keptByHand, ownAnswer } from '@/utils/cashflowTypes'
 import {
   contributionAnswerEffect, recurringAnswerEffect, transferAnswerEffect, typeAnswerEffect,
 } from '@/utils/optimisticAnswers'
@@ -21,18 +23,13 @@ import type {
   BankTransferDecisionKind, CashflowType, RecurringDecisionKind, TypeScope,
 } from '@/types'
 
-/** What the last answer did, said once it is saved; "Annuler" takes a type or a deposit answer back. */
-export interface AnswerNotice {
-  message: string
+/** What "Annuler" takes back: a type or a deposit answer. */
+interface Answered {
   /** The rule the answer wrote, which undoing deletes. */
   ruleId: string | null
   transactionIds: string[]
   /** A yes or no to the deposit facing it: that decision is what undoing withdraws. */
   contribution?: boolean
-  /** The rule written by hand the answer now comes before, by its title. */
-  outranked?: string | null
-  /** Said only: a recurring answer is taken back from its own tab. */
-  final?: boolean
 }
 
 function failure(e: unknown, fallback: string): string {
@@ -44,24 +41,37 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
   const bank = useBankStore()
   const types = useCashflowTypesStore()
   const recurring = useRecurringStore()
+  const toast = useToast()
 
   /** The operation whose answer waits for the API: its row stands still meanwhile. */
   const busy = ref<string | null>(null)
   const error = ref<string | null>(null)
-  const notice = ref<AnswerNotice | null>(null)
+  toastWhileSet(error)
 
+  // One answer said at a time: the next replaces it.
+  let noticeId: number | null = null
+  function notify(parts: ToastPart[], answered?: Answered): void {
+    clearNotice()
+    noticeId = toast.show(parts, answered && { action: { label: 'Annuler', run: () => void undo(answered) } })
+  }
+  function clearNotice(): void {
+    if (noticeId !== null) toast.dismiss(noticeId)
+    noticeId = null
+  }
+
+  /** `outranked`: the rule written by hand the answer now comes before, by its title — never silent. */
   function typed(
     result: BankTransactionTypeResult, transactionIds = [result.transaction.id], outranked: string | null = null,
   ): void {
     const count = result.covered_count
     const label = CASHFLOW_TYPE_LABELS[result.transaction.cashflow_type]
-    notice.value = {
-      message: `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`,
-      // Kept to the operations answered, there is no rule: undoing clears their own type.
-      ruleId: result.transaction.type_rule_id,
-      transactionIds,
-      outranked,
-    }
+    // Kept to the operations answered, there is no rule: undoing clears their own type.
+    const ruleId = result.transaction.type_rule_id
+    notify([
+      `${count} opération${count > 1 ? 's' : ''} comptée${count > 1 ? 's' : ''} en ${label}.`,
+      ...(ruleId ? [' Règle créée, dans ', { label: 'Règles de tri', to: RULES_PAGE }, '.'] : []),
+      ...(outranked ? [` ${ruleId ? 'Pour ce libellé, elle' : 'Ce choix'} passe avant la règle ${outranked}.`] : []),
+    ], { ruleId, transactionIds })
   }
 
   async function answer(
@@ -94,12 +104,7 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
         contributionAnswerEffect(tx, kind, ids, members, neighbours()),
         () => bank.decideContribution(first.transaction_id, first.contribution_id, kind, also),
       )
-      notice.value = {
-        message: contributionMessage(kind, keptByHand(tx, ids, members)),
-        ruleId: null,
-        transactionIds: ids,
-        contribution: true,
-      }
+      notify([contributionMessage(kind, keptByHand(tx, ids, members))], { ruleId: null, transactionIds: ids, contribution: true })
     } catch (e) {
       error.value = failure(e, "Impossible d'enregistrer cette réponse.")
     }
@@ -134,12 +139,8 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
     const kind = tx.recurring_question?.direction === 'income' ? 'revenus' : 'paiements'
     try {
       await bank.answering(recurringAnswerEffect(tx), () => recurring.decide(tx.id, decision))
-      notice.value = {
-        message: decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.',
-        ruleId: null,
-        transactionIds: [tx.id],
-        final: true,
-      }
+      // Said only: a recurring answer is taken back from its own tab.
+      notify([decision === 'confirm' ? `Compté dans vos ${kind} récurrents.` : 'Ne sera plus proposé comme récurrent.'])
     } catch (e) {
       error.value = failure(e, "Impossible d'enregistrer cette réponse.")
     }
@@ -153,10 +154,8 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
     for (const decision of decisions) await types.undoAnswer(decision)
   }
 
-  async function undo(): Promise<void> {
-    const answered = notice.value
-    if (!answered || answered.final) return
-    notice.value = null
+  async function undo(answered: Answered): Promise<void> {
+    noticeId = null
     try {
       if (answered.contribution) await undoHistory(['contribution', 'not_contribution'], answered.transactionIds)
       else if (answered.ruleId) await types.deleteRule(answered.ruleId)
@@ -166,5 +165,5 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
     }
   }
 
-  return { busy, error, notice, typed, answer, contribution, decide, pick, subscribe, undo }
+  return { busy, error, typed, clearNotice, answer, contribution, decide, pick, subscribe }
 }

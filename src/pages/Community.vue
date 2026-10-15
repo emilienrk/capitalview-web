@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Activity, Calendar, Check, ChevronRight, Heart, Info, Lock, Pencil, Search, Settings, ShieldCheck, Trash2, Users } from 'lucide-vue-next'
 
-import { onMounted, ref, watch, computed } from 'vue'
+import { onMounted, ref, watch, computed, toRef } from 'vue'
 import { useCommunityStore } from '@/stores/community'
 import { useFormatters } from '@/composables/useFormatters'
 import { useAuthStore } from '@/stores/auth'
@@ -14,8 +14,10 @@ import {
   BaseButton, BaseModal, BaseAutocomplete, BaseInput, BaseTextarea,
 } from '@/components'
 import type { PickCreate, PickResponse, AssetSearchResult } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 const communityStore = useCommunityStore()
+toastWhileSet(toRef(communityStore, 'error'))
 const { formatCurrency, formatDate } = useFormatters()
 const authStore = useAuthStore()
 const stocksStore = useStocksStore()
@@ -298,9 +300,6 @@ const profilePicks = computed(() => {
       </template>
     </PageHeader>
 
-    <BaseAlert v-if="communityStore.error" variant="danger" dismissible @dismiss="communityStore.error = null" class="mb-6">
-      {{ communityStore.error }}
-    </BaseAlert>
 
     <!-- Zero-knowledge caveat: this module is the one place the promise does
          not hold, so it is stated here rather than buried in a settings page. -->

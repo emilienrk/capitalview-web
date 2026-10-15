@@ -12,6 +12,7 @@ import { usePlacementsStore } from '@/stores/placements'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
+import { toastWhileSet } from '@/composables/useToast'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useCarousel } from '@/composables/useCarousel'
 import { useHistoryGranularity } from '@/composables/useHistoryGranularity'
@@ -209,6 +210,11 @@ const showEntryModal = ref(false)
 const entryAccountId = ref<string | null>(null)
 const editingEntryId = ref<string | null>(null)
 const entryError = ref<string | null>(null)
+// An open form says its own error.
+toastWhileSet(computed({
+  get: () => (showPlacementModal.value || showEntryModal.value ? null : store.error),
+  set: (value) => { store.error = value },
+}))
 const entryForm = reactive({
   type: 'DEPOSIT' as PlacementEntryType,
   amount: '' as string | number,
@@ -338,9 +344,6 @@ onMounted(async () => {
       <BaseSpinner size="lg" label="Chargement..." />
     </div>
 
-    <BaseAlert v-if="store.error && !showPlacementModal && !showEntryModal" variant="danger" dismissible class="mb-6" @dismiss="store.error = null">
-      {{ store.error }}
-    </BaseAlert>
 
     <BaseCard v-if="placements.length" title="Analyse des placements" :subtitle="analysisSubtitle" class="mb-6">
       <div class="mb-3 flex items-center justify-between gap-2">

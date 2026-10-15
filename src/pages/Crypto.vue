@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertCircle, ArrowLeftRight, BarChart3, Camera, Check, ChevronLeft, ChevronRight, Circle, Pencil, Plus, RefreshCw, Upload } from 'lucide-vue-next'
 
-import { onMounted, ref, reactive, computed, watch } from 'vue'
+import { onMounted, ref, reactive, computed, watch, toRef } from 'vue'
 import { apiClient } from '@/api/client'
 import { useCryptoStore } from '@/stores/crypto'
 import { useSettingsStore } from '@/stores/settings'
@@ -50,8 +50,10 @@ import {
 import CryptoAccountDetail from '@/components/crypto/CryptoAccountDetail.vue'
 import CryptoSummaryStats from '@/components/crypto/CryptoSummaryStats.vue'
 import { previousSnapshotPrices } from '@/utils/cryptoPositions'
+import { toastWhileSet } from '@/composables/useToast'
 
 const crypto = useCryptoStore()
+toastWhileSet(toRef(crypto, 'error'))
 const settingsStore = useSettingsStore()
 const bank = useBankStore()
 const { formatCurrency, formatPercent, formatDate, formatDayMonth, profitLossClass } = useFormatters()
@@ -131,8 +133,10 @@ const {
 
 /** Non-blocking balance warning shown after a transaction is created. */
 const txWarning = ref<string | null>(null)
+toastWhileSet(txWarning, 'warning')
 /** Informational message shown after a transaction is created. */
 const txInfo = ref<string | null>(null)
+toastWhileSet(txInfo, 'info')
 /** Inline validation error shown inside the transaction modal. */
 const txFormError = ref<string | null>(null)
 /** Inline validation error shown inside the account modal. */
@@ -1616,15 +1620,6 @@ onMounted(async () => {
         <BaseSpinner size="lg" label="Chargement..." />
       </div>
 
-      <BaseAlert v-if="crypto.error" variant="danger" dismissible @dismiss="crypto.error = null" class="mb-6">
-        {{ crypto.error }}
-      </BaseAlert>
-      <BaseAlert v-if="txWarning" variant="warning" dismissible @dismiss="txWarning = null" class="mb-6">
-        {{ txWarning }}
-      </BaseAlert>
-      <BaseAlert v-if="txInfo" variant="info" dismissible @dismiss="txInfo = null" class="mb-6">
-        {{ txInfo }}
-      </BaseAlert>
 
       <div v-if="!crypto.error && crypto.currentAccount" class="flex flex-col">
         <CryptoSummaryStats
@@ -1785,15 +1780,6 @@ onMounted(async () => {
         <BaseSpinner size="lg" label="Chargement..." />
       </div>
 
-      <BaseAlert v-if="crypto.error" variant="danger" dismissible @dismiss="crypto.error = null" class="mb-6">
-        {{ crypto.error }}
-      </BaseAlert>
-      <BaseAlert v-if="txWarning" variant="warning" dismissible @dismiss="txWarning = null" class="mb-6">
-        {{ txWarning }}
-      </BaseAlert>
-      <BaseAlert v-if="txInfo" variant="info" dismissible @dismiss="txInfo = null" class="mb-6">
-        {{ txInfo }}
-      </BaseAlert>
 
       <BaseCard v-if="crypto.accounts.length" title="Analyse du portefeuille crypto" subtitle="Évolution, répartition et performance" class="mb-6">
         <div class="mb-3 flex items-center justify-between gap-2">

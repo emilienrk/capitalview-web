@@ -6,9 +6,11 @@ import { useCommunityStore } from '@/stores/community'
 import { useAuthStore } from '@/stores/auth'
 import { BaseButton, BaseInput, BaseAlert, BaseSkeleton, BaseTextarea, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
+import { useToast } from '@/composables/useToast'
 
 const communityStore = useCommunityStore()
 const auth = useAuthStore()
+const toast = useToast()
 
 // Profile fields
 const communityActive = ref(false)
@@ -22,7 +24,6 @@ const selectedCryptoSymbols = ref<Set<string>>(new Set())
 
 // Save state
 const isSaving = ref(false)
-const saveSuccess = ref(false)
 
 const isLoading = computed(() => communityStore.isLoadingSettings || communityStore.isLoadingPositions)
 
@@ -103,7 +104,6 @@ function deselectAllCrypto(): void {
 
 async function save(): Promise<void> {
   isSaving.value = true
-  saveSuccess.value = false
   const success = await communityStore.updateSettings({
     is_active: communityActive.value,
     is_private: isPrivate.value,
@@ -115,8 +115,7 @@ async function save(): Promise<void> {
   isSaving.value = false
   if (success) {
     savedSnapshot.value = formSnapshot()
-    saveSuccess.value = true
-    setTimeout(() => { saveSuccess.value = false }, 2000)
+    toast.show('Paramètres communautaires sauvegardés.')
   }
 }
 
@@ -351,9 +350,6 @@ const totalSelected = computed(() => selectedStockIsins.value.size + selectedCry
     <div class="flex items-center justify-end gap-4">
       <BaseAlert v-if="communityStore.error" variant="danger" class="flex-1 py-1.5!">
         {{ communityStore.error }}
-      </BaseAlert>
-      <BaseAlert v-else-if="saveSuccess" variant="success" class="flex-1 py-1.5!">
-        Paramètres communautaires sauvegardés.
       </BaseAlert>
       <p v-else-if="isDirty" class="text-sm text-warning">Modifications non enregistrées</p>
       <BaseButton @click="save" :loading="isSaving" :disabled="!isDirty" size="sm" class="shrink-0">

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch, toRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Landmark, LayoutGrid, Lock, Microscope, User, Users, Sparkles } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import PageHeader from '@/components/PageHeader.vue'
-import { BaseAlert } from '@/components'
 import SettingsGeneral from './settings/SettingsGeneral.vue'
 import SettingsModules from './settings/SettingsModules.vue'
 import SettingsCommunity from './settings/SettingsCommunity.vue'
@@ -13,10 +12,12 @@ import SettingsSecurity from './settings/SettingsSecurity.vue'
 import SettingsAI from './settings/SettingsAI.vue'
 import SettingsBanking from './settings/SettingsBanking.vue'
 import SettingsAnalytics from './settings/SettingsAnalytics.vue'
+import { toastWhileSet } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const settingsStore = useSettingsStore()
+toastWhileSet(toRef(settingsStore, 'error'))
 const appVersion = __APP_VERSION__
 
 interface Tab {
@@ -83,9 +84,6 @@ onMounted(async () => {
   <div>
     <PageHeader title="Paramètres" />
 
-    <BaseAlert v-if="settingsStore.error" variant="danger" dismissible @dismiss="settingsStore.error = null" class="mb-6">
-      {{ settingsStore.error }}
-    </BaseAlert>
 
     <div class="flex flex-col lg:flex-row gap-6 lg:items-start">
 

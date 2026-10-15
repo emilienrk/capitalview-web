@@ -3,9 +3,10 @@ import { Bitcoin, LayoutGrid } from 'lucide-vue-next'
 
 import { ref, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import { BaseAlert, BaseHelpPopover, BaseSkeleton, BaseToggle } from '@/components'
+import { BaseHelpPopover, BaseSkeleton, BaseToggle } from '@/components'
 import SettingsSection from './SettingsSection.vue'
 import type { UserSettingsUpdate } from '@/types'
+import { toastWhileSet } from '@/composables/useToast'
 
 const settingsStore = useSettingsStore()
 
@@ -21,6 +22,7 @@ const cryptoAutoDeposits = ref(false)
 const cryptoMode = ref<'SINGLE' | 'MULTI'>('SINGLE')
 
 const errorMessage = ref<string | null>(null)
+toastWhileSet(errorMessage)
 
 function syncFromStore(): void {
   const settings = settingsStore.settings
@@ -208,8 +210,5 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
       </template>
     </SettingsSection>
 
-    <BaseAlert v-if="errorMessage" variant="danger" dismissible @dismiss="errorMessage = null">
-      {{ errorMessage }}
-    </BaseAlert>
   </div>
 </template>

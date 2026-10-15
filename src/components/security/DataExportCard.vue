@@ -2,14 +2,15 @@
 import { Download } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { BaseAlert, BaseButton } from '@/components'
+import { useToast } from '@/composables/useToast'
 import SettingsSection from '@/pages/settings/SettingsSection.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 const isExporting = ref(false)
 const error = ref('')
-const success = ref('')
 
 function filename(): string {
   const today = new Date().toISOString().slice(0, 10)
@@ -18,7 +19,6 @@ function filename(): string {
 
 async function handleExport(): Promise<void> {
   error.value = ''
-  success.value = ''
   isExporting.value = true
 
   try {
@@ -34,8 +34,7 @@ async function handleExport(): Promise<void> {
     a.click()
     URL.revokeObjectURL(url)
 
-    success.value = 'Export téléchargé.'
-    setTimeout(() => { success.value = '' }, 5000)
+    toast.show('Export téléchargé.')
   } catch (e: any) {
     error.value = e.message || "Impossible de générer l'export."
   } finally {
@@ -60,7 +59,6 @@ async function handleExport(): Promise<void> {
       </BaseAlert>
 
       <BaseAlert v-if="error" variant="danger">{{ error }}</BaseAlert>
-      <BaseAlert v-if="success" variant="success">{{ success }}</BaseAlert>
 
       <div class="flex justify-end">
         <BaseButton variant="outline" size="sm" :loading="isExporting" @click="handleExport">

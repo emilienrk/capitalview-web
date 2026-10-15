@@ -24,9 +24,11 @@ import {
 } from '@/utils/ledger'
 import type { ExploreState } from '@/utils/ledger'
 import type { BankTransactionItem, BankTransactionTypeResult, CashflowType } from '@/types'
+import { useToast } from '@/composables/useToast'
 
 const ledger = useLedgerStore()
 const bank = useBankStore()
+const toast = useToast()
 const { state, reset } = useExploreFilters()
 
 onMounted(() => void ledger.fetchLedger())
@@ -120,7 +122,6 @@ function applyView(view: (typeof views)[number]): void {
 
 // ── Actions ─────────────────────────────────────────────────
 
-const notice = ref<string | null>(null)
 const retyping = ref<BankTransactionItem | null>(null)
 
 /** The shape the type picker reads, built from a ledger row. */
@@ -159,7 +160,7 @@ function onTyped(result: BankTransactionTypeResult, outranked: string | null = n
   const before = outranked
     ? ` ${result.transaction.type_rule_id ? 'Règle créée ; pour ce libellé, elle' : 'Ce choix'} passe avant la règle ${outranked}.`
     : ''
-  notice.value = typed + before
+  toast.show(typed + before)
 }
 
 function exportCsv(): void {
@@ -175,9 +176,9 @@ function exportCsv(): void {
 async function copyLink(): Promise<void> {
   try {
     await navigator.clipboard.writeText(window.location.href)
-    notice.value = 'Lien copié : il rouvre cette sélection.'
+    toast.show('Lien copié : il rouvre cette sélection.')
   } catch {
-    notice.value = "Impossible de copier le lien : copiez l'adresse de la page."
+    toast.show("Impossible de copier le lien : copiez l'adresse de la page.", { variant: 'danger' })
   }
 }
 </script>
@@ -228,8 +229,6 @@ async function copyLink(): Promise<void> {
       <BaseCard>
         <ExploreFilters v-model="filters" :accounts="ledger.ledger.accounts" :range="range" :group-names="groupNames" />
       </BaseCard>
-
-      <BaseAlert v-if="notice" variant="success" dismissible @dismiss="notice = null">{{ notice }}</BaseAlert>
 
       <ExploreSummary
         :summary="summary"
