@@ -230,7 +230,8 @@ function today(): string {
               {{ item.since_at_least ? 'Au moins depuis' : 'Depuis' }} le {{ formatDate(item.first_date) }} ·
               {{ item.occurrence_count }} échéance{{ item.occurrence_count > 1 ? 's' : '' }}<template v-if="item.extra_count">
                 et {{ item.extra_count }} hors échéance</template> ·
-              {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an
+              {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an ·
+              {{ money(item.paid_total) }} en tout
             </p>
             <p v-if="item.price_changes.length">
               {{ income ? 'Montant' : 'Prix' }} :

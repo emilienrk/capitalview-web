@@ -8,11 +8,12 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Repeat } from 'lucide-vue-next'
+import { ChevronRight, Repeat } from 'lucide-vue-next'
 
 import {
   BaseButton, BaseCard, BaseCollapsible, BaseEmptyState, BaseSegmentedControl, BaseSkeleton,
 } from '@/components'
+import BankRecurringCategoryModal from '@/components/bank/BankRecurringCategoryModal.vue'
 import BankRecurringRow from '@/components/bank/BankRecurringRow.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { toastWhileSet } from '@/composables/useToast'
@@ -20,7 +21,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
 import { NATURE_LABELS, isCounted, isCurrent, isInTotal } from '@/utils/recurring'
-import type { BankRecurringItem, RecurringDecisionKind, RecurringDirection } from '@/types'
+import type { BankRecurringItem, RecurringDecisionKind, RecurringDirection, RecurringNature } from '@/types'
 
 const bank = useBankStore()
 const store = useRecurringStore()
@@ -76,11 +77,11 @@ const counted = computed(() => items.value.filter((item) => isInTotal(item) && i
 // Grouped by what the user filed them as, the heaviest group first, the ones
 // still to file last. Nothing is judged here: the groups only gather.
 const groups = computed(() => {
-  const gathered = new Map<string, { title: string; items: BankRecurringItem[]; monthly: number }>()
+  const gathered = new Map<string, { nature: RecurringNature | null; title: string; items: BankRecurringItem[]; monthly: number }>()
   for (const item of current.value) {
     const key = item.nature ?? 'unfiled'
     const group = gathered.get(key)
-      ?? { title: item.nature ? NATURE_LABELS[item.nature] : 'À classer', items: [], monthly: 0 }
+      ?? { nature: item.nature, title: item.nature ? NATURE_LABELS[item.nature] : 'À classer', items: [], monthly: 0 }
     group.items.push(item)
     if (isInTotal(item) && inCurrency(item)) group.monthly += Number(item.monthly_equivalent)
     gathered.set(key, group)
@@ -90,6 +91,12 @@ const groups = computed(() => {
     .map(([, group]) => group)
 })
 const grouped = computed(() => groups.value.some((group) => group.title !== 'À classer'))
+
+// A category over its whole history: the ended ones of its nature join the running ones.
+const category = ref<RecurringNature | null>(null)
+const categoryItems = computed(() =>
+  category.value ? items.value.filter((item) => isCounted(item) && item.nature === category.value) : [],
+)
 
 const candidates = computed(() => items.value.filter((item) => item.state === 'candidate'))
 const ended = computed(() => items.value.filter((item) => isCounted(item) && !isCurrent(item)))
@@ -180,8 +187,21 @@ function amount(value: number): string {
             class="mb-1.5 text-sm font-semibold text-text-main dark:text-text-dark-main"
             :title="`Un ${income ? 'revenu' : 'paiement'} en retard, ou dans une autre devise, est listé sans être compté.`"
           >
-            {{ group.title }}
-            <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
+            <button
+              v-if="group.nature"
+              type="button"
+              class="inline-flex items-center gap-1 hover:text-primary transition-colors"
+              :aria-label="`${group.title} : voir la catégorie`"
+              @click="category = group.nature"
+            >
+              {{ group.title }}
+              <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
+              <ChevronRight class="w-3.5 h-3.5 text-text-muted dark:text-text-dark-muted" />
+            </button>
+            <template v-else>
+              {{ group.title }}
+              <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
+            </template>
           </h2>
           <BaseCard :padding="false" class="overflow-hidden">
             <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
@@ -217,5 +237,13 @@ function amount(value: number): string {
         </ul>
       </BaseCollapsible>
     </div>
+    <BankRecurringCategoryModal
+      :open="category !== null"
+      :title="category ? NATURE_LABELS[category] : ''"
+      :items="categoryItems"
+      :currency="list?.currency ?? 'EUR'"
+      :income="income"
+      @close="category = null"
+    />
   </div>
 </template>

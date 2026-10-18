@@ -617,6 +617,9 @@ export interface BankRecurringItem {
   monthly_equivalent: number
   annual_estimate: number
   paid_last_12_months: number
+  /** The same over its whole history, then month by month: months without any operation left out. */
+  paid_total: number
+  paid_by_month: Array<{ month: string; amount: number }>
   first_date: string
   /** The first operation is near the start of the account's history: it may be older. */
   since_at_least: boolean

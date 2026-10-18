@@ -14,7 +14,7 @@ function aSeries(overrides: Partial<BankRecurringItem> = {}): BankRecurringItem 
   return {
     id: null, key: 'k-1', direction: 'expense', transaction_id: 'tx-1', name: 'NETFLIX', nature: null,
     state: 'candidate', status: 'active', covered_until: null, cadence: 'monthly', variable: false, amount: 40,
-    currency: 'EUR', monthly_equivalent: 40, annual_estimate: 480, paid_last_12_months: 240,
+    currency: 'EUR', monthly_equivalent: 40, annual_estimate: 480, paid_last_12_months: 240, paid_total: 240, paid_by_month: [],
     first_date: '2025-10-05', since_at_least: false, last_date: '2026-03-05', next_date: '2026-04-05',
     occurrence_count: 6, extra_count: 0, accounts: ['Compte courant'], price_changes: [], episodes: [], renamed: [],
     refunds: { total: 0, items: [] }, ended_on: null,
