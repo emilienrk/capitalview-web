@@ -108,6 +108,31 @@ export function contributionNote(
     : `${format(amount)} retirés de ${match.account_name}, ${format(fee)} de frais.`
 }
 
+/**
+ * What differs between an operation and the deposit or withdrawal facing it —
+ * the amount, the day — said beside the badge that names the account and asks;
+ * null when nothing does. Vouched for, an amount short of the operation is a
+ * fee the platform kept.
+ */
+export function contributionGap(
+  match: BankContributionMatch,
+  operationAmount: number,
+  format: (value: number) => string,
+  day: string,
+  proved: boolean,
+): string | null {
+  const amount = Number(match.amount)
+  const gap = Math.abs(Number(operationAmount) - amount)
+  const sameAmount = gap < 0.005
+  if (match.exact && sameAmount) return null
+  const moved = sameAmount
+    ? (match.is_deposit ? 'Versé' : 'Retiré')
+    : `${format(amount)} ${match.is_deposit ? 'versés' : 'retirés'}`
+  const when = match.exact ? '' : ` le ${day}`
+  const rest = sameAmount ? '' : `, ${format(gap)} ${proved ? 'de frais' : "d'écart"}`
+  return `${moved}${when}${rest}`
+}
+
 /** The operation and the deposit or withdrawal facing it, as one answer. */
 export function ownAnswer(tx: BankTransactionItem): BankContributionAnswer[] {
   return tx.contribution ? [{ transaction_id: tx.id, contribution_id: tx.contribution.id }] : []

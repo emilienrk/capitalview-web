@@ -35,7 +35,7 @@ const props = defineProps<{
   busy?: boolean
   /** The formatted total of the label a flow question settles. */
   stakeAmount?: string
-  /** What the user's investment accounts say about it, already formatted. */
+  /** What differs from the deposit or withdrawal facing it, already formatted. */
   contributionNote?: string
 }>()
 
@@ -111,11 +111,6 @@ watch(() => `${props.tx.id}:${props.tx.flow_question?.operation_count ?? ''}`, (
   swaps.value += 1
 })
 const proved = computed(() => props.tx.type_source === 'contribution')
-/** Same day, same amount: the badge "vers PEA ?" asks it all, the answers follow it alone. */
-const badgeAsks = computed(() => {
-  const match = props.tx.contribution
-  return !!match?.exact && Math.abs(Number(props.tx.amount) - Number(match.amount)) < 0.005
-})
 /** A yes counts it as an investment, out of the recurring payment it is one of. */
 const leavesRecurring = computed(() =>
   props.tx.type_source === 'recurring' && props.tx.recurring ? props.tx.recurring.name : null,
@@ -209,10 +204,10 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}
         <Check v-if="tx.transfer_status === 'confirmed'" class="inline w-3 h-3 ml-1 -mt-px" aria-label="confirmé" />
       </BaseBadge>
-      <!-- A deposit or withdrawal of the very day: read like a transfer to
-           one of the user's accounts, offered until the user vouches for it. -->
-      <BaseBadge v-else-if="tx.contribution?.exact && (proved || asksDeposit)" :variant="proved ? 'info' : 'warning'">
-        <TrendingUp class="inline w-3 h-3 mr-1 -mt-px" />
+      <!-- A deposit or withdrawal facing it: read like a transfer to one of the
+           user's accounts, offered until the user vouches for it. -->
+      <BaseBadge v-else-if="tx.contribution && (proved || asksDeposit)" :variant="proved ? 'info' : 'warning'">
+        <TrendingUp class="inline shrink-0 w-3 h-3 mr-1 -mt-px" />
         {{ contributionBadge(tx.contribution) }}{{ proved ? '' : ' ?' }}
       </BaseBadge>
       <!-- A refund happened once: it names what it comes off, not a rhythm. -->
@@ -229,11 +224,10 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         {{ ORIGIN_BADGES[tx.origin] }}
       </BaseBadge>
     </div>
-    <div class="col-span-full sm:col-end-2 row-start-3">
-      <!-- What the investment accounts say of a deposit this operation was
-           recognised as: the fee kept on the way, when there is one. -->
-      <p v-if="contributionNote && proved" class="mt-1 flex items-center gap-1 text-xs text-info">
-        <TrendingUp class="w-3.5 h-3.5 shrink-0" />
+    <div class="min-w-0 col-span-full sm:col-end-2 row-start-3">
+      <!-- The badge names the account and asks; this says only what differs
+           from the operation: another amount (a fee, once vouched for), another day. -->
+      <p v-if="contributionNote && (proved || asksDeposit)" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
         {{ contributionNote }}
       </p>
       <!-- The operations of a label facing a deposit of one investment account
@@ -241,10 +235,6 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
            label, so the next ones prove themselves; a no puts the operation
            back with the others. Open, the answer goes to those ticked. -->
       <div v-if="asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-        <span v-if="!badgeAsks" class="inline-flex items-center gap-1 text-warning font-medium">
-          <TrendingUp class="w-3.5 h-3.5 shrink-0" />
-          {{ contributionNote }}
-        </span>
         <BankAnswerButton
           :disabled="busy || !depositAnswers.length"
           title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
@@ -255,6 +245,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <BankAnswerButton
           :disabled="busy || !depositAnswers.length"
           title="Ce n'est pas ce mouvement : l'opération compte comme les autres."
+          muted
           @click="$emit('contribution', 'not_contribution', depositAnswers, members)"
         >
           Non
@@ -271,6 +262,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :count="tx.flow_question.operation_count"
           :stake="stake ?? undefined"
           :label="tx.label"
+          :account="tx.account_name"
           picking
           @loaded="onGroupLoaded"
         />
@@ -353,6 +345,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :count="tx.flow_question.operation_count"
           :stake="stake ?? undefined"
           :label="tx.label"
+          :account="tx.account_name"
           :picking="!wholeLabel"
           @loaded="onGroupLoaded"
         />
@@ -377,6 +370,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :title="incomeQuestion
             ? 'Pas un revenu récurrent : il ne sera plus proposé.'
             : 'Ce n\'est pas récurrent : il ne sera plus proposé.'"
+          muted
           @click="$emit('subscribe', 'refuse')"
         >
           Non

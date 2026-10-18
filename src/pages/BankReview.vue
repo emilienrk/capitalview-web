@@ -20,7 +20,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import { RULES_PAGE, contributionNote } from '@/utils/cashflowTypes'
+import { RULES_PAGE, contributionGap } from '@/utils/cashflowTypes'
 import type { BankReviewItem, BankTransactionItem } from '@/types'
 
 const bank = useBankStore()
@@ -122,11 +122,11 @@ function stakeOf(item: BankReviewItem): string | undefined {
   return item.operation_count > 1 && item.kind === 'flow' ? amount(Number(item.amount), item.transaction.currency) : undefined
 }
 
-/** The deposit an investment account holds facing the operation, to answer by. */
+/** What differs from the deposit an investment account holds facing the operation, if anything. */
 function contributionOf(tx: BankTransactionItem): string | undefined {
   const match = tx.contribution
   if (!match) return undefined
-  return contributionNote(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day), tx.type_source === 'contribution') ?? undefined
+  return contributionGap(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day), tx.type_source === 'contribution') ?? undefined
 }
 
 // ── Answers ─────────────────────────────────────────────────

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionMessage, contributionNote, keptByHand, matchesCashflowType,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
+  matchesCashflowType,
   needsReview, ownAnswer, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
@@ -111,6 +112,28 @@ describe('contributionNote', () => {
     const withdrawal = { ...deposit, is_deposit: false }
     expect(contributionNote(withdrawal, 80, euros, '5 mars', false)).toBe('Retrait de 200,00 € depuis PEA le 5 mars ?')
     expect(contributionBadge({ ...withdrawal, exact: true })).toBe('depuis PEA')
+  })
+})
+
+describe('contributionGap', () => {
+  const deposit = { id: 'deposit-1', account_name: 'PEA', day: '2026-03-07', amount: 200, is_deposit: true, exact: true }
+  const euros = (value: number) => `${value.toFixed(2).replace('.', ',')} €`
+
+  it('leaves the badge alone when the amount and the day match', () => {
+    expect(contributionGap(deposit, 200, euros, '7 mars', false)).toBeNull()
+    expect(contributionGap(deposit, 200, euros, '7 mars', true)).toBeNull()
+  })
+
+  it('says the amount that arrived and the gap, a fee once vouched for', () => {
+    expect(contributionGap({ ...deposit, amount: 99 }, 100, euros, '7 mars', false)).toBe('99,00 € versés, 1,00 € d\'écart')
+    expect(contributionGap({ ...deposit, amount: 199 }, 200, euros, '7 mars', true)).toBe('199,00 € versés, 1,00 € de frais')
+  })
+
+  it('says the day when it is another one', () => {
+    expect(contributionGap({ ...deposit, exact: false }, 200, euros, '7 mars', false)).toBe('Versé le 7 mars')
+    expect(contributionGap({ ...deposit, exact: false, is_deposit: false, amount: 11 }, 12, euros, '7 mars', false)).toBe(
+      '11,00 € retirés le 7 mars, 1,00 € d\'écart',
+    )
   })
 })
 

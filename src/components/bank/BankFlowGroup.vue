@@ -19,7 +19,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionNote } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionGap } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   transactionId: string
@@ -29,6 +29,8 @@ const props = defineProps<{
   stake?: string
   /** The label asked about: only the operations reading differently show theirs. */
   label: string | null
+  /** The account asked about: only the operations on another one show theirs. */
+  account?: string
   /** Ticks each operation, into `picked`. */
   picking?: boolean
 }>()
@@ -69,7 +71,7 @@ function signed(tx: BankTransactionItem): string {
 function hint(tx: BankTransactionItem): string | null {
   const match = tx.contribution
   if (!match) return null
-  return contributionNote(
+  return contributionGap(
     match, Number(tx.amount), (value) => maskValue(formatCurrency(value, tx.currency)), day(match.day),
     tx.type_source === 'contribution',
   )
@@ -85,7 +87,7 @@ function day(value: string | null): string {
 </script>
 
 <template>
-  <span class="basis-full flex flex-col gap-1">
+  <span class="basis-full min-w-0 flex flex-col gap-1">
     <button
       type="button"
       class="self-start inline-flex items-center gap-1 text-left text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
@@ -96,7 +98,9 @@ function day(value: string | null): string {
         s'applique aux {{ count }} opérations de ce libellé<template v-if="stake">, {{ stake }} en tout</template>
       </template>
       <template v-else-if="open">
-        s'applique aux {{ picked.length }} cochée{{ picked.length > 1 ? 's' : '' }}, sur {{ count }}
+        <template v-if="!picked.length">Aucune cochée, sur {{ count }}</template>
+        <template v-else-if="picked.length === 1">s'applique à 1 cochée, sur {{ count }}</template>
+        <template v-else>s'applique aux {{ picked.length }} cochées, sur {{ count }}</template>
       </template>
       <template v-else>Choisir parmi les {{ count }} opérations de ce libellé</template>
       <ChevronDown :class="['w-3 h-3 shrink-0 transition-transform', open ? 'rotate-180' : '']" />
@@ -124,10 +128,13 @@ function day(value: string | null): string {
                     :aria-label="`${day(operation.operation_date)}, ${signed(operation)}`"
                   />
                   <span class="shrink-0 tabular-nums">{{ day(operation.operation_date) }}</span>
-                  <span class="truncate" :title="operation.account_name">{{ operation.account_name }}</span>
+                  <span v-if="operation.account_name !== account" class="truncate" :title="operation.account_name">
+                    {{ operation.account_name }}
+                  </span>
                   <!-- The references and dates a bank writes into its labels differ from
-                       one operation to the next; the words they share are what groups them. -->
-                  <span v-if="operation.label && operation.label !== label" class="truncate" :title="operation.label">
+                       one operation to the next; the words they share are what groups them.
+                       Too long for a phone, where the date and amount say enough. -->
+                  <span v-if="operation.label && operation.label !== label" class="hidden sm:block truncate" :title="operation.label">
                     {{ operation.label }}
                   </span>
                   <!-- Typed by hand, an operation keeps that type until a Oui replaces it. -->
@@ -141,7 +148,7 @@ function day(value: string | null): string {
                     {{ signed(operation) }}
                   </span>
                 </component>
-                <p v-if="hint(operation)" class="text-info">{{ hint(operation) }}</p>
+                <p v-if="hint(operation)">{{ hint(operation) }}</p>
               </li>
             </template>
             <li v-else-if="failed" class="px-2.5 py-1.5 text-danger">

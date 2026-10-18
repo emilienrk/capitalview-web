@@ -29,7 +29,7 @@ import BankTransactionRow from '@/components/bank/BankTransactionRow.vue'
 import BankTransferLinkModal from '@/components/bank/BankTransferLinkModal.vue'
 import BankTypePicker from '@/components/bank/BankTypePicker.vue'
 import {
-  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionNote, needsReview,
+  ALL, CASHFLOW_TYPES, CASHFLOW_TYPE_LABELS, RECURRING, matchesCashflowType, contributionGap, needsReview,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -157,11 +157,11 @@ function stakeOf(tx: BankTransactionItem): string | undefined {
   return question && question.operation_count > 1 ? amount(Number(question.amount), tx.currency) : undefined
 }
 
-/** The deposit an investment account holds facing this operation, in one line. */
+/** What differs from the deposit an investment account holds facing this operation, if anything. */
 function contributionOf(tx: BankTransactionItem): string | undefined {
   const match = tx.contribution
   if (!match) return undefined
-  return contributionNote(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day), tx.type_source === 'contribution') ?? undefined
+  return contributionGap(match, Number(tx.amount), (value) => amount(value, tx.currency), shortDay(match.day), tx.type_source === 'contribution') ?? undefined
 }
 
 function signedAmount(tx: BankTransactionItem): string {
