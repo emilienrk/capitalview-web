@@ -45,6 +45,17 @@ const counted = computed(() => isCounted(props.item))
 const ended = computed(() => props.item.status === 'ended')
 const lastChange = computed(() => props.item.price_changes[props.item.price_changes.length - 1] ?? null)
 
+const meta = computed(() => {
+  const parts: Array<{ text: string; italic?: boolean }> = []
+  if (!props.inCategory) {
+    parts.push(props.item.nature ? { text: NATURE_LABELS[props.item.nature] } : { text: 'À classer', italic: true })
+  }
+  const cadence = CADENCE_LABELS[props.item.cadence]
+  parts.push({ text: parts.length ? cadence : cadence.charAt(0).toUpperCase() + cadence.slice(1) })
+  parts.push({ text: props.item.accounts.join(', ') })
+  return parts
+})
+
 /** Where it stands, said once beside its name; nothing when it simply runs. */
 const statusBadge = computed(() => {
   const item = props.item
@@ -226,14 +237,12 @@ function today(): string {
           <ChevronDown :class="['w-3.5 h-3.5 shrink-0 text-text-muted dark:text-text-dark-muted transition-transform', open ? 'rotate-180' : '']" />
         </p>
         <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
-          <template v-if="!inCategory">
-            <span :class="item.nature ? '' : 'italic'">
-              {{ item.nature ? NATURE_LABELS[item.nature] : 'À classer' }}
-            </span>
-            <span aria-hidden="true">·</span>
-          </template>
-          <span class="first-letter:uppercase">{{ CADENCE_LABELS[item.cadence] }}</span>
-          <span>· {{ item.accounts.join(', ') }}</span>
+          <!-- Each part carries the dot after it: a wrapped line never starts on one. -->
+          <span>
+            <template v-for="(part, index) in meta" :key="index">
+              <span :class="['whitespace-nowrap', part.italic ? 'italic' : '']">{{ part.text }}{{ index < meta.length - 1 ? ' ·' : '' }}</span>{{ index < meta.length - 1 ? ' ' : '' }}
+            </template>
+          </span>
           <BaseBadge v-if="statusBadge" :variant="statusBadge.variant">{{ statusBadge.text }}</BaseBadge>
           <!-- The arrow carries the direction; no colour, which would call a rise bad. -->
           <span

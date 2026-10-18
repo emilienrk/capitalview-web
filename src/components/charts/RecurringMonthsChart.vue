@@ -75,8 +75,9 @@ const option = computed(() => {
       itemWidth: 10,
       itemHeight: 6,
     },
+    // Room on the right for the last month's label, centred under its bar.
     grid: {
-      top: props.series.length > 1 ? 36 : 12, left: props.compact ? 4 : isSmall ? 44 : 64, right: isSmall ? 4 : 12, bottom: 8,
+      top: props.series.length > 1 ? 36 : 12, left: props.compact ? 4 : isSmall ? 44 : 64, right: 20, bottom: 8,
       containLabel: false,
     },
     xAxis: {
