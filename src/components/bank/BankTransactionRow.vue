@@ -263,6 +263,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           :stake="stake ?? undefined"
           :label="tx.label"
           :account="tx.account_name"
+          :note-above="!!contributionNote"
           picking
           @loaded="onGroupLoaded"
         />

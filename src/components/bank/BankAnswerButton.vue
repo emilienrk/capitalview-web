@@ -8,12 +8,13 @@ withDefaults(defineProps<{ muted?: boolean }>(), { muted: false })
 </script>
 
 <template>
+  <!-- In dark, the subtle background is the card's own: muted takes the rule colour to stay visible. -->
   <button
     type="button"
     :class="[
       'px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-button font-medium disabled:opacity-50 transition-[background-color,scale] duration-150 ease-out enabled:active:scale-[0.97]',
       muted
-        ? 'bg-background-subtle dark:bg-background-dark-subtle text-text-main dark:text-text-dark-main hover:bg-surface-border dark:hover:bg-surface-dark-border'
+        ?'bg-background-subtle dark:bg-surface-dark-border/60 text-text-main dark:text-text-dark-main hover:bg-surface-border dark:hover:bg-surface-dark-border'
         : 'bg-warning/10 text-warning hover:bg-warning/20',
     ]"
   >

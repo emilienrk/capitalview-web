@@ -125,14 +125,14 @@ describe('contributionGap', () => {
   })
 
   it('says the amount that arrived and the gap, a fee once vouched for', () => {
-    expect(contributionGap({ ...deposit, amount: 99 }, 100, euros, '7 mars', false)).toBe('99,00 € versés, 1,00 € d\'écart')
-    expect(contributionGap({ ...deposit, amount: 199 }, 200, euros, '7 mars', true)).toBe('199,00 € versés, 1,00 € de frais')
+    expect(contributionGap({ ...deposit, amount: 99 }, 100, euros, '7 mars', false)).toBe('Versement de 99,00 €, 1,00 € d\'écart')
+    expect(contributionGap({ ...deposit, amount: 199 }, 200, euros, '7 mars', true)).toBe('Versement de 199,00 €, 1,00 € de frais')
   })
 
   it('says the day when it is another one', () => {
-    expect(contributionGap({ ...deposit, exact: false }, 200, euros, '7 mars', false)).toBe('Versé le 7 mars')
+    expect(contributionGap({ ...deposit, exact: false }, 200, euros, '7 mars', false)).toBe('Versement du 7 mars')
     expect(contributionGap({ ...deposit, exact: false, is_deposit: false, amount: 11 }, 12, euros, '7 mars', false)).toBe(
-      '11,00 € retirés le 7 mars, 1,00 € d\'écart',
+      'Retrait de 11,00 € le 7 mars, 1,00 € d\'écart',
     )
   })
 })

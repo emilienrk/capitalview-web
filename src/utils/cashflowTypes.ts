@@ -125,12 +125,11 @@ export function contributionGap(
   const gap = Math.abs(Number(operationAmount) - amount)
   const sameAmount = gap < 0.005
   if (match.exact && sameAmount) return null
-  const moved = sameAmount
-    ? (match.is_deposit ? 'Versé' : 'Retiré')
-    : `${format(amount)} ${match.is_deposit ? 'versés' : 'retirés'}`
+  // Named as the investment account's movement: a bare "Retiré le…" read as the operation's own.
+  const movement = match.is_deposit ? 'Versement' : 'Retrait'
+  if (sameAmount) return `${movement} du ${day}`
   const when = match.exact ? '' : ` le ${day}`
-  const rest = sameAmount ? '' : `, ${format(gap)} ${proved ? 'de frais' : "d'écart"}`
-  return `${moved}${when}${rest}`
+  return `${movement} de ${format(amount)}${when}, ${format(gap)} ${proved ? 'de frais' : "d'écart"}`
 }
 
 /** The operation and the deposit or withdrawal facing it, as one answer. */

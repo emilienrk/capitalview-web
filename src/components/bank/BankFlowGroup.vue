@@ -31,6 +31,8 @@ const props = defineProps<{
   label: string | null
   /** The account asked about: only the operations on another one show theirs. */
   account?: string
+  /** The row already says what differs for the operation asked about: the operations saying the same keep quiet. */
+  noteAbove?: boolean
   /** Ticks each operation, into `picked`. */
   picking?: boolean
 }>()
@@ -76,6 +78,11 @@ function hint(tx: BankTransactionItem): string | null {
     tx.type_source === 'contribution',
   )
 }
+
+const hintAbove = computed(() => {
+  const asked = props.noteAbove ? operations.value?.find((operation) => operation.id === props.transactionId) : null
+  return asked ? hint(asked) : null
+})
 
 function day(value: string | null): string {
   if (!value) return ''
@@ -148,7 +155,7 @@ function day(value: string | null): string {
                     {{ signed(operation) }}
                   </span>
                 </component>
-                <p v-if="hint(operation)">{{ hint(operation) }}</p>
+                <p v-if="hint(operation) && hint(operation) !== hintAbove">{{ hint(operation) }}</p>
               </li>
             </template>
             <li v-else-if="failed" class="px-2.5 py-1.5 text-danger">
