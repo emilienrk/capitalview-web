@@ -140,7 +140,7 @@ function day(value: string | null): string {
                   </span>
                   <!-- The references and dates a bank writes into its labels differ from
                        one operation to the next; the words they share are what groups them.
-                       Too long for a phone, where the date and amount say enough. -->
+                       On a phone it takes a line of its own, below. -->
                   <span v-if="operation.label && operation.label !== label" class="hidden sm:block truncate" :title="operation.label">
                     {{ operation.label }}
                   </span>
@@ -155,6 +155,9 @@ function day(value: string | null): string {
                     {{ signed(operation) }}
                   </span>
                 </component>
+                <p v-if="operation.label && operation.label !== label" class="sm:hidden truncate" :title="operation.label">
+                  {{ operation.label }}
+                </p>
                 <p v-if="hint(operation) && hint(operation) !== hintAbove">{{ hint(operation) }}</p>
               </li>
             </template>
