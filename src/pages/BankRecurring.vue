@@ -2,17 +2,18 @@
 /**
  * The Banque section's Récurrent tab: every recurring charge — or, switched
  * over, every recurring income — found in the operations, what the running
- * ones weigh a month, and the ones still to confirm, ended or refused, folded
- * away underneath. The direction lives in the query string, so the real
- * cashflow can link straight to the income.
+ * ones weigh a month, the ones still to confirm first, then every category
+ * with its ended ones folded at its foot. The direction lives in the query
+ * string, so the real cashflow can link straight to the income.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronRight, Repeat } from 'lucide-vue-next'
+import { ChevronDown, ChevronRight, Repeat } from 'lucide-vue-next'
 
 import {
   BaseButton, BaseCard, BaseCollapsible, BaseEmptyState, BaseSegmentedControl, BaseSkeleton,
 } from '@/components'
+import BankHistoryModal from '@/components/bank/BankHistoryModal.vue'
 import BankRecurringCategoryModal from '@/components/bank/BankRecurringCategoryModal.vue'
 import BankRecurringRow from '@/components/bank/BankRecurringRow.vue'
 import { useFormatters } from '@/composables/useFormatters'
@@ -67,7 +68,6 @@ onMounted(() => void load())
 
 const list = computed(() => store.lists[direction.value])
 const items = computed(() => list.value?.items ?? [])
-const current = computed(() => items.value.filter(isCurrent))
 // Everything that is added up holds to the response's own currency, as the API
 // does: a charge in another one is listed, never folded into a sum in euros.
 const inCurrency = (item: BankRecurringItem) => item.currency === list.value?.currency
@@ -75,14 +75,26 @@ const inCurrency = (item: BankRecurringItem) => item.currency === list.value?.cu
 const counted = computed(() => items.value.filter((item) => isInTotal(item) && inCurrency(item)))
 
 // Grouped by what the user filed them as, the heaviest group first, the ones
-// still to file last. Nothing is judged here: the groups only gather.
+// still to file last. Nothing is judged here: the groups only gather. A
+// category keeps its ended ones, folded under its running ones: an old lease
+// stays with the rent, and a category ended whole still has its place.
+interface Group {
+  key: string
+  nature: RecurringNature | null
+  title: string
+  items: BankRecurringItem[]
+  ended: BankRecurringItem[]
+  monthly: number
+}
 const groups = computed(() => {
-  const gathered = new Map<string, { nature: RecurringNature | null; title: string; items: BankRecurringItem[]; monthly: number }>()
-  for (const item of current.value) {
+  const gathered = new Map<string, Group>()
+  for (const item of items.value.filter(isCounted)) {
     const key = item.nature ?? 'unfiled'
-    const group = gathered.get(key)
-      ?? { nature: item.nature, title: item.nature ? NATURE_LABELS[item.nature] : 'À classer', items: [], monthly: 0 }
-    group.items.push(item)
+    const group = gathered.get(key) ?? {
+      key, nature: item.nature, title: item.nature ? NATURE_LABELS[item.nature] : 'À classer', items: [], ended: [], monthly: 0,
+    }
+    if (isCurrent(item)) group.items.push(item)
+    else group.ended.push(item)
     if (isInTotal(item) && inCurrency(item)) group.monthly += Number(item.monthly_equivalent)
     gathered.set(key, group)
   }
@@ -98,15 +110,18 @@ const categoryItems = computed(() =>
   category.value ? items.value.filter((item) => isCounted(item) && item.nature === category.value) : [],
 )
 
-const candidates = computed(() => items.value.filter((item) => item.state === 'candidate'))
-const ended = computed(() => items.value.filter((item) => isCounted(item) && !isCurrent(item)))
-const refused = computed(() => items.value.filter((item) => item.state === 'refused'))
+const openEnded = ref(new Set<string>())
+function toggleEnded(key: string): void {
+  const next = new Set(openEnded.value)
+  if (!next.delete(key)) next.add(key)
+  openEnded.value = next
+}
 
-const folded = computed(() => [
-  { key: 'candidates', title: 'À confirmer', items: candidates.value, open: true },
-  { key: 'ended', title: 'Terminés', items: ended.value, open: false },
-  { key: 'refused', title: 'Pas récurrents', items: refused.value, open: false },
-].filter((section) => section.items.length))
+const candidates = computed(() => items.value.filter((item) => item.state === 'candidate'))
+// A no is rarely taken back: no section of its own, only the way to the
+// answers' history, where each one can be withdrawn.
+const refused = computed(() => items.value.filter((item) => item.state === 'refused'))
+const showHistory = ref(false)
 
 // What can be merged: anything of the list not refused, the API refusing a
 // payment with an income anyway.
@@ -180,63 +195,77 @@ function amount(value: number): string {
     </BaseEmptyState>
 
     <div v-else class="space-y-4">
-      <template v-if="grouped">
-        <section v-for="group in groups" :key="group.title">
-          <!-- The total stays even at zero: it is the explanation's only anchor. -->
-          <h2
-            class="mb-1.5 text-sm font-semibold text-text-main dark:text-text-dark-main"
-            :title="`Un ${income ? 'revenu' : 'paiement'} en retard, ou dans une autre devise, est listé sans être compté.`"
-          >
-            <button
-              v-if="group.nature"
-              type="button"
-              class="inline-flex items-center gap-1 hover:text-primary transition-colors"
-              :aria-label="`${group.title} : voir la catégorie`"
-              @click="category = group.nature"
-            >
-              {{ group.title }}
-              <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
-              <ChevronRight class="w-3.5 h-3.5 text-text-muted dark:text-text-dark-muted" />
-            </button>
-            <template v-else>
-              {{ group.title }}
-              <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
-            </template>
-          </h2>
-          <BaseCard :padding="false" class="overflow-hidden">
-            <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
-              <BankRecurringRow
-                v-for="item in group.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
-                @answer="(decision, name) => answer(item, decision, name)"
-              />
-            </ul>
-          </BaseCard>
-        </section>
-      </template>
-
-      <BaseCard v-else-if="current.length" :padding="false" class="overflow-hidden">
-        <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
-          <BankRecurringRow
-            v-for="item in current" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
-            @answer="(decision, name) => answer(item, decision, name)"
-          />
-        </ul>
-      </BaseCard>
-
-      <BaseCollapsible
-        v-for="section in folded"
-        :key="section.key"
-        :title="`${section.title} (${section.items.length})`"
-        :default-open="section.open"
-      >
+      <BaseCollapsible v-if="candidates.length" :title="`À confirmer (${candidates.length})`" default-open>
         <ul class="-mx-4 divide-y divide-surface-border dark:divide-surface-dark-border">
           <BankRecurringRow
-            v-for="item in section.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+            v-for="item in candidates" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
             @answer="(decision, name) => answer(item, decision, name)"
           />
         </ul>
       </BaseCollapsible>
+
+      <section v-for="group in groups" :key="group.key">
+        <!-- The total stays even at zero: it is the explanation's only anchor. -->
+        <h2
+          v-if="grouped"
+          class="mb-1.5 text-sm font-semibold text-text-main dark:text-text-dark-main"
+          :title="`Un ${income ? 'revenu' : 'paiement'} en retard, ou dans une autre devise, est listé sans être compté.`"
+        >
+          <button
+            v-if="group.nature"
+            type="button"
+            class="inline-flex items-center gap-1 hover:text-primary transition-colors"
+            :aria-label="`${group.title} : voir la catégorie`"
+            @click="category = group.nature"
+          >
+            {{ group.title }}
+            <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
+            <ChevronRight class="w-3.5 h-3.5 text-text-muted dark:text-text-dark-muted" />
+          </button>
+          <template v-else>
+            {{ group.title }}
+            <span class="font-normal text-text-muted dark:text-text-dark-muted">· {{ amount(group.monthly) }} / mois</span>
+          </template>
+        </h2>
+        <BaseCard :padding="false" class="overflow-hidden">
+          <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
+            <BankRecurringRow
+              v-for="item in group.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+              @answer="(decision, name) => answer(item, decision, name)"
+            />
+            <li v-if="group.ended.length">
+              <button
+                type="button"
+                class="w-full flex items-center gap-1.5 px-4 sm:px-6 py-2.5 text-left text-xs font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main transition-colors"
+                :aria-expanded="openEnded.has(group.key)"
+                @click="toggleEnded(group.key)"
+              >
+                <ChevronDown :class="['w-3.5 h-3.5 transition-transform', openEnded.has(group.key) ? 'rotate-180' : '']" />
+                {{ group.ended.length }} terminé{{ group.ended.length > 1 ? 's' : '' }}
+              </button>
+            </li>
+            <template v-if="openEnded.has(group.key)">
+              <BankRecurringRow
+                v-for="item in group.ended" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+                @answer="(decision, name) => answer(item, decision, name)"
+              />
+            </template>
+          </ul>
+        </BaseCard>
+      </section>
+
+      <p v-if="refused.length" class="text-xs text-text-muted dark:text-text-dark-muted">
+        {{ refused.length }} écarté{{ refused.length > 1 ? 's' : '' }} comme non récurrent{{ refused.length > 1 ? 's' : '' }} ·
+        <button
+          type="button"
+          class="font-medium hover:text-text-main dark:hover:text-text-dark-main hover:underline"
+          @click="showHistory = true"
+        >
+          Historique de mes réponses
+        </button>
+      </p>
     </div>
+    <BankHistoryModal :open="showHistory" @close="showHistory = false" />
     <BankRecurringCategoryModal
       :open="category !== null"
       :title="category ? NATURE_LABELS[category] : ''"
