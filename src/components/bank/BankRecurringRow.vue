@@ -9,6 +9,7 @@ import { ChevronDown, TrendingDown, TrendingUp, X } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton, BaseInput, BaseSelect, BaseSkeleton } from '@/components'
 import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
+import RecurringMonthsChart from '@/components/charts/RecurringMonthsChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useRecurringStore } from '@/stores/recurring'
@@ -69,6 +70,36 @@ async function toggle(): Promise<void> {
     loadFailed.value = true
   }
 }
+
+const SHOWN_OPERATIONS = 5
+const allOperations = ref(false)
+const shownOperations = computed(() =>
+  allOperations.value ? operations.value ?? [] : (operations.value ?? []).slice(0, SHOWN_OPERATIONS),
+)
+
+const facts = computed(() => {
+  const item = props.item
+  const facts: Array<{ label: string; value: string; hint?: string }> = [
+    { label: item.since_at_least ? 'Au moins depuis' : 'Depuis', value: formatDate(item.first_date) },
+    {
+      label: 'Échéances',
+      value: item.extra_count ? `${item.occurrence_count} + ${item.extra_count}` : String(item.occurrence_count),
+      hint: item.extra_count ? `${item.extra_count} hors échéance` : undefined,
+    },
+    { label: 'Sur 12 mois', value: money(item.paid_last_12_months) },
+    { label: 'Par an', value: `≈ ${money(item.annual_estimate)}` },
+    { label: 'En tout', value: money(item.paid_total) },
+  ]
+  if (item.refunds.items.length) {
+    const count = item.refunds.items.length
+    facts.push({
+      label: income.value ? 'Repris' : 'Remboursé',
+      value: money(item.refunds.total),
+      hint: `${count} ${income.value ? 'débit' : 'crédit'}${count > 1 ? 's' : ''}`,
+    })
+  }
+  return facts
+})
 
 function signed(tx: BankTransactionItem): string {
   return money(tx.is_credit ? Number(tx.amount) : -Number(tx.amount), tx.currency)
@@ -226,36 +257,29 @@ function today(): string {
       <div v-if="open">
         <div>
           <div class="pt-3 space-y-3 text-xs text-text-muted dark:text-text-dark-muted">
-            <p>
-              {{ item.since_at_least ? 'Au moins depuis' : 'Depuis' }} le {{ formatDate(item.first_date) }} ·
-              {{ item.occurrence_count }} échéance{{ item.occurrence_count > 1 ? 's' : '' }}<template v-if="item.extra_count">
-                et {{ item.extra_count }} hors échéance</template> ·
-              {{ money(item.paid_last_12_months) }} {{ income ? 'reçus' : 'payés' }} sur 12 mois · ≈ {{ money(item.annual_estimate) }} par an ·
-              {{ money(item.paid_total) }} en tout
-            </p>
-            <p v-if="item.price_changes.length">
-              {{ income ? 'Montant' : 'Prix' }} :
-              <template v-for="(change, index) in item.price_changes" :key="change.date">
-                {{ index ? ', ' : '' }}{{ money(change.before) }} → {{ money(change.after) }} le {{ formatDate(change.date) }}
-              </template>
-            </p>
-            <p v-if="item.episodes.length > 1">
-              Interrompu {{ item.episodes.length - 1 }} fois :
-              <template v-for="(episode, index) in item.episodes" :key="episode.start">
-                {{ index ? ', ' : '' }}{{ formatDate(episode.start) }} → {{ formatDate(episode.end) }}
-              </template>
-            </p>
-            <p v-if="item.renamed.length">
-              Anciens noms : {{ item.renamed.map((rename) => rename.before).join(', ') }}
-            </p>
-            <p v-if="item.refunds.items.length">
-              {{ money(item.refunds.total) }} {{ income ? 'repris' : 'remboursés' }}
-              ({{ item.refunds.items.length }} {{ income ? 'débit' : 'crédit' }}{{ item.refunds.items.length > 1 ? 's' : '' }})
+            <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2">
+              <div v-for="fact in facts" :key="fact.label" :title="fact.hint">
+                <dt>{{ fact.label }}</dt>
+                <dd class="mt-0.5 text-sm font-medium tabular-nums text-text-main dark:text-text-dark-main">{{ fact.value }}</dd>
+              </div>
+            </dl>
+
+            <!-- Price changes and pauses read off the bars; the tooltip gives each month. -->
+            <RecurringMonthsChart
+              v-if="item.paid_by_month.length > 1"
+              compact
+              :series="[{ name: item.name, months: item.paid_by_month }]"
+              :format="(value) => money(value)"
+            />
+
+            <p v-if="item.renamed.length" class="flex flex-wrap items-center gap-1.5">
+              Anciens noms
+              <BaseBadge v-for="rename in item.renamed" :key="rename.date" variant="secondary">{{ rename.before }}</BaseBadge>
             </p>
 
-            <ul class="max-h-72 overflow-y-auto rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border">
+            <ul class="rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border">
               <template v-if="operations">
-                <li v-for="operation in operations" :key="operation.id" class="group flex items-baseline gap-2 px-2.5 py-1.5">
+                <li v-for="operation in shownOperations" :key="operation.id" class="group flex items-baseline gap-2 px-2.5 py-1.5">
                   <span class="shrink-0 tabular-nums">{{ formatDate(operation.operation_date) }}</span>
                   <span class="truncate" :title="operation.label ?? undefined">{{ operation.label }}</span>
                   <span
@@ -277,6 +301,15 @@ function today(): string {
                     @click="detach(operation)"
                   >
                     <X class="w-3.5 h-3.5" />
+                  </button>
+                </li>
+                <li v-if="operations.length > SHOWN_OPERATIONS">
+                  <button
+                    type="button"
+                    class="w-full px-2.5 py-1.5 text-left font-medium text-primary hover:underline"
+                    @click="allOperations = !allOperations"
+                  >
+                    {{ allOperations ? 'Voir les dernières seulement' : `Voir les ${operations.length} opérations` }}
                   </button>
                 </li>
               </template>

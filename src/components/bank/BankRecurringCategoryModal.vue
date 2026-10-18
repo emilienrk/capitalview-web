@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 
 import { BaseBadge, BaseModal, BaseStatCard } from '@/components'
-import RecurringCategoryChart from '@/components/charts/RecurringCategoryChart.vue'
+import RecurringMonthsChart from '@/components/charts/RecurringMonthsChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { isCurrent, isInTotal } from '@/utils/recurring'
@@ -89,7 +89,7 @@ function plural(count: number, word: string): string {
 
       <section v-if="series.length">
         <h3 class="mb-2 text-sm font-semibold text-text-main dark:text-text-dark-main">Mois par mois</h3>
-        <RecurringCategoryChart :series="series" :format="(value) => money(value)" />
+        <RecurringMonthsChart :series="series" :format="(value) => money(value)" />
       </section>
 
       <section>

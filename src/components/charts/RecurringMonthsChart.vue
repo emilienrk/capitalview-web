@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * What a category of recurring payments or income weighed, month by month:
- * one stacked bar a month, one colour per recurring, so a rent that moved from
- * one landlord to the next reads as one run changing colour.
+ * What recurring payments or income weighed, month by month: one stacked bar
+ * a month, one colour per recurring, so a rent that moved from one landlord to
+ * the next reads as one run changing colour. Compact, it is one recurring's
+ * history inside its row: a price change or a pause shows without a sentence.
  */
 import { computed } from 'vue'
 import { use } from 'echarts/core'
@@ -20,6 +21,7 @@ const props = defineProps<{
   series: Array<{ name: string; months: Array<{ month: string; amount: number }> }>
   /** Formats an amount for the axis and the tooltip, privacy mode included. */
   format: (value: number) => string
+  compact?: boolean
 }>()
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
@@ -123,7 +125,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-64" style="touch-action: pan-y;">
+  <div ref="containerRef" :class="['w-full', compact ? 'h-32' : 'h-64']" style="touch-action: pan-y;">
     <VChart
       v-if="canRenderChart"
       ref="chartRef"
