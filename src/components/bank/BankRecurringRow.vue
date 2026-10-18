@@ -12,6 +12,7 @@ import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
 import RecurringMonthsChart from '@/components/charts/RecurringMonthsChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useBankStore } from '@/stores/bank'
 import { useRecurringStore } from '@/stores/recurring'
 import { CADENCE_LABELS, CADENCE_PER, NATURES, NATURE_LABELS, isCounted, roleNote } from '@/utils/recurring'
 import type { BankRecurringItem, BankTransactionItem, RecurringDecisionKind, RecurringNature } from '@/types'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useRecurringStore()
+const bank = useBankStore()
 const { formatCurrency, formatDate } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
@@ -60,9 +62,7 @@ const open = ref(false)
 const operations = ref<BankTransactionItem[] | null>(null)
 const loadFailed = ref(false)
 
-async function toggle(): Promise<void> {
-  open.value = !open.value
-  if (!open.value || operations.value) return
+async function loadOperations(): Promise<void> {
   loadFailed.value = false
   try {
     operations.value = await store.fetchOperations(props.item)
@@ -70,6 +70,17 @@ async function toggle(): Promise<void> {
     loadFailed.value = true
   }
 }
+
+async function toggle(): Promise<void> {
+  open.value = !open.value
+  if (open.value && !operations.value) await loadOperations()
+}
+
+// A merge brings another series' operations in: an open row reads them again
+// with the list, instead of keeping the ones it first read.
+watch(() => bank.dataRevision, () => {
+  if (open.value) void loadOperations()
+})
 
 const SHOWN_OPERATIONS = 5
 const allOperations = ref(false)
@@ -191,7 +202,7 @@ const mergeOptions = computed(() =>
     .map((other) => ({ label: other.name, value: other.key })),
 )
 
-/** The other one's operations join this one, which keeps its name. */
+/** The other one's operations join this one, which keeps its name, or takes the other's when it has none. */
 async function mergeWith(key: string | number | undefined): Promise<void> {
   const other = props.others?.find((candidate) => candidate.key === key)
   if (!other) return
