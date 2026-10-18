@@ -21,6 +21,8 @@ const props = defineProps<{
   item: BankRecurringItem
   /** What it can be merged with: the others of its list, of its direction. */
   others?: BankRecurringItem[]
+  /** Listed under its category's title, which already says its nature. */
+  inCategory?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -224,10 +226,13 @@ function today(): string {
           <ChevronDown :class="['w-3.5 h-3.5 shrink-0 text-text-muted dark:text-text-dark-muted transition-transform', open ? 'rotate-180' : '']" />
         </p>
         <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-text-muted dark:text-text-dark-muted">
-          <span :class="item.nature ? '' : 'italic'">
-            {{ item.nature ? NATURE_LABELS[item.nature] : 'À classer' }}
-          </span>
-          <span>· <span class="first-letter:uppercase">{{ CADENCE_LABELS[item.cadence] }}</span></span>
+          <template v-if="!inCategory">
+            <span :class="item.nature ? '' : 'italic'">
+              {{ item.nature ? NATURE_LABELS[item.nature] : 'À classer' }}
+            </span>
+            <span aria-hidden="true">·</span>
+          </template>
+          <span class="first-letter:uppercase">{{ CADENCE_LABELS[item.cadence] }}</span>
           <span>· {{ item.accounts.join(', ') }}</span>
           <BaseBadge v-if="statusBadge" :variant="statusBadge.variant">{{ statusBadge.text }}</BaseBadge>
           <!-- The arrow carries the direction; no colour, which would call a rise bad. -->

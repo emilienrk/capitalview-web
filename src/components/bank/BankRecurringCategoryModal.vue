@@ -39,8 +39,7 @@ const monthly = computed(() =>
   summed.value.filter(isInTotal).reduce((sum, item) => sum + Number(item.monthly_equivalent), 0),
 )
 const oldest = computed(() => summed.value[0])
-const running = computed(() => props.items.filter(isCurrent).length)
-const ended = computed(() => props.items.length - running.value)
+const ended = computed(() => props.items.filter((item) => !isCurrent(item)).length)
 
 // Eight colours: past seven recurrings, the rest share the last one.
 const MAX_SERIES = 8
@@ -61,6 +60,12 @@ function money(value: number, currency = props.currency): string {
   return maskValue(formatCurrency(Number(value), currency))
 }
 
+function rounded(value: number): string {
+  return maskValue(new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: props.currency, maximumFractionDigits: 0,
+  }).format(value))
+}
+
 function plural(count: number, word: string): string {
   return `${count} ${word}${count > 1 ? 's' : ''}`
 }
@@ -69,7 +74,8 @@ function plural(count: number, word: string): string {
 <template>
   <BaseModal :open="open" :title="title" size="xl" scroll-fade @close="$emit('close')">
     <div class="space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <!-- Two figures, one under the other on a phone: side by side in the modal they would be cut. -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BaseStatCard
           :label="income ? 'Reçu en tout' : 'Payé en tout'"
           :value="money(total)"
@@ -80,21 +86,17 @@ function plural(count: number, word: string): string {
           :value="money(monthly)"
           :sub-value="`≈ ${money(monthly * 12)} par an`"
         />
-        <BaseStatCard
-          :label="income ? 'Revenus récurrents' : 'Paiements récurrents'"
-          :value="`${running} en cours`"
-          :sub-value="ended ? plural(ended, 'terminé') : undefined"
-        />
       </div>
 
       <section v-if="series.length">
         <h3 class="mb-2 text-sm font-semibold text-text-main dark:text-text-dark-main">Mois par mois</h3>
-        <RecurringMonthsChart :series="series" :format="(value) => money(value)" />
+        <RecurringMonthsChart :series="series" :format="(value) => money(value)" :axis-format="rounded" />
       </section>
 
       <section>
         <h3 class="mb-1.5 text-sm font-semibold text-text-main dark:text-text-dark-main">
           {{ plural(items.length, income ? 'revenu' : 'paiement') }}
+          <span v-if="ended" class="font-normal text-text-muted dark:text-text-dark-muted">· {{ plural(ended, 'terminé') }}</span>
         </h3>
         <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
           <li v-for="item in ordered" :key="item.key" class="flex items-center gap-3 py-2.5">

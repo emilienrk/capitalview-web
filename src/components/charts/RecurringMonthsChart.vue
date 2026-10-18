@@ -21,6 +21,9 @@ const props = defineProps<{
   series: Array<{ name: string; months: Array<{ month: string; amount: number }> }>
   /** Formats an amount for the axis and the tooltip, privacy mode included. */
   format: (value: number) => string
+  /** The axis' rounder figures; `format` when none. */
+  axisFormat?: (value: number) => string
+  /** No axis figures at all: the tooltip says each month. */
   compact?: boolean
 }>()
 
@@ -73,7 +76,7 @@ const option = computed(() => {
       itemHeight: 6,
     },
     grid: {
-      top: props.series.length > 1 ? 36 : 12, left: isSmall ? 44 : 64, right: isSmall ? 4 : 12, bottom: 8,
+      top: props.series.length > 1 ? 36 : 12, left: props.compact ? 4 : isSmall ? 44 : 64, right: isSmall ? 4 : 12, bottom: 8,
       containLabel: false,
     },
     xAxis: {
@@ -85,7 +88,11 @@ const option = computed(() => {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: theme.text, fontSize: 11, formatter: (value: number) => props.format(value) },
+      splitNumber: props.compact ? 2 : 4,
+      axisLabel: {
+        show: !props.compact, color: theme.text, fontSize: 11,
+        formatter: (value: number) => (props.axisFormat ?? props.format)(value),
+      },
       splitLine: { lineStyle: { color: theme.grid } },
       axisLine: { show: false },
       axisTick: { show: false },

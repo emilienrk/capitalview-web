@@ -230,7 +230,7 @@ function amount(value: number): string {
         <BaseCard :padding="false" class="overflow-hidden">
           <ul class="divide-y divide-surface-border dark:divide-surface-dark-border">
             <BankRecurringRow
-              v-for="item in group.items" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+              v-for="item in group.items" :key="item.key" :item="item" :others="mergeable" :in-category="grouped" @failed="error = $event"
               @answer="(decision, name) => answer(item, decision, name)"
             />
             <li v-if="group.ended.length">
@@ -246,7 +246,7 @@ function amount(value: number): string {
             </li>
             <template v-if="openEnded.has(group.key)">
               <BankRecurringRow
-                v-for="item in group.ended" :key="item.key" :item="item" :others="mergeable" @failed="error = $event"
+                v-for="item in group.ended" :key="item.key" :item="item" :others="mergeable" :in-category="grouped" @failed="error = $event"
                 @answer="(decision, name) => answer(item, decision, name)"
               />
             </template>
