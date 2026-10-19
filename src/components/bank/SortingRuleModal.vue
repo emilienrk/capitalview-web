@@ -179,6 +179,15 @@ const yieldedSentence = computed(() => {
   return `Plus précises, d'autres règles gardent les leurs : ${kept}.`
 })
 
+/** The confirmed recurrings whose payments it types otherwise: they leave what is fixed. */
+const recurringSentence = computed(() => {
+  const names = preview.value?.recurring ?? []
+  if (!names.length) return null
+  const listed = names.map((name) => `« ${name} »`).join(', ')
+  const kind = isCredit.value ? 'revenus' : 'paiements'
+  return `${listed} ne ${names.length > 1 ? 'compteront' : 'comptera'} plus dans vos ${kind} récurrents.`
+})
+
 /** Handing the rule what was chosen by hand is said and asked, never done by default. */
 const takeOverrides = ref(false)
 
@@ -276,6 +285,7 @@ function signed(op: BankRulePreviewOperation): string {
             <p v-if="takenSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ takenSentence }}</p>
             <p v-if="yieldedSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ yieldedSentence }}</p>
             <p v-if="keptSentence" class="text-sm text-text-muted dark:text-text-dark-muted">{{ keptSentence }}</p>
+            <p v-if="recurringSentence" class="text-sm text-text-main dark:text-text-dark-main">{{ recurringSentence }}</p>
             <BaseAlert v-if="tooWide" variant="warning">
               Cette règle touche plus de la moitié des {{ isCredit ? 'entrées' : 'sorties' }}
               {{ form.account === EVERY_ACCOUNT ? 'de vos comptes' : 'de ce compte' }} : vérifiez qu'elle n'est pas trop large.

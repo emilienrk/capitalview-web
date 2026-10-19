@@ -52,6 +52,19 @@ const writtenRule = computed(() => {
   const id = props.tx?.type_source === 'rule' ? props.tx.type_rule_id : null
   return types.rules?.find((rule) => rule.id === id && rule.match !== 'similar') ?? null
 })
+/**
+ * Its label's rule reaches the recurring it is part of: typed as anything but
+ * the recurring's kind, it leaves the fixed payments or income. Said before
+ * the choice, as the rule page's preview says it.
+ */
+const recurringNote = computed(() => {
+  const tag = props.tx?.recurring
+  if (!tag || tag.role === 'refund' || !byLabel.value) return null
+  const income = tag.direction === 'income'
+  return `Fait partie de « ${tag.name} » : classées autrement qu'en ${answerLabel(income ? 'INCOME' : 'EXPENSE', income)}, `
+    + `ses opérations ne compteront plus dans vos ${income ? 'revenus' : 'paiements'} récurrents.`
+})
+
 /** Why it carries this type, when one of the investment accounts explains it. */
 const contribution = computed(() => {
   const tx = props.tx
@@ -162,6 +175,7 @@ async function backToDetected(): Promise<void> {
         </span>
         <span v-else>Sans libellé, seule cette opération peut être corrigée.</span>
       </label>
+      <p v-if="recurringNote" class="text-sm text-text-muted dark:text-text-dark-muted">{{ recurringNote }}</p>
     </div>
 
     <template v-if="tx && userSet" #footer>

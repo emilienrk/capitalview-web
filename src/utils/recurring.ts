@@ -88,7 +88,10 @@ export function isCurrent(item: BankRecurringItem): boolean {
   return isCounted(item) && item.status !== 'ended'
 }
 
-/** What the monthly and yearly totals add up — a late one may be over already. */
+/**
+ * What the monthly and yearly totals add up — a late one may be over already,
+ * and one a rule types otherwise no longer counts as a payment or an income.
+ */
 export function isInTotal(item: BankRecurringItem): boolean {
-  return isCounted(item) && (item.status === 'active' || item.status === 'stale')
+  return isCounted(item) && !item.retyped && (item.status === 'active' || item.status === 'stale')
 }

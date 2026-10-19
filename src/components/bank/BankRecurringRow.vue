@@ -13,7 +13,9 @@ import RecurringMonthsChart from '@/components/charts/RecurringMonthsChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
+import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import { useRecurringStore } from '@/stores/recurring'
+import { RULES_PAGE, answerLabel, ruleTitle } from '@/utils/cashflowTypes'
 import { CADENCE_LABELS, CADENCE_PER, NATURES, NATURE_LABELS, isCounted, roleNote } from '@/utils/recurring'
 import type { BankRecurringItem, BankTransactionItem, RecurringDecisionKind, RecurringNature } from '@/types'
 
@@ -33,6 +35,7 @@ const emit = defineEmits<{
 
 const store = useRecurringStore()
 const bank = useBankStore()
+const types = useCashflowTypesStore()
 const { formatCurrency, formatDate } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
@@ -56,12 +59,26 @@ const meta = computed(() => {
   return parts
 })
 
+/**
+ * Kept, but a rule the user wrote types its payments as something else: the
+ * rule is the later word, so it is named rather than overruled.
+ */
+const retyped = computed(() => (counted.value && !ended.value ? props.item.retyped : null))
+const retypedNote = computed(() => {
+  const found = retyped.value
+  if (!found) return null
+  const rule = types.rules?.find((known) => known.id === found.rule_id)
+  return `Ne compte plus dans vos ${income.value ? 'revenus' : 'paiements'} récurrents : `
+    + `${rule ? `la règle ${ruleTitle(rule)}` : 'une règle'} classe ses opérations en ${answerLabel(found.type, income.value)}.`
+})
+
 /** Where it stands, said once beside its name; nothing when it simply runs. */
 const statusBadge = computed(() => {
   const item = props.item
   if (item.ended_on) {
     return { variant: 'secondary' as const, text: `${income.value ? 'Terminé' : 'Résilié'} le ${formatDate(item.ended_on)}` }
   }
+  if (retyped.value) return { variant: 'secondary' as const, text: 'Hors du total' }
   if (item.status === 'late') return { variant: 'warning' as const, text: 'En retard' }
   if (item.status === 'stale' && item.covered_until) {
     return { variant: 'secondary' as const, text: `À jour au ${formatDate(item.covered_until)}` }
@@ -86,6 +103,8 @@ async function loadOperations(): Promise<void> {
 
 async function toggle(): Promise<void> {
   open.value = !open.value
+  // Which rule it is only the list of rules says.
+  if (open.value && retyped.value && !types.rules) types.fetchRules().catch(() => {})
   if (open.value && !operations.value) await loadOperations()
 }
 
@@ -282,6 +301,10 @@ function today(): string {
       <div v-if="open">
         <div>
           <div class="pt-3 space-y-3 text-xs text-text-muted dark:text-text-dark-muted">
+            <p v-if="retypedNote" class="text-sm text-text-main dark:text-text-dark-main">
+              {{ retypedNote }}
+              <router-link :to="RULES_PAGE" class="font-medium text-primary hover:underline">Voir les règles</router-link>
+            </p>
             <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2">
               <div v-for="fact in facts" :key="fact.label" :title="fact.hint">
                 <dt>{{ fact.label }}</dt>

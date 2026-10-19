@@ -104,6 +104,7 @@ function plural(count: number, word: string): string {
               <p class="flex items-center gap-1.5 text-sm font-medium text-text-main dark:text-text-dark-main">
                 <span class="truncate" :title="item.name">{{ item.name }}</span>
                 <BaseBadge v-if="!isCurrent(item)" variant="secondary">Terminé</BaseBadge>
+                <BaseBadge v-else-if="item.retyped" variant="secondary">Hors du total</BaseBadge>
               </p>
               <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted tabular-nums">
                 {{ formatDate(item.first_date) }} → {{ isCurrent(item) ? 'en cours' : formatDate(item.last_date) }} ·

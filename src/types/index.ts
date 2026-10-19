@@ -633,6 +633,8 @@ export interface BankRecurringItem {
   renamed: Array<{ date: string; before: string; after: string }>
   refunds: { total: number; items: Array<{ id: string; date: string; amount: number; label: string | null }> }
   ended_on: string | null
+  /** A rule types its latest payment otherwise: listed, never added up. */
+  retyped: { type: CashflowType; rule_id: string } | null
 }
 
 export type RecurringOperationAction = 'include' | 'exclude'
@@ -730,6 +732,8 @@ export interface BankTypeRulePreview {
   kept: Array<{ reason: TypeSource; count: number }>
   /** Every operation on the rule's side: its account or all, its direction. */
   side_count: number
+  /** The confirmed recurring payments or income it takes out of the fixed ones, by name. */
+  recurring: string[]
 }
 
 // ─── Cashflow réel ───────────────────────────────────────────

@@ -80,4 +80,11 @@ describe('sections', () => {
     expect(isInTotal(item('candidate', 'active'))).toBe(false)
     expect(isInTotal(item('confirmed', 'ended'))).toBe(false)
   })
+
+  // As the API: a rule typing its payments otherwise leaves it listed, out of the total.
+  it('leaves out of the total one a rule types otherwise', () => {
+    const retyped = { ...item('confirmed', 'active'), retyped: { type: 'NEUTRAL', rule_id: 'r-1' } } as BankRecurringItem
+    expect(isCurrent(retyped)).toBe(true)
+    expect(isInTotal(retyped)).toBe(false)
+  })
 })
