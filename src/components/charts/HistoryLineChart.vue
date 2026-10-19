@@ -18,7 +18,8 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
 const props = defineProps<{
-  series: Array<{ name: string; history: AccountHistorySnapshotResponse[] }>
+  /** `hidden` starts a line switched off in the legend. */
+  series: Array<{ name: string; history: AccountHistorySnapshotResponse[]; hidden?: boolean }>
   isDark?: boolean
   granularity?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   hideControls?: boolean
@@ -76,7 +77,12 @@ const granularityRangeOptions: Record<Granularity, RangeOption[]> = {
 const { chartRef, containerRef, canRenderChart, containerWidth, syncChartVisibilityAndSize } = useChartResize()
 const chartTheme = useChartTheme()
 const { privacyMode } = usePrivacyMode()
-const legendSelection = ref<Record<string, boolean>>({})
+// Only the lines the user toggled. The others follow their `hidden` default,
+// which can still change while the account histories arrive one by one.
+const legendChoices = ref<Record<string, boolean>>({})
+const legendSelection = computed<Record<string, boolean>>(() =>
+  Object.fromEntries(props.series.map((line) => [line.name, legendChoices.value[line.name] ?? !line.hidden])),
+)
 const selectedRangeMonths = ref<number>(granularityDefaults.daily)
 const zoomStartIndex = ref<number>(0)
 const zoomEndIndex = ref<number>(0)
@@ -152,18 +158,6 @@ watch(effectiveGranularity, (granularity) => {
 watch([allDates, selectedRangeMonths], () => {
   applyRangeWindow()
 }, { immediate: true })
-
-watch(
-  () => props.series.map((line) => line.name),
-  (names) => {
-    const nextSelection: Record<string, boolean> = {}
-    for (const name of names) {
-      nextSelection[name] = legendSelection.value[name] ?? true
-    }
-    legendSelection.value = nextSelection
-  },
-  { immediate: true },
-)
 
 const isMobile = computed(() => containerWidth.value < 640)
 
@@ -378,11 +372,11 @@ function handleChartReady(): void {
   if (hasSize) containerWidth.value = container.clientWidth
 }
 
-function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
-  if (!event?.selected) return
-  legendSelection.value = {
-    ...legendSelection.value,
-    ...event.selected,
+function handleLegendSelectChanged(event: { name?: string; selected?: Record<string, boolean> }): void {
+  if (!event?.name || !event.selected) return
+  legendChoices.value = {
+    ...legendChoices.value,
+    [event.name]: event.selected[event.name] ?? true,
   }
 }
 

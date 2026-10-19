@@ -10,6 +10,7 @@ import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
+import { hideNegligibleAccounts } from '@/utils/chartSeries'
 import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -638,12 +639,12 @@ const allocationSegments = computed(() => {
 
 const stockChartSeries = computed(() => {
   const totalHistory = applyGranularity(stripNonTradingDays(stocks.history))
-  const accountSeries = (stocks.accounts ?? [])
+  const accountSeries = hideNegligibleAccounts((stocks.accounts ?? [])
     .map((account) => ({
       name: account.name,
       history: applyGranularity(stripNonTradingDays(stocks.accountHistoryById[account.id] ?? [])),
     }))
-    .filter((series) => series.history.length > 0)
+    .filter((series) => series.history.length > 0))
 
   if ((stocks.accounts ?? []).length <= 1) {
     return accountSeries

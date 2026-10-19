@@ -11,6 +11,7 @@ import { useCarousel } from '@/composables/useCarousel'
 import { useStatsPager, type SummaryStatItem } from '@/composables/useStatsPager'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
+import { hideNegligibleAccounts } from '@/utils/chartSeries'
 import { datetimeLocalToIso, isoToDatetimeLocal, nowDatetimeLocal } from '@/utils/datetime'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -1003,12 +1004,12 @@ const fiatDepositNegativeEurBalance = computed<number | null>(() => {
 
 const cryptoChartSeries = computed(() => {
   const totalHistory = applyGranularity(crypto.history)
-  const accountSeries = (crypto.accounts ?? [])
+  const accountSeries = hideNegligibleAccounts((crypto.accounts ?? [])
     .map((account) => ({
       name: account.name,
       history: applyGranularity(crypto.accountHistoryById[account.id] ?? []),
     }))
-    .filter((series) => series.history.length > 0)
+    .filter((series) => series.history.length > 0))
 
   // One wallet: the total is the same curve drawn twice.
   if ((crypto.accounts ?? []).length <= 1) {
