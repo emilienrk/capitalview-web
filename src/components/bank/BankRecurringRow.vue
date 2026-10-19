@@ -275,7 +275,13 @@ function today(): string {
         </div>
       </button>
       <div class="shrink-0 text-right">
-        <p class="text-sm font-semibold tabular-nums text-text-main dark:text-text-dark-main">
+        <!-- Out of the total, its amount reads as set aside, like the badge says. -->
+        <p
+          :class="[
+            'text-sm font-semibold tabular-nums',
+            retyped ? 'text-text-muted dark:text-text-dark-muted' : 'text-text-main dark:text-text-dark-main',
+          ]"
+        >
           <template v-if="item.variable">≈ </template>{{ money(item.amount) }}
           <span class="text-xs font-normal text-text-muted dark:text-text-dark-muted">{{ CADENCE_PER[item.cadence] }}</span>
         </p>
