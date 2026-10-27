@@ -1796,12 +1796,16 @@ export interface PortfolioResponse {
 export interface AIProviderConfig {
   provider: string
   has_key: boolean
+  /** Chat; null = automatic */
   selected_model: string | null
+  /** Photo import; null = automatic */
+  selected_vision_model: string | null
 }
 
 export interface AIProviderUpdate {
   api_key?: string | null
   selected_model?: string | null
+  selected_vision_model?: string | null
 }
 
 export interface AIProviderOption {
@@ -1820,8 +1824,10 @@ export interface AIModelOption {
 
 export interface AIModelsResponse {
   models: AIModelOption[]
-  /** What "automatic" (selected_model = null) calls */
+  /** What "automatic" (selected_model = null) calls for the chat */
   recommended: string | null
+  /** What it calls for the photo import; null when no model reads images */
+  recommended_vision: string | null
 }
 
 export interface AIOptionsResponse {
