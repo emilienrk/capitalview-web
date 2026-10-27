@@ -29,11 +29,28 @@ describe('modelSelectOptions', () => {
     ])
   })
 
-  it('flags models that read no images when asked', () => {
-    const options = modelSelectOptions(models, null, null, { flagTextOnly: true })
+  it('keeps to models that read images for the photo import', () => {
+    const options = modelSelectOptions(models, null, null, { visionOnly: true })
+
+    expect(options.map((o) => o.value)).toEqual([
+      AUTO_MODEL,
+      'google/gemini-3.5-flash',
+      'anthropic/claude-sonnet-4.6',
+    ])
+  })
+
+  it('keeps a chosen photo import model that reads no images, flagged', () => {
+    const options = modelSelectOptions(models, null, 'qwen/qwen3-max', { visionOnly: true })
 
     expect(options.find((o) => o.value === 'qwen/qwen3-max')?.label).toBe('Qwen: Qwen3 Max (sans images)')
-    expect(options.find((o) => o.value === 'google/gemini-3.5-flash')?.label).toBe('Google: Gemini 3.5 Flash')
+  })
+
+  it('says when no model reads images for the photo import', () => {
+    const textOnly = [{ id: 'deepseek-v4-flash', label: 'deepseek-v4-flash', vision: false }]
+
+    expect(modelSelectOptions(textOnly, null, null, { visionOnly: true })).toEqual([
+      { value: AUTO_MODEL, label: 'Automatique — aucun modèle ne lit les images' },
+    ])
   })
 
   it('keeps a chosen model the key no longer reaches, flagged', () => {
@@ -50,6 +67,10 @@ describe('callsAModelThatReadsImages', () => {
   it('reads the chosen model, else the recommended one', () => {
     expect(callsAModelThatReadsImages(models, 'google/gemini-3.5-flash', 'qwen/qwen3-max')).toBe(false)
     expect(callsAModelThatReadsImages(models, 'google/gemini-3.5-flash', null)).toBe(true)
+  })
+
+  it('reads none when the key reaches no model that reads images', () => {
+    expect(callsAModelThatReadsImages(models, null, null)).toBe(false)
   })
 
   it('does not know a model missing from the list', () => {

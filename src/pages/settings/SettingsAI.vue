@@ -105,29 +105,37 @@ watch(
   { immediate: true },
 )
 
-/** Whether a provider's model reads images; null while its list is unknown. */
+type ModelUse = 'chat' | 'vision'
+
+function selectedModel(providerId: string, use: ModelUse): string | null {
+  const config = configuredProviders.value[providerId]
+  return (use === 'vision' ? config?.selected_vision_model : config?.selected_model) ?? null
+}
+
+/** Whether a provider's photo import model reads images; null while its list is unknown. */
 function readsImages(providerId: string): boolean | null {
   const detected = providerModels.value[providerId]
   if (!detected) return null
   return callsAModelThatReadsImages(
     detected.models,
-    detected.recommended,
-    configuredProviders.value[providerId]?.selected_model ?? null,
+    detected.recommended_vision,
+    selectedModel(providerId, 'vision'),
   )
 }
 
-function modelOptions(providerId: string) {
+/** Whether the key reaches at least one model that reads images. */
+function reachesAVisionModel(providerId: string): boolean {
+  return providerModels.value[providerId]?.models.some(m => m.vision) ?? false
+}
+
+function modelOptions(providerId: string, use: ModelUse) {
   const detected = providerModels.value[providerId]
   if (!detected) return []
   return modelSelectOptions(
     detected.models,
-    detected.recommended,
-    configuredProviders.value[providerId]?.selected_model ?? null,
-    {
-      filter: modelFilter.value[providerId] ?? '',
-      // Only worth saying where the provider can read images at all
-      flagTextOnly: visionOptions.value.some(o => o.provider === providerId),
-    },
+    use === 'vision' ? detected.recommended_vision : detected.recommended,
+    selectedModel(providerId, use),
+    { filter: modelFilter.value[providerId] ?? '', visionOnly: use === 'vision' },
   )
 }
 
@@ -153,6 +161,7 @@ async function saveProviderKey(providerId: string) {
     if (existing) {
       existing.has_key = result.has_key
       existing.selected_model = result.selected_model
+      existing.selected_vision_model = result.selected_vision_model
     } else if (settings.value) {
       settings.value.ai_providers = [...(settings.value.ai_providers ?? []), result]
     }
@@ -201,17 +210,25 @@ async function clearProviderKey(providerId: string) {
   }
 }
 
-async function saveModel(providerId: string, value: string | number | undefined) {
+async function saveModel(providerId: string, use: ModelUse, value: string | number | undefined) {
   savingProvider.value = providerId
   delete providerError.value[providerId]
   try {
     const modelId = value === undefined || value === AUTO_MODEL ? null : String(value)
+    const payload: AIProviderUpdate = use === 'vision'
+      ? { selected_vision_model: modelId }
+      : { selected_model: modelId }
     const result = await apiClient.put<AIProviderConfig>(
-      `/settings/ai/providers/${providerId}`, { selected_model: modelId }
+      `/settings/ai/providers/${providerId}`, payload
     )
     const p = settings.value?.ai_providers?.find(x => x.provider === providerId)
-    if (p) p.selected_model = result.selected_model
-    toast.show(`Modèle ${providerLabel(providerId)} enregistré.`)
+    if (p) {
+      p.selected_model = result.selected_model
+      p.selected_vision_model = result.selected_vision_model
+    }
+    toast.show(
+      `Modèle ${use === 'vision' ? "d'import par image" : 'de chat'} ${providerLabel(providerId)} enregistré.`
+    )
   } catch (e: any) {
     providerError.value[providerId] = e?.message ?? 'Erreur lors de l\'enregistrement du modèle.'
   } finally {
@@ -363,14 +380,26 @@ const allProviders = computed(() => {
                   @update:model-value="modelFilter[p.provider] = String($event)"
                 />
                 <BaseSelect
-                  label="Modèle"
-                  :model-value="configuredProviders[p.provider]?.selected_model ?? AUTO_MODEL"
-                  :options="modelOptions(p.provider)"
+                  label="Modèle pour le chat"
+                  :model-value="selectedModel(p.provider, 'chat') ?? AUTO_MODEL"
+                  :options="modelOptions(p.provider, 'chat')"
                   :disabled="savingProvider === p.provider"
-                  @update:model-value="saveModel(p.provider, $event)"
+                  @update:model-value="saveModel(p.provider, 'chat', $event)"
                 />
+                <BaseSelect
+                  v-if="reachesAVisionModel(p.provider) || selectedModel(p.provider, 'vision')"
+                  label="Modèle pour l'import par image"
+                  :model-value="selectedModel(p.provider, 'vision') ?? AUTO_MODEL"
+                  :options="modelOptions(p.provider, 'vision')"
+                  :disabled="savingProvider === p.provider"
+                  @update:model-value="saveModel(p.provider, 'vision', $event)"
+                />
+                <p v-else class="text-xs text-text-muted dark:text-text-dark-muted">
+                  Aucun modèle accessible avec cette clé ne lit les images : l'import par image passera par un autre fournisseur.
+                </p>
                 <p class="text-xs text-text-muted dark:text-text-dark-muted">
-                  {{ providerModels[p.provider]!.models.length }} modèles détectés avec votre clé.
+                  {{ providerModels[p.provider]!.models.length }} modèles détectés avec votre clé,
+                  dont {{ providerModels[p.provider]!.models.filter(m => m.vision).length }} lisant les images.
                   « Automatique » choisit le meilleur disponible et suit les nouveautés du fournisseur.
                 </p>
               </template>
@@ -402,7 +431,7 @@ const allProviders = computed(() => {
             </div>
 
             <BaseAlert v-if="!hasAnyVisionKey" variant="warning" class="text-xs">
-              Configurez une clé API <strong>Google</strong>, <strong>Anthropic</strong> ou <strong>OpenRouter</strong> ci-dessus pour activer l'import par image.
+              Configurez ci-dessus la clé API d'un fournisseur proposant un modèle qui lit les images pour activer l'import par image.
             </BaseAlert>
 
             <div v-else class="space-y-2">
@@ -431,7 +460,9 @@ const allProviders = computed(() => {
                     <p class="text-sm font-medium text-text-main dark:text-text-dark-main">{{ opt.label }}</p>
                     <p v-if="!opt.has_key" class="text-xs text-text-muted dark:text-text-dark-muted">Clé API non configurée</p>
                     <p v-else-if="readsImages(opt.provider) === false" class="text-xs text-warning">
-                      Le modèle choisi ne lit pas les images : l'import passera au fournisseur suivant.
+                      {{ reachesAVisionModel(opt.provider)
+                        ? "Le modèle choisi ne lit pas les images : l'import passera au fournisseur suivant."
+                        : "Aucun modèle de cette clé ne lit les images : l'import passera au fournisseur suivant." }}
                     </p>
                   </div>
                 </div>
