@@ -688,7 +688,10 @@ onMounted(() => void load())
 
     </template>
 
-    <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
+    <BankTransferLinkModal
+      :open="linking !== null" :tx="linking"
+      @close="linking = null" @retype="(tx) => { linking = null; retyping = tx }"
+    />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker
       :open="retyping !== null"

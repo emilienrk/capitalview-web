@@ -274,7 +274,10 @@ const retyping = ref<BankTransactionItem | null>(null)
     </p>
 
     <BankHistoryModal :open="showHistory" @close="showHistory = false" />
-    <BankTransferLinkModal :open="linking !== null" :tx="linking" @close="linking = null" />
+    <BankTransferLinkModal
+      :open="linking !== null" :tx="linking"
+      @close="linking = null" @retype="(tx) => { linking = null; retyping = tx }"
+    />
     <BankRecurringAttachModal :open="filing !== null" :tx="filing" @close="filing = null" />
     <BankTypePicker
       :open="retyping !== null" :tx="retyping"

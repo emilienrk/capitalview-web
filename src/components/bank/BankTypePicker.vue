@@ -2,8 +2,9 @@
 /**
  * Says how an operation counts: every type is offered whatever the payment
  * means — a card purchase at a crypto broker is an investment. By default the
- * choice types every operation of the label, and of nearby labels, on this
- * account and in this direction, including those imported later.
+ * choice types this operation alone; the toggle extends it to every operation
+ * of the label, and of nearby labels, on this account and in this direction,
+ * including those imported later — a rule.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -37,7 +38,7 @@ const types = useCashflowTypesStore()
 const { formatCurrency, formatDateShort } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
-const byLabel = ref(true)
+const byLabel = ref(false)
 const clearing = ref(false)
 const error = ref<string | null>(null)
 
@@ -82,7 +83,7 @@ watch(
   () => {
     error.value = null
     clearing.value = false
-    byLabel.value = hasLabel.value
+    byLabel.value = false
     // Which kind of rule types it is only known from the list of rules.
     if (props.open && props.tx?.type_source === 'rule' && !types.rules) types.fetchRules().catch(() => {})
   },
