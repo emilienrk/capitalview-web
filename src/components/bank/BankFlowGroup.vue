@@ -9,7 +9,8 @@
  *
  * With `picking`, the list is where the user ticks the operations an answer
  * types ("celles que je coche"): open, the answer covers the ticked ones;
- * closed, the operation asked about alone.
+ * closed, the operation asked about alone. "Tout cocher" ticks the whole label
+ * as it stands, with no rule for the operations to come.
  */
 import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
@@ -47,6 +48,12 @@ const { maskValue } = usePrivacyMode()
 
 const operations = ref<BankTransactionItem[] | null>(null)
 const failed = ref(false)
+
+const allPicked = computed(() => !!operations.value?.every((operation) => picked.value.includes(operation.id)))
+
+function pickAll(): void {
+  picked.value = allPicked.value ? [] : (operations.value ?? []).map((operation) => operation.id)
+}
 
 /** Shown while the list is on its way: the count is already known. */
 const placeholders = computed(() => Math.min(props.count, 5))
@@ -116,6 +123,14 @@ function day(value: string | null): string {
     <Transition name="cv-expand">
       <div v-if="open">
         <div>
+          <button
+            v-if="picking && operations"
+            type="button"
+            class="mb-1 font-medium text-primary hover:underline"
+            @click="pickAll"
+          >
+            {{ allPicked ? 'Tout décocher' : 'Tout cocher' }}
+          </button>
           <ul
             class="rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border"
           >
