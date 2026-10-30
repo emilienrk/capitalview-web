@@ -52,7 +52,9 @@ const platformImportAccountId = ref('')
 const showPhotoImportModal = ref(false)
 const photoImportAccountId = ref<string | null>(null)
 const editingDepositId = ref<string | null>(null)
-const deductFromBank = ref(true)
+// Off unless ticked: an imported statement replaces the entry it books only on the
+// exact day and amount, and a day apart the deposit would count twice.
+const deductFromBank = ref(false)
 const selectedBankAccountId = ref<string | null>(null)
 const csvImportAccountId = ref<string | null>(null)
 const deleteTarget = ref<{ type: 'account' | 'transaction'; id: string; label: string } | null>(null)
@@ -870,7 +872,7 @@ async function prepareDeposit(): Promise<void> {
   depositForm.notes = ''
   await bank.fetchAccounts()
   selectedBankAccountId.value = sortedBankAccounts.value[0]?.id ?? null
-  deductFromBank.value = selectedBankAccountId.value !== null
+  deductFromBank.value = false
 }
 
 function openEditDeposit(tx: TransactionResponse): void {

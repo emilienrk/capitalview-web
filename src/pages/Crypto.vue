@@ -143,8 +143,9 @@ const txFormError = ref<string | null>(null)
 /** Inline validation error shown inside the account modal. */
 const accountFormError = ref<string | null>(null)
 
-// Bank deduction state for DEPOSIT
-const deductFromBank = ref(true)
+// Bank deduction state for DEPOSIT. Off unless ticked: an imported statement replaces
+// the entry it books only on the exact day and amount, a day apart it counts twice.
+const deductFromBank = ref(false)
 const selectedBankAccountId = ref<string | null>(null)
 
 /**
@@ -302,7 +303,7 @@ watch(() => txForm.type, async (newType) => {
     searchResults.value = []
     // Pre-load bank accounts for the deduction option
     if (newType === 'FIAT_DEPOSIT' || newType === 'FIAT_WITHDRAW') {
-      deductFromBank.value = true
+      deductFromBank.value = false
       await bank.fetchAccounts()
       selectedBankAccountId.value = sortedBankAccounts.value[0]?.id ?? null
     }
@@ -563,7 +564,7 @@ const isFiatWithdraw = computed(() => txForm.type === 'FIAT_WITHDRAW' && isFiatS
 
 watch(isFiatWithdraw, async (enabled) => {
   if (!enabled) return
-  deductFromBank.value = true
+  deductFromBank.value = false
   await bank.fetchAccounts()
   if (!selectedBankAccountId.value) {
     selectedBankAccountId.value = sortedBankAccounts.value[0]?.id ?? null
