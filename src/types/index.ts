@@ -2010,6 +2010,8 @@ export interface PlacementAccountCreate {
   institution_name?: string | null
   opened_at?: string | null
   expected_return_rate?: number | null
+  /** Its deposits are never looked for on the bank accounts: PER and employee savings only. */
+  paid_in_outside_banks?: boolean
 }
 
 export type PlacementAccountUpdate = Partial<PlacementAccountCreate>
@@ -2021,6 +2023,7 @@ export interface PlacementAccountResponse {
   institution_name: string | null
   opened_at: string | null
   expected_return_rate: number | null
+  paid_in_outside_banks: boolean
   current_value: number
   total_deposits: number
   total_withdrawals: number

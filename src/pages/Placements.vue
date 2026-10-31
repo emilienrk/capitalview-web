@@ -29,6 +29,7 @@ import {
   BaseSegmentedControl,
   BaseSelect,
   BaseSpinner,
+  BaseToggle,
   ChartPerformanceBadge,
 } from '@/components'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
@@ -54,6 +55,8 @@ const PLACEMENT_OPTIONS = PLACEMENT_TYPES.map((key) => ({
   label: key === 'EPARGNE_SALARIALE' ? 'Épargne salariale (PEE, PERCO, PER collectif)' : PLACEMENT_LABELS[key],
   value: key,
 }))
+// What an employer may pay into, or a payslip feed (models/enums.py in the API).
+const FUNDED_OUTSIDE_BANKS: PlacementType[] = ['PER', 'EPARGNE_SALARIALE']
 const ENTRY_LABELS: Record<PlacementEntryType, string> = {
   VALUATION: 'Relevé de solde',
   DEPOSIT: 'Versement',
@@ -139,6 +142,7 @@ const placementForm = reactive({
   opened_at: '',
   // Entered as a percentage, sent as a decimal like every rate the API takes.
   expected_rate_pct: '' as string | number,
+  paid_in_outside_banks: false,
 })
 
 function openCreatePlacement(): void {
@@ -150,6 +154,7 @@ function openCreatePlacement(): void {
     institution_name: '',
     opened_at: '',
     expected_rate_pct: '',
+    paid_in_outside_banks: false,
   })
   showPlacementModal.value = true
 }
@@ -164,6 +169,7 @@ function openEditPlacement(placement: PlacementAccountResponse): void {
     opened_at: placement.opened_at ?? '',
     expected_rate_pct:
       placement.expected_return_rate !== null ? Number(placement.expected_return_rate) * 100 : '',
+    paid_in_outside_banks: placement.paid_in_outside_banks,
   })
   showPlacementModal.value = true
 }
@@ -180,6 +186,8 @@ async function savePlacement(): Promise<void> {
     opened_at: placementForm.opened_at || null,
     expected_return_rate:
       placementForm.expected_rate_pct === '' ? null : Number(placementForm.expected_rate_pct) / 100,
+    paid_in_outside_banks:
+      FUNDED_OUTSIDE_BANKS.includes(placementForm.placement_type) && placementForm.paid_in_outside_banks,
   }
   const saved = editingPlacementId.value
     ? await store.updatePlacement(editingPlacementId.value, payload)
@@ -664,6 +672,16 @@ onMounted(async () => {
         <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
           N'entre que dans la projection, et seulement tant qu'un an de relevés ne permet pas de mesurer le rendement réel.
         </p>
+        <template v-if="FUNDED_OUTSIDE_BANKS.includes(placementForm.placement_type)">
+          <label class="flex items-center justify-between gap-3 text-sm font-medium text-text-main dark:text-text-dark-main">
+            Alimenté hors de mes banques
+            <BaseToggle v-model="placementForm.paid_in_outside_banks" aria-label="Alimenté hors de mes banques" />
+          </label>
+          <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+            Abondement de l'employeur, prélèvement sur salaire : ses versements ne sont pas cherchés sur vos comptes
+            bancaires, et n'apparaissent plus dans « Sans contrepartie bancaire ». Ses rachats, si.
+          </p>
+        </template>
       </div>
       <template #footer>
         <div class="flex justify-between w-full">
