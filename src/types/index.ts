@@ -2680,7 +2680,53 @@ export interface InvestmentPlanInput {
   periods?: InvestmentPlanPeriodInput[]
 }
 
-export interface InvestorAnalyticsResponse {
+export interface DrawdownOut {
+  /** Fall from the peak to the trough, negative or zero. */
+  depth: number | string
+  peak: string
+  trough: string
+  /** First session back at the peak, or null while still under water. */
+  recovered: string | null
+}
+
+/** Risk against the benchmark, measured on its sessions, and whether the gap to it is real. */
+export interface RiskResponse {
+  sessions: number
+  volatility: MetricOut
+  benchmark_volatility: MetricOut
+  /** Portfolio volatility over benchmark volatility — the block's headline. */
+  volatility_ratio: MetricOut
+  beta: MetricOut
+  correlation: MetricOut
+  tracking_error: MetricOut
+  max_drawdown: DrawdownOut | null
+  benchmark_max_drawdown: DrawdownOut | null
+  /** Annualised mean excess over the benchmark. */
+  excess_return: MetricOut
+  p_value: number | string | null
+  /** False means the gap to the index is indistinguishable from chance. */
+  is_detectable: boolean
+  /** Years of history this gap would need, at this noise level, to be significant. */
+  years_to_conclude: number | string | null
+  /** Annualised return per point of volatility — a Sharpe ratio without a risk-free rate. */
+  return_per_risk: MetricOut
+  benchmark_return_per_risk: MetricOut
+  reading?: ReadingOut | null
+  verdict: string
+}
+
+/**
+ * When the payload was computed, and until when it is served as is. A ledger
+ * or settings change rebuilds it at once, prices alone only at `valid_until`.
+ */
+export interface CachedPayload {
+  computed_at: string | null
+  valid_until: string | null
+  /** True when the response came from the store rather than a fresh replay. */
+  cached: boolean
+}
+
+export interface InvestorAnalyticsResponse extends CachedPayload {
   period_start: string | null
   period_end: string | null
   days: number
@@ -2695,6 +2741,7 @@ export interface InvestorAnalyticsResponse {
   deposit_lag: DepositLagResponse | null
   market_conditioning: MarketConditioningResponse | null
   concentration: ConcentrationResponse | null
+  risk: RiskResponse | null
   fees: FeesResponse | null
   exits: ExitsResponse | null
   plan: PlanResponse | null
@@ -2732,7 +2779,7 @@ export interface YearPerformanceOut {
   benchmark_end: string | null
 }
 
-export interface YearlyPerformanceResponse {
+export interface YearlyPerformanceResponse extends CachedPayload {
   benchmark_asset_key: string
   benchmark_name: string
   years: YearPerformanceOut[]

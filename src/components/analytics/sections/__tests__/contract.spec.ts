@@ -220,6 +220,37 @@ const splitPlan = {
   ],
 }
 
+/** RiskResponse. */
+const risk = {
+  sessions: 800,
+  volatility: metric(0.18),
+  benchmark_volatility: metric(0.14),
+  volatility_ratio: metric(1.3),
+  beta: metric(1.2),
+  correlation: metric(0.9),
+  tracking_error: metric(0.06),
+  max_drawdown: { depth: '-0.23', peak: '2022-01-05', trough: '2022-10-12', recovered: '2023-06-01' },
+  benchmark_max_drawdown: { depth: '-0.18', peak: '2022-01-05', trough: '2022-10-12', recovered: null },
+  excess_return: metric(0.012),
+  p_value: '0.42',
+  is_detectable: false,
+  years_to_conclude: '38.2',
+  return_per_risk: metric(0.4),
+  benchmark_return_per_risk: metric(0.5),
+  reading: {
+    value: '1.3',
+    format: 'times',
+    active: 1,
+    tone: 'watch',
+    bands: [
+      { up_to: '1.15', label: "comme l'indice", tone: 'good' },
+      { up_to: '1.5', label: 'plus nerveux', tone: 'watch' },
+      { up_to: null, label: 'bien plus nerveux', tone: 'bad' },
+    ],
+  },
+  verdict: 'Un verdict.',
+}
+
 async function render(component: string, props: Record<string, unknown>) {
   const loaded = await import(`@/components/analytics/sections/${component}.vue`)
   return renderToString(createSSRApp(loaded.default, { isDark: true, ...props }))
@@ -313,6 +344,25 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).not.toContain('Ordre minimum rentable')
     // Et le décompte d'ordres sous le seuil disparaît avec lui.
     expect(html).not.toContain('sont sous le seuil')
+  })
+
+  it('RiskSection montre l’amplitude sur son échelle et date la pire chute', async () => {
+    const html = await render('RiskSection', { risk })
+    expect(html).toContain('1,3×')
+    expect(html).toContain('plus nerveux')
+    expect(html).toContain('text-warning')
+    expect(html).toContain('-23,00 %')
+    expect(html).toContain('pas encore rattrapée')
+    // Un écart non significatif dit combien d'années il faudrait, jamais « vous battez l'indice ».
+    expect(html).toContain('≈ 38 ans')
+    expect(html).toContain('Hasard')
+    expect(html).not.toContain('undefined')
+  })
+
+  it('RiskSection se replie sous un an de séances', async () => {
+    const thin = { ...risk, volatility_ratio: metric(null), reading: { ...risk.reading, value: null, active: null, tone: null } }
+    const html = await render('RiskSection', { risk: thin })
+    expect(html).not.toContain('Bêta')
   })
 
   it('HoldingsSection rend la matrice avec des noms, pas des ISIN', async () => {
