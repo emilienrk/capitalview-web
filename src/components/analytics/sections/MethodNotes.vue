@@ -44,17 +44,16 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
       class="mt-3 list-disc space-y-2 pl-5 text-xs leading-relaxed text-text-muted dark:text-text-dark-muted"
     >
       <li>
-        <strong>Sharpe, Sortino, ratio d'information.</strong> Sur deux ans, c'est du bruit : la
-        t-stat d'un ratio d'information vaut environ IR·√T, il faudrait un IR supérieur à 1,4 pour
-        que le chiffre soit significatif. Les afficher échouerait au test du « et donc ? ».
+        <strong>Un alpha ou un ratio d'information affiché seuls.</strong> Sur quelques années,
+        la t-stat d'un écart à l'indice vaut environ IR·√T : presque aucun historique de
+        particulier ne la fait passer. Le bloc « Risque » montre donc l'écart <em>avec</em> son
+        test et le nombre d'années qu'il faudrait pour conclure, et ne le juge jamais sur son
+        seul signe. Le « rendement par unité de risque » est un Sharpe sans taux sans risque : le
+        taux n'est pas stocké, et il se soustrait des deux côtés.
       </li>
       <li>
-        <strong>Alpha et bêta contre le marché.</strong> Même problème d'échantillon, et redondant
-        avec les paris indépendants ci-dessus.
-      </li>
-      <li>
-        <strong>Le drawdown maximal en chiffre-titre.</strong> Descriptif, non actionnable, et déjà
-        lisible sur la courbe d'évolution.
+        <strong>Le drawdown maximal en chiffre-titre.</strong> Seul, il est descriptif. Il n'est
+        montré que face à celui de l'indice sur les mêmes séances, ce qui en fait une comparaison.
       </li>
       <li>
         <strong>L'attribution sectorielle (Brinson–Fachler).</strong> Elle exige les poids
