@@ -4,13 +4,19 @@ import { apiClient } from '@/api/client'
 import { getOrFetchCached, invalidateCacheKey } from '@/services/cache'
 import type { AnalysedAsset, InvestorAnalyticsResponse, YearlyPerformanceResponse } from '@/types'
 
-// Behavioural metrics move on the scale of weeks, not seconds.
+// Behavioural metrics move on the scale of weeks, not seconds. The API keeps
+// the finished analysis for a month on its side (`computed_at` on the payload);
+// this hour only spares the round trip.
 const CACHE_TTL_MS = 60 * 60 * 1000
 const CACHE_KEY = 'analysis:investor'
 // The traded lines change with every import, and the list is cheap to rebuild.
 const ASSETS_CACHE_TTL_MS = 5 * 60 * 1000
 const ASSETS_CACHE_KEY = 'analysis:assets'
 const YEARLY_CACHE_KEY = 'analysis:yearly'
+
+function withRefresh(path: string, force: boolean): string {
+  return force ? `${path}?refresh=true` : path
+}
 
 export const useAnalysisStore = defineStore('analysis', () => {
   const data = ref<InvestorAnalyticsResponse | null>(null)
@@ -21,13 +27,17 @@ export const useAnalysisStore = defineStore('analysis', () => {
   const yearly = ref<YearlyPerformanceResponse | null>(null)
   const yearlyError = ref<string | null>(null)
 
+  /**
+   * `force` also asks the API to replay rather than serve its stored payload:
+   * the only thing a user can mean by "recalculer" is both caches at once.
+   */
   async function fetchAnalytics(force = false): Promise<void> {
     isLoading.value = true
     error.value = null
     try {
       data.value = await getOrFetchCached<InvestorAnalyticsResponse>(
         CACHE_KEY,
-        () => apiClient.get<InvestorAnalyticsResponse>('/analytics/investor'),
+        () => apiClient.get<InvestorAnalyticsResponse>(withRefresh('/analytics/investor', force)),
         CACHE_TTL_MS,
         force,
       )
@@ -68,13 +78,18 @@ export const useAnalysisStore = defineStore('analysis', () => {
     try {
       yearly.value = await getOrFetchCached<YearlyPerformanceResponse>(
         YEARLY_CACHE_KEY,
-        () => apiClient.get<YearlyPerformanceResponse>('/analytics/yearly'),
+        () => apiClient.get<YearlyPerformanceResponse>(withRefresh('/analytics/yearly', force)),
         CACHE_TTL_MS,
         force,
       )
     } catch (e) {
       yearlyError.value = e instanceof Error ? e.message : 'Erreur lors du chargement des années'
     }
+  }
+
+  /** Both payloads replayed on the server, whatever either cache holds. */
+  async function recompute(): Promise<void> {
+    await Promise.all([fetchAnalytics(true), fetchYearly(true)])
   }
 
   function reset(): void {
@@ -96,6 +111,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     yearly,
     yearlyError,
     fetchYearly,
+    recompute,
     reset,
   }
 })
