@@ -374,13 +374,13 @@ function dayBefore(iso: string): string {
 function typeLabel(t: string): string {
   const map: Record<string, string> = {
     BUY: 'Achat', SELL: 'Vente', SPEND: 'Dépense', FEE: 'Frais', REWARD: 'Récompense',
-    DEPOSIT: 'Dépôt', DIVIDEND: 'Dividende', TRANSFER: 'Transfert', WITHDRAW: 'Sortie', ANCHOR: 'Ancre €',
+    DEPOSIT: 'Dépôt', DIVIDEND: 'Dividende', GIFT: 'Cadeau', TRANSFER: 'Transfert', WITHDRAW: 'Sortie', ANCHOR: 'Ancre €',
   }
   return map[t] ?? t
 }
 function typeBadgeClass(t: string): string {
   switch (t) {
-    case 'BUY': case 'DEPOSIT': case 'DIVIDEND': return 'bg-success/10 text-success'
+    case 'BUY': case 'DEPOSIT': case 'DIVIDEND': case 'GIFT': return 'bg-success/10 text-success'
     case 'SELL': case 'SPEND': case 'WITHDRAW': return 'bg-danger/10 text-danger'
     case 'FEE': return 'bg-warning/10 text-warning'
     case 'REWARD': return 'bg-info/10 text-info'

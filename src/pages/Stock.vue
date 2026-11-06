@@ -29,7 +29,7 @@ import AssetPriceModal from '@/components/modals/AssetPriceModal.vue'
 import HistoryLineChart from '@/components/charts/HistoryLineChart.vue'
 import AllocationDonutChart from '@/components/charts/AllocationDonutChart.vue'
 import { accountHeadline, fiveYearMark, readDepositCeiling, STOCK_TX_TYPE_LABELS, type AccountHeadline } from '@/utils/stockAccount'
-import type { StockAccountCreate, StockTransactionCreate, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
+import type { StockAccountCreate, StockTransactionCreate, StockTransactionType, StockAccountType, TransactionResponse, AssetSearchResult, StockTransactionBulkCreate, PositionResponse, EurDepositCreate, AccountHistorySnapshotResponse, AccountSummaryResponse } from '@/types'
 import { toastWhileSet } from '@/composables/useToast'
 
 
@@ -154,6 +154,7 @@ const txTypeOptions = [
   { label: 'Vente', value: 'SELL' },
   { label: 'Dividende', value: 'DIVIDEND' },
   { label: 'Dépôt d’euros', value: 'DEPOSIT' },
+  { label: 'Cadeau', value: 'GIFT' },
 ]
 
 const accountTypeLabels: Record<string, string> = {
@@ -729,17 +730,24 @@ const txPriceLabel = computed(() => {
   return 'Prix unitaire (€)'
 })
 
-const isDepositType = computed(() => txForm.type === 'DEPOSIT')
+const isGiftType = computed(() => txForm.type === 'GIFT')
+// Euros alone, no asset: a deposit, a gift, or the euro income row being edited.
+const isEurForm = computed(() => txForm.type === 'DEPOSIT' || isGiftType.value || !!editingDepositId.value)
 
 // A trade being edited stays a trade, and a deposit stays a deposit: the two are
-// stored and updated through different routes.
-const txTypeSelectOptions = computed(() =>
-  editingTxId.value ? txTypeOptions.filter((option) => option.value !== 'DEPOSIT') : txTypeOptions,
-)
+// stored and updated through different routes. Euro income can be told apart
+// from a gift only by its owner, so it stays free to move between the two.
+const txTypeSelectOptions = computed(() => {
+  if (editingTxId.value) return txTypeOptions.filter((option) => !['DEPOSIT', 'GIFT'].includes(option.value))
+  if (editingDepositId.value && txForm.type !== 'DEPOSIT') {
+    return txTypeOptions.filter((option) => ['DIVIDEND', 'GIFT'].includes(option.value))
+  }
+  return txTypeOptions
+})
 
 // When the transaction type changes, update the asset picker scope
 watch(() => txForm.type, (newType) => {
-  if (newType === 'DEPOSIT') {
+  if (newType === 'DEPOSIT' || newType === 'GIFT') {
     void prepareDeposit()
   } else if (newType === 'SELL' || newType === 'DIVIDEND') {
     // Restrict to owned positions, filtered by the current query if any
@@ -875,12 +883,12 @@ async function prepareDeposit(): Promise<void> {
   deductFromBank.value = false
 }
 
-function openEditDeposit(tx: TransactionResponse): void {
+function openEditEurRow(tx: TransactionResponse): void {
   txFormError.value = null
   editingTxId.value = null
   editingDepositId.value = tx.id
   txForm.account_id = selectedAccountId.value!
-  txForm.type = 'DEPOSIT'
+  txForm.type = tx.type as StockTransactionType
   depositForm.amount = tx.amount
   depositForm.fees = Number(tx.fees ?? 0)
   depositForm.executed_at = isoToDatetimeLocal(tx.executed_at)
@@ -922,6 +930,7 @@ async function handleSubmitDeposit(): Promise<void> {
   if (editingDepositId.value) {
     showTxModal.value = false
     const result = await stocks.updateTransaction(editingDepositId.value, {
+      type: txForm.type,
       amount: grossAmount,
       fees: feesAmount,
       executed_at: datetimeLocalToIso(depositForm.executed_at),
@@ -959,12 +968,22 @@ async function handleSubmitDeposit(): Promise<void> {
 
   const targetStockAccountId = txForm.account_id
   showTxModal.value = false
-  const result = await stocks.depositEur(targetStockAccountId, {
+  const cash = {
     amount: grossAmount,
     fees: feesAmount,
     executed_at: datetimeLocalToIso(depositForm.executed_at),
     notes: depositForm.notes || undefined,
-  })
+  }
+  const result = isGiftType.value
+    ? await stocks.createTransaction({
+        ...cash,
+        account_id: targetStockAccountId,
+        symbol: 'EUR',
+        asset_key: 'EUR',
+        type: 'GIFT',
+        price_per_unit: 1,
+      })
+    : await stocks.depositEur(targetStockAccountId, cash)
   if (!result) {
     showTxModal.value = true
     return
@@ -1804,7 +1823,7 @@ onMounted(async () => {
                       <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
                         <Pencil class="w-4 h-4" />
                       </BaseButton>
-                      <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" :aria-label="`Modifier le dépôt du ${formatDateShort(tx.executed_at)}`" @click="openEditDeposit(tx)">
+                      <BaseButton v-else-if="tx.type !== 'WITHDRAW'" size="sm" variant="ghost" :aria-label="`Modifier l'opération en euros du ${formatDateShort(tx.executed_at)}`" @click="openEditEurRow(tx)">
                         <Pencil class="w-4 h-4" />
                       </BaseButton>
                     </td>
@@ -1850,7 +1869,7 @@ onMounted(async () => {
                     <BaseButton v-if="tx.asset_key !== 'EUR'" size="sm" variant="ghost" :aria-label="`Modifier la transaction ${tx.type} du ${formatDateShort(tx.executed_at)}`" @click="openEditTransaction(tx)">
                       <Pencil class="w-4 h-4" />
                     </BaseButton>
-                    <BaseButton v-else-if="tx.type === 'DEPOSIT'" size="sm" variant="ghost" :aria-label="`Modifier le dépôt du ${formatDateShort(tx.executed_at)}`" @click="openEditDeposit(tx)">
+                    <BaseButton v-else-if="tx.type !== 'WITHDRAW'" size="sm" variant="ghost" :aria-label="`Modifier l'opération en euros du ${formatDateShort(tx.executed_at)}`" @click="openEditEurRow(tx)">
                       <Pencil class="w-4 h-4" />
                     </BaseButton>
                   </div>
@@ -1941,25 +1960,25 @@ onMounted(async () => {
     <!-- ── Create/Edit Transaction Modal ─────────────────────── -->
     <BaseModal
       :open="showTxModal"
-      :title="editingDepositId ? 'Modifier le dépôt' : editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction'"
+      :title="editingDepositId ? (txForm.type === 'DEPOSIT' ? 'Modifier le dépôt' : 'Modifier le revenu en euros') : editingTxId ? 'Modifier la transaction' : 'Nouvelle transaction'"
       @close="showTxModal = false"
     >
       <BaseAlert v-if="txFormError" variant="danger" dismissible class="mb-4" @dismiss="txFormError = null">
         {{ txFormError }}
       </BaseAlert>
-      <form @submit.prevent="isDepositType ? handleSubmitDeposit() : handleSubmitTransaction()" class="space-y-4">
+      <form @submit.prevent="isEurForm ? handleSubmitDeposit() : handleSubmitTransaction()" class="space-y-4">
 
         <!-- Type first so the asset picker scope adapts immediately -->
         <BaseSelect
           v-model="txForm.type"
           label="Type de transaction"
           :options="txTypeSelectOptions"
-          :disabled="!!editingDepositId"
+          :disabled="!!editingDepositId && txForm.type === 'DEPOSIT'"
           required
         />
 
-        <!-- ── EUR deposit ── -->
-        <template v-if="isDepositType">
+        <!-- ── EUR deposit, gift or income ── -->
+        <template v-if="isEurForm">
           <BaseInput
             v-model="depositForm.amount"
             label="Montant (€)"
@@ -1969,20 +1988,25 @@ onMounted(async () => {
             placeholder="0.00"
             required
           />
-          <BaseInput
-            v-model="depositForm.fees"
-            label="Frais (€)"
-            type="number"
-            step="any"
-            min="0"
-            placeholder="0.00"
-          />
-          <p class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
-            Montant crédité en bourse : montant - frais.
+          <template v-if="txForm.type === 'DEPOSIT'">
+            <BaseInput
+              v-model="depositForm.fees"
+              label="Frais (€)"
+              type="number"
+              step="any"
+              min="0"
+              placeholder="0.00"
+            />
+            <p class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
+              Montant crédité en bourse : montant - frais.
+            </p>
+          </template>
+          <p v-else-if="isGiftType" class="text-xs text-text-muted dark:text-text-dark-muted -mt-2">
+            Ajouté aux liquidités, sans compter dans le P/L ni dans les versements.
           </p>
           <BaseInput
             v-model="depositForm.executed_at"
-            label="Date du dépôt"
+            :label="txForm.type === 'DEPOSIT' ? 'Date du dépôt' : 'Date'"
             type="datetime-local"
             required
           />
@@ -1995,7 +2019,7 @@ onMounted(async () => {
           <!-- Only a manually kept euro account can be deducted: a synchronised
                one sees the transfer on its own at the next sync. -->
           <div
-            v-if="!editingDepositId && sortedBankAccounts.length"
+            v-if="!editingDepositId && txForm.type === 'DEPOSIT' && sortedBankAccounts.length"
             class="rounded-card border border-surface-border dark:border-surface-dark-border p-4 space-y-3"
           >
             <label class="flex items-center gap-3 cursor-pointer">
@@ -2168,7 +2192,7 @@ onMounted(async () => {
           >
             Supprimer
           </BaseButton>
-          <div v-else-if="!isDepositType">
+          <div v-else-if="!isEurForm">
             <BaseButton
               variant="ghost"
               size="sm"
@@ -2182,10 +2206,10 @@ onMounted(async () => {
           <div class="flex gap-2">
             <BaseButton variant="ghost" @click="showTxModal = false">Annuler</BaseButton>
             <BaseButton
-              :loading="stocks.isLoading || (isDepositType && bank.isLoading)"
-              @click="isDepositType ? handleSubmitDeposit() : handleSubmitTransaction()"
+              :loading="stocks.isLoading || (isEurForm && bank.isLoading)"
+              @click="isEurForm ? handleSubmitDeposit() : handleSubmitTransaction()"
             >
-              {{ editingTxId || editingDepositId ? 'Enregistrer' : isDepositType ? 'Valider le dépôt' : 'Valider' }}
+              {{ editingTxId || editingDepositId ? 'Enregistrer' : isGiftType ? 'Valider le cadeau' : isEurForm ? 'Valider le dépôt' : 'Valider' }}
             </BaseButton>
           </div>
         </div>
