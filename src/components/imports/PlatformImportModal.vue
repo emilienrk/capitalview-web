@@ -607,6 +607,22 @@ function typeBadgeClass(t: string): string {
         Solde après import au {{ fmtDate(preview.bank_balance_after_date) }} :
         <strong class="text-text-main dark:text-text-dark-main tabular-nums">{{ euros(balanceAfter) }}</strong>
       </p>
+      <!-- The file reaches over the opening balance: it is carried back, never dropped. -->
+      <div
+        v-if="preview?.bank_carried"
+        class="mb-4 p-3 rounded-card border border-info/30 bg-info/5 text-sm text-text-body dark:text-text-dark-body"
+      >
+        <p class="font-medium text-text-main dark:text-text-dark-main">
+          Le fichier remonte avant le solde d'ouverture du {{ fmtDate(preview.bank_carried.day) }}
+          ({{ euros(preview.bank_carried.amount) }})
+        </p>
+        <p class="mt-1 text-xs">
+          Ce solde est conservé : l'ajustement passe au {{ fmtDate(preview.bank_carried.to_day) }} pour
+          <span class="tabular-nums">{{ euros(preview.bank_carried.to_amount) }}</span>, ce qui laisse le solde du
+          {{ fmtDate(preview.bank_carried.day) }} inchangé. Si le fichier commence à l'ouverture du compte, supprimez
+          ensuite cet ajustement dans la liste des opérations.
+        </p>
+      </div>
       <div
         v-if="preview?.bank_replaced?.length"
         class="mb-4 p-3 rounded-card border border-info/30 bg-info/5 text-sm text-text-body dark:text-text-dark-body"

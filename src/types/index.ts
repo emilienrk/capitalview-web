@@ -1621,6 +1621,15 @@ export interface BankImportReplacedEntry {
   label: string | null
 }
 
+export interface BankImportCarriedEntry {
+  day: string
+  /** Signed. */
+  amount: number
+  label: string | null
+  to_day: string
+  to_amount: number
+}
+
 /** The curve a movements file draws before a linked account's history,
  *  anchored so that it meets the bank's. */
 export interface BankImportCurvePreview {
@@ -1653,6 +1662,9 @@ export interface ImportPreviewResponse {
   covered_by_bank_count: number
   /** Account no bank feeds: the adjustments the file replaces. */
   bank_replaced?: BankImportReplacedEntry[] | null
+  /** Account no bank feeds: the opening balance the file reaches over, carried
+   *  back to the eve of its first operation so the balance it stated stays. */
+  bank_carried?: BankImportCarriedEntry | null
   /** Account no bank feeds: the balance at the file's last operation, once imported. */
   bank_balance_after?: number | null
   bank_balance_after_date?: string | null
