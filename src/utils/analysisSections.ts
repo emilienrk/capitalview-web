@@ -16,6 +16,7 @@ export const ANALYSIS_SECTIONS: AnalysisSection[] = [
   { key: 'yearly', label: 'Année par année', description: "Gain et rendement de chaque année civile, face à l'indice de référence" },
   { key: 'behaviour', label: 'Ce que vous faites vraiment', description: 'Rythme des achats, délai virement→investissement, conditionnement au marché' },
   { key: 'cost', label: 'Ce que ça coûte', description: 'Écart investisseur, pont contrefactuel, prix payé sur chaque achat' },
+  { key: 'risk', label: "Risque et écart à l'indice", description: "Volatilité face à l'indice, pire chute, et si votre écart à l'indice tient face au hasard" },
   { key: 'holdings', label: 'Ce qui est réellement détenu', description: 'Concentration, paris indépendants et rotation du portefeuille' },
   { key: 'fees', label: 'Frais et sorties', description: 'Frais de courtage et ce que deviennent les sorties' },
   { key: 'plan', label: 'Adhérence au plan cible', description: 'Écart entre le plan déclaré et les versements réels' },

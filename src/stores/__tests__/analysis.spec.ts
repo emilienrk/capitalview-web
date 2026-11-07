@@ -55,6 +55,17 @@ describe('useAnalysisStore', () => {
     expect(store.isLoading).toBe(false)
   })
 
+  it('asks the API to replay rather than serve its stored payload on a forced fetch', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.get).mockResolvedValue({ days: 0, years: [] })
+
+    const store = useAnalysisStore()
+    await store.recompute()
+
+    expect(apiClient.get).toHaveBeenCalledWith('/analytics/investor?refresh=true')
+    expect(apiClient.get).toHaveBeenCalledWith('/analytics/yearly?refresh=true')
+  })
+
   it('loads the traded lines the settings pickers offer', async () => {
     const { apiClient } = await import('@/api/client')
     vi.mocked(apiClient.get).mockResolvedValue([

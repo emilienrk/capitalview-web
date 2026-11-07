@@ -5,7 +5,7 @@
  */
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Settings } from 'lucide-vue-next'
+import { RefreshCw, Settings } from 'lucide-vue-next'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useDarkMode } from '@/composables/useDarkMode'
 import PageHeader from '@/components/PageHeader.vue'
@@ -16,15 +16,18 @@ import CostSection from '@/components/analytics/sections/CostSection.vue'
 import FeesSection from '@/components/analytics/sections/FeesSection.vue'
 import HoldingsSection from '@/components/analytics/sections/HoldingsSection.vue'
 import PlanSection from '@/components/analytics/sections/PlanSection.vue'
+import RiskSection from '@/components/analytics/sections/RiskSection.vue'
 import MethodNotes from '@/components/analytics/sections/MethodNotes.vue'
 import ProjectionSection from '@/components/analytics/sections/ProjectionSection.vue'
 import YearlySection from '@/components/analytics/sections/YearlySection.vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useFormatters } from '@/composables/useFormatters'
 import { isSectionVisible } from '@/utils/analysisSections'
 
 const analysis = useAnalysisStore()
 const settingsStore = useSettingsStore()
 const { isDark } = useDarkMode()
+const { formatDate } = useFormatters()
 
 const gap = computed(() => analysis.data?.investor_gap ?? null)
 const bridge = computed(() => analysis.data?.counterfactual ?? null)
@@ -33,6 +36,7 @@ const regularity = computed(() => analysis.data?.regularity ?? null)
 const depositLag = computed(() => analysis.data?.deposit_lag ?? null)
 const conditioning = computed(() => analysis.data?.market_conditioning ?? null)
 const concentration = computed(() => analysis.data?.concentration ?? null)
+const risk = computed(() => analysis.data?.risk ?? null)
 const turnover = computed(() => analysis.data?.turnover ?? null)
 const fees = computed(() => analysis.data?.fees ?? null)
 const exits = computed(() => analysis.data?.exits ?? null)
@@ -51,6 +55,7 @@ const SECTION_OF: Record<string, string> = {
   investor_gap: 'cost',
   counterfactual: 'cost',
   execution: 'cost',
+  risk: 'risk',
   concentration: 'holdings',
   fees: 'fees',
   exits: 'fees',
@@ -79,6 +84,7 @@ const hasAnyBlock = computed(() =>
       regularity.value ||
       depositLag.value ||
       conditioning.value ||
+      risk.value ||
       concentration.value ||
       turnover.value ||
       fees.value ||
@@ -93,6 +99,14 @@ const hasAnyBlock = computed(() =>
  * plan had ever been declared — the one reading that is certainly wrong.
  */
 const planError = computed(() => plan.value?.error ?? null)
+
+/**
+ * The API keeps the finished analysis for a month and dates it. The date is
+ * what makes a stored figure honest, and the button is the only way to ask for
+ * today's prices before the validity runs out.
+ */
+const computedAt = computed(() => analysis.data?.computed_at ?? null)
+const isRecomputing = computed(() => analysis.isLoading && analysis.data !== null)
 
 /**
  * Repair a stale cache rather than trust whoever changed the setting.
@@ -121,6 +135,25 @@ onMounted(async () => {
       description="Ce que vos données disent de votre comportement d'investisseur"
     >
       <template #actions>
+        <span
+          v-if="computedAt"
+          class="text-xs text-text-muted dark:text-text-dark-muted"
+          :title="analysis.data?.valid_until ? `Servie telle quelle jusqu'au ${formatDate(analysis.data.valid_until)}, sauf nouvelle opération ou changement de réglage.` : undefined"
+        >
+          Calculée le {{ formatDate(computedAt) }}
+        </span>
+        <BaseButton
+          v-if="computedAt"
+          variant="outline"
+          size="sm"
+          :disabled="isRecomputing"
+          aria-label="Recalculer l'analyse avec les cours du jour"
+          title="Recalculer l'analyse avec les cours du jour"
+          @click="analysis.recompute()"
+        >
+          <RefreshCw :class="['h-4 w-4', isRecomputing ? 'animate-spin' : '']" stroke-width="2" />
+          <span class="hidden sm:inline">Recalculer</span>
+        </BaseButton>
         <BaseButton
           :to="{ path: '/settings', query: { tab: 'analyse' } }"
           variant="outline"
@@ -206,6 +239,8 @@ onMounted(async () => {
           :execution="execution"
           :is-dark="isDark"
         />
+
+        <RiskSection v-if="shows('risk')" :risk="risk" />
 
         <HoldingsSection
           v-if="shows('holdings')"
