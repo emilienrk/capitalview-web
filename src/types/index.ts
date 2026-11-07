@@ -1759,6 +1759,7 @@ export interface AccountSummaryResponse {
   total_fees: number
   currency: string
   total_dividends: number
+  total_gifts?: number
   current_value: number | null
   cash_balance: number
   profit_loss: number | null
