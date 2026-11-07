@@ -1174,7 +1174,7 @@ export interface CashflowBalanceResponse {
 // ─── Stocks ──────────────────────────────────────────────────
 
 export type StockAccountType = 'PEA' | 'CTO' | 'PEA_PME'
-export type StockTransactionType = 'BUY' | 'SELL' | 'DEPOSIT' | 'DIVIDEND'
+export type StockTransactionType = 'BUY' | 'SELL' | 'DEPOSIT' | 'DIVIDEND' | 'GIFT'
 
 export interface StockAccountCreate {
   name: string
@@ -1771,6 +1771,7 @@ export interface AccountSummaryResponse {
   total_fees: number
   currency: string
   total_dividends: number
+  total_gifts?: number
   current_value: number | null
   cash_balance: number
   profit_loss: number | null

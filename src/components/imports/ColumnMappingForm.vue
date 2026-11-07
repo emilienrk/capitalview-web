@@ -42,7 +42,7 @@ const showAdvanced = ref(false)
 const typeOptions =
   props.category === 'crypto'
     ? ['BUY', 'SPEND', 'FEE', 'REWARD', 'DEPOSIT', 'TRANSFER', 'WITHDRAW']
-    : ['BUY', 'SELL', 'DEPOSIT', 'DIVIDEND']
+    : ['BUY', 'SELL', 'DEPOSIT', 'DIVIDEND', 'GIFT']
 
 // Auto-guess a mapping from common header names when none is set yet.
 function autoGuess() {

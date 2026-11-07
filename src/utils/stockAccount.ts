@@ -97,4 +97,5 @@ export const STOCK_TX_TYPE_LABELS: Record<string, string> = {
   DIVIDEND: 'Dividende',
   DEPOSIT: 'Versement',
   WITHDRAW: 'Retrait',
+  GIFT: 'Cadeau',
 }

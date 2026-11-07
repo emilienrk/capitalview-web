@@ -207,7 +207,7 @@ function validateTransaction(transaction: any): void {
   }
 
   if (props.assetType === 'stocks') {
-    const validTypes = ['BUY', 'SELL', 'DEPOSIT', 'DIVIDEND']
+    const validTypes = ['BUY', 'SELL', 'DEPOSIT', 'DIVIDEND', 'GIFT']
     if (!validTypes.includes(transaction.type)) {
       throw new Error(`Type « ${transaction.type} » invalide (valeurs acceptées : ${validTypes.join(', ')})`)
     }
@@ -216,16 +216,16 @@ function validateTransaction(transaction: any): void {
       throw new Error('Les frais doivent être un nombre positif ou nul')
     }
 
-    if (transaction.type === 'DEPOSIT') {
+    if (transaction.type === 'DEPOSIT' || transaction.type === 'GIFT') {
       if (transaction.asset_key && transaction.asset_key !== 'EUR') {
-        throw new Error('Pour un dépôt, le champ ISIN doit être vide ou « EUR »')
+        throw new Error('Pour un dépôt ou un cadeau, le champ ISIN doit être vide ou « EUR »')
       }
 
       const grossAmount = Number(transaction.amount)
       const fees = Number(transaction.fees || 0)
       const netAmount = grossAmount - fees
       if (netAmount <= 0) {
-        throw new Error(`Pour un dépôt, le montant (${grossAmount}) doit être supérieur aux frais (${fees})`)
+        throw new Error(`Pour un dépôt ou un cadeau, le montant (${grossAmount}) doit être supérieur aux frais (${fees})`)
       }
 
       // Normalize deposit to EUR source of truth and store only the net value.
