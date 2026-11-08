@@ -279,7 +279,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
            carries its own button, "Aucune" refuses them all. -->
       <ul v-if="choices.length" class="mt-1 space-y-1 text-xs text-text-muted dark:text-text-dark-muted">
         <li v-for="choice in choices" :key="`${choice.kind}-${choice.id}`" class="flex items-center gap-2">
-          <span class="min-w-0 line-clamp-2 break-words" :title="choice.text">
+          <span class="min-w-0 flex-1 sm:flex-none line-clamp-2 break-words" :title="choice.text">
             <component :is="choice.icon" class="inline w-3 h-3 mr-1 -mt-px" aria-hidden="true" />
             <span class="font-medium text-text-main dark:text-text-dark-main">{{ choice.account }}</span>
             <template v-if="choice.day"> · {{ choice.day }}</template> · {{ choice.what }}
