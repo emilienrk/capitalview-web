@@ -1,13 +1,16 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed, ref, watch } from 'vue'
-import { ArrowLeftRight, Check, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
+import {
+  ArrowLeftRight, Check, Landmark, Link2, Pencil, PiggyBank, Repeat, Trash2, TrendingUp, Undo2, Unlink, Wallet,
+} from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
 import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useBankStore } from '@/stores/bank'
 import {
   CASHFLOW_TYPE_TONES,
   PAIR_HINTS,
@@ -18,6 +21,7 @@ import {
   togetherNote,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
+import type { PairChoice } from '@/utils/cashflowTypes'
 import { questionText, roleNote } from '@/utils/recurring'
 import type {
   BankContributionAnswer, BankContributionDecisionKind, BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
@@ -122,14 +126,23 @@ function onDay(day: string | null | undefined): string {
     ? ` le ${new Date(`${day}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : ''
 }
-/** The other side of a pair offered to the user: what the pair is judged by. Its account is in the badge. */
-const offered = computed(() => {
-  const { transfer_label: label, transfer_date: day } = props.tx
-  if (!suggested.value || !label) return null
-  return `En face${onDay(day)} : ${label}`
-})
-/** Several movements offered: one line and one button each, so no answer
- * leaves the user guessing which of them it pairs with. */
+const bank = useBankStore()
+/**
+ * Marked by what the account is, never by what the operation looks like:
+ * without a dictionary, a card and a transfer cannot be told apart. An
+ * alternative comes by its account's name, recognised only when one bears it.
+ */
+function accountIcon(choice: PairChoice) {
+  if (choice.kind === 'deposit') return TrendingUp
+  const accounts = bank.summary?.accounts ?? []
+  const byId = choice.accountId ? accounts.filter((account) => account.id === choice.accountId) : []
+  const found = byId.length ? byId : accounts.filter((account) => account.name === choice.account)
+  if (found.length !== 1) return Landmark
+  return found[0]!.account_type === 'CHECKING' ? Wallet : PiggyBank
+}
+/** What a pair offered may be made with, one line each; several, each line
+ * carries its own button, so no answer leaves the user guessing which. */
+const choosing = computed(() => choices.value.length > 1)
 const choices = computed(() =>
   pairChoices(props.tx).map((choice) => {
     const contribution = props.tx.contribution
@@ -140,7 +153,7 @@ const choices = computed(() =>
       ? 'Comptée en investissement.'
       : choice.kind === 'pair' ? togetherNote(props.tx.together_type) : 'Liées l\'une à l\'autre : un virement entre vos comptes, ou un remboursement.'
     const day = onDay(choice.day).replace(/^ le /, '')
-    return { ...choice, what, day, text: [choice.account, day, what].filter(Boolean).join(' · '), hint }
+    return { ...choice, what, day, icon: accountIcon(choice), text: [choice.account, day, what].filter(Boolean).join(' · '), hint }
   }),
 )
 const cancelled = computed(() =>
@@ -203,11 +216,8 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
         {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
       </BaseBadge>
-      <!-- Offered, it may be a transfer or a refund: no arrow claims which.
-           Several offered, each line below names its own account. -->
-      <template v-else-if="tx.transfer_account_name && suggested">
-        <BaseBadge v-if="!choices.length" variant="warning">avec {{ tx.transfer_account_name }} ?</BaseBadge>
-      </template>
+      <!-- Offered, the lines below name the other side and its account. -->
+      <template v-else-if="tx.transfer_account_name && suggested" />
       <BaseBadge v-else-if="tx.transfer_account_name" variant="info">
         <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
         {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}
@@ -277,16 +287,18 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           @loaded="onGroupLoaded"
         />
       </div>
-      <!-- Several movements offered, the deposit facing it among them: each
-           line carries its own button, "Aucune" refuses them all. -->
+      <!-- A pair offered, it may be a transfer or a refund: no arrow claims
+           which. Several movements, the deposit facing it among them: each line
+           carries its own button, "Aucune" refuses them all. -->
       <ul v-if="choices.length" class="mt-1 space-y-1 text-xs text-text-muted dark:text-text-dark-muted">
         <li v-for="choice in choices" :key="`${choice.kind}-${choice.id}`" class="flex items-center gap-2">
           <span class="min-w-0 line-clamp-2 break-words" :title="choice.text">
-            <component :is="choice.kind === 'deposit' ? TrendingUp : ArrowLeftRight" class="inline w-3 h-3 mr-1 -mt-px" aria-hidden="true" />
+            <component :is="choice.icon" class="inline w-3 h-3 mr-1 -mt-px" aria-hidden="true" />
             <span class="font-medium text-text-main dark:text-text-dark-main">{{ choice.account }}</span>
             <template v-if="choice.day"> · {{ choice.day }}</template> · {{ choice.what }}
           </span>
           <BankAnswerButton
+            v-if="choosing"
             :disabled="busy"
             class="shrink-0"
             :title="choice.hint"
@@ -295,17 +307,14 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
             {{ choice.kind === 'deposit' ? 'Celui-ci' : 'Celle-ci' }}
           </BankAnswerButton>
         </li>
-        <li>
+        <li v-if="choosing">
           <BankAnswerButton :disabled="busy" :title="PAIR_HINTS.none" muted @click="$emit('refuse')">
             Aucune
           </BankAnswerButton>
         </li>
       </ul>
-      <p v-else-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
-        <span class="truncate" :title="offered">{{ offered }}</span>
-      </p>
-      <!-- A single pair offered: the badge asks, the line under it says what "Ensemble" counts. -->
-      <div v-if="suggested && !choices.length" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+      <!-- A single pair offered: the line under the buttons says what "Ensemble" counts. -->
+      <div v-if="suggested && !choosing" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <BankAnswerButton
           :disabled="busy"
           :title="PAIR_HINTS.transfer"

@@ -177,33 +177,39 @@ export const PAIR_HINTS = {
     "Lier à un virement entre vos comptes, ou au remboursement de cette opération : les deux sortent alors des totaux.",
 } as const
 
-/** One of the movements a pair offered may be made with, picked by its own button. */
+/** One of the movements a pair offered may be made with, on its own line. */
 export interface PairChoice {
   kind: 'pair' | 'other' | 'deposit'
   /** The other operation, or the declared deposit or withdrawal. */
   id: string
   account: string
+  /** Known for the pair named only: an alternative comes with its account's name. */
+  accountId: string | null
   day: string | null
   label: string | null
 }
 
 /**
- * The movements an offered pair hesitates between, each to pick on its own
- * line: the one the API named, those as close (`transfer_alternatives`), and
- * the deposit facing the operation. Empty when it names only one, which
- * "Ensemble / Pas ensemble" answers.
+ * The movements an offered pair may be made with, one line each: the one the
+ * API named, those as close (`transfer_alternatives`), and the deposit facing
+ * the operation. Several, each line picks its own; one alone is answered
+ * "Ensemble / Pas ensemble".
  */
 export function pairChoices(tx: BankTransactionItem): PairChoice[] {
   if (tx.transfer_status !== 'suggested' || !tx.transfer_id) return []
-  const others = tx.transfer_alternatives ?? []
-  if (!others.length && !tx.contribution) return []
   return [
-    { kind: 'pair', id: tx.transfer_id, account: tx.transfer_account_name ?? '', day: tx.transfer_date ?? null, label: tx.transfer_label ?? null },
-    ...others.map((other): PairChoice => ({
-      kind: 'other', id: other.id, account: other.account_name, day: other.day, label: other.label,
+    {
+      kind: 'pair', id: tx.transfer_id, account: tx.transfer_account_name ?? '', accountId: tx.transfer_account_id ?? null,
+      day: tx.transfer_date ?? null, label: tx.transfer_label ?? null,
+    },
+    ...(tx.transfer_alternatives ?? []).map((other): PairChoice => ({
+      kind: 'other', id: other.id, account: other.account_name, accountId: null, day: other.day, label: other.label,
     })),
     ...(tx.contribution
-      ? [{ kind: 'deposit', id: tx.contribution.id, account: tx.contribution.account_name, day: tx.contribution.day, label: null } as PairChoice]
+      ? [{
+          kind: 'deposit', id: tx.contribution.id, account: tx.contribution.account_name, accountId: null,
+          day: tx.contribution.day, label: null,
+        } as PairChoice]
       : []),
   ]
 }

@@ -208,8 +208,10 @@ describe('pairChoices', () => {
     transfer_date: '2026-04-07', transfer_label: 'CARTE WINAMAX',
   }
 
-  it('leaves a single pair offered to Ensemble / Pas ensemble', () => {
-    expect(pairChoices(anOperation(offered))).toEqual([])
+  it('names a single pair offered on its own line, with its account', () => {
+    expect(pairChoices(anOperation({ ...offered, transfer_account_id: 'acc-2' }))).toEqual([{
+      kind: 'pair', id: 'tx-2', account: 'Compte principal', accountId: 'acc-2', day: '2026-04-07', label: 'CARTE WINAMAX',
+    }])
   })
 
   it('lists the pair named, then those as close, each to pick on its own', () => {
