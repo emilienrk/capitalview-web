@@ -116,6 +116,22 @@ const editingLegOfOperation = computed(() =>
   editingGroupUuid.value != null
   && accountTransactions.value.filter((tx) => tx.group_uuid === editingGroupUuid.value).length > 1,
 )
+// The euro leg that says whose money entered: a deposit, or a gift. The
+// proceeds of a sale are no money coming in and never change nature.
+const editingCashLeg = computed<TransactionResponse | null>(() => {
+  if (!editingTxId.value) return null
+  const legs = editingGroupUuid.value
+    ? accountTransactions.value.filter((tx) => tx.group_uuid === editingGroupUuid.value)
+    : accountTransactions.value.filter((tx) => tx.id === editingTxId.value)
+  if (legs.some((tx) => tx.type === 'SPEND' && !isFiatSymbol(tx.asset_key))) return null
+  const cash = legs.filter((tx) => (tx.type === 'DEPOSIT' || tx.type === 'GIFT') && tx.asset_key === 'EUR')
+  return cash.length === 1 ? cash[0]! : null
+})
+const cashNature = ref<'DEPOSIT' | 'GIFT'>('DEPOSIT')
+const cashNatureOptions = [
+  { label: 'Mon argent · Dépôt', value: 'DEPOSIT' },
+  { label: 'Offert · Cadeau', value: 'GIFT' },
+]
 const editingAccountId = ref<string | null>(null)
 type CryptoChartSlide = 'evolution' | 'allocation' | 'pnl' | 'cumulative_pnl'
 const chartSlides: Array<{ key: CryptoChartSlide; label: string }> = [
@@ -297,6 +313,10 @@ watch(() => txForm.type, async (newType) => {
     quoteMode.value = 'crypto'
     txForm.quote_asset_key = ''
     txForm.price_per_unit = 0
+  } else if (newType === 'GIFT_FIAT') {
+    txForm.asset_key = 'EUR'
+    searchQuery.value = ''
+    searchResults.value = []
   } else if (newType === 'FIAT_DEPOSIT' || newType === 'FIAT_WITHDRAW') {
     txForm.asset_key = 'EUR'
     searchQuery.value = ''
@@ -432,7 +452,7 @@ function clearHistoricalAutoFillFields(type: TxFormType = txForm.type): void {
     return
   }
 
-  if (type === 'SELL_TO_FIAT' || type === 'CRYPTO_DEPOSIT') {
+  if (type === 'SELL_TO_FIAT' || type === 'CRYPTO_DEPOSIT' || type === 'GIFT') {
     txForm.eur_amount = undefined
     return
   }
@@ -477,7 +497,7 @@ async function fetchAndApplyHistoricalPrice(snapshot: HistoricalPriceRequestSnap
     return
   }
 
-  if (snapshot.type === 'SELL_TO_FIAT' || snapshot.type === 'CRYPTO_DEPOSIT') {
+  if (snapshot.type === 'SELL_TO_FIAT' || snapshot.type === 'CRYPTO_DEPOSIT' || snapshot.type === 'GIFT') {
     txForm.eur_amount = Number((price * qty).toFixed(2))
     return
   }
@@ -537,6 +557,8 @@ const txTypeOptions = computed(() => {
     ...(autoDeposits.value ? [] : [{ label: 'Dépôt · EUR → Exchange', value: 'FIAT_DEPOSIT' }]),
     { label: 'Retrait · Exchange → Banque', value: 'FIAT_WITHDRAW' },
     { label: 'Dépôt · Crypto avec PRU', value: 'CRYPTO_DEPOSIT' },
+    { label: 'Cadeau · Crypto offerte', value: 'GIFT' },
+    { label: 'Cadeau · Euros offerts', value: 'GIFT_FIAT' },
     { label: 'Frais · Gaz on-chain', value: 'FEE' },
     { label: 'Vente · Crypto → EUR', value: 'SELL_TO_FIAT' },
     { label: 'Sortie · Don / Envoi hors périmètre', value: 'EXIT' },
@@ -553,6 +575,8 @@ const txTypeDescriptions: Record<string, string> = {
   REWARD: 'Crypto reçue via staking, intérêts ou récompense.',
   FIAT_DEPOSIT: 'Dépôt d\'euros sur un compte exchange.',
   FIAT_WITHDRAW: 'Transfert d\'euros de l\'exchange vers votre compte bancaire.',
+  GIFT: 'Crypto reçue sans l\'avoir payée : parrainage, don d\'un proche. Sa valeur du jour devient son prix de revient, sans compter dans le P/L ni dans les versements.',
+  GIFT_FIAT: 'Euros offerts par la plateforme ou reçus en don. Ajoutés aux liquidités, sans compter dans le P/L ni dans les versements.',
   CRYPTO_DEPOSIT: 'Réception de crypto achetée hors périmètre. Enregistre un dépôt EUR, un achat crypto et une sortie EUR pour refléter l\'investissement réel.',
   FEE: 'Frais de réseau payés on-chain (ex : gaz Ethereum).',
   SELL_TO_FIAT: 'Vente de crypto contre une devise fiat (ex: EUR).',
@@ -791,6 +815,7 @@ function openEditTransaction(tx: any): void {
   txForm.fee_asset_key = undefined
   txForm.fee_amount = undefined
   txForm.executed_at = isoToDatetimeLocal(tx.executed_at)
+  cashNature.value = editingCashLeg.value?.type === 'GIFT' ? 'GIFT' : 'DEPOSIT'
 
   // Populate positions for the modal
   modalPositions.value = crypto.currentAccount?.positions ?? []
@@ -1413,6 +1438,10 @@ async function handleSubmitTransaction(): Promise<void> {
     }
     const result = await crypto.updateTransaction(editingTxId.value, updateData)
     success = !!result
+    const cashLeg = editingCashLeg.value
+    if (success && cashLeg && cashLeg.type !== cashNature.value) {
+      success = !!(await crypto.updateTransaction(cashLeg.id, { type: cashNature.value }))
+    }
   } else {
     const payload: CryptoCompositeTransactionCreate = {
       ...txForm,
@@ -2047,9 +2076,17 @@ onMounted(async () => {
           <span v-if="txForm.name" class="text-sm text-text-muted dark:text-text-dark-muted">{{ txForm.name }}</span>
         </div>
         <BaseInput v-if="txForm.type === 'ANCHOR'" v-model="txForm.amount" label="Valeur en euros" type="number" step="any" min="0" required />
-        <p v-else class="text-xs text-text-muted dark:text-text-dark-muted flex items-center gap-1.5">
+        <template v-if="editingCashLeg">
+          <BaseSelect v-model="cashNature" label="Provenance de l’argent" :options="cashNatureOptions" />
+          <p class="-mt-2 text-xs text-text-muted dark:text-text-dark-muted">
+            {{ cashNature === 'GIFT'
+              ? 'Offert : compté dans la valeur, sans entrer dans le P/L ni dans les versements.'
+              : 'Versé par vous : compté dans vos versements.' }}
+          </p>
+        </template>
+        <p v-if="txForm.type !== 'ANCHOR'" class="text-xs text-text-muted dark:text-text-dark-muted flex items-center gap-1.5">
           <AlertCircle class="w-3.5 h-3.5 shrink-0" />
-          Seule la date se modifie. Pour changer une quantité ou un actif, supprimez l’opération et recréez-la.
+          {{ editingCashLeg ? 'Seules la date et la provenance se modifient.' : 'Seule la date se modifie.' }} Pour changer une quantité ou un actif, supprimez l’opération et recréez-la.
         </p>
         <div>
           <BaseInput v-model="txForm.executed_at" label="Date d'exécution" type="datetime-local" required />
@@ -2113,7 +2150,7 @@ onMounted(async () => {
             />
           </template>
 
-          <template v-else>
+          <template v-else-if="txForm.type !== 'GIFT_FIAT'">
             <BaseAutocomplete
               id="crypto-tx-asset"
               :model-value="searchQuery"
@@ -2159,7 +2196,7 @@ onMounted(async () => {
           <BaseInput
             v-model="txForm.amount"
             :label="
-              (txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw) ? 'Montant (€)'
+              (txForm.type === 'FIAT_DEPOSIT' || txForm.type === 'GIFT_FIAT' || isFiatWithdraw) ? 'Montant (€)'
               : txForm.type === 'FEE' ? 'Quantité de gaz brûlée'
               : txForm.type === 'SELL_TO_FIAT' ? 'Quantité vendue / dépensée'
               : txForm.type === 'EXIT' ? 'Quantité envoyée / donnée'
@@ -2197,9 +2234,9 @@ onMounted(async () => {
           </div>
 
           <BaseInput
-            v-if="txForm.type === 'CRYPTO_DEPOSIT'"
+            v-if="txForm.type === 'CRYPTO_DEPOSIT' || txForm.type === 'GIFT'"
             v-model="txForm.eur_amount!"
-            label="Coût de revient (EUR)"
+            :label="txForm.type === 'GIFT' ? 'Valeur au jour du cadeau (EUR)' : 'Coût de revient (EUR)'"
             type="number"
             step="any"
             min="0"
@@ -2227,7 +2264,7 @@ onMounted(async () => {
           />
 
           <BaseInput
-            v-if="!showQuoteStep && !['CRYPTO_DEPOSIT', 'SELL_TO_FIAT', 'FIAT_DEPOSIT', 'FIAT_WITHDRAW', 'FEE', 'BUY_SPOT', 'EXIT', 'TRANSFER_TO_ACCOUNT'].includes(txForm.type)"
+            v-if="!showQuoteStep && !['CRYPTO_DEPOSIT', 'GIFT', 'GIFT_FIAT', 'SELL_TO_FIAT', 'FIAT_DEPOSIT', 'FIAT_WITHDRAW', 'FEE', 'BUY_SPOT', 'EXIT', 'TRANSFER_TO_ACCOUNT'].includes(txForm.type)"
             v-model="txForm.price_per_unit!"
             label="Prix unitaire (€)"
             type="number"

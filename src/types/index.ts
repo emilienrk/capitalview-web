@@ -1308,6 +1308,7 @@ export type CryptoAtomicTransactionType =
   | 'ANCHOR'
   | 'TRANSFER'
   | 'WITHDRAW'
+  | 'GIFT'
 
 export type CryptoCompositeTransactionType =
   | 'BUY'
@@ -1319,6 +1320,7 @@ export type CryptoCompositeTransactionType =
   | 'SELL_TO_FIAT'
   | 'FEE'
   | 'EXIT'
+  | 'GIFT'
 
 // Kept as public alias for existing imports across the app.
 export type CryptoTransactionType = CryptoAtomicTransactionType
@@ -1382,6 +1384,8 @@ export interface CryptoCompositeTransactionResponse {
 /** A row is one leg of an operation: only its date and notes change, and an ANCHOR's euro value. */
 export interface CryptoTransactionUpdate {
   amount?: number
+  /** Only between DEPOSIT and GIFT on a euro leg: whose money it was. */
+  type?: 'DEPOSIT' | 'GIFT'
   executed_at?: string
   notes?: string
   tx_hash?: string

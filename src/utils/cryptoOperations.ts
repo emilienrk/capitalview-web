@@ -12,6 +12,8 @@ export type CryptoOperationKind =
   | 'fee'
   | 'fiat_deposit'
   | 'fiat_withdraw'
+  | 'gift'
+  | 'fiat_gift'
   | 'other'
 
 export interface CryptoAmount {
@@ -45,6 +47,8 @@ export const CRYPTO_OPERATION_LABELS: Record<CryptoOperationKind, string> = {
   fee: 'Frais réseau',
   fiat_deposit: 'Dépôt',
   fiat_withdraw: 'Retrait',
+  gift: 'Cadeau',
+  fiat_gift: 'Cadeau',
   other: 'Opération',
 }
 
@@ -52,6 +56,7 @@ const LEG_ORDER: Record<string, number> = {
   REWARD: 0,
   BUY: 1,
   DEPOSIT: 2,
+  GIFT: 2,
   TRANSFER: 3,
   SPEND: 4,
   WITHDRAW: 5,
@@ -66,8 +71,9 @@ const eurOf = (tx: TransactionResponse): number => Number(tx.amount) * Number(tx
  * Names an operation from the shape of its group. The API stores atomic rows
  * only (see create_composite_transaction): a purchase is BUY + SPEND of euros,
  * a swap adds an ANCHOR holding its euro value, a sale is SPEND + DEPOSIT of
- * euros, a crypto deposit funds itself with DEPOSIT + SPEND of euros, and a
- * transfer lands in the receiving wallet as BUY + ANCHOR.
+ * euros, a crypto deposit funds itself with DEPOSIT + SPEND of euros, an
+ * offered crypto with GIFT + SPEND of euros, and a transfer lands in the
+ * receiving wallet as BUY + ANCHOR.
  */
 function classify(legs: TransactionResponse[]): Omit<CryptoOperation, 'key' | 'executedAt' | 'legs' | 'assets'> {
   const fees = legs.filter((tx) => tx.type === 'FEE')
@@ -78,6 +84,7 @@ function classify(legs: TransactionResponse[]): Omit<CryptoOperation, 'key' | 'e
   const fiatSpends = of('SPEND', true)
   const cryptoSpends = of('SPEND', false)
   const fiatDeposits = of('DEPOSIT', true)
+  const gifts = of('GIFT')
   const anchor = of('ANCHOR')[0]
   const feeAmounts = fees.map(amountOf)
   const result = (kind: CryptoOperationKind, rest: Partial<CryptoOperation> = {}) => ({
@@ -97,8 +104,12 @@ function classify(legs: TransactionResponse[]): Omit<CryptoOperation, 'key' | 'e
     const reward = core[0]!
     return result('reward', { incoming: amountOf(reward), eurValue: eurOf(reward) || null })
   }
-  if (buys.length === 1 && core.length === buys.length + fiatSpends.length + cryptoSpends.length + fiatDeposits.length + (anchor ? 1 : 0)) {
+  if (buys.length === 1 && core.length === buys.length + fiatSpends.length + cryptoSpends.length + fiatDeposits.length + gifts.length + (anchor ? 1 : 0)) {
     const buy = buys[0]!
+    if (gifts.length === 1 && fiatSpends.length === 1 && !cryptoSpends.length && !fiatDeposits.length) {
+      return result('gift', { incoming: amountOf(buy), eurValue: eurOf(fiatSpends[0]!) })
+    }
+    if (gifts.length) return result('other')
     if (fiatDeposits.length === 1 && fiatSpends.length === 1 && !cryptoSpends.length) {
       return result('crypto_deposit', { incoming: amountOf(buy), eurValue: eurOf(fiatSpends[0]!) })
     }
@@ -128,6 +139,7 @@ function classify(legs: TransactionResponse[]): Omit<CryptoOperation, 'key' | 'e
     const fiat = isFiatSymbol(only.asset_key)
     if (only.type === 'TRANSFER' || (only.type === 'WITHDRAW' && !fiat)) return result('send', { outgoing: amountOf(only) })
     if (only.type === 'DEPOSIT' && fiat) return result('fiat_deposit', { incoming: amountOf(only), eurValue: eurOf(only) })
+    if (only.type === 'GIFT') return result('fiat_gift', { incoming: amountOf(only), eurValue: eurOf(only) })
     if (only.type === 'WITHDRAW' && fiat) return result('fiat_withdraw', { outgoing: amountOf(only), eurValue: eurOf(only) })
     if (only.type === 'DEPOSIT') return result('crypto_deposit', { incoming: amountOf(only) })
   }
@@ -157,6 +169,7 @@ export function buildCryptoOperations(transactions: TransactionResponse[]): Cryp
 const PRICED_SIDE: Partial<Record<CryptoOperationKind, 'incoming' | 'outgoing'>> = {
   buy: 'incoming',
   crypto_deposit: 'incoming',
+  gift: 'incoming',
   swap: 'incoming',
   sell: 'outgoing',
 }

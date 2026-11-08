@@ -47,6 +47,21 @@ describe('buildCryptoOperations', () => {
     expect(op.eurValue).toBe(210)
   })
 
+  it('lit une crypto offerte sur sa valeur du jour', () => {
+    const op = only([leg('GIFT', 'EUR', 180, 1), leg('BUY', 'BTC', 0.0025), leg('SPEND', 'EUR', 180, 1)])
+    expect(op.kind).toBe('gift')
+    expect(op.incoming).toEqual({ asset: 'BTC', amount: 0.0025 })
+    expect(op.eurValue).toBe(180)
+    expect(operationUnitPrice(op)).toEqual({ asset: 'BTC', price: 72000 })
+  })
+
+  it('lit des euros offerts seuls', () => {
+    const op = only([leg('GIFT', 'EUR', 25, 1, null)])
+    expect(op.kind).toBe('fiat_gift')
+    expect(op.incoming).toEqual({ asset: 'EUR', amount: 25 })
+    expect(op.eurValue).toBe(25)
+  })
+
   it('distingue un dépôt de crypto de son financement automatique', () => {
     const op = only([leg('DEPOSIT', 'EUR', 900, 1), leg('BUY', 'ETH', 0.4), leg('SPEND', 'EUR', 900, 1)])
     expect(op.kind).toBe('crypto_deposit')

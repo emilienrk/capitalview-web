@@ -12,6 +12,8 @@ export type CryptoUiTransactionType =
   | 'FEE'
   | 'EXIT'
   | 'TRANSFER_TO_ACCOUNT'
+  | 'GIFT'
+  | 'GIFT_FIAT'
 
 export const CRYPTO_COMPOSITE_ALLOWED_IMPORT_TYPES: ReadonlyArray<string> = [
   'BUY',
@@ -50,6 +52,8 @@ export function toCompositeApiType(
   type: CryptoUiTransactionType | CryptoCompositeTransactionType,
 ): CryptoCompositeTransactionType {
   if (type === 'BUY_FIAT' || type === 'BUY_SPOT') return 'BUY'
+  // Offered euros and an offered crypto are one action, told apart by the asset.
+  if (type === 'GIFT' || type === 'GIFT_FIAT') return 'GIFT'
   const normalized = normalizeCompositeImportType(type)
   if (normalized) return normalized
   throw new Error(`Type composite invalide pour l'API: ${type}`)

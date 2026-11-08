@@ -101,7 +101,7 @@ function showGap(gap: NegativeBalanceResponse): void {
 // ── History ────────────────────────────────────────────────
 
 const operations = computed(() => buildCryptoOperations(props.transactions))
-const FIAT_KINDS = new Set<CryptoOperationKind>(['fiat_deposit', 'fiat_withdraw'])
+const FIAT_KINDS = new Set<CryptoOperationKind>(['fiat_deposit', 'fiat_withdraw', 'fiat_gift'])
 
 const historyFilter = ref('all')
 const filterOptions = computed(() => {
@@ -169,6 +169,8 @@ const BADGE: Record<CryptoOperationKind, BadgeVariant> = {
   fee: 'warning',
   fiat_deposit: 'secondary',
   fiat_withdraw: 'secondary',
+  gift: 'success',
+  fiat_gift: 'success',
   other: 'secondary',
 }
 
@@ -197,6 +199,7 @@ const LEG_LABELS: Record<string, string> = {
   BUY: 'Entrée',
   REWARD: 'Récompense',
   DEPOSIT: 'Dépôt',
+  GIFT: 'Cadeau',
   SPEND: 'Sortie',
   TRANSFER: 'Envoi',
   WITHDRAW: 'Retrait',
