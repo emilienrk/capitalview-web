@@ -169,11 +169,49 @@ export const PAIR_HINTS = {
     "Ensemble : un virement entre vos comptes, ou un remboursement. Les prochaines paires qui leur ressemblent s'apparieront seules.",
   notTransfer:
     "Pas ensemble : chacune restera comptée de son côté. Seule cette paire ne sera plus proposée.",
+  none:
+    'Aucune : elle restera comptée de son côté. Aucun de ces rapprochements ne sera plus proposé.',
   unlink:
     'Dissocier : les deux opérations recomptent chacune de leur côté, dans les entrées et les dépenses.',
   link:
     "Lier à un virement entre vos comptes, ou au remboursement de cette opération : les deux sortent alors des totaux.",
 } as const
+
+/** One of the movements a pair offered may be made with, picked by its own button. */
+export interface PairChoice {
+  kind: 'pair' | 'other' | 'deposit'
+  /** The other operation, or the declared deposit or withdrawal. */
+  id: string
+  account: string
+  day: string | null
+  label: string | null
+}
+
+/**
+ * The movements an offered pair hesitates between, each to pick on its own
+ * line: the one the API named, those as close (`transfer_alternatives`), and
+ * the deposit facing the operation. Empty when it names only one, which
+ * "Ensemble / Pas ensemble" answers.
+ */
+export function pairChoices(tx: BankTransactionItem): PairChoice[] {
+  if (tx.transfer_status !== 'suggested' || !tx.transfer_id) return []
+  const others = tx.transfer_alternatives ?? []
+  if (!others.length && !tx.contribution) return []
+  return [
+    { kind: 'pair', id: tx.transfer_id, account: tx.transfer_account_name ?? '', day: tx.transfer_date ?? null, label: tx.transfer_label ?? null },
+    ...others.map((other): PairChoice => ({
+      kind: 'other', id: other.id, account: other.account_name, day: other.day, label: other.label,
+    })),
+    ...(tx.contribution
+      ? [{ kind: 'deposit', id: tx.contribution.id, account: tx.contribution.account_name, day: tx.contribution.day, label: null } as PairChoice]
+      : []),
+  ]
+}
+
+/** The accounts the choices sit on, for the badge: "Compte secondaire ou PEA". */
+export function choiceAccounts(choices: PairChoice[]): string {
+  return [...new Set(choices.map((choice) => choice.account))].join(' ou ')
+}
 
 /**
  * What saying "Ensemble" does, written under the question: we do not know

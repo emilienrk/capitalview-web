@@ -9,12 +9,13 @@ import BankFlowGroup from '@/components/bank/BankFlowGroup.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import {
-  CASHFLOW_TYPE_LABELS,
   CASHFLOW_TYPE_TONES,
   PAIR_HINTS,
   answerHint,
   answerLabel,
+  choiceAccounts,
   contributionBadge,
+  pairChoices,
   togetherNote,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
@@ -48,6 +49,8 @@ defineEmits<{
   pick: [otherId: string]
   /** A suggested pair is set aside for the deposit facing the operation. */
   deposit: []
+  /** None of the movements offered: each pair refused, the deposit answered no. */
+  refuse: []
   /** The operation is, or is not, the deposit or withdrawal facing it — or
    * the operations ticked in its group are, each with its own. */
   contribution: [kind: BankContributionDecisionKind, answers: BankContributionAnswer[], members: BankTransactionItem[]]
@@ -126,14 +129,19 @@ const offered = computed(() => {
   if (!suggested.value || !label) return null
   return `En face${onDay(day)} : ${label}`
 })
-/** Others as close as the one named, said the same way: the user may pick one instead. */
-const alternatives = computed(() =>
-  suggested.value
-    ? (props.tx.transfer_alternatives ?? []).map((alternative) => ({
-        id: alternative.id,
-        text: `Ou, sur ${alternative.account_name}${onDay(alternative.day)} : ${alternative.label ?? 'Opération sans libellé'}`,
-      }))
-    : [],
+/** Several movements offered: one line and one button each, so no answer
+ * leaves the user guessing which of them it pairs with. */
+const choices = computed(() =>
+  pairChoices(props.tx).map((choice) => {
+    const contribution = props.tx.contribution
+    const what = choice.kind === 'deposit' && contribution
+      ? `${contribution.is_deposit ? 'versement' : 'retrait'} de ${money(contribution.amount)}`
+      : choice.label ?? 'Opération sans libellé'
+    const hint = choice.kind === 'deposit'
+      ? 'Comptée en investissement.'
+      : choice.kind === 'pair' ? togetherNote(props.tx.together_type) : 'Liées l\'une à l\'autre : un virement entre vos comptes, ou un remboursement.'
+    return { ...choice, text: `${choice.account}${onDay(choice.day)} : ${what}`, hint }
+  }),
 )
 const cancelled = computed(() =>
   props.tx.transfer_status === 'reversal' || props.tx.transfer_status === 'refund',
@@ -189,7 +197,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         :title="typeSourceTitle(tx.type_source)"
         @click="$emit('retype')"
       >
-        {{ CASHFLOW_TYPE_LABELS[tx.cashflow_type] }}
+        {{ answerLabel(tx.cashflow_type, tx.is_credit) }}
       </button>
       <BaseBadge v-if="cancelled" variant="secondary">
         <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
@@ -197,7 +205,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       </BaseBadge>
       <!-- Offered, it may be a transfer or a refund: no arrow claims which. -->
       <BaseBadge v-else-if="tx.transfer_account_name && suggested" variant="warning">
-        avec {{ tx.transfer_account_name }} ?
+        avec {{ choices.length ? choiceAccounts(choices) : tx.transfer_account_name }} ?
       </BaseBadge>
       <BaseBadge v-else-if="tx.transfer_account_name" variant="info">
         <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
@@ -268,41 +276,37 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
           @loaded="onGroupLoaded"
         />
       </div>
-      <p v-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
+      <!-- Several movements offered, the deposit facing it among them: each
+           line carries its own button, "Aucune" refuses them all. -->
+      <ul v-if="choices.length" class="mt-1 space-y-1 text-xs text-text-muted dark:text-text-dark-muted">
+        <li v-for="choice in choices" :key="`${choice.kind}-${choice.id}`" class="flex items-center gap-2">
+          <span class="min-w-0 line-clamp-2 break-words" :title="choice.text">{{ choice.text }}</span>
+          <BankAnswerButton
+            :disabled="busy"
+            class="shrink-0"
+            :title="choice.hint"
+            @click="choice.kind === 'pair' ? $emit('decide', 'transfer') : choice.kind === 'other' ? $emit('pick', choice.id) : $emit('deposit')"
+          >
+            {{ choice.kind === 'deposit' ? 'Celui-ci' : 'Celle-ci' }}
+          </BankAnswerButton>
+        </li>
+        <li>
+          <BankAnswerButton :disabled="busy" :title="PAIR_HINTS.none" muted @click="$emit('refuse')">
+            Aucune
+          </BankAnswerButton>
+        </li>
+      </ul>
+      <p v-else-if="offered" class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
         <span class="truncate" :title="offered">{{ offered }}</span>
       </p>
-      <p
-        v-for="alternative in alternatives"
-        :key="alternative.id"
-        class="mt-1 flex items-center gap-2 text-xs text-text-muted dark:text-text-dark-muted"
-      >
-        <span class="truncate" :title="alternative.text">{{ alternative.text }}</span>
-        <BankAnswerButton
-          :disabled="busy"
-          class="shrink-0"
-          @click="$emit('pick', alternative.id)"
-        >
-          Plutôt celle-ci
-        </BankAnswerButton>
-      </p>
-      <!-- A pair offered: the badge asks, the line under it says what "Ensemble"
-           counts. A deposit facing the same operation joins the same question,
-           so neither hides the other. -->
-      <div v-if="suggested" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+      <!-- A single pair offered: the badge asks, the line under it says what "Ensemble" counts. -->
+      <div v-if="suggested && !choices.length" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <BankAnswerButton
           :disabled="busy"
           :title="PAIR_HINTS.transfer"
           @click="$emit('decide', 'transfer')"
         >
           Ensemble
-        </BankAnswerButton>
-        <BankAnswerButton
-          v-if="tx.contribution"
-          :disabled="busy"
-          title="Compté en investissement, et la paire n'est plus proposée."
-          @click="$emit('deposit')"
-        >
-          {{ tx.contribution.is_deposit ? 'Versement sur' : 'Retrait depuis' }} {{ tx.contribution.account_name }}
         </BankAnswerButton>
         <BankAnswerButton
           :disabled="busy"

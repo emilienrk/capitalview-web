@@ -276,7 +276,7 @@ function amountClass(tx: BankTransactionItem): string {
 // ── Answers ─────────────────────────────────────────────────
 
 const {
-  busy: deciding, error: decisionError, typed, clearNotice, answer, contribution, decide, pick, subscribe,
+  busy: deciding, error: decisionError, typed, clearNotice, answer, contribution, decide, pick, refuse, subscribe,
 } = useBankAnswers(() => month.value?.transactions)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
@@ -626,6 +626,7 @@ onMounted(() => void load())
               @decide="(kind) => decide(tx, kind)"
               @pick="(otherId) => pick(tx, otherId)"
               @deposit="contribution(tx, 'contribution')"
+              @refuse="refuse(tx)"
               @contribution="(kind, answers, members) => contribution(tx, kind, answers, members)"
               @link="linking = tx"
               @recurring="filing = tx"
@@ -655,6 +656,7 @@ onMounted(() => void load())
                   @decide="(kind) => decide(tx, kind)"
                   @pick="(otherId) => pick(tx, otherId)"
                   @deposit="contribution(tx, 'contribution')"
+                  @refuse="refuse(tx)"
                   @contribution="(kind, answers, members) => contribution(tx, kind, answers, members)"
                   @link="linking = tx"
                   @recurring="filing = tx"

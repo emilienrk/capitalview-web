@@ -134,6 +134,25 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
     }
   }
 
+  /**
+   * None of the movements an offered pair hesitated between: each pair refused
+   * on its own, as "Pas ensemble" would, and no to the deposit facing it. A
+   * refusal holds for its pair alone, so refusing only the one named would
+   * offer the next.
+   */
+  async function refuse(tx: BankTransactionItem): Promise<void> {
+    const others = [tx.transfer_id, ...(tx.transfer_alternatives ?? []).map((other) => other.id)]
+    error.value = null
+    try {
+      await bank.answering(transferAnswerEffect(tx, 'not_transfer'), async () => {
+        for (const other of others) if (other) await bank.decideTransfer(tx.id, other, 'not_transfer')
+        if (tx.contribution) await bank.decideContribution(tx.id, tx.contribution.id, 'not_contribution')
+      })
+    } catch (e) {
+      error.value = failure(e, "Impossible d'enregistrer ce choix.")
+    }
+  }
+
   async function subscribe(tx: BankTransactionItem, decision: RecurringDecisionKind): Promise<void> {
     error.value = null
     const kind = tx.recurring_question?.direction === 'income' ? 'revenus' : 'paiements'
@@ -165,5 +184,5 @@ export function useBankAnswers(neighbours: () => BankTransactionItem[] | undefin
     }
   }
 
-  return { busy, error, typed, clearNotice, answer, contribution, decide, pick, subscribe }
+  return { busy, error, typed, clearNotice, answer, contribution, decide, pick, refuse, subscribe }
 }

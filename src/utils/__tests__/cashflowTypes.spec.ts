@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
+  ALL, RECURRING, answerHint, answerLabel, choiceAccounts, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
   matchesCashflowType,
-  needsReview, ownAnswer, ruleTitle, togetherNote, typeSourceTitle,
+  needsReview, ownAnswer, pairChoices, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
 
@@ -199,5 +199,45 @@ describe('keptByHand', () => {
   it('keeps nothing for several answers, or for an operation never typed', () => {
     expect(keptByHand(typed, ['tx-2', 'tx-1'], [typed])).toBeNull()
     expect(keptByHand(anOperation(), ['tx-1'], [])).toBeNull()
+  })
+})
+
+describe('pairChoices', () => {
+  const offered = {
+    transfer_status: 'suggested' as const, transfer_id: 'tx-2', transfer_account_name: 'Compte principal',
+    transfer_date: '2026-04-07', transfer_label: 'CARTE WINAMAX',
+  }
+
+  it('leaves a single pair offered to Ensemble / Pas ensemble', () => {
+    expect(pairChoices(anOperation(offered))).toEqual([])
+  })
+
+  it('lists the pair named, then those as close, each to pick on its own', () => {
+    const choices = pairChoices(anOperation({
+      ...offered,
+      transfer_alternatives: [{ id: 'tx-3', account_name: 'Compte principal', day: '2026-04-07', label: 'CARTE BETCLIC' }],
+    }))
+    expect(choices.map((choice) => [choice.kind, choice.id, choice.label])).toEqual([
+      ['pair', 'tx-2', 'CARTE WINAMAX'],
+      ['other', 'tx-3', 'CARTE BETCLIC'],
+    ])
+    expect(choiceAccounts(choices)).toBe('Compte principal')
+  })
+
+  it('offers the deposit facing the operation beside the pair, on its account', () => {
+    const choices = pairChoices(anOperation({
+      ...offered,
+      transfer_account_name: 'Compte secondaire',
+      contribution: { id: 'dep-1', account_name: 'PEA', day: '2024-02-05', amount: 20, is_deposit: true, exact: true },
+    }))
+    expect(choices.map((choice) => [choice.kind, choice.id])).toEqual([['pair', 'tx-2'], ['deposit', 'dep-1']])
+    expect(choiceAccounts(choices)).toBe('Compte secondaire ou PEA')
+  })
+
+  it('offers nothing to pick once the pair is settled', () => {
+    expect(pairChoices(anOperation({
+      ...offered, transfer_status: 'confirmed',
+      transfer_alternatives: [{ id: 'tx-3', account_name: 'Compte principal', day: null, label: null }],
+    }))).toEqual([])
   })
 })

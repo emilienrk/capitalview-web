@@ -131,7 +131,7 @@ function contributionOf(tx: BankTransactionItem): string | undefined {
 
 // ── Answers ─────────────────────────────────────────────────
 
-const { busy, error, typed, answer, contribution, decide, pick, subscribe } = useBankAnswers()
+const { busy, error, typed, answer, contribution, decide, pick, refuse, subscribe } = useBankAnswers()
 const showHistory = ref(false)
 const linking = ref<BankTransactionItem | null>(null)
 const filing = ref<BankTransactionItem | null>(null)
@@ -208,6 +208,7 @@ const retyping = ref<BankTransactionItem | null>(null)
           @decide="(kind) => decide(item.transaction, kind)"
           @pick="(otherId) => pick(item.transaction, otherId)"
           @deposit="contribution(item.transaction, 'contribution')"
+          @refuse="refuse(item.transaction)"
           @contribution="(kind, answers, members) => contribution(item.transaction, kind, answers, members)"
           @link="linking = item.transaction"
           @recurring="filing = item.transaction"
