@@ -13,7 +13,6 @@ import {
   PAIR_HINTS,
   answerHint,
   answerLabel,
-  choiceAccounts,
   contributionBadge,
   pairChoices,
   togetherNote,
@@ -140,7 +139,8 @@ const choices = computed(() =>
     const hint = choice.kind === 'deposit'
       ? 'Comptée en investissement.'
       : choice.kind === 'pair' ? togetherNote(props.tx.together_type) : 'Liées l\'une à l\'autre : un virement entre vos comptes, ou un remboursement.'
-    return { ...choice, text: `${choice.account}${onDay(choice.day)} : ${what}`, hint }
+    const day = onDay(choice.day).replace(/^ le /, '')
+    return { ...choice, what, day, text: [choice.account, day, what].filter(Boolean).join(' · '), hint }
   }),
 )
 const cancelled = computed(() =>
@@ -203,10 +203,11 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <Undo2 class="inline w-3 h-3 mr-1 -mt-px" />
         {{ tx.transfer_status === 'refund' ? (tx.is_credit ? 'Remboursement' : 'Remboursée') : 'Annulée' }}
       </BaseBadge>
-      <!-- Offered, it may be a transfer or a refund: no arrow claims which. -->
-      <BaseBadge v-else-if="tx.transfer_account_name && suggested" variant="warning">
-        avec {{ choices.length ? choiceAccounts(choices) : tx.transfer_account_name }} ?
-      </BaseBadge>
+      <!-- Offered, it may be a transfer or a refund: no arrow claims which.
+           Several offered, each line below names its own account. -->
+      <template v-else-if="tx.transfer_account_name && suggested">
+        <BaseBadge v-if="!choices.length" variant="warning">avec {{ tx.transfer_account_name }} ?</BaseBadge>
+      </template>
       <BaseBadge v-else-if="tx.transfer_account_name" variant="info">
         <ArrowLeftRight class="inline w-3 h-3 mr-1 -mt-px" />
         {{ tx.is_credit ? 'depuis' : 'vers' }} {{ tx.transfer_account_name }}
@@ -280,7 +281,11 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
            line carries its own button, "Aucune" refuses them all. -->
       <ul v-if="choices.length" class="mt-1 space-y-1 text-xs text-text-muted dark:text-text-dark-muted">
         <li v-for="choice in choices" :key="`${choice.kind}-${choice.id}`" class="flex items-center gap-2">
-          <span class="min-w-0 line-clamp-2 break-words" :title="choice.text">{{ choice.text }}</span>
+          <span class="min-w-0 line-clamp-2 break-words" :title="choice.text">
+            <component :is="choice.kind === 'deposit' ? TrendingUp : ArrowLeftRight" class="inline w-3 h-3 mr-1 -mt-px" aria-hidden="true" />
+            <span class="font-medium text-text-main dark:text-text-dark-main">{{ choice.account }}</span>
+            <template v-if="choice.day"> · {{ choice.day }}</template> · {{ choice.what }}
+          </span>
           <BankAnswerButton
             :disabled="busy"
             class="shrink-0"

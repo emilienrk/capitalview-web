@@ -208,11 +208,6 @@ export function pairChoices(tx: BankTransactionItem): PairChoice[] {
   ]
 }
 
-/** The accounts the choices sit on, for the badge: "Compte secondaire ou PEA". */
-export function choiceAccounts(choices: PairChoice[]): string {
-  return [...new Set(choices.map((choice) => choice.account))].join(' ou ')
-}
-
 /**
  * What saying "Ensemble" does, written under the question: we do not know
  * whether it is a transfer or a refund, only what the pair would count as.

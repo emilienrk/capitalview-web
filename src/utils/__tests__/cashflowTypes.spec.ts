@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALL, RECURRING, answerHint, answerLabel, choiceAccounts, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
+  ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
   matchesCashflowType,
   needsReview, ownAnswer, pairChoices, ruleTitle, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
@@ -221,7 +221,6 @@ describe('pairChoices', () => {
       ['pair', 'tx-2', 'CARTE WINAMAX'],
       ['other', 'tx-3', 'CARTE BETCLIC'],
     ])
-    expect(choiceAccounts(choices)).toBe('Compte principal')
   })
 
   it('offers the deposit facing the operation beside the pair, on its account', () => {
@@ -231,7 +230,7 @@ describe('pairChoices', () => {
       contribution: { id: 'dep-1', account_name: 'PEA', day: '2024-02-05', amount: 20, is_deposit: true, exact: true },
     }))
     expect(choices.map((choice) => [choice.kind, choice.id])).toEqual([['pair', 'tx-2'], ['deposit', 'dep-1']])
-    expect(choiceAccounts(choices)).toBe('Compte secondaire ou PEA')
+    expect(choices.map((choice) => choice.account)).toEqual(['Compte secondaire', 'PEA'])
   })
 
   it('offers nothing to pick once the pair is settled', () => {
