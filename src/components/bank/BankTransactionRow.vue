@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /** One operation in the Opérations tab, grouped under its day or listed by amount. */
 import { computed, ref, watch } from 'vue'
-import {
-  ArrowLeftRight, Check, Landmark, Link2, Pencil, PiggyBank, Repeat, Trash2, TrendingUp, Undo2, Unlink, Wallet,
-} from 'lucide-vue-next'
+import { ArrowLeftRight, Check, Link2, Pencil, Repeat, Trash2, TrendingUp, Undo2, Unlink } from 'lucide-vue-next'
 
 import { BaseBadge, BaseButton } from '@/components'
 import BankAnswerButton from '@/components/bank/BankAnswerButton.vue'
@@ -21,7 +19,7 @@ import {
   togetherNote,
   typeSourceTitle,
 } from '@/utils/cashflowTypes'
-import type { PairChoice } from '@/utils/cashflowTypes'
+import { INVESTMENT_ACCOUNT_ICON, bankAccountIcon } from '@/utils/bankAccountIcon'
 import { questionText, roleNote } from '@/utils/recurring'
 import type {
   BankContributionAnswer, BankContributionDecisionKind, BankTransactionItem, BankTransferDecisionKind, CashflowType, RecurringDecisionKind,
@@ -127,19 +125,6 @@ function onDay(day: string | null | undefined): string {
     : ''
 }
 const bank = useBankStore()
-/**
- * Marked by what the account is, never by what the operation looks like:
- * without a dictionary, a card and a transfer cannot be told apart. An
- * alternative comes by its account's name, recognised only when one bears it.
- */
-function accountIcon(choice: PairChoice) {
-  if (choice.kind === 'deposit') return TrendingUp
-  const accounts = bank.summary?.accounts ?? []
-  const byId = choice.accountId ? accounts.filter((account) => account.id === choice.accountId) : []
-  const found = byId.length ? byId : accounts.filter((account) => account.name === choice.account)
-  if (found.length !== 1) return Landmark
-  return found[0]!.account_type === 'CHECKING' ? Wallet : PiggyBank
-}
 /** What a pair offered may be made with, one line each; several, each line
  * carries its own button, so no answer leaves the user guessing which. */
 const choosing = computed(() => choices.value.length > 1)
@@ -153,7 +138,9 @@ const choices = computed(() =>
       ? 'Comptée en investissement.'
       : choice.kind === 'pair' ? togetherNote(props.tx.together_type) : 'Liées l\'une à l\'autre : un virement entre vos comptes, ou un remboursement.'
     const day = onDay(choice.day).replace(/^ le /, '')
-    return { ...choice, what, day, icon: accountIcon(choice), text: [choice.account, day, what].filter(Boolean).join(' · '), hint }
+    return { ...choice, what, day, icon: choice.kind === 'deposit'
+      ? INVESTMENT_ACCOUNT_ICON
+      : bankAccountIcon(bank.summary?.accounts ?? [], { id: choice.accountId, name: choice.account }), text: [choice.account, day, what].filter(Boolean).join(' · '), hint }
   }),
 )
 const cancelled = computed(() =>

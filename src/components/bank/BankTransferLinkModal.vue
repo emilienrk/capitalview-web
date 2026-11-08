@@ -14,6 +14,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import type { BankTransactionItem } from '@/types'
+import { bankAccountIcon } from '@/utils/bankAccountIcon'
 
 const props = defineProps<{
   open: boolean
@@ -63,6 +64,10 @@ function day(value: string | null): string {
   return new Date(year!, month! - 1, date!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
+function accountIcon(operation: BankTransactionItem) {
+  return bankAccountIcon(bank.summary?.accounts ?? [], { id: operation.account_id, name: operation.account_name })
+}
+
 function sameAccount(candidate: BankTransactionItem): boolean {
   return candidate.account_id === props.tx?.account_id
 }
@@ -103,7 +108,8 @@ async function bind(candidate: BankTransactionItem): Promise<void> {
             {{ tx.label ?? 'Opération sans libellé' }}
           </p>
           <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-            {{ day(tx.operation_date) }} · {{ tx.account_name }}
+            {{ day(tx.operation_date) }} ·
+            <component :is="accountIcon(tx)" class="inline w-3 h-3 mr-0.5 -mt-px" aria-hidden="true" />{{ tx.account_name }}
           </p>
         </div>
         <p class="shrink-0 text-sm font-semibold tabular-nums text-text-main dark:text-text-dark-main">{{ signed(tx) }}</p>
@@ -131,7 +137,8 @@ async function bind(candidate: BankTransactionItem): Promise<void> {
                 {{ candidate.label ?? 'Opération sans libellé' }}
               </p>
               <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-                {{ day(candidate.operation_date) }} · {{ candidate.account_name }}
+                {{ day(candidate.operation_date) }} ·
+                <component :is="accountIcon(candidate)" class="inline w-3 h-3 mr-0.5 -mt-px" aria-hidden="true" />{{ candidate.account_name }}
               </p>
               <p class="mt-1 flex items-center gap-1 text-xs text-text-muted dark:text-text-dark-muted">
                 <template v-if="sameAccount(candidate)">
