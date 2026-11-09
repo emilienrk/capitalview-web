@@ -64,8 +64,11 @@ const totalSeries = computed(() => {
   return history.length ? [{ name: 'Solde total', history }] : []
 })
 
+// In the order they were opened, not by balance: a colour goes by position, and
+// would jump to another account each time two balances cross.
 const accountSeries = computed(() =>
-  (bank.summary?.accounts ?? [])
+  [...(bank.summary?.accounts ?? [])]
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((account) => ({
       name: account.name,
       history: applyGranularity(bank.accountHistoryById[account.id] ?? []),
