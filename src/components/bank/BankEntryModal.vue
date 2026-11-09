@@ -9,12 +9,14 @@
  */
 import { computed, reactive, ref, watch } from 'vue'
 
-import { BaseAlert, BaseButton, BaseInput, BaseModal, BaseSelect } from '@/components'
+import { BaseAlert, BaseAutocomplete, BaseButton, BaseInput, BaseModal, BaseSelect } from '@/components'
 import { useBankStore } from '@/stores/bank'
+import { useLedgerStore } from '@/stores/ledger'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
 import type { BankBalanceResponse, BankTransactionItem } from '@/types'
+import { hasWords, labelSuggestions } from '@/utils/entryLabels'
 
 type EntryType = 'IN' | 'OUT'
 
@@ -34,6 +36,7 @@ const ENTRY_OPTIONS: { label: string; value: EntryType }[] = [
 ]
 
 const bank = useBankStore()
+const ledger = useLedgerStore()
 const { formatCurrency, formatDayMonth } = useFormatters()
 const { maskValue } = usePrivacyMode()
 const { confirmDialog } = useConfirm()
@@ -69,7 +72,15 @@ watch(
     form.amount = tx ? Number(tx.amount) : ''
     form.day = tx?.operation_date ?? today()
     form.label = tx?.label ?? ''
+    // The labels to pick from; the browser answers 304 while nothing changed.
+    void ledger.fetchLedger()
   },
+)
+
+/** The label is what groups the entry with its kin and lets a rule reach it:
+ * one already used here, taken as it is, files it with them. */
+const suggestions = computed(() =>
+  props.accountId ? labelSuggestions(ledger.ledger, props.accountId, form.type === 'IN') : [],
 )
 
 // The balance on the chosen day, asked of the API as the date changes.
@@ -129,6 +140,10 @@ const isToday = computed(() => form.day === today())
 
 async function submit(): Promise<void> {
   if (!props.accountId || form.amount === '' || saving.value) return
+  if (!hasWords(form.label)) {
+    error.value = 'Le libellé doit contenir au moins un mot : c\'est lui qui regroupe vos opérations et porte vos règles.'
+    return
+  }
   if (Number(form.amount) <= 0) {
     error.value = fromStatement.value
       ? 'Vos opérations donnent déjà ce solde à cette date : il n\'y a rien à ajouter.'
@@ -143,7 +158,7 @@ async function submit(): Promise<void> {
     await bank.addEntry(props.accountId, {
       day: form.day,
       amount: signedOf(form.type, Number(form.amount)),
-      label: form.label || null,
+      label: form.label.trim(),
     })
     emit('saved')
     emit('close')
@@ -179,6 +194,15 @@ async function remove(): Promise<void> {
     </BaseAlert>
     <form class="space-y-4" @submit.prevent="submit">
       <BaseSelect v-model="form.type" label="Type d'opération" :options="ENTRY_OPTIONS" />
+      <!-- Above the other fields, so its suggestions open over them rather than past the modal's foot. -->
+      <BaseAutocomplete
+        v-model="form.label"
+        label="Libellé"
+        placeholder="ex. Virement vers Livret A"
+        :options="suggestions"
+        show-all-on-focus
+        required
+      />
       <div v-if="fromStatement">
         <BaseInput
           v-model="statementBalance"
@@ -222,7 +246,6 @@ async function remove(): Promise<void> {
         </button>
       </div>
       <BaseInput v-model="form.day" label="Date" type="date" :max="today()" required />
-      <BaseInput v-model="form.label" label="Libellé" placeholder="Optionnel" />
     </form>
     <template #footer>
       <div class="flex justify-between w-full">
@@ -230,7 +253,7 @@ async function remove(): Promise<void> {
         <div v-else></div>
         <div class="flex gap-2">
           <BaseButton variant="ghost" @click="emit('close')">Annuler</BaseButton>
-          <BaseButton :disabled="form.amount === '' || saving" @click="submit">
+          <BaseButton :disabled="form.amount === '' || !form.label.trim() || saving" @click="submit">
             {{ editing ? 'Enregistrer' : 'Valider' }}
           </BaseButton>
         </div>
