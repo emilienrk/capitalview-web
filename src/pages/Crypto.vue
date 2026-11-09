@@ -1430,18 +1430,27 @@ async function handleSubmitTransaction(): Promise<void> {
 
   let success = false
   showTxModal.value = false
+  // The modal is closed while this saves, and the next row the user opens
+  // rewrites the form: everything read after the first await is taken now.
+  const form = { ...txForm }
+  const withdraw = isFiatWithdraw.value
+  const bankAccountId = deductFromBank.value ? selectedBankAccountId.value : null
 
   if (editingTxId.value) {
-    const updateData: CryptoTransactionUpdate = {
-      amount: txForm.type === 'ANCHOR' ? txForm.amount : undefined,
-      executed_at: datetimeLocalToIso(txForm.executed_at),
-    }
-    const result = await crypto.updateTransaction(editingTxId.value, updateData)
-    success = !!result
+    const editedId = editingTxId.value
+    const edited = accountTransactions.value.find((tx) => tx.id === editedId)
     const cashLeg = editingCashLeg.value
-    if (success && cashLeg && cashLeg.type !== cashNature.value) {
-      success = !!(await crypto.updateTransaction(cashLeg.id, { type: cashNature.value }))
+    const updateData: CryptoTransactionUpdate = {}
+    if (form.type === 'ANCHOR') updateData.amount = form.amount
+    if (!edited || form.executed_at !== isoToDatetimeLocal(edited.executed_at)) {
+      updateData.executed_at = datetimeLocalToIso(form.executed_at)
     }
+    // A date set on any row moves its whole group, so the cash leg carries both:
+    // one request, one history rebuild.
+    const retype = cashLeg && cashLeg.type !== cashNature.value ? cashLeg : null
+    if (retype) updateData.type = cashNature.value
+    if (!Object.keys(updateData).length) return
+    success = !!(await crypto.updateTransaction(retype?.id ?? editedId, updateData))
   } else {
     const payload: CryptoCompositeTransactionCreate = {
       ...txForm,
@@ -1468,36 +1477,36 @@ async function handleSubmitTransaction(): Promise<void> {
 
   if (success) {
     // For FIAT_DEPOSIT: deduct from bank. For FIAT_WITHDRAW on EUR: credit bank.
-    if ((txForm.type === 'FIAT_DEPOSIT' || isFiatWithdraw.value) && deductFromBank.value && selectedBankAccountId.value) {
-      const bankAcc = sortedBankAccounts.value.find(a => a.id === selectedBankAccountId.value)
+    if ((form.type === 'FIAT_DEPOSIT' || withdraw) && bankAccountId) {
+      const bankAcc = sortedBankAccounts.value.find(a => a.id === bankAccountId)
       if (bankAcc) {
         // A real operation on the bank account, dated like the transfer: its
         // balance is the sum of its operations, never a figure written over.
         // "Virement": the label the lexicon reads as a transfer, which is what
         // lets the declared deposit type it as an investment.
-        const target = crypto.accounts.find((a) => a.id === txForm.account_id)
+        const target = crypto.accounts.find((a) => a.id === form.account_id)
         const entry = {
-          day: txForm.executed_at.slice(0, 10),
+          day: form.executed_at.slice(0, 10),
         }
-        if (txForm.type === 'FIAT_DEPOSIT') {
-          const ok = Number(bankAcc.balance) >= Number(txForm.amount) || await confirmDialog({
+        if (form.type === 'FIAT_DEPOSIT') {
+          const ok = Number(bankAcc.balance) >= Number(form.amount) || await confirmDialog({
             title: 'Solde insuffisant',
             message: `Le solde du compte « ${bankAcc.name} » (${formatCurrency(bankAcc.balance, bankAcc.currency)}) est insuffisant. Déduire quand même ?`,
             confirmLabel: 'Déduire quand même',
             variant: 'primary',
           })
           if (ok) {
-            await bank.addEntry(selectedBankAccountId.value, {
+            await bank.addEntry(bankAccountId, {
               ...entry,
-              amount: -Number(txForm.amount),
+              amount: -Number(form.amount),
               label: target ? `Virement vers ${target.name}` : 'Virement',
             })
           }
         } else {
           // FIAT_WITHDRAW on EUR: the amount comes back to the bank account
-          await bank.addEntry(selectedBankAccountId.value, {
+          await bank.addEntry(bankAccountId, {
             ...entry,
-            amount: Number(txForm.amount),
+            amount: Number(form.amount),
             label: target ? `Virement depuis ${target.name}` : 'Virement',
           })
         }
@@ -1510,7 +1519,7 @@ async function handleSubmitTransaction(): Promise<void> {
       ])
     }
     crypto.fetchTransactions()
-    await reloadChartsAfterMutation(txForm.account_id)
+    await reloadChartsAfterMutation(form.account_id)
   }
 }
 
