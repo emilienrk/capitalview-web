@@ -1,5 +1,6 @@
 import type {
-  BankContributionAnswer, BankContributionDecisionKind, BankContributionMatch, BankTransactionItem, BankTypeRule, CashflowType, TypeSource,
+  BankContributionAnswer, BankContributionDecisionKind, BankContributionMatch, BankLabelSeparationPreview, BankTransactionItem,
+  BankTypeRule, CashflowType, TypeSource,
 } from '@/types'
 
 export const CASHFLOW_TYPES: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
@@ -21,6 +22,38 @@ export function ruleTitle(rule: Pick<BankTypeRule, 'match' | 'signature' | 'labe
 
 /** Where the user's sorting rules live: the Banque section's Règles tab. */
 export const RULES_PAGE = { name: 'bank-rules' } as const
+
+function operations(count: number): string {
+  return `${count} opération${count > 1 ? 's' : ''}`
+}
+
+/**
+ * What separating a label does, said before it is done: each operation asks
+ * alone, and whatever an answer had settled for the label goes
+ * (docs/bank-sorting.md in the API, R54).
+ */
+export function separationMessage(preview: BankLabelSeparationPreview, label: string | null): string {
+  const parts = [
+    `Chacune des ${operations(preview.operation_count)} « ${label ?? 'sans libellé'} » de ce compte posera sa question seule,`
+      + " et une réponse ne vaudra que pour l'opération répondue, ni pour les autres ni pour les prochaines.",
+  ]
+  const rule = preview.rule
+  if (rule) {
+    parts.push(
+      `La règle de ce libellé, qui compte ${operations(rule.operation_count)} en ${answerLabel(rule.type, rule.is_credit)},`
+        + ' sera supprimée.',
+    )
+  }
+  const nearby = preview.nearby_count
+  if (nearby) {
+    parts.push(
+      `${operations(nearby)} classée${nearby > 1 ? 's' : ''} par la règle d'un libellé proche`
+        + ` ne le ${nearby > 1 ? 'seront' : 'sera'} plus.`,
+    )
+  }
+  parts.push("« Regrouper », dans l'onglet Règles, le défait.")
+  return parts.join(' ')
+}
 
 export const CASHFLOW_TYPE_TONES: Record<CashflowType, string> = {
   INCOME: 'bg-success/10 text-success',

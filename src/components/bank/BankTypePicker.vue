@@ -4,7 +4,8 @@
  * means — a card purchase at a crypto broker is an investment. By default the
  * choice types this operation alone; the toggle extends it to every operation
  * of the label, and of nearby labels, on this account and in this direction,
- * including those imported later — a rule.
+ * including those imported later — a rule. A label the user separated has no
+ * such toggle: each of its operations is typed alone.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -43,6 +44,7 @@ const clearing = ref(false)
 const error = ref<string | null>(null)
 
 const hasLabel = computed(() => Boolean(props.tx?.label?.trim()))
+const separated = computed(() => !!props.tx?.label_separated)
 /** What the user set, which going back to the detected type undoes. */
 const userSet = computed(() => props.tx?.type_source === 'override' || props.tx?.type_source === 'rule')
 /**
@@ -98,7 +100,7 @@ function signed(tx: BankTransactionItem): string {
 async function choose(type: CashflowType): Promise<void> {
   const tx = props.tx
   if (!tx) return
-  const scope = byLabel.value ? 'label' : 'operation'
+  const scope = byLabel.value && !separated.value ? 'label' : 'operation'
   const outranked = writtenRule.value ? ruleTitle(writtenRule.value) : null
   // The list shows the type at once: the modal has nothing left to wait for.
   emit('close')
@@ -164,7 +166,12 @@ async function backToDetected(): Promise<void> {
         </button>
       </div>
 
+      <p v-if="separated" class="text-sm text-text-muted dark:text-text-dark-muted">
+        Libellé séparé : seule cette opération est classée. Il se regroupe dans l'onglet
+        <router-link :to="RULES_PAGE" class="font-medium text-primary hover:underline" @click="emit('close')">Règles</router-link>.
+      </p>
       <label
+        v-else
         :class="['flex items-start gap-3 text-sm', hasLabel ? 'text-text-main dark:text-text-dark-main' : 'text-text-muted dark:text-text-dark-muted']"
       >
         <BaseToggle v-model="byLabel" :disabled="!hasLabel" aria-label="Appliquer au libellé" class="mt-0.5" />

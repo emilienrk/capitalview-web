@@ -172,6 +172,9 @@ const recurringAction = computed(() =>
     : `Rattacher à un ${props.tx.is_credit ? 'revenu' : 'paiement'} récurrent`,
 )
 const incomeQuestion = computed(() => props.tx.recurring_question?.direction === 'income')
+/** Its label mixes operations of different natures: answered for this one alone, never for the label. */
+const separated = computed(() => !!props.tx.label_separated)
+const SEPARATED_TITLE = 'Vous avez séparé ce libellé : chaque opération se classe seule. « Regrouper », dans l\'onglet Règles.'
 </script>
 
 <template>
@@ -243,7 +246,9 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
       <div v-if="asksDeposit" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
         <BankAnswerButton
           :disabled="busy || !depositAnswers.length"
-          title="Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour."
+          :title="separated
+            ? 'Comptée en investissement.'
+            : 'Comptée en investissement, avec les autres opérations de ce libellé qui ont leur propre versement ou retrait en face, le même jour.'"
           @click="$emit('contribution', 'contribution', depositAnswers, members)"
         >
           Oui
@@ -259,6 +264,7 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         <span v-if="leavesRecurring" class="text-text-muted dark:text-text-dark-muted">
           Oui : sortira du récurrent {{ leavesRecurring }}
         </span>
+        <span v-if="separated" class="text-text-muted dark:text-text-dark-muted" :title="SEPARATED_TITLE">Libellé séparé</span>
         <BankFlowGroup
           v-if="tx.flow_question && tx.flow_question.operation_count > 1"
           :key="`${tx.id}-${tx.flow_question.operation_count}`"
@@ -333,7 +339,9 @@ const incomeQuestion = computed(() => props.tx.recurring_question?.direction ===
         >
           {{ answerLabel(choice, tx.is_credit) }}
         </BankAnswerButton>
+        <span v-if="separated" class="text-text-muted dark:text-text-dark-muted" :title="SEPARATED_TITLE">Libellé séparé</span>
         <label
+          v-else
           class="inline-flex items-center gap-1 text-text-muted dark:text-text-dark-muted cursor-pointer"
           title="Crée une règle sur ce libellé, qui classe aussi les prochaines opérations. Elle se retrouve et se supprime dans l'onglet Règles."
         >

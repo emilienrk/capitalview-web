@@ -11,16 +11,22 @@
  * types ("celles que je coche"): open, the answer covers the ticked ones;
  * closed, the operation asked about alone. "Tout cocher" ticks the whole label
  * as it stands, with no rule for the operations to come.
+ *
+ * Where the list shows a label mixing operations of different natures, the
+ * user may separate it: each operation then asks alone (docs/bank-sorting.md
+ * in the API, R54).
  */
 import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 import { BaseSkeleton } from '@/components'
+import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useToast } from '@/composables/useToast'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionGap } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionGap, separationMessage } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   transactionId: string
@@ -69,6 +75,38 @@ async function toggle(): Promise<void> {
     emit('loaded', operations.value)
   } catch {
     failed.value = true
+  }
+}
+
+const { confirmDialog } = useConfirm()
+const toast = useToast()
+const separating = ref(false)
+
+/** Said before it is done, with the rule it withdraws; taken back from the toast or the Règles tab. */
+async function separate(): Promise<void> {
+  separating.value = true
+  try {
+    const preview = await types.previewSeparation(props.transactionId)
+    const confirmed = await confirmDialog({
+      title: 'Séparer ce libellé',
+      message: separationMessage(preview, props.label),
+      confirmLabel: 'Séparer',
+      variant: 'primary',
+    })
+    if (!confirmed) return
+    const separation = await types.separateLabel(props.transactionId)
+    toast.show('Libellé séparé : chaque opération pose sa question seule.', {
+      action: {
+        label: 'Annuler',
+        run: () => void types.regroupLabel(separation.id).catch((e: unknown) => {
+          toast.show(e instanceof Error ? e.message : 'Impossible de regrouper ce libellé.', { variant: 'danger' })
+        }),
+      },
+    })
+  } catch (e) {
+    toast.show(e instanceof Error ? e.message : 'Impossible de séparer ce libellé.', { variant: 'danger' })
+  } finally {
+    separating.value = false
   }
 }
 
@@ -123,14 +161,27 @@ function day(value: string | null): string {
     <Transition name="cv-expand">
       <div v-if="open">
         <div>
-          <button
-            v-if="picking && operations"
-            type="button"
-            class="mb-1 font-medium text-primary hover:underline"
-            @click="pickAll"
-          >
-            {{ allPicked ? 'Tout décocher' : 'Tout cocher' }}
-          </button>
+          <div v-if="operations" class="mb-1 flex items-center gap-3">
+            <button
+              v-if="picking"
+              type="button"
+              class="font-medium text-primary hover:underline"
+              @click="pickAll"
+            >
+              {{ allPicked ? 'Tout décocher' : 'Tout cocher' }}
+            </button>
+            <!-- The words a bank writes around a payment can be all two labels share:
+                 only the user sees that they are not the same thing. -->
+            <button
+              type="button"
+              class="ml-auto font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:underline disabled:opacity-50"
+              title="Ces opérations ne sont pas la même chose : chacune posera sa question seule, et aucune réponse ne vaudra pour tout le libellé."
+              :disabled="separating"
+              @click="separate"
+            >
+              Séparer
+            </button>
+          </div>
           <ul
             class="rounded-button bg-background-subtle dark:bg-background-dark-subtle divide-y divide-surface-border dark:divide-surface-dark-border"
           >

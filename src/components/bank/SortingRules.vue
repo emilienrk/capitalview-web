@@ -4,15 +4,17 @@
  * « les prochaines aussi », and the rules they write by hand — every label
  * containing a text, or starting with it. A rule types the operations it
  * reaches, those imported later included (docs/bank-sorting.md in the API).
+ * Beside them, the labels the user separated: each of their operations asks
+ * alone, until « Regrouper ».
  */
 import { BookMarked, Plus } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { BaseButton, BaseEmptyState, BaseSkeleton } from '@/components'
 import SortingRuleModal from '@/components/bank/SortingRuleModal.vue'
 import { toastWhileSet } from '@/composables/useToast'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
-import type { BankTypeRule, CashflowType } from '@/types'
+import type { BankLabelSeparation, BankTypeRule, CashflowType } from '@/types'
 import { CASHFLOW_TYPES, answerLabel, ruleTitle } from '@/utils/cashflowTypes'
 import SettingsSection from '@/pages/settings/SettingsSection.vue'
 
@@ -28,7 +30,7 @@ toastWhileSet(error)
 async function load(): Promise<void> {
   failed.value = false
   try {
-    await types.fetchRules()
+    await Promise.all([types.fetchRules(), types.fetchSeparations()])
   } catch {
     failed.value = true
   }
@@ -62,18 +64,33 @@ async function remove(rule: BankTypeRule): Promise<void> {
   }
 }
 
-function details(rule: BankTypeRule): string {
+async function regroup(separation: BankLabelSeparation): Promise<void> {
+  busy.value = separation.id
+  error.value = null
+  try {
+    await types.regroupLabel(separation.id)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Impossible de regrouper ce libellé.'
+  } finally {
+    busy.value = null
+  }
+}
+
+function details(rule: Pick<BankTypeRule, 'account_name' | 'is_credit' | 'operation_count'>): string {
   const count = rule.operation_count
   const reach = count ? `${count} opération${count > 1 ? 's' : ''}` : 'aucune opération pour le moment'
   return `${rule.account_name ?? 'Tous les comptes'} · ${rule.is_credit ? 'Entrées' : 'Sorties'} · ${reach}`
 }
+
+const loaded = computed(() => types.rules !== null && types.separations !== null)
+const empty = computed(() => !types.rules?.length && !types.separations?.length)
 </script>
 
 <template>
   <SettingsSection
     :icon="BookMarked"
     title="Règles de tri"
-    subtitle="Votre dictionnaire : les libellés pour lesquels vous avez coché « les prochaines aussi », et les règles que vous écrivez. Elles comptent aussi les opérations importées plus tard."
+    subtitle="Votre dictionnaire : les libellés pour lesquels vous avez coché « les prochaines aussi », les règles que vous écrivez, et les libellés que vous avez séparés. Elles comptent aussi les opérations importées plus tard."
   >
     <template #header-action>
       <BaseButton size="sm" variant="outline" class="shrink-0" @click="editing = 'new'">
@@ -87,11 +104,11 @@ function details(rule: BankTypeRule): string {
       <p class="text-sm text-text-muted dark:text-text-dark-muted">Impossible de charger les règles.</p>
       <BaseButton size="sm" variant="outline" @click="load">Réessayer</BaseButton>
     </div>
-    <div v-else-if="!types.rules" class="space-y-2">
+    <div v-else-if="!loaded" class="space-y-2">
       <BaseSkeleton v-for="i in 3" :key="i" variant="rect" width="100%" height="3.25rem" />
     </div>
     <BaseEmptyState
-      v-else-if="!types.rules.length"
+      v-else-if="empty"
       title="Aucune règle"
       description="Écrivez une règle (« le libellé contient SPOTIFY : dépense »), ou cochez « les prochaines aussi » en répondant dans « À trier »."
     />
@@ -119,6 +136,22 @@ function details(rule: BankTypeRule): string {
           </select>
           <BaseButton size="sm" variant="ghost" :disabled="busy !== null" @click="editing = rule">Modifier</BaseButton>
           <BaseButton size="sm" variant="outline" :disabled="busy !== null" @click="remove(rule)">Supprimer</BaseButton>
+        </div>
+      </li>
+      <!-- Not a type: each of its operations is answered alone, from « À trier ». -->
+      <li
+        v-for="separation in types.separations"
+        :key="separation.id"
+        class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-2 py-2.5"
+      >
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-text-main dark:text-text-dark-main" :title="separation.label ?? separation.signature">
+            {{ separation.label ?? separation.signature }}
+          </p>
+          <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">{{ details(separation) }} · Libellé séparé</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <BaseButton size="sm" variant="outline" :disabled="busy !== null" @click="regroup(separation)">Regrouper</BaseButton>
         </div>
       </li>
     </ul>

@@ -4,14 +4,16 @@ import { computed, ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { useBankStore } from '@/stores/bank'
 import type {
-  BankHistoryItem, BankReviewQueue, BankTransactionItem, BankTransactionTypeResult, BankTypeRule, BankTypeRulePreview,
-  BankTypeRuleWrite, CashflowType, TypeScope,
+  BankHistoryItem, BankLabelSeparation, BankLabelSeparationPreview, BankReviewQueue, BankTransactionItem,
+  BankTransactionTypeResult, BankTypeRule, BankTypeRulePreview, BankTypeRuleWrite, CashflowType, TypeScope,
 } from '@/types'
 import { applyToQueue, waitingOn } from '@/utils/optimisticAnswers'
 
 /** How operations count: the type of one of them, the rules of their labels. */
 export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
   const rules = ref<BankTypeRule[] | null>(null)
+  /** The labels whose operations each ask alone, listed beside the rules. */
+  const separations = ref<BankLabelSeparation[] | null>(null)
   const bank = useBankStore()
   /** The queue as fetched, and the revision it was asked at: the answers given since read on top. */
   const queueRead = ref<{ queue: BankReviewQueue; revision: number } | null>(null)
@@ -115,6 +117,47 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
     changed()
   }
 
+  async function fetchSeparations(): Promise<void> {
+    separations.value = await apiClient.get<BankLabelSeparation[]>('/banking/label-separations')
+  }
+
+  /** What separating this operation's label would withdraw, nothing written. */
+  function previewSeparation(transactionId: string): Promise<BankLabelSeparationPreview> {
+    return apiClient.get<BankLabelSeparationPreview>(
+      `/banking/transactions/${encodeURIComponent(transactionId)}/separation`,
+    )
+  }
+
+  /** Separates this operation's label: each of its operations asks alone, and its rule from an answer goes. */
+  async function separateLabel(transactionId: string): Promise<BankLabelSeparation> {
+    const separation = await apiClient.post<BankLabelSeparation>(
+      `/banking/transactions/${encodeURIComponent(transactionId)}/separation`,
+    )
+    if (separations.value && !separations.value.some((other) => other.id === separation.id)) {
+      separations.value = [...separations.value, separation]
+    }
+    // The rule it withdrew leaves the list too.
+    rules.value = null
+    changed()
+    return separation
+  }
+
+  /** Regroups a label: gone from the list at once, back where it was if the API fails. */
+  async function regroupLabel(separationId: string): Promise<void> {
+    const index = separations.value?.findIndex((separation) => separation.id === separationId) ?? -1
+    const removed = index >= 0 ? separations.value![index] : undefined
+    if (removed) separations.value = separations.value!.filter((separation) => separation.id !== separationId)
+    try {
+      await apiClient.delete(`/banking/label-separations/${encodeURIComponent(separationId)}`)
+    } catch (e) {
+      if (removed && separations.value && !separations.value.some((separation) => separation.id === separationId)) {
+        separations.value = [...separations.value.slice(0, index), removed, ...separations.value.slice(index)]
+      }
+      throw e
+    }
+    changed()
+  }
+
   /** The operations one answer would type: exactly what the question counts. */
   function fetchFlowGroup(transactionId: string): Promise<BankTransactionItem[]> {
     return apiClient.get<BankTransactionItem[]>(
@@ -150,13 +193,14 @@ export const useCashflowTypesStore = defineStore('cashflowTypes', () => {
 
   function reset(): void {
     rules.value = null
+    separations.value = null
     queueRead.value = null
     queueYear.value = null
   }
 
   return {
     rules, queue, queueWaiting, queueYear, setType, answerFlow, clearOverride, fetchRules, previewRule, writeRule, retypeRule,
-    deleteRule, fetchFlowGroup,
+    deleteRule, fetchFlowGroup, separations, fetchSeparations, previewSeparation, separateLabel, regroupLabel,
     fetchHistory, undoAnswer, fetchReviewQueue, reset,
   }
 })

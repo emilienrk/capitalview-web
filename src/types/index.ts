@@ -468,6 +468,8 @@ export interface BankTransactionItem {
   origin?: BankOperationOrigin | null
   /** Whether DELETE /bank/transactions/{id} accepts it. */
   deletable?: boolean
+  /** Its label is separated: answered for this operation alone, never for the label. */
+  label_separated?: boolean
 }
 
 /** Where an operation comes from, beyond the bank or a statement. Adjustments
@@ -677,6 +679,30 @@ export interface BankTypeRule {
   type: CashflowType
   operation_count: number
   created_at: string
+}
+
+/** A label whose operations each ask alone: GET /banking/label-separations. */
+export interface BankLabelSeparation {
+  id: string
+  account_id: string
+  account_name: string
+  is_credit: boolean
+  /** The label's words, or its whole text marked « # » when it has none. */
+  signature: string
+  /** Its most recent operation's, null when none is left. */
+  label: string | null
+  operation_count: number
+  created_at: string
+}
+
+/** What separating a label withdraws, nothing written: GET /banking/transactions/{id}/separation. */
+export interface BankLabelSeparationPreview {
+  separated: boolean
+  operation_count: number
+  /** The rule given from an answer on the label, deleted on separating. */
+  rule: BankTypeRule | null
+  /** The label's operations a nearby label's rule types, which it no longer would. */
+  nearby_count: number
 }
 
 /** A rule written by hand, as POST /banking/type-rules and its preview take it. */

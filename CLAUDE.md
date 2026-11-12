@@ -6,7 +6,7 @@ Le front n'invente aucune règle de tri, de solde ou de récurrent : elles viven
 
 | Avant de toucher | Lire dans `capitalview-api` |
 | --- | --- |
-| `src/pages/Bank*.vue`, `src/components/bank/`, `src/composables/useBank*.ts`, `src/utils/cashflowTypes.ts`, `src/utils/bankHistory.ts`, `src/utils/optimisticAnswers.ts` | `docs/bank-sorting.md` : règles R1 à R53, et la table « Textes d'interface » qui fixe les libellés affichés |
+| `src/pages/Bank*.vue`, `src/components/bank/`, `src/composables/useBank*.ts`, `src/utils/cashflowTypes.ts`, `src/utils/bankHistory.ts`, `src/utils/optimisticAnswers.ts` | `docs/bank-sorting.md` : règles R1 à R54, et la table « Textes d'interface » qui fixe les libellés affichés |
 | `src/components/bank/BankEntryModal.vue`, `src/components/imports/PlatformImportModal.vue` (partie banque) | `docs/bank-ledger.md` : règles L1 à L9 |
 
 Un texte d'interface qui change se change aussi dans la table de `docs/bank-sorting.md`, et un comportement nouveau

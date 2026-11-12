@@ -220,3 +220,46 @@ describe('an answer shown before the API holds it', () => {
     expect(types.queue?.questions).toHaveLength(1)
   })
 })
+
+describe('label separations', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('separates a label, then regroups it, reading the operations again each time', async () => {
+    const bank = useBankStore()
+    const read = vi.spyOn(bank, 'operationsRead')
+    const separation = {
+      id: 'sep 1', account_id: 'acc-1', account_name: 'Compte courant', is_credit: false, signature: 'carte cb',
+      label: 'CARTE 12/03/26 A.R.E.A. CB*0837', operation_count: 2, created_at: '2026-11-12T00:00:00Z',
+    }
+    vi.mocked(apiClient.post).mockResolvedValue(separation)
+    vi.mocked(apiClient.delete).mockResolvedValue(undefined)
+    const types = useCashflowTypesStore()
+    types.separations = []
+
+    await types.separateLabel('tx 1')
+    expect(apiClient.post).toHaveBeenCalledWith('/banking/transactions/tx%201/separation')
+    expect(types.separations).toEqual([separation])
+    expect(types.rules).toBeNull()
+
+    await types.regroupLabel('sep 1')
+    expect(apiClient.delete).toHaveBeenCalledWith('/banking/label-separations/sep%201')
+    expect(types.separations).toEqual([])
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('puts a separation back in the list when regrouping fails', async () => {
+    const separation = {
+      id: 'sep-1', account_id: 'acc-1', account_name: 'Compte courant', is_credit: false, signature: 'carte cb',
+      label: null, operation_count: 0, created_at: '2026-11-12T00:00:00Z',
+    }
+    vi.mocked(apiClient.delete).mockRejectedValue(new Error('Ce libellé n\'est plus séparé.'))
+    const types = useCashflowTypesStore()
+    types.separations = [separation]
+
+    await expect(types.regroupLabel('sep-1')).rejects.toThrow()
+    expect(types.separations).toEqual([separation])
+  })
+})

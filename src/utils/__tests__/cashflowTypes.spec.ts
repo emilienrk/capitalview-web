@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   ALL, RECURRING, answerHint, answerLabel, contributionBadge, contributionGap, contributionMessage, contributionNote, keptByHand,
   matchesCashflowType,
-  needsReview, ownAnswer, pairChoices, ruleTitle, togetherNote, typeSourceTitle,
+  needsReview, ownAnswer, pairChoices, ruleTitle, separationMessage, togetherNote, typeSourceTitle,
 } from '@/utils/cashflowTypes'
-import type { BankTransactionItem } from '@/types'
+import type { BankLabelSeparationPreview, BankTransactionItem } from '@/types'
 
 function anOperation(overrides: Partial<BankTransactionItem> = {}): BankTransactionItem {
   return {
@@ -240,5 +240,34 @@ describe('pairChoices', () => {
       ...offered, transfer_status: 'confirmed',
       transfer_alternatives: [{ id: 'tx-3', account_name: 'Compte principal', day: null, label: null }],
     }))).toEqual([])
+  })
+})
+
+describe('separationMessage', () => {
+  const preview = (overrides: Partial<BankLabelSeparationPreview> = {}): BankLabelSeparationPreview => ({
+    separated: false, operation_count: 16, rule: null, nearby_count: 0, ...overrides,
+  })
+
+  it('says each operation will ask alone, and how to undo it', () => {
+    const message = separationMessage(preview(), 'CARTE 12/03/25 A.R.E.A. CB*0837')
+    expect(message).toContain('Chacune des 16 opérations « CARTE 12/03/25 A.R.E.A. CB*0837 » de ce compte posera sa question seule')
+    expect(message).toContain('« Regrouper »')
+    expect(message).not.toContain('règle')
+  })
+
+  it('names the rule it withdraws and what it counted, before anything is done', () => {
+    const rule = {
+      id: 'r1', account_id: 'acc-1', account_name: 'Compte courant', is_credit: true, signature: 'mangopay',
+      match: 'similar' as const, label: 'Paiement envoyé par MANGOPAY', type: 'EXPENSE' as const,
+      operation_count: 13, created_at: '2026-11-01T00:00:00Z',
+    }
+    expect(separationMessage(preview({ rule }), 'Paiement envoyé par MANGOPAY'))
+      .toContain('La règle de ce libellé, qui compte 13 opérations en Remboursement, sera supprimée.')
+  })
+
+  it('says what a nearby label\'s rule stops typing', () => {
+    expect(separationMessage(preview({ nearby_count: 1 }), 'VIR SEPA')).toContain(
+      "1 opération classée par la règle d'un libellé proche ne le sera plus.",
+    )
   })
 })
