@@ -11,6 +11,7 @@ import { computed, ref, watch } from 'vue'
 
 import { BaseAlert, BaseButton, BaseModal, BaseToggle } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
+import { useLabelSeparation } from '@/composables/useLabelSeparation'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useBankStore } from '@/stores/bank'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
@@ -38,6 +39,8 @@ const bank = useBankStore()
 const types = useCashflowTypesStore()
 const { formatCurrency, formatDateShort } = useFormatters()
 const { maskValue } = usePrivacyMode()
+
+const { separate } = useLabelSeparation()
 
 const byLabel = ref(false)
 const clearing = ref(false)
@@ -114,6 +117,14 @@ async function choose(type: CashflowType): Promise<void> {
   }
 }
 
+/** The confirmation takes over: one window at a time. */
+function separateLabel(): void {
+  const tx = props.tx
+  if (!tx) return
+  emit('close')
+  void separate(tx.id, tx.label)
+}
+
 async function backToDetected(): Promise<void> {
   const tx = props.tx
   if (!tx) return
@@ -183,6 +194,11 @@ async function backToDetected(): Promise<void> {
         </span>
         <span v-else>Sans libellé, seule cette opération peut être corrigée.</span>
       </label>
+      <!-- Where a label asks no question, this window is the only place its rule is offered. -->
+      <p v-if="hasLabel && !separated" class="text-sm text-text-muted dark:text-text-dark-muted">
+        Ce libellé couvre des opérations sans rapport ?
+        <button type="button" class="font-medium text-primary hover:underline" @click="separateLabel">Séparer</button>
+      </p>
       <p v-if="recurringNote" class="text-sm text-text-muted dark:text-text-dark-muted">{{ recurringNote }}</p>
     </div>
 

@@ -20,13 +20,12 @@ import { computed, ref } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 import { BaseSkeleton } from '@/components'
-import { useConfirm } from '@/composables/useConfirm'
 import { useFormatters } from '@/composables/useFormatters'
+import { useLabelSeparation } from '@/composables/useLabelSeparation'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { useToast } from '@/composables/useToast'
 import { useCashflowTypesStore } from '@/stores/cashflowTypes'
 import type { BankTransactionItem } from '@/types'
-import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionGap, separationMessage } from '@/utils/cashflowTypes'
+import { CASHFLOW_TYPE_LABELS, CASHFLOW_TYPE_TONES, contributionGap } from '@/utils/cashflowTypes'
 
 const props = defineProps<{
   transactionId: string
@@ -78,37 +77,7 @@ async function toggle(): Promise<void> {
   }
 }
 
-const { confirmDialog } = useConfirm()
-const toast = useToast()
-const separating = ref(false)
-
-/** Said before it is done, with the rule it withdraws; taken back from the toast or the Règles tab. */
-async function separate(): Promise<void> {
-  separating.value = true
-  try {
-    const preview = await types.previewSeparation(props.transactionId)
-    const confirmed = await confirmDialog({
-      title: 'Séparer ce libellé',
-      message: separationMessage(preview, props.label),
-      confirmLabel: 'Séparer',
-      variant: 'primary',
-    })
-    if (!confirmed) return
-    const separation = await types.separateLabel(props.transactionId)
-    toast.show('Libellé séparé : chaque opération pose sa question seule.', {
-      action: {
-        label: 'Annuler',
-        run: () => void types.regroupLabel(separation.id).catch((e: unknown) => {
-          toast.show(e instanceof Error ? e.message : 'Impossible de regrouper ce libellé.', { variant: 'danger' })
-        }),
-      },
-    })
-  } catch (e) {
-    toast.show(e instanceof Error ? e.message : 'Impossible de séparer ce libellé.', { variant: 'danger' })
-  } finally {
-    separating.value = false
-  }
-}
+const { separating, separate } = useLabelSeparation()
 
 function signed(tx: BankTransactionItem): string {
   const value = Number(tx.amount)
@@ -177,7 +146,7 @@ function day(value: string | null): string {
               class="ml-auto font-medium text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:underline disabled:opacity-50"
               title="Ces opérations ne sont pas la même chose : chacune posera sa question seule, et aucune réponse ne vaudra pour tout le libellé."
               :disabled="separating"
-              @click="separate"
+              @click="separate(transactionId, label)"
             >
               Séparer
             </button>
