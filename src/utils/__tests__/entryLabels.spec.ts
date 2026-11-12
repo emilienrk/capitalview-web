@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { hasWords, labelSuggestions } from '@/utils/entryLabels'
+import { hasIdentity, labelSuggestions } from '@/utils/entryLabels'
 import type { BankLedger, BankLedgerRow } from '@/types'
 
-describe('hasWords', () => {
-  it('reads words as the API does: two letters or more, no digit', () => {
-    expect(hasWords('Virement vers Livret A')).toBe(true)
-    expect(hasWords('A.r.e.a.')).toBe(false)
-    expect(hasWords('H&L')).toBe(false)
-    expect(hasWords('00160669')).toBe(false)
-    expect(hasWords('Cgf17516mcdo1')).toBe(false)
-    expect(hasWords('   ')).toBe(false)
+describe('hasIdentity', () => {
+  it('takes any label holding a letter or a digit, as the API keys on one', () => {
+    expect(hasIdentity('Virement vers Livret A')).toBe(true)
+    expect(hasIdentity('H&L')).toBe(true)
+    expect(hasIdentity('00160669')).toBe(true)
+    expect(hasIdentity(' - ')).toBe(false)
+    expect(hasIdentity('   ')).toBe(false)
   })
 })
 
@@ -31,7 +30,7 @@ describe('labelSuggestions', () => {
   } as unknown as BankLedger
 
   it('offers the labels of this account and direction, the most used first', () => {
-    expect(labelSuggestions(ledger, 'livret', true)).toEqual(['VIR Virement depuis Compte courant', 'INTERETS'])
+    expect(labelSuggestions(ledger, 'livret', true)).toEqual(['VIR Virement depuis Compte courant', '00160669', 'INTERETS'])
     expect(labelSuggestions(ledger, 'livret', false)).toEqual(['VIR Virement depuis Compte epargne'])
   })
 

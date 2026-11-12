@@ -16,7 +16,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useConfirm } from '@/composables/useConfirm'
 import type { BankBalanceResponse, BankTransactionItem } from '@/types'
-import { hasWords, labelSuggestions } from '@/utils/entryLabels'
+import { hasIdentity, labelSuggestions } from '@/utils/entryLabels'
 
 type EntryType = 'IN' | 'OUT'
 
@@ -140,8 +140,8 @@ const isToday = computed(() => form.day === today())
 
 async function submit(): Promise<void> {
   if (!props.accountId || form.amount === '' || saving.value) return
-  if (!hasWords(form.label)) {
-    error.value = 'Le libellé doit contenir au moins un mot : c\'est lui qui regroupe vos opérations et porte vos règles.'
+  if (!hasIdentity(form.label)) {
+    error.value = 'Donnez un libellé : c\'est lui qui regroupe vos opérations et porte vos règles.'
     return
   }
   if (Number(form.amount) <= 0) {
