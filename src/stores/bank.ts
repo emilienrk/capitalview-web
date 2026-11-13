@@ -570,6 +570,12 @@ export const useBankStore = defineStore('bank', () => {
     await syncBanking()
   }
 
+  /** The user has read what the last sync said about the imported operations. */
+  async function dismissSyncNotice(bankAccountUuid: string): Promise<void> {
+    await apiClient.delete(`/banking/accounts/${bankAccountUuid}/sync-notice`)
+    await fetchAccounts()
+  }
+
   async function reseedHistory(bankAccountUuid: string): Promise<void> {
     await apiClient.post(`/banking/accounts/${bankAccountUuid}/reseed-history`, {})
     await syncBanking()
@@ -641,6 +647,7 @@ export const useBankStore = defineStore('bank', () => {
     fetchHistoryForAccount,
     syncBanking,
     retrySync,
+    dismissSyncNotice,
     fetchObservedFlows,
     fetchTransactions,
     importBankingExport,

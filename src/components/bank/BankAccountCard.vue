@@ -11,7 +11,7 @@ import { useBankStore } from '@/stores/bank'
 import { useSettingsStore } from '@/stores/settings'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import { BaseBadge, BaseButton, BaseCard, BaseHelpPopover } from '@/components'
+import { BaseAlert, BaseBadge, BaseButton, BaseCard, BaseHelpPopover } from '@/components'
 import type { BadgeVariant } from '@/components/base/BaseBadge.vue'
 import type { BankAccountResponse } from '@/types'
 
@@ -85,8 +85,42 @@ const syncFailure = computed(() => {
   return result.detail ?? 'La synchronisation a échoué.'
 })
 
+/**
+ * What the first sync over imported operations did, kept by the API until the
+ * user dismisses it: the seeding pass usually runs in the background right after
+ * linking, so its response reaches no one (API docs/bank-ledger.md, L1 and L11).
+ */
+const syncNotice = computed(() => {
+  const notice = props.account.sync_notice
+  if (!notice) return null
+  const currency = props.account.currency
+  const held = notice.held_back > 0 && notice.held_until
+    ? `${notice.held_back} opération${notice.held_back > 1 ? 's' : ''} de la banque non importée${notice.held_back > 1 ? 's' : ''} : `
+      + `la période jusqu'au ${formatDate(notice.held_until)} est déjà couverte par votre import.`
+    : null
+  const shift = notice.curve_shift !== null && notice.operations_total !== null && notice.bank_balance !== null
+    ? `Vos opérations importées donnent ${maskValue(formatCurrency(notice.operations_total, currency))}, `
+      + `votre banque ${maskValue(formatCurrency(notice.bank_balance, currency))} : la courbe a été `
+      + `${Number(notice.curve_shift) > 0 ? 'relevée' : 'abaissée'} de `
+      + `${maskValue(formatCurrency(Math.abs(Number(notice.curve_shift)), currency))}. `
+      + 'Votre import ne remonte sans doute pas à l\'ouverture du compte, ou il lui manque des opérations.'
+    : null
+  return held || shift ? { held, shift } : null
+})
+
 const retrying = ref(false)
 const reseeding = ref(false)
+const dismissing = ref(false)
+
+async function dismissNotice(): Promise<void> {
+  if (dismissing.value) return
+  dismissing.value = true
+  try {
+    await bank.dismissSyncNotice(props.account.id)
+  } finally {
+    dismissing.value = false
+  }
+}
 
 function openOperations(): void {
   void router.push({ name: 'bank-transactions', query: { account: props.account.id } })
@@ -260,6 +294,16 @@ async function reseedHistory(): Promise<void> {
           {{ reseeding ? 'Récupération…' : 'Récupérer l\'historique' }}
         </button>
       </div>
+    </div>
+
+    <!-- Read once, then dismissed: the curve shift explains every past balance
+         on the curve, so it stays until the user has seen it. Its own clicks
+         stop here rather than open the operations. -->
+    <div v-if="syncNotice" class="mt-3" @click.stop>
+      <BaseAlert variant="info" dismissible @dismiss="dismissNotice">
+        <p v-if="syncNotice.held">{{ syncNotice.held }}</p>
+        <p v-if="syncNotice.shift" :class="{ 'mt-1': syncNotice.held }">{{ syncNotice.shift }}</p>
+      </BaseAlert>
     </div>
 
     <div

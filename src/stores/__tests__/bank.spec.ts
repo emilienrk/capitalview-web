@@ -150,6 +150,25 @@ describe('useBankStore — syncBanking', () => {
   })
 })
 
+describe('useBankStore — dismissSyncNotice', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('forgets the notice server-side and reloads the accounts without it', async () => {
+    const { apiClient } = await import('@/api/client')
+    vi.mocked(apiClient.delete).mockResolvedValue({ message: 'Message masqué.' })
+    vi.mocked(apiClient.get).mockResolvedValue({ total_balance: 0, accounts: [anAccount({ sync_notice: null })] })
+
+    const store = useBankStore()
+    await store.dismissSyncNotice('acc-1')
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/banking/accounts/acc-1/sync-notice')
+    expect(store.summary?.accounts[0].sync_notice).toBeNull()
+  })
+})
+
 describe('useBankStore — fetchObservedFlows', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
