@@ -86,17 +86,23 @@ const syncFailure = computed(() => {
 })
 
 /**
- * What the first sync over imported operations did, kept by the API until the
- * user dismisses it: the seeding pass usually runs in the background right after
- * linking, so its response reaches no one (API docs/bank-ledger.md, L1 and L11).
+ * What the first sync over imported operations replaced or shifted, kept by the
+ * API until the user dismisses it: the seeding pass usually runs in the
+ * background right after linking, so its response reaches no one (API
+ * docs/bank-ledger.md, L1 and L11).
  */
 const syncNotice = computed(() => {
   const notice = props.account.sync_notice
   if (!notice) return null
   const currency = props.account.currency
-  const held = notice.held_back > 0 && notice.held_until
-    ? `${notice.held_back} opération${notice.held_back > 1 ? 's' : ''} de la banque non importée${notice.held_back > 1 ? 's' : ''} : `
-      + `la période jusqu'au ${formatDate(notice.held_until)} est déjà couverte par votre import.`
+  const plural = (n: number) => (n > 1 ? 's' : '')
+  const replaced = notice.replaced > 0 && notice.replaced_from
+    ? `${formatNumber(notice.replaced, 0)} opération${plural(notice.replaced)} importée${plural(notice.replaced)} `
+      + `remplacée${plural(notice.replaced)} par celles de votre banque à partir du ${formatDate(notice.replaced_from)}`
+      + (notice.answers_dropped > 0
+        ? ` : ${formatNumber(notice.answers_dropped, 0)} réponse${plural(notice.answers_dropped)} `
+          + `${notice.answers_dropped > 1 ? 'sont' : 'est'} à redonner dans À trier.`
+        : '.')
     : null
   const shift = notice.curve_shift !== null && notice.operations_total !== null && notice.bank_balance !== null
     ? `Vos opérations importées donnent ${maskValue(formatCurrency(notice.operations_total, currency))}, `
@@ -105,7 +111,7 @@ const syncNotice = computed(() => {
       + `${maskValue(formatCurrency(Math.abs(Number(notice.curve_shift)), currency))}. `
       + 'Votre import ne remonte sans doute pas à l\'ouverture du compte, ou il lui manque des opérations.'
     : null
-  return held || shift ? { held, shift } : null
+  return replaced || shift ? { replaced, shift } : null
 })
 
 const retrying = ref(false)
@@ -301,8 +307,8 @@ async function reseedHistory(): Promise<void> {
          stop here rather than open the operations. -->
     <div v-if="syncNotice" class="mt-3" @click.stop>
       <BaseAlert variant="info" dismissible @dismiss="dismissNotice">
-        <p v-if="syncNotice.held">{{ syncNotice.held }}</p>
-        <p v-if="syncNotice.shift" :class="{ 'mt-1': syncNotice.held }">{{ syncNotice.shift }}</p>
+        <p v-if="syncNotice.replaced">{{ syncNotice.replaced }}</p>
+        <p v-if="syncNotice.shift" :class="{ 'mt-1': syncNotice.replaced }">{{ syncNotice.shift }}</p>
       </BaseAlert>
     </div>
 

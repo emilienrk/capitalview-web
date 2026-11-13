@@ -236,7 +236,7 @@ export interface BankAccountResponse {
   history_served_from: string | null
   /** Why the last sync failed; null once one succeeds. Persisted server-side. */
   sync_error: string | null
-  /** What a sync over imported operations held back or shifted; kept until dismissed. */
+  /** What the seeding sync over imported operations replaced or shifted; kept until dismissed. */
   sync_notice: BankSyncNotice | null
   /** Day the bank was last called for this account (YYYY-MM-DD), whatever the outcome. */
   last_sync_attempt_at: string | null
@@ -248,9 +248,11 @@ export interface BankAccountResponse {
  * can mask the amounts. Decimals arrive as strings.
  */
 export interface BankSyncNotice {
-  /** The bank's operations left out, up to `held_until` (YYYY-MM-DD). */
-  held_back: number
-  held_until: string | null
+  /** Imported rows the bank's operations replaced from `replaced_from`
+   *  (YYYY-MM-DD), and the answers about them that went with them. */
+  replaced: number
+  replaced_from: string | null
+  answers_dropped: number
   /** Seeding pass only, null when they agree: the stored operations summed from
    *  0, the bank's balance, and how far the curve was shifted (balance − sum). */
   operations_total: string | null
@@ -343,8 +345,6 @@ export interface BankAccountSyncResult {
   /** Rows of the feed carrying `balance_after_transaction`. Measurement only:
    *  a bank that fills it gives each day's balance directly. */
   balance_after_rows: number
-  /** Bank operations left out because an import already covers their days. */
-  held_back: number
   notice: BankSyncNotice | null
   detail: string | null
 }
