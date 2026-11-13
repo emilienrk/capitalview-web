@@ -253,6 +253,8 @@ export interface BankSyncNotice {
   replaced: number
   replaced_from: string | null
   answers_dropped: number
+  /** Imported rows older than `replaced_from`, which stay: the curve moves only from that day. */
+  kept: number
   /** Seeding pass only, null when they agree: the stored operations summed from
    *  0, the bank's balance, and how far the curve was shifted (balance − sum). */
   operations_total: string | null

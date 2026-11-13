@@ -14,6 +14,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { BaseAlert, BaseBadge, BaseButton, BaseCard, BaseHelpPopover } from '@/components'
 import type { BadgeVariant } from '@/components/base/BaseBadge.vue'
 import type { BankAccountResponse } from '@/types'
+import { syncNoticeSentences } from '@/utils/syncNotice'
 
 const props = defineProps<{ account: BankAccountResponse }>()
 const emit = defineEmits<{
@@ -95,22 +96,11 @@ const syncNotice = computed(() => {
   const notice = props.account.sync_notice
   if (!notice) return null
   const currency = props.account.currency
-  const plural = (n: number) => (n > 1 ? 's' : '')
-  const replaced = notice.replaced > 0 && notice.replaced_from
-    ? `${formatNumber(notice.replaced, 0)} opération${plural(notice.replaced)} importée${plural(notice.replaced)} `
-      + `remplacée${plural(notice.replaced)} par celles de votre banque à partir du ${formatDate(notice.replaced_from)}`
-      + (notice.answers_dropped > 0
-        ? ` : ${formatNumber(notice.answers_dropped, 0)} réponse${plural(notice.answers_dropped)} `
-          + `${notice.answers_dropped > 1 ? 'sont' : 'est'} à redonner dans À trier.`
-        : '.')
-    : null
-  const shift = notice.curve_shift !== null && notice.operations_total !== null && notice.bank_balance !== null
-    ? `Vos opérations importées donnent ${maskValue(formatCurrency(notice.operations_total, currency))}, `
-      + `votre banque ${maskValue(formatCurrency(notice.bank_balance, currency))} : la courbe a été `
-      + `${Number(notice.curve_shift) > 0 ? 'relevée' : 'abaissée'} de `
-      + `${maskValue(formatCurrency(Math.abs(Number(notice.curve_shift)), currency))}. `
-      + 'Votre import ne remonte sans doute pas à l\'ouverture du compte, ou il lui manque des opérations.'
-    : null
+  const { replaced, shift } = syncNoticeSentences(notice, {
+    count: (n) => formatNumber(n, 0),
+    date: formatDate,
+    amount: (value) => maskValue(formatCurrency(value, currency)),
+  })
   return replaced || shift ? { replaced, shift } : null
 })
 
