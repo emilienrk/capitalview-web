@@ -2,26 +2,53 @@
 /**
  * Blocks 4 and 3.2 — fees, and what happens on the way out.
  */
+import { computed } from 'vue'
 import CollapsibleBlock from '@/components/analytics/CollapsibleBlock.vue'
 import FigureTile from '@/components/analytics/FigureTile.vue'
 import MetricTile from '@/components/analytics/MetricTile.vue'
 import NoteChip from '@/components/analytics/NoteChip.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
-import type { ExitsResponse, FeesResponse } from '@/types'
+import { useReadingFormat } from '@/composables/useReadingFormat'
+import type { ExitsResponse, ExposureResponse, FeesResponse } from '@/types'
 
-defineProps<{ fees: FeesResponse | null; exits: ExitsResponse | null }>()
+const props = defineProps<{
+  fees: FeesResponse | null
+  exits: ExitsResponse | null
+  /** Optional: a payload stored before the API computed it has none. */
+  exposure?: ExposureResponse | null
+}>()
 
 const { formatCurrency, formatPercent } = useFormatters()
 const { maskValue } = usePrivacyMode()
+const { formatReading } = useReadingFormat()
 
 function eur(value: number | string | null): string {
   return value === null ? '—' : maskValue(formatCurrency(Number(value)))
 }
+
+/** A rate, never a variation: formatPercent signs every figure. */
+function rate(value: number | string | null): string {
+  return value === null ? '—' : formatPercent(Number(value) * 100).replace(/^\+/, '')
+}
+
+const fundFees = computed(() => props.exposure?.fund_fees ?? null)
+
+/** Said beside the title only while some line has no known fee. */
+const feeGap = computed(() => {
+  if (!props.exposure || !fundFees.value || Number(fundFees.value.coverage) >= 1) return null
+  return {
+    label: `Frais connus pour ${formatReading(fundFees.value.coverage, 'pct', true)} du portefeuille`,
+    lines: props.exposure.lines
+      .filter((line) => line.ter === null)
+      .map((line) => `${line.name || line.symbol} (${formatReading(line.weight, 'pct', true)})`)
+      .join(', '),
+  }
+})
 </script>
 
 <template>
-  <section v-if="fees || exits" class="mt-8">
+  <section v-if="fees || fundFees || exits" class="mt-8">
     <h2 class="mb-3 text-base font-semibold text-text-main dark:text-text-dark-main">
       Frais et sorties
     </h2>
@@ -74,7 +101,7 @@ function eur(value: number | string | null): string {
              as on a 10 000 € one: there is no size to fall under, so the tile is
              replaced rather than shown empty. -->
         <FigureTile v-if="fees.model === 'proportionnel'" label="Tarif par ordre">
-          {{ fees.fee_rate === null ? '—' : formatPercent(Number(fees.fee_rate) * 100).replace(/^\+/, '') }}
+          {{ rate(fees.fee_rate) }}
         </FigureTile>
         <MetricTile
           v-else
@@ -89,6 +116,46 @@ function eur(value: number | string | null): string {
 
       <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
         {{ fees.verdict }}
+      </p>
+    </CollapsibleBlock>
+
+    <CollapsibleBlock
+      v-if="fundFees"
+      id="analyse-fund-fees"
+      class="scroll-mt-20"
+      title="Frais de gestion des fonds"
+      :measurable="fundFees.annual_eur !== null"
+      summary="Aucune de vos lignes n'a de frais de gestion renseignés."
+    >
+      <template v-if="feeGap" #badge>
+        <NoteChip :label="feeGap.label">
+          Sans frais connus : {{ feeGap.lines }}. Le montant et la moyenne ne portent que sur les
+          autres lignes : rien n'est extrapolé.
+        </NoteChip>
+      </template>
+      <template #help>
+        <li>
+          <strong>TER</strong> : les frais de gestion annuels que l'émetteur prélève sur le fonds,
+          tels qu'il les publie. Relevés à la main, fonds par fonds, et datés.
+        </li>
+        <li>
+          <strong>Frais par an</strong> : le TER de chaque fonds appliqué à la valeur de la ligne
+          au cours actuel. Le <strong>TER moyen pondéré</strong> les rapporte à la valeur des lignes
+          dont les frais sont connus.
+        </li>
+        <li>
+          <strong>Déjà dans le cours</strong> : ils sont prélevés chaque jour sur la valeur du fonds.
+          Les rendements de cette page en sont donc déjà nets : ce montant ne se retranche pas de
+          votre performance, il l'a déjà réduite.
+        </li>
+      </template>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <FigureTile label="Frais par an">{{ eur(fundFees.annual_eur) }}</FigureTile>
+        <FigureTile label="TER moyen pondéré">{{ rate(fundFees.weighted_ter) }}</FigureTile>
+      </div>
+
+      <p class="mt-3 text-sm text-text-muted dark:text-text-dark-muted">
+        Déjà prélevés dans le cours des fonds : les rendements de cette page en sont nets.
       </p>
     </CollapsibleBlock>
 

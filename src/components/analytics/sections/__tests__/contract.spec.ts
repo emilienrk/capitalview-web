@@ -153,6 +153,80 @@ const concentration = {
   verdict: 'Un verdict.',
 }
 
+/** ExposureResponse : les quatre fonds du PEA de data/fund_exposure.toml, à leurs poids du 17/11. */
+const share = (label: string, weight: string) => ({ label, weight })
+const exposure = {
+  sectors: {
+    weights: [
+      share('technology', '0.3679'),
+      share('financials', '0.1451'),
+      share('consumer_discretionary', '0.0891'),
+      share('industrials', '0.0837'),
+      share('communication', '0.0830'),
+      share('health_care', '0.0714'),
+      share('consumer_staples', '0.0592'),
+      share('materials', '0.0347'),
+      share('energy', '0.0310'),
+      share('utilities', '0.0236'),
+      share('real_estate', '0.0100'),
+    ],
+    other: '0.0014',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-10-30',
+  },
+  countries: {
+    weights: [
+      share('US', '0.4406'),
+      share('TW', '0.0926'),
+      share('CN', '0.0643'),
+      share('KR', '0.0630'),
+      share('GB', '0.0560'),
+      share('IN', '0.0373'),
+      share('CH', '0.0320'),
+      share('FR', '0.0318'),
+      share('DE', '0.0287'),
+      share('NL', '0.0205'),
+      share('BR', '0.0125'),
+      share('ES', '0.0123'),
+      share('IT', '0.0118'),
+      share('SE', '0.0107'),
+      share('DK', '0.0059'),
+      share('BE', '0.0042'),
+      share('IE', '0.0022'),
+    ],
+    other: '0.0737',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-09-28',
+  },
+  fund_fees: { annual_eur: '39.08', weighted_ter: '0.002479', coverage: '1.0000' },
+  lines: [
+    { asset_key: 'FR0013412020', symbol: 'PAEEM.PA', name: 'Amundi PEA Emergent', weight: '0.3200', ter: '0.003000', sectors_as_of: '2026-10-30', countries_as_of: '2026-10-30' },
+    { asset_key: 'FR0011871110', symbol: 'PUST.PA', name: 'Amundi PEA Nasdaq-100', weight: '0.2860', ter: '0.003000', sectors_as_of: '2026-11-17', countries_as_of: '2026-09-28' },
+    { asset_key: 'FR0011550193', symbol: 'ETSZ.DE', name: 'BNP Paribas Easy Stoxx Europe 600', weight: '0.2190', ter: '0.001900', sectors_as_of: '2026-11-17', countries_as_of: '2026-10-30' },
+    { asset_key: 'FR0011550185', symbol: 'ESE.PA', name: 'BNP Paribas Easy S&P 500', weight: '0.1750', ter: '0.001400', sectors_as_of: '2026-11-17', countries_as_of: '2026-09-30' },
+  ],
+}
+
+/** La même, avec une action détenue en direct que le fichier ne décrit pas. */
+const airLiquide = {
+  asset_key: 'FR0000120073',
+  symbol: 'AI.PA',
+  name: 'Air Liquide',
+  weight: '0.1200',
+  ter: null,
+  sectors_as_of: null,
+  countries_as_of: null,
+}
+const partialExposure = {
+  ...exposure,
+  sectors: { ...exposure.sectors, unknown: '0.1200', coverage: '0.8800' },
+  countries: { ...exposure.countries, unknown: '0.1200', coverage: '0.8800' },
+  fund_fees: { annual_eur: '34.39', weighted_ter: '0.002479', coverage: '0.8800' },
+  lines: [...exposure.lines, airLiquide],
+}
+
 /** PlanResponse. */
 const plan = {
   monthly_target: '500',
@@ -406,6 +480,118 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('aria-label="Méthode et définitions"')
     // Fermé par défaut : la prose ne pèse pas sur la page tant qu'on ne l'ouvre pas.
     expect(html).not.toContain('propriété de la mesure de Meucci')
+  })
+
+  it('HoldingsSection montre secteurs et pays en français, datés, selon l’indice suivi', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('Exposition par secteur et par pays')
+    expect(html).toContain('Selon l&#39;indice suivi par chaque fonds')
+    expect(html).toContain('Technologie')
+    expect(html).toContain('36,8 %')
+    expect(html).toContain('Conso. discrétionnaire')
+    // Des noms de pays, pas des codes ISO.
+    expect(html).toContain('États-Unis')
+    expect(html).toContain('Corée du Sud')
+    expect(html).toContain('44,1 %')
+    // Chaque liste porte la date de sa source la plus ancienne.
+    expect(html).toContain('au 30 oct. 2026')
+    expect(html).toContain('au 28 sept. 2026')
+    expect(html).not.toContain('undefined')
+  })
+
+  it('la part que la source ne détaille pas reste « Autre », sans gonfler les pays connus', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('title="Autre"')
+    expect(html).toContain('7,4 %')
+    expect(html).toContain('44,1 %')
+    // Tout est couvert : ni ligne « Non renseigné », ni étiquette de couverture.
+    expect(html).not.toContain('Non renseigné')
+    expect(html).not.toContain('Données pour')
+  })
+
+  it('une couverture partielle s’annonce, et sa part reste « Non renseigné »', async () => {
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: partialExposure,
+      turnover: null,
+    })
+    expect(html).toContain('Données pour 88 % du portefeuille')
+    expect(html).toContain('Non renseigné')
+    expect(html).toContain('12,0 %')
+    // Les pays connus gardent leur poids dans le portefeuille entier.
+    expect(html).toContain('44,1 %')
+  })
+
+  it('les pays au-delà des dix premiers se replient en une ligne qui garde leur total', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('Pays-Bas')
+    expect(html).toContain('+ 7 pays')
+    expect(html).toContain('6,0 %')
+    expect(html).toContain('Afficher les 17 pays')
+    expect(html).not.toContain('Belgique')
+  })
+
+  it('sans exposition, le bloc n’apparaît pas et le reste de la section tient', async () => {
+    for (const absent of [null, undefined]) {
+      const html = await render('HoldingsSection', { concentration, exposure: absent, turnover: null })
+      expect(html).toContain('Paris réellement indépendants')
+      expect(html).not.toContain('Exposition par secteur')
+    }
+  })
+
+  it('couverte à 0 %, l’exposition se replie sur sa phrase sans tracer de barre', async () => {
+    const uncovered = {
+      sectors: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+      countries: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+      fund_fees: { annual_eur: null, weighted_ter: null, coverage: '0.0000' },
+      lines: [{ ...airLiquide, weight: '1.0000' }],
+    }
+    const html = await render('HoldingsSection', { concentration, exposure: uncovered, turnover: null })
+    expect(html).toContain('Exposition par secteur et par pays')
+    expect(html).toContain('Aucune de vos lignes n&#39;a de répartition')
+    expect(html).not.toContain('Non renseigné')
+  })
+
+  it('FeesSection chiffre les frais des fonds à côté du courtage, déjà dans le cours', async () => {
+    const html = await render('FeesSection', { fees, exits: null, exposure })
+    expect(html).toContain('Frais de gestion des fonds')
+    expect(html).toContain('39,08')
+    expect(html).toContain('0,25 %')
+    // Jamais présentés comme un coût à retrancher de la performance.
+    expect(html).toContain('Déjà prélevés dans le cours des fonds')
+    expect(html).not.toContain('Frais connus pour')
+    // Le courtage, lui, ne bouge pas.
+    expect(html.indexOf('Frais de courtage')).toBeLessThan(html.indexOf('Frais de gestion des fonds'))
+  })
+
+  it('FeesSection dit sur quelle part du portefeuille les frais des fonds sont connus', async () => {
+    const html = await render('FeesSection', { fees, exits: null, exposure: partialExposure })
+    expect(html).toContain('Frais connus pour 88 % du portefeuille')
+    expect(html).toContain('34,39')
+  })
+
+  it('FeesSection replie les frais des fonds quand aucun n’est connu', async () => {
+    const unknownFees = { ...exposure, fund_fees: { annual_eur: null, weighted_ter: null, coverage: '0.0000' } }
+    const html = await render('FeesSection', { fees, exits: null, exposure: unknownFees })
+    expect(html).toContain('Aucune de vos lignes n&#39;a de frais de gestion renseignés.')
+    expect(html).not.toContain('TER moyen pondéré')
+  })
+
+  it('le mode confidentialité masque les frais des fonds en euros, pas les pourcentages', async () => {
+    const { usePrivacyMode } = await import('@/composables/usePrivacyMode')
+    const { privacyMode } = usePrivacyMode()
+    privacyMode.value = true
+    try {
+      const fees_ = await render('FeesSection', { fees: null, exits: null, exposure })
+      expect(fees_).toContain('••••••')
+      expect(fees_).not.toContain('39,08')
+      expect(fees_).toContain('0,25 %')
+
+      const holdings = await render('HoldingsSection', { concentration, exposure, turnover: null })
+      expect(holdings).toContain('44,1 %')
+    } finally {
+      privacyMode.value = false
+    }
   })
 
   it('PlanSection rend le plan déclaré', async () => {

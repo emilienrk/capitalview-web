@@ -14,6 +14,8 @@ import type { ReadingFormat } from '@/types'
 const props = defineProps<{
   items: { label: string; value: number | string | null; emphasis?: boolean }[]
   format: ReadingFormat
+  /** Room for a sector or a country name rather than "Vous" against "Indice". */
+  wideLabels?: boolean
 }>()
 
 const { formatReading } = useReadingFormat()
@@ -51,9 +53,13 @@ const rows = computed(() => {
     <div
       v-for="bar in rows.bars"
       :key="bar.label"
-      class="grid grid-cols-[7rem_1fr_4.5rem] items-center gap-2 text-xs"
+      :class="[
+        'grid items-center gap-2 text-xs',
+        wideLabels ? 'grid-cols-[10rem_1fr_3.5rem]' : 'grid-cols-[7rem_1fr_4.5rem]',
+      ]"
     >
       <span
+        :title="bar.label"
         :class="[
           'truncate',
           bar.emphasis

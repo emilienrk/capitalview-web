@@ -33,6 +33,16 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         Le pont contrefactuel substitue vos décisions dans cet ordre :
         {{ bridge?.order.join(' → ') }}.
       </li>
+      <li>
+        Secteurs, pays et frais de gestion des fonds viennent d'une table de référence tenue à la
+        main, fonds par fonds, chaque chiffre daté de sa source. Pour un ETF, c'est l'indice qu'il
+        suit qui compte, jamais les titres qu'il détient. Ils décrivent le portefeuille
+        d'aujourd'hui, pas celui des années passées.
+      </li>
+      <li>
+        Les rendements se lisent sur les cours : ceux de vos fonds sont déjà nets de leurs frais de
+        gestion (TER). Ces frais sont chiffrés à part, jamais retranchés une seconde fois.
+      </li>
     </ul>
   </details>
 
@@ -56,18 +66,20 @@ defineProps<{ bridge: CounterfactualResponse | null }>()
         montré que face à celui de l'indice sur les mêmes séances, ce qui en fait une comparaison.
       </li>
       <li>
-        <strong>L'attribution sectorielle (Brinson–Fachler).</strong> Elle exige les poids
-        sectoriels du portefeuille et de l'indice. Sans la composition des ETF, ce serait de la
-        fabrication.
+        <strong>L'attribution sectorielle (Brinson–Fachler).</strong> Elle exige le poids et le
+        rendement de chaque secteur, dans le portefeuille comme dans l'indice de référence, sur
+        toute la période. La page n'a que la répartition d'aujourd'hui, à la date de ses sources :
+        en tirer une attribution serait de la fabrication.
       </li>
       <li>
         <strong>L'implementation shortfall (Perold, 1988).</strong> Il exige l'horodatage du moment
         où vous avez décidé, que l'app ne collecte pas. Il n'est ni calculé ni prétendu.
       </li>
       <li>
-        <strong>La composition réelle de vos ETF (look-through).</strong> Elle demanderait une
-        source externe. Sans elle, impossible de dire « vous détenez Apple deux fois » — seulement à
-        quel point vos lignes bougent ensemble.
+        <strong>Les titres que détiennent vos ETF (look-through).</strong> Ils ne sont pas stockés,
+        et pour un ETF synthétique ils ne diraient rien : il détient un panier de substitution et
+        reçoit la performance de son indice par un swap. La page montre les secteurs et les pays de
+        l'indice suivi, mais ne peut pas dire «&nbsp;vous détenez Apple deux fois&nbsp;».
       </li>
     </ul>
   </details>
