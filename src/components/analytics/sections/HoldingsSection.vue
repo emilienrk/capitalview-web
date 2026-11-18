@@ -14,8 +14,15 @@ import CorrelationMatrix from '@/components/analytics/CorrelationMatrix.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useReadingFormat } from '@/composables/useReadingFormat'
+import { benchmarkName } from '@/utils/benchmarks'
 import { breakdownRows, countryName, sectorName } from '@/utils/exposure'
-import type { ConcentrationResponse, ExposureLineOut, ExposureResponse, TurnoverOut } from '@/types'
+import type {
+  BreakdownOut,
+  ConcentrationResponse,
+  ExposureLineOut,
+  ExposureResponse,
+  TurnoverOut,
+} from '@/types'
 
 const props = defineProps<{
   concentration: ConcentrationResponse | null
@@ -37,11 +44,40 @@ function share(value: number | string): string {
   return formatReading(value, 'pct', true)
 }
 
+/** An axis the benchmark's source does not describe is not compared at all. */
+function described(breakdown: BreakdownOut | undefined): BreakdownOut | null {
+  return breakdown && Number(breakdown.coverage) > 0 ? breakdown : null
+}
+
+const against = computed(() => ({
+  sectors: described(props.exposure?.benchmark?.sectors),
+  countries: described(props.exposure?.benchmark?.countries),
+}))
+
+const COLUMNS: [string, string] = ['Vous', 'Indice']
+
+/** Which index, and as of when: the column only says "Indice". */
+const benchmarkLine = computed(() => {
+  const benchmark = props.exposure?.benchmark
+  const { sectors, countries } = against.value
+  if (!benchmark || (!sectors && !countries)) return null
+  const oldest = [sectors?.as_of, countries?.as_of]
+    .filter((day): day is string => Boolean(day))
+    .sort()[0]
+  const only = sectors && countries ? '' : sectors ? ' (secteurs seulement)' : ' (pays seulement)'
+  return {
+    name: benchmarkName(benchmark),
+    detail: `${only}${oldest ? `, répartition au ${formatDate(oldest)}` : ''}`,
+  }
+})
+
 const sectors = computed(() =>
-  props.exposure ? breakdownRows(props.exposure.sectors, sectorName) : null,
+  props.exposure ? breakdownRows(props.exposure.sectors, sectorName, against.value.sectors) : null,
 )
 const countries = computed(() =>
-  props.exposure ? breakdownRows(props.exposure.countries, countryName) : null,
+  props.exposure
+    ? breakdownRows(props.exposure.countries, countryName, against.value.countries)
+    : null,
 )
 
 const hasExposure = computed(
@@ -51,7 +87,7 @@ const hasExposure = computed(
 )
 
 // An index can list twenty countries or more. The tail folds into one row that
-// keeps its total, so the list still adds up while folded.
+// keeps its totals, on both sides, so the list still adds up while folded.
 const SHOWN_COUNTRIES = 10
 const showAllCountries = ref(false)
 
@@ -69,12 +105,19 @@ const countryItems = computed(() => {
     ...named.slice(0, SHOWN_COUNTRIES),
     {
       label: `+ ${tail.length} pays`,
-      value: tail.reduce((sum, row) => sum + Number(row.value), 0),
+      value: total(tail.map((row) => row.value)),
+      reference: total(tail.map((row) => row.reference)),
       emphasis: false,
     },
     ...rest,
   ]
 })
+
+/** Over the figures a side does print; a dash when it prints none of them. */
+function total(values: (number | string | null | undefined)[]): number | null {
+  const printed = values.filter((value) => value !== null && value !== undefined)
+  return printed.length ? printed.reduce((sum: number, value) => sum + Number(value), 0) : null
+}
 
 function missing(lines: ExposureLineOut[], dated: 'sectors_as_of' | 'countries_as_of'): string {
   return lines
@@ -207,11 +250,29 @@ const coverage = computed(() => {
           pays au-delà des premiers. <strong>Non renseigné</strong> : les lignes dont la répartition
           n'est pas connue. Ni l'une ni l'autre n'est répartie sur les secteurs ou les pays connus.
         </li>
+        <template v-if="benchmarkLine">
+          <li>
+            <strong>Indice</strong> : la même répartition pour votre indice de référence, choisi dans
+            les réglages, relevée sur sa propre fiche comme s'il formait tout le portefeuille.
+          </li>
+          <li>
+            Un tiret : le secteur ou le pays manque à la liste détaillée de ce côté-là ; sa part
+            éventuelle est comprise dans «&nbsp;Autre&nbsp;».
+          </li>
+        </template>
+        <li v-else>
+          Votre indice de référence n'est pas décrit : la répartition s'affiche sans comparaison.
+        </li>
         <li>
           Les secteurs sont les onze secteurs GICS. La date de chaque liste est celle de sa source la
           plus ancienne.
         </li>
       </template>
+
+      <p v-if="benchmarkLine" class="mb-3 text-xs text-text-muted dark:text-text-dark-muted">
+        Comparé à
+        <span class="font-medium text-text-main dark:text-text-dark-main">{{ benchmarkLine.name }}</span>{{ benchmarkLine.detail }}.
+      </p>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
@@ -225,7 +286,12 @@ const coverage = computed(() => {
               au {{ formatDate(exposure.sectors.as_of) }}
             </p>
           </div>
-          <ComparisonBars format="pct" wide-labels :items="[...sectors.named, ...sectors.rest]" />
+          <ComparisonBars
+            format="pct"
+            wide-labels
+            :columns="against.sectors ? COLUMNS : undefined"
+            :items="[...sectors.named, ...sectors.rest]"
+          />
         </div>
         <div>
           <div class="mb-1.5 flex items-baseline justify-between gap-2">
@@ -238,7 +304,12 @@ const coverage = computed(() => {
               au {{ formatDate(exposure.countries.as_of) }}
             </p>
           </div>
-          <ComparisonBars format="pct" wide-labels :items="countryItems" />
+          <ComparisonBars
+            format="pct"
+            wide-labels
+            :columns="against.countries ? COLUMNS : undefined"
+            :items="countryItems"
+          />
           <button
             v-if="foldsCountries"
             type="button"

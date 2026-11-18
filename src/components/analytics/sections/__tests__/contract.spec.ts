@@ -227,6 +227,57 @@ const partialExposure = {
   lines: [...exposure.lines, airLiquide],
 }
 
+/** BenchmarkExposureOut : IWDA tel que décrit dans data/fund_exposure.toml, libellé de marché du dump. */
+const benchmark = {
+  asset_key: 'IE00B4L5Y983',
+  symbol: 'IWDA.L',
+  name: 'ISHARES III PLC ISHRS CORE MSCI',
+  sectors: {
+    weights: [
+      share('technology', '0.2781'),
+      share('financials', '0.1662'),
+      share('industrials', '0.1083'),
+      share('health_care', '0.1043'),
+      share('consumer_discretionary', '0.0914'),
+      share('communication', '0.0744'),
+      share('consumer_staples', '0.0562'),
+      share('energy', '0.0425'),
+      share('materials', '0.0315'),
+      share('utilities', '0.0254'),
+      share('real_estate', '0.0164'),
+    ],
+    other: '0.0053',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-11-17',
+  },
+  countries: {
+    weights: [
+      share('US', '0.7221'),
+      share('JP', '0.0557'),
+      share('GB', '0.0353'),
+      share('CA', '0.0341'),
+      share('CH', '0.0236'),
+      share('FR', '0.0233'),
+      share('DE', '0.0215'),
+      share('AU', '0.0154'),
+      share('NL', '0.0126'),
+    ],
+    other: '0.0564',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-11-17',
+  },
+}
+const compared = { ...exposure, benchmark }
+
+/** Le texte d'une ligne de barres, de son libellé à la ligne suivante ; `last` pour la liste des pays. */
+function rowOf(html: string, label: string, last = false): string {
+  const start = last ? html.lastIndexOf(`title="${label}"`) : html.indexOf(`title="${label}"`)
+  const end = html.indexOf('title="', start + 1)
+  return html.slice(start, end === -1 ? undefined : end)
+}
+
 /** PlanResponse. */
 const plan = {
   monthly_target: '500',
@@ -592,6 +643,71 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     } finally {
       privacyMode.value = false
     }
+  })
+
+  it('face à l’indice, chaque ligne porte sa part et celle de l’indice, nommé et daté', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure: compared, turnover: null })
+    expect(html).toContain('Comparé à')
+    // Le nom de la liste des indices, pas le libellé tronqué du fournisseur de cours.
+    expect(html).toContain('MSCI World (IWDA)')
+    expect(html).not.toContain('ISHARES III')
+    expect(html).toContain('répartition au 17 nov. 2026')
+    expect(html).toMatch(/>\s*Indice\s*</)
+    const us = rowOf(html, 'États-Unis')
+    expect(us).toContain('44,1 %')
+    expect(us).toContain('72,2 %')
+    const tech = rowOf(html, 'Technologie')
+    expect(tech).toContain('36,8 %')
+    expect(tech).toContain('27,8 %')
+  })
+
+  it('un pays de l’indice absent du portefeuille apparaît, sans 0 % inventé', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure: compared, turnover: null })
+    // Le Japon pèse 5,6 % de l'indice : il remonte parmi les dix premiers, replié ou non.
+    const japan = rowOf(html, 'Japon')
+    expect(japan).toContain('—')
+    expect(japan).toContain('5,6 %')
+    expect(japan).not.toContain('0,0 %')
+    expect(html.indexOf('title="Japon"')).toBeLessThan(html.indexOf('title="Inde"'))
+    expect(html).toContain('title="Canada"')
+    // Et l'inverse : Taïwan n'est pas dans la liste détaillée de l'indice.
+    expect(rowOf(html, 'Taïwan')).toContain('—')
+    // La queue repliée garde ses totaux, et « Autre » reste des deux côtés.
+    expect(html).toContain('+ 10 pays')
+    expect(html).toContain('Afficher les 20 pays')
+    const other = rowOf(html, 'Autre', true)
+    expect(other).toContain('7,4 %')
+    expect(other).toContain('5,6 %')
+  })
+
+  it('sans indice décrit, la répartition s’affiche seule et sans bruit', async () => {
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: null },
+      turnover: null,
+    })
+    expect(html).toContain('États-Unis')
+    expect(html).not.toContain('Comparé à')
+    expect(html).not.toMatch(/>\s*Indice\s*</)
+    expect(html).not.toContain('Japon')
+  })
+
+  it('un indice décrit sur un seul axe ne compare que celui-là', async () => {
+    const sectorsOnly = {
+      ...benchmark,
+      countries: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+    }
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: sectorsOnly },
+      turnover: null,
+    })
+    expect(html).toContain('(secteurs seulement)')
+    expect(rowOf(html, 'Technologie')).toContain('27,8 %')
+    // Côté pays, rien n'est comparé : ni colonne, ni pays de l'indice.
+    expect(html.match(/>\s*Indice\s*</g)).toHaveLength(1)
+    expect(html).not.toContain('Japon')
+    expect(rowOf(html, 'États-Unis')).not.toContain('72,2 %')
   })
 
   it('PlanSection rend le plan déclaré', async () => {

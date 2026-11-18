@@ -2626,8 +2626,19 @@ export interface ExposureLineOut extends AssetLabelOut {
   countries_as_of: string | null
 }
 
+/**
+ * The benchmark's own breakdown, as if it were the whole portfolio. An axis
+ * its source does not describe comes back with `unknown` at 1.
+ */
+export interface BenchmarkExposureOut extends AssetLabelOut {
+  sectors: BreakdownOut
+  countries: BreakdownOut
+}
+
 /** Sectors and countries of the index each fund tracks, weighted by the portfolio. */
 export interface ExposureResponse {
+  /** Null when the benchmark is not described; optional for payloads stored before it existed. */
+  benchmark?: BenchmarkExposureOut | null
   sectors: BreakdownOut
   countries: BreakdownOut
   fund_fees: FundFeesOut

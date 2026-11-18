@@ -11,6 +11,7 @@ import { computed, ref, watch } from 'vue'
 import { BaseSelect } from '@/components'
 import AssetKeyPicker from '@/components/analytics/AssetKeyPicker.vue'
 import { useSettingsStore } from '@/stores/settings'
+import { BENCHMARKS } from '@/utils/benchmarks'
 import type { AnalysedAsset } from '@/types'
 
 const props = withDefaults(
@@ -21,20 +22,6 @@ const emit = defineEmits<{ changed: [] }>()
 
 const settingsStore = useSettingsStore()
 const isSaving = ref(false)
-
-/**
- * Accumulating ETFs only. This is a correctness constraint, not a taste: a
- * distributing share class pays dividends out, so its quoted price is not a
- * total-return series and every comparison against it would understate the
- * index. The app stores no per-asset dividend history to correct for it.
- */
-const BENCHMARKS = [
-  { value: 'IE00B4L5Y983', label: 'MSCI World — iShares Core (IWDA, Acc)' },
-  { value: 'IE00BK5BQT80', label: 'FTSE All-World — Vanguard (VWCE, Acc)' },
-  { value: 'IE00B5BMR087', label: 'S&P 500 — iShares Core (CSPX, Acc)' },
-  { value: 'IE00BKM4GZ66', label: 'MSCI Emerging Markets — iShares Core (EIMI, Acc)' },
-  { value: 'LU1681043599', label: 'MSCI Europe — Amundi (Acc)' },
-]
 
 const selected = ref(props.current)
 
