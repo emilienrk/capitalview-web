@@ -13,7 +13,7 @@ const route = useRoute()
 const auth = useAuthStore()
 
 const layout = computed(() => {
-  if (route.meta.layout === 'blank') {
+  if (route.meta.layout === 'blank' || (route.meta.layout === 'auto' && !auth.isAuthenticated)) {
     return BlankLayout
   }
   return DefaultLayout

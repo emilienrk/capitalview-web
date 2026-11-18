@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationGeneric, type RouteMeta } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 import { pinAppearance, releaseAppearance } from '@/theme/appearance'
@@ -26,6 +26,7 @@ const LegalNotice = () => import('@/pages/LegalNotice.vue')
 const Privacy = () => import('@/pages/Privacy.vue')
 const Community = () => import('@/pages/Community.vue')
 const Analysis = () => import('@/pages/Analysis.vue')
+const NotFound = () => import('@/pages/NotFound.vue')
 
 const routes = [
   {
@@ -152,6 +153,14 @@ const routes = [
     component: Community,
     meta: { requiresAuth: true },
   },
+  {
+    // Last: anything no route above claims. Public only to a signed-out
+    // visitor: a signed-in user sees it in the app's frame and look.
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: NotFound,
+    meta: { layout: 'auto' },
+  },
 ]
 
 const router = createRouter({
@@ -194,9 +203,13 @@ router.beforeEach(async (to, from) => {
   }
 })
 
+function isPublic(meta: RouteMeta): boolean {
+  return meta.requiresAuth === false || (meta.layout === 'auto' && !useAuthStore().isAuthenticated)
+}
+
 /** Logged-out pages are reading pages: they keep pinch-zoom, which the app blocks. */
 export function isPublicRoute(): boolean {
-  return router.currentRoute.value.meta.requiresAuth === false
+  return isPublic(router.currentRoute.value.meta)
 }
 
 const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
@@ -206,9 +219,9 @@ const publicViewport = appViewport.replace(/,\s*(maximum-scale|user-scalable)=[^
 // Logged-out pages share one fixed look, so the landing and the sign-up form
 // match and never inherit a previous user's style (see pinAppearance).
 router.afterEach((to) => {
-  const isPublic = to.meta.requiresAuth === false
-  if (viewport) viewport.content = isPublic ? publicViewport : appViewport
-  if (isPublic) pinAppearance('editorial', 'prune')
+  const opensPublic = isPublic(to.meta)
+  if (viewport) viewport.content = opensPublic ? publicViewport : appViewport
+  if (opensPublic) pinAppearance('editorial', 'prune')
   else releaseAppearance()
 })
 
