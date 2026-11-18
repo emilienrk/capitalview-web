@@ -14,7 +14,6 @@ const settingsStore = useSettingsStore()
 const bankModuleEnabled = ref(true)
 const cashflowModuleEnabled = ref(true)
 const wealthModuleEnabled = ref(true)
-const notesModuleEnabled = ref(false)
 
 // Crypto settings
 const cryptoModuleEnabled = ref(false)
@@ -30,7 +29,6 @@ function syncFromStore(): void {
   bankModuleEnabled.value = settings.bank_module_enabled ?? true
   cashflowModuleEnabled.value = settings.cashflow_module_enabled ?? true
   wealthModuleEnabled.value = settings.wealth_module_enabled ?? true
-  notesModuleEnabled.value = settings.notes_module_enabled ?? false
   cryptoModuleEnabled.value = settings.crypto_module_enabled
   cryptoAutoDeposits.value = settings.crypto_auto_deposits ?? false
   cryptoMode.value = settings.crypto_mode
@@ -104,19 +102,6 @@ async function save(patch: UserSettingsUpdate): Promise<void> {
               v-model="wealthModuleEnabled"
               aria-label="Activer le module Patrimoine"
               @update:model-value="save({ wealth_module_enabled: $event })"
-            />
-          </div>
-
-          <!-- Notes -->
-          <div class="flex items-center justify-between pt-4 border-t border-surface-border dark:border-surface-dark-border">
-            <div>
-              <p class="font-medium text-text-main dark:text-text-dark-main">Notes</p>
-              <p class="text-sm text-text-muted dark:text-text-dark-muted">Affiche un bloc-notes chiffré pour vos mémos</p>
-            </div>
-            <BaseToggle
-              v-model="notesModuleEnabled"
-              aria-label="Activer le module Notes"
-              @update:model-value="save({ notes_module_enabled: $event })"
             />
           </div>
         </div>

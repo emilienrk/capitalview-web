@@ -20,7 +20,6 @@ export async function resetAllSessionState(): Promise<void> {
     { useCryptoStore },
     { useCashflowStore },
     { useAssetStore },
-    { useNotesStore },
     { useCommunityStore },
     { useSettingsStore },
     { useImportsStore },
@@ -40,7 +39,6 @@ export async function resetAllSessionState(): Promise<void> {
     import('@/stores/crypto'),
     import('@/stores/cashflow'),
     import('@/stores/asset'),
-    import('@/stores/notes'),
     import('@/stores/community'),
     import('@/stores/settings'),
     import('@/stores/imports'),
@@ -61,7 +59,6 @@ export async function resetAllSessionState(): Promise<void> {
   useCryptoStore().reset()
   useCashflowStore().reset()
   useAssetStore().reset()
-  useNotesStore().reset()
   useCommunityStore().reset()
   useSettingsStore().reset()
   useImportsStore().reset()

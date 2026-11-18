@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { lockScroll, unlockScroll } from '@/services/scrollLock'
 import { useRoute } from 'vue-router'
-import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, Microscope, NotebookPen, PiggyBank, Settings, TrendingUp, Users } from 'lucide-vue-next'
+import { ArrowUpDown, Bitcoin, CreditCard, Home, Landmark, LogOut, Menu, Microscope, PiggyBank, Settings, TrendingUp, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useSwipe } from '@/composables/useSwipe'
@@ -80,11 +80,6 @@ const BASE_NAV_ITEMS: NavItem[] = [
     icon: Users,
   },
   {
-    label: 'Notes',
-    to: '/notes',
-    icon: NotebookPen,
-  },
-  {
     label: 'Paramètres',
     to: '/settings',
     icon: Settings,
@@ -115,7 +110,6 @@ const navItems = computed<NavItem[]>(() => {
   if (s?.wealth_module_enabled ?? true) items.push(byPath('/wealth'))
 
   items.push(byPath('/community'))
-  if (s?.notes_module_enabled) items.push(byPath('/notes'))
   items.push(byPath('/settings'))
 
   return items

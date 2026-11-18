@@ -22,7 +22,7 @@ const specimen = [
   { field: 'Titulaire', plain: 'Vous', column: 'user_uuid_bidx', cipher: 'k4TQv0yZr8Wm2HcX1bJpN7aLfE9sUdGq3oRtYiKw6Vc=' },
   { field: 'IBAN', plain: 'FR76 1234 5678 9012 3456 7890 123', column: 'identifier_enc', cipher: 'oXm9k3LpQ2vR8wZt1nBfY6cHjD4eKgMxUaSiNq…' },
   { field: 'Solde', plain: '24 650,83 €', column: 'balance_enc', cipher: 'Wq7pRmK2Nv5tYxHn8bCfLj3gDsAoUeZiVrTkMw…' },
-  { field: 'Note', plain: 'Renforcer le PEA si le CAC 40 repasse sous 7 000', column: 'description_enc', cipher: 'Fh4yBnWq9kRm2Lv7tPxHcJf5gDsAoZeNiUrTkQ…' },
+  { field: 'Note d’opération', plain: 'Renfort du PEA après la baisse de mars', column: 'notes_enc', cipher: 'Fh4yBnWq9kRm2Lv7tPxHcJf5gDsAoZeNiUrTkQ…' },
 ]
 
 const modules = [
@@ -33,7 +33,6 @@ const modules = [
   { name: 'Assurance vie', text: 'Versements, rachats et relevés de valeur.' },
   { name: 'Biens', text: 'Véhicules, bijoux, collections et leurs estimations.' },
   { name: 'Analyse', text: 'Répartition dans le temps, contribution de chaque ligne.' },
-  { name: 'Notes', text: 'Vos thèses et décisions, chiffrées comme le reste.' },
 ]
 
 // One PEA line, computed the way the API does: buy fees are part of the cost basis.
