@@ -227,7 +227,10 @@ const partialExposure = {
   lines: [...exposure.lines, airLiquide],
 }
 
-/** BenchmarkExposureOut : IWDA tel que décrit dans data/fund_exposure.toml, libellé de marché du dump. */
+/**
+ * BenchmarkExposureOut : IWDA avec ses neuf premiers pays seulement, comme l'indice dont la fiche ne
+ * détaille qu'une partie ; libellé de marché du dump.
+ */
 const benchmark = {
   asset_key: 'IE00B4L5Y983',
   symbol: 'IWDA.L',
@@ -610,21 +613,23 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('0,25 %')
     // Jamais présentés comme un coût à retrancher de la performance.
     expect(html).toContain('Déjà prélevés dans le cours des fonds')
-    expect(html).not.toContain('Frais connus pour')
+    expect(html).not.toContain('Calculés sur')
     // Le courtage, lui, ne bouge pas.
     expect(html.indexOf('Frais de courtage')).toBeLessThan(html.indexOf('Frais de gestion des fonds'))
   })
 
-  it('FeesSection dit sur quelle part du portefeuille les frais des fonds sont connus', async () => {
+  it('FeesSection dit sur quelle part du portefeuille les frais des fonds sont calculés', async () => {
     const html = await render('FeesSection', { fees, exits: null, exposure: partialExposure })
-    expect(html).toContain('Frais connus pour 88 % du portefeuille')
+    expect(html).toContain('Calculés sur 88 % du portefeuille')
+    // Une action détenue en direct n'a pas de TER : elle n'est pas décrite, ses frais ne sont pas « inconnus ».
+    expect(html).not.toContain('Frais connus')
     expect(html).toContain('34,39')
   })
 
-  it('FeesSection replie les frais des fonds quand aucun n’est connu', async () => {
+  it('FeesSection replie les frais des fonds quand aucune ligne n’en a', async () => {
     const unknownFees = { ...exposure, fund_fees: { annual_eur: null, weighted_ter: null, coverage: '0.0000' } }
     const html = await render('FeesSection', { fees, exits: null, exposure: unknownFees })
-    expect(html).toContain('Aucune de vos lignes n&#39;a de frais de gestion renseignés.')
+    expect(html).toContain('Aucune de vos lignes n&#39;a de frais de gestion dans la table de référence des fonds.')
     expect(html).not.toContain('TER moyen pondéré')
   })
 
@@ -678,6 +683,19 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     const other = rowOf(html, 'Autre', true)
     expect(other).toContain('7,4 %')
     expect(other).toContain('5,6 %')
+  })
+
+  it('face à un indice décrit en entier, un pays qu’il ne détient pas vaut 0 %, pas un tiret', async () => {
+    const complete = { ...benchmark, countries: { ...benchmark.countries, other: '0.0000' } }
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: complete },
+      turnover: null,
+    })
+    const taiwan = rowOf(html, 'Taïwan')
+    expect(taiwan).toContain('9,3 %')
+    expect(taiwan).toContain('0,0 %')
+    expect(taiwan).not.toContain('—')
   })
 
   it('sans indice décrit, la répartition s’affiche seule et sans bruit', async () => {

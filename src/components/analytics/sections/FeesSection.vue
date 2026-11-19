@@ -34,11 +34,14 @@ function rate(value: number | string | null): string {
 
 const fundFees = computed(() => props.exposure?.fund_fees ?? null)
 
-/** Said beside the title only while some line has no known fee. */
+/**
+ * Said beside the title only while some line is not described. A share held
+ * directly has no TER at all, so the line is undescribed, not of unknown fee.
+ */
 const feeGap = computed(() => {
   if (!props.exposure || !fundFees.value || Number(fundFees.value.coverage) >= 1) return null
   return {
-    label: `Frais connus pour ${formatReading(fundFees.value.coverage, 'pct', true)} du portefeuille`,
+    label: `Calculés sur ${formatReading(fundFees.value.coverage, 'pct', true)} du portefeuille`,
     lines: props.exposure.lines
       .filter((line) => line.ter === null)
       .map((line) => `${line.name || line.symbol} (${formatReading(line.weight, 'pct', true)})`)
@@ -125,12 +128,12 @@ const feeGap = computed(() => {
       class="scroll-mt-20"
       title="Frais de gestion des fonds"
       :measurable="fundFees.annual_eur !== null"
-      summary="Aucune de vos lignes n'a de frais de gestion renseignés."
+      summary="Aucune de vos lignes n'a de frais de gestion dans la table de référence des fonds."
     >
       <template v-if="feeGap" #badge>
         <NoteChip :label="feeGap.label">
-          Sans frais connus : {{ feeGap.lines }}. Le montant et la moyenne ne portent que sur les
-          autres lignes : rien n'est extrapolé.
+          Lignes non décrites : {{ feeGap.lines }}. Le montant et la moyenne ne portent que sur les
+          lignes décrites : rien n'est extrapolé.
         </NoteChip>
       </template>
       <template #help>

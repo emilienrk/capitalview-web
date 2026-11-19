@@ -222,11 +222,11 @@ const coverage = computed(() => {
         </NoteChip>
         <NoteChip v-if="coverage" :label="coverage.label">
           <template v-if="coverage.sectors === coverage.countries">
-            Sans répartition connue : {{ coverage.sectors }}.
+            Lignes non décrites : {{ coverage.sectors }}.
           </template>
           <template v-else>
-            <template v-if="coverage.sectors">Sans secteurs connus : {{ coverage.sectors }}. </template>
-            <template v-if="coverage.countries">Sans pays connus : {{ coverage.countries }}.</template>
+            <template v-if="coverage.sectors">Non décrites pour les secteurs : {{ coverage.sectors }}. </template>
+            <template v-if="coverage.countries">Non décrites pour les pays : {{ coverage.countries }}.</template>
           </template>
           Cette part reste «&nbsp;Non renseigné&nbsp;» : elle n'est jamais répartie sur les
           secteurs ou les pays connus.
@@ -247,8 +247,8 @@ const coverage = computed(() => {
         </li>
         <li>
           <strong>Autre</strong> : la part que la fiche de l'indice ne détaille pas, par exemple les
-          pays au-delà des premiers. <strong>Non renseigné</strong> : les lignes dont la répartition
-          n'est pas connue. Ni l'une ni l'autre n'est répartie sur les secteurs ou les pays connus.
+          pays au-delà des premiers. <strong>Non renseigné</strong> : les lignes non décrites sur
+          cet axe. Ni l'une ni l'autre n'est répartie sur les secteurs ou les pays connus.
         </li>
         <template v-if="benchmarkLine">
           <li>
@@ -257,7 +257,7 @@ const coverage = computed(() => {
           </li>
           <li>
             Un tiret : le secteur ou le pays manque à la liste détaillée de ce côté-là ; sa part
-            éventuelle est comprise dans «&nbsp;Autre&nbsp;».
+            éventuelle est comprise dans «&nbsp;Autre&nbsp;» ou «&nbsp;Non renseigné&nbsp;».
           </li>
         </template>
         <li v-else>
