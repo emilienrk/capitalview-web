@@ -21,7 +21,7 @@ Zero-knowledge storage: the server never holds the decryption key (Argon2id-deri
 ## Operating Context
 
 - French-language interface, euro as pivot currency.
-- Sections: Dashboard, Bank (review, transactions, recurring), Cashflow, Stock, Placements, Wealth, Crypto, Notes, Analysis, Community, Settings.
+- Sections: Dashboard, Bank (review, transactions, recurring), Cashflow, Stock, Placements, Wealth, Crypto, Analysis, Community, Settings.
 - Data arrives from bank sync, CSV imports and manual entries.
 
 ## Capabilities and Constraints

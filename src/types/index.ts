@@ -1741,27 +1741,6 @@ export interface ImportConfirmResponse {
   replaced_count?: number
 }
 
-// ─── Notes ───────────────────────────────────────────────────
-
-export interface NoteCreate {
-  name: string
-  description?: string
-}
-
-export interface NoteUpdate {
-  name?: string
-  description?: string
-}
-
-export interface NoteResponse {
-  id: string
-  name: string
-  description: string | null
-  position: number
-  created_at: string
-  updated_at: string
-}
-
 // ─── Shared / Portfolio ──────────────────────────────────────
 
 export interface TransactionResponse {
@@ -1925,7 +1904,6 @@ export interface UserSettingsUpdate {
   bank_question_threshold?: number
   cashflow_module_enabled?: boolean
   wealth_module_enabled?: boolean
-  notes_module_enabled?: boolean
   ai_feature_enabled?: boolean
   open_banking_enabled?: boolean
   ai_vision_provider?: string | null
@@ -1960,7 +1938,6 @@ export interface UserSettingsResponse {
   bank_question_threshold: number
   cashflow_module_enabled: boolean
   wealth_module_enabled: boolean
-  notes_module_enabled: boolean
   ai_feature_enabled: boolean
   open_banking_enabled: boolean
   ai_vision_provider: string | null

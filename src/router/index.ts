@@ -18,7 +18,6 @@ const BankRecurring = () => import('@/pages/BankRecurring.vue')
 const BankRules = () => import('@/pages/BankRules.vue')
 const Wealth = () => import('@/pages/Asset.vue')
 const Crypto = () => import('@/pages/Crypto.vue')
-const Notes = () => import('@/pages/Notes.vue')
 const Settings = () => import('@/pages/Settings.vue')
 const Register = () => import('@/pages/Register.vue')
 const Recover = () => import('@/pages/Recover.vue')
@@ -118,12 +117,6 @@ const routes = [
     path: '/crypto',
     name: 'crypto',
     component: Crypto,
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/notes',
-    name: 'notes',
-    component: Notes,
     meta: { requiresAuth: true },
   },
   {
