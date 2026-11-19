@@ -22,7 +22,7 @@ const specimen = [
   { field: 'Titulaire', plain: 'Vous', column: 'user_uuid_bidx', cipher: 'k4TQv0yZr8Wm2HcX1bJpN7aLfE9sUdGq3oRtYiKw6Vc=' },
   { field: 'IBAN', plain: 'FR76 1234 5678 9012 3456 7890 123', column: 'identifier_enc', cipher: 'oXm9k3LpQ2vR8wZt1nBfY6cHjD4eKgMxUaSiNq…' },
   { field: 'Solde', plain: '24 650,83 €', column: 'balance_enc', cipher: 'Wq7pRmK2Nv5tYxHn8bCfLj3gDsAoUeZiVrTkMw…' },
-  { field: 'Note d’opération', plain: 'Renfort du PEA après la baisse de mars', column: 'notes_enc', cipher: 'Fh4yBnWq9kRm2Lv7tPxHcJf5gDsAoZeNiUrTkQ…' },
+  { field: 'Libellé', plain: 'CB PHARMACIE DU CENTRE 14/03', column: 'remittance_enc', cipher: 'Fh4yBnWq9kRm2Lv7tPxHcJf5gDsAoZeNiUrTkQ…' },
 ]
 
 const modules = [
