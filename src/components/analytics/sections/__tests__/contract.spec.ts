@@ -153,6 +153,134 @@ const concentration = {
   verdict: 'Un verdict.',
 }
 
+/** ExposureResponse : les quatre fonds du PEA de data/fund_exposure.toml, à leurs poids du 17/11. */
+const share = (label: string, weight: string) => ({ label, weight })
+const exposure = {
+  sectors: {
+    weights: [
+      share('technology', '0.3679'),
+      share('financials', '0.1451'),
+      share('consumer_discretionary', '0.0891'),
+      share('industrials', '0.0837'),
+      share('communication', '0.0830'),
+      share('health_care', '0.0714'),
+      share('consumer_staples', '0.0592'),
+      share('materials', '0.0347'),
+      share('energy', '0.0310'),
+      share('utilities', '0.0236'),
+      share('real_estate', '0.0100'),
+    ],
+    other: '0.0014',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-10-30',
+  },
+  countries: {
+    weights: [
+      share('US', '0.4406'),
+      share('TW', '0.0926'),
+      share('CN', '0.0643'),
+      share('KR', '0.0630'),
+      share('GB', '0.0560'),
+      share('IN', '0.0373'),
+      share('CH', '0.0320'),
+      share('FR', '0.0318'),
+      share('DE', '0.0287'),
+      share('NL', '0.0205'),
+      share('BR', '0.0125'),
+      share('ES', '0.0123'),
+      share('IT', '0.0118'),
+      share('SE', '0.0107'),
+      share('DK', '0.0059'),
+      share('BE', '0.0042'),
+      share('IE', '0.0022'),
+    ],
+    other: '0.0737',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-09-28',
+  },
+  fund_fees: { annual_eur: '39.08', weighted_ter: '0.002479', coverage: '1.0000' },
+  lines: [
+    { asset_key: 'FR0013412020', symbol: 'PAEEM.PA', name: 'Amundi PEA Emergent', weight: '0.3200', ter: '0.003000', sectors_as_of: '2026-10-30', countries_as_of: '2026-10-30' },
+    { asset_key: 'FR0011871110', symbol: 'PUST.PA', name: 'Amundi PEA Nasdaq-100', weight: '0.2860', ter: '0.003000', sectors_as_of: '2026-11-17', countries_as_of: '2026-09-28' },
+    { asset_key: 'FR0011550193', symbol: 'ETSZ.DE', name: 'BNP Paribas Easy Stoxx Europe 600', weight: '0.2190', ter: '0.001900', sectors_as_of: '2026-11-17', countries_as_of: '2026-10-30' },
+    { asset_key: 'FR0011550185', symbol: 'ESE.PA', name: 'BNP Paribas Easy S&P 500', weight: '0.1750', ter: '0.001400', sectors_as_of: '2026-11-17', countries_as_of: '2026-09-30' },
+  ],
+}
+
+/** La même, avec une action détenue en direct que le fichier ne décrit pas. */
+const airLiquide = {
+  asset_key: 'FR0000120073',
+  symbol: 'AI.PA',
+  name: 'Air Liquide',
+  weight: '0.1200',
+  ter: null,
+  sectors_as_of: null,
+  countries_as_of: null,
+}
+const partialExposure = {
+  ...exposure,
+  sectors: { ...exposure.sectors, unknown: '0.1200', coverage: '0.8800' },
+  countries: { ...exposure.countries, unknown: '0.1200', coverage: '0.8800' },
+  fund_fees: { annual_eur: '34.39', weighted_ter: '0.002479', coverage: '0.8800' },
+  lines: [...exposure.lines, airLiquide],
+}
+
+/**
+ * BenchmarkExposureOut : IWDA avec ses neuf premiers pays seulement, comme l'indice dont la fiche ne
+ * détaille qu'une partie ; libellé de marché du dump.
+ */
+const benchmark = {
+  asset_key: 'IE00B4L5Y983',
+  symbol: 'IWDA.L',
+  name: 'ISHARES III PLC ISHRS CORE MSCI',
+  sectors: {
+    weights: [
+      share('technology', '0.2781'),
+      share('financials', '0.1662'),
+      share('industrials', '0.1083'),
+      share('health_care', '0.1043'),
+      share('consumer_discretionary', '0.0914'),
+      share('communication', '0.0744'),
+      share('consumer_staples', '0.0562'),
+      share('energy', '0.0425'),
+      share('materials', '0.0315'),
+      share('utilities', '0.0254'),
+      share('real_estate', '0.0164'),
+    ],
+    other: '0.0053',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-11-17',
+  },
+  countries: {
+    weights: [
+      share('US', '0.7221'),
+      share('JP', '0.0557'),
+      share('GB', '0.0353'),
+      share('CA', '0.0341'),
+      share('CH', '0.0236'),
+      share('FR', '0.0233'),
+      share('DE', '0.0215'),
+      share('AU', '0.0154'),
+      share('NL', '0.0126'),
+    ],
+    other: '0.0564',
+    unknown: '0.0000',
+    coverage: '1.0000',
+    as_of: '2026-11-17',
+  },
+}
+const compared = { ...exposure, benchmark }
+
+/** Le texte d'une ligne de barres, de son libellé à la ligne suivante ; `last` pour la liste des pays. */
+function rowOf(html: string, label: string, last = false): string {
+  const start = last ? html.lastIndexOf(`title="${label}"`) : html.indexOf(`title="${label}"`)
+  const end = html.indexOf('title="', start + 1)
+  return html.slice(start, end === -1 ? undefined : end)
+}
+
 /** PlanResponse. */
 const plan = {
   monthly_target: '500',
@@ -406,6 +534,198 @@ describe('les sections rendues contre le contrat réel de l’API', () => {
     expect(html).toContain('aria-label="Méthode et définitions"')
     // Fermé par défaut : la prose ne pèse pas sur la page tant qu'on ne l'ouvre pas.
     expect(html).not.toContain('propriété de la mesure de Meucci')
+  })
+
+  it('HoldingsSection montre secteurs et pays en français, datés, selon l’indice suivi', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('Exposition par secteur et par pays')
+    expect(html).toContain('Selon l&#39;indice suivi par chaque fonds')
+    expect(html).toContain('Technologie')
+    expect(html).toContain('36,8 %')
+    expect(html).toContain('Conso. discrétionnaire')
+    // Des noms de pays, pas des codes ISO.
+    expect(html).toContain('États-Unis')
+    expect(html).toContain('Corée du Sud')
+    expect(html).toContain('44,1 %')
+    // Chaque liste porte la date de sa source la plus ancienne.
+    expect(html).toContain('au 30 oct. 2026')
+    expect(html).toContain('au 28 sept. 2026')
+    expect(html).not.toContain('undefined')
+  })
+
+  it('la part que la source ne détaille pas reste « Autre », sans gonfler les pays connus', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('title="Autre"')
+    expect(html).toContain('7,4 %')
+    expect(html).toContain('44,1 %')
+    // Tout est couvert : ni ligne « Non renseigné », ni étiquette de couverture.
+    expect(html).not.toContain('Non renseigné')
+    expect(html).not.toContain('Données pour')
+  })
+
+  it('une couverture partielle s’annonce, et sa part reste « Non renseigné »', async () => {
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: partialExposure,
+      turnover: null,
+    })
+    expect(html).toContain('Données pour 88 % du portefeuille')
+    expect(html).toContain('Non renseigné')
+    expect(html).toContain('12,0 %')
+    // Les pays connus gardent leur poids dans le portefeuille entier.
+    expect(html).toContain('44,1 %')
+  })
+
+  it('les pays au-delà des dix premiers se replient en une ligne qui garde leur total', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure, turnover: null })
+    expect(html).toContain('Pays-Bas')
+    expect(html).toContain('+ 7 pays')
+    expect(html).toContain('6,0 %')
+    expect(html).toContain('Afficher les 17 pays')
+    expect(html).not.toContain('Belgique')
+  })
+
+  it('sans exposition, le bloc n’apparaît pas et le reste de la section tient', async () => {
+    for (const absent of [null, undefined]) {
+      const html = await render('HoldingsSection', { concentration, exposure: absent, turnover: null })
+      expect(html).toContain('Paris réellement indépendants')
+      expect(html).not.toContain('Exposition par secteur')
+    }
+  })
+
+  it('couverte à 0 %, l’exposition se replie sur sa phrase sans tracer de barre', async () => {
+    const uncovered = {
+      sectors: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+      countries: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+      fund_fees: { annual_eur: null, weighted_ter: null, coverage: '0.0000' },
+      lines: [{ ...airLiquide, weight: '1.0000' }],
+    }
+    const html = await render('HoldingsSection', { concentration, exposure: uncovered, turnover: null })
+    expect(html).toContain('Exposition par secteur et par pays')
+    expect(html).toContain('Aucune de vos lignes n&#39;a de répartition')
+    expect(html).not.toContain('Non renseigné')
+  })
+
+  it('FeesSection chiffre les frais des fonds à côté du courtage, déjà dans le cours', async () => {
+    const html = await render('FeesSection', { fees, exits: null, exposure })
+    expect(html).toContain('Frais de gestion des fonds')
+    expect(html).toContain('39,08')
+    expect(html).toContain('0,25 %')
+    // Jamais présentés comme un coût à retrancher de la performance.
+    expect(html).toContain('Déjà prélevés dans le cours des fonds')
+    expect(html).not.toContain('Calculés sur')
+    // Le courtage, lui, ne bouge pas.
+    expect(html.indexOf('Frais de courtage')).toBeLessThan(html.indexOf('Frais de gestion des fonds'))
+  })
+
+  it('FeesSection dit sur quelle part du portefeuille les frais des fonds sont calculés', async () => {
+    const html = await render('FeesSection', { fees, exits: null, exposure: partialExposure })
+    expect(html).toContain('Calculés sur 88 % du portefeuille')
+    // Une action détenue en direct n'a pas de TER : elle n'est pas décrite, ses frais ne sont pas « inconnus ».
+    expect(html).not.toContain('Frais connus')
+    expect(html).toContain('34,39')
+  })
+
+  it('FeesSection replie les frais des fonds quand aucune ligne n’en a', async () => {
+    const unknownFees = { ...exposure, fund_fees: { annual_eur: null, weighted_ter: null, coverage: '0.0000' } }
+    const html = await render('FeesSection', { fees, exits: null, exposure: unknownFees })
+    expect(html).toContain('Aucune de vos lignes n&#39;a de frais de gestion dans la table de référence des fonds.')
+    expect(html).not.toContain('TER moyen pondéré')
+  })
+
+  it('le mode confidentialité masque les frais des fonds en euros, pas les pourcentages', async () => {
+    const { usePrivacyMode } = await import('@/composables/usePrivacyMode')
+    const { privacyMode } = usePrivacyMode()
+    privacyMode.value = true
+    try {
+      const fees_ = await render('FeesSection', { fees: null, exits: null, exposure })
+      expect(fees_).toContain('••••••')
+      expect(fees_).not.toContain('39,08')
+      expect(fees_).toContain('0,25 %')
+
+      const holdings = await render('HoldingsSection', { concentration, exposure, turnover: null })
+      expect(holdings).toContain('44,1 %')
+    } finally {
+      privacyMode.value = false
+    }
+  })
+
+  it('face à l’indice, chaque ligne porte sa part et celle de l’indice, nommé et daté', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure: compared, turnover: null })
+    expect(html).toContain('Comparé à')
+    // Le nom de la liste des indices, pas le libellé tronqué du fournisseur de cours.
+    expect(html).toContain('MSCI World (IWDA)')
+    expect(html).not.toContain('ISHARES III')
+    expect(html).toContain('répartition au 17 nov. 2026')
+    expect(html).toMatch(/>\s*Indice\s*</)
+    const us = rowOf(html, 'États-Unis')
+    expect(us).toContain('44,1 %')
+    expect(us).toContain('72,2 %')
+    const tech = rowOf(html, 'Technologie')
+    expect(tech).toContain('36,8 %')
+    expect(tech).toContain('27,8 %')
+  })
+
+  it('un pays de l’indice absent du portefeuille apparaît, sans 0 % inventé', async () => {
+    const html = await render('HoldingsSection', { concentration, exposure: compared, turnover: null })
+    // Le Japon pèse 5,6 % de l'indice : il remonte parmi les dix premiers, replié ou non.
+    const japan = rowOf(html, 'Japon')
+    expect(japan).toContain('—')
+    expect(japan).toContain('5,6 %')
+    expect(japan).not.toContain('0,0 %')
+    expect(html.indexOf('title="Japon"')).toBeLessThan(html.indexOf('title="Inde"'))
+    expect(html).toContain('title="Canada"')
+    // Et l'inverse : Taïwan n'est pas dans la liste détaillée de l'indice.
+    expect(rowOf(html, 'Taïwan')).toContain('—')
+    // La queue repliée garde ses totaux, et « Autre » reste des deux côtés.
+    expect(html).toContain('+ 10 pays')
+    expect(html).toContain('Afficher les 20 pays')
+    const other = rowOf(html, 'Autre', true)
+    expect(other).toContain('7,4 %')
+    expect(other).toContain('5,6 %')
+  })
+
+  it('face à un indice décrit en entier, un pays qu’il ne détient pas vaut 0 %, pas un tiret', async () => {
+    const complete = { ...benchmark, countries: { ...benchmark.countries, other: '0.0000' } }
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: complete },
+      turnover: null,
+    })
+    const taiwan = rowOf(html, 'Taïwan')
+    expect(taiwan).toContain('9,3 %')
+    expect(taiwan).toContain('0,0 %')
+    expect(taiwan).not.toContain('—')
+  })
+
+  it('sans indice décrit, la répartition s’affiche seule et sans bruit', async () => {
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: null },
+      turnover: null,
+    })
+    expect(html).toContain('États-Unis')
+    expect(html).not.toContain('Comparé à')
+    expect(html).not.toMatch(/>\s*Indice\s*</)
+    expect(html).not.toContain('Japon')
+  })
+
+  it('un indice décrit sur un seul axe ne compare que celui-là', async () => {
+    const sectorsOnly = {
+      ...benchmark,
+      countries: { weights: [], other: '0.0000', unknown: '1.0000', coverage: '0.0000', as_of: null },
+    }
+    const html = await render('HoldingsSection', {
+      concentration,
+      exposure: { ...exposure, benchmark: sectorsOnly },
+      turnover: null,
+    })
+    expect(html).toContain('(secteurs seulement)')
+    expect(rowOf(html, 'Technologie')).toContain('27,8 %')
+    // Côté pays, rien n'est comparé : ni colonne, ni pays de l'indice.
+    expect(html.match(/>\s*Indice\s*</g)).toHaveLength(1)
+    expect(html).not.toContain('Japon')
+    expect(rowOf(html, 'États-Unis')).not.toContain('72,2 %')
   })
 
   it('PlanSection rend le plan déclaré', async () => {

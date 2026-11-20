@@ -36,6 +36,7 @@ const regularity = computed(() => analysis.data?.regularity ?? null)
 const depositLag = computed(() => analysis.data?.deposit_lag ?? null)
 const conditioning = computed(() => analysis.data?.market_conditioning ?? null)
 const concentration = computed(() => analysis.data?.concentration ?? null)
+const exposure = computed(() => analysis.data?.exposure ?? null)
 const risk = computed(() => analysis.data?.risk ?? null)
 const turnover = computed(() => analysis.data?.turnover ?? null)
 const fees = computed(() => analysis.data?.fees ?? null)
@@ -86,6 +87,7 @@ const hasAnyBlock = computed(() =>
       conditioning.value ||
       risk.value ||
       concentration.value ||
+      exposure.value ||
       turnover.value ||
       fees.value ||
       exits.value ||
@@ -245,11 +247,12 @@ onMounted(async () => {
         <HoldingsSection
           v-if="shows('holdings')"
           :concentration="concentration"
+          :exposure="exposure"
           :turnover="turnover"
           :is-dark="isDark"
         />
 
-        <FeesSection v-if="shows('fees')" :fees="fees" :exits="exits" />
+        <FeesSection v-if="shows('fees')" :fees="fees" :exits="exits" :exposure="exposure" />
 
         <PlanSection v-if="shows('plan')" :plan="plan" />
 

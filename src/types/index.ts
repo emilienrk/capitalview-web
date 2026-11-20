@@ -2588,6 +2588,63 @@ export interface ConcentrationResponse {
   verdict: string
 }
 
+/** A share of the whole portfolio: an ISO 3166 alpha-2 country, or a GICS sector key. */
+export interface ExposureShareOut {
+  label: string
+  weight: number | string
+}
+
+/**
+ * One breakdown of the portfolio, by sector or by country, as the index each
+ * fund tracks is split. Neither `other` nor `unknown` is ever spread over the
+ * labels: they are shown as they come.
+ */
+export interface BreakdownOut {
+  /** Largest first. */
+  weights: ExposureShareOut[]
+  /** Covered lines, but the part their source leaves undetailed. */
+  other: number | string
+  /** Lines with no breakdown at all. */
+  unknown: number | string
+  /** 1 − unknown. */
+  coverage: number | string
+  /** Oldest date among the sources used. */
+  as_of: string | null
+}
+
+export interface FundFeesOut {
+  /** The funds' own yearly fees, in euros at today's prices, over the lines whose fee is known. */
+  annual_eur: number | string | null
+  weighted_ter: number | string | null
+  coverage: number | string
+}
+
+export interface ExposureLineOut extends AssetLabelOut {
+  weight: number | string
+  ter: number | string | null
+  sectors_as_of: string | null
+  countries_as_of: string | null
+}
+
+/**
+ * The benchmark's own breakdown, as if it were the whole portfolio. An axis
+ * its source does not describe comes back with `unknown` at 1.
+ */
+export interface BenchmarkExposureOut extends AssetLabelOut {
+  sectors: BreakdownOut
+  countries: BreakdownOut
+}
+
+/** Sectors and countries of the index each fund tracks, weighted by the portfolio. */
+export interface ExposureResponse {
+  /** Null when the benchmark is not described; optional for payloads stored before it existed. */
+  benchmark?: BenchmarkExposureOut | null
+  sectors: BreakdownOut
+  countries: BreakdownOut
+  fund_fees: FundFeesOut
+  lines: ExposureLineOut[]
+}
+
 export interface FeesResponse {
   total_fees: MetricOut
   fee_share: MetricOut
@@ -2620,6 +2677,7 @@ export interface FeesResponse {
   is_estimated: boolean
   projection_eur: number | string | null
   projection_note: string
+  /** Generic until the funds' own fees are known; then it states them, in euros and as a weighted TER. */
   ter_note: string
   reading?: ReadingOut | null
   verdict: string
@@ -2784,6 +2842,7 @@ export interface InvestorAnalyticsResponse extends CachedPayload {
   deposit_lag: DepositLagResponse | null
   market_conditioning: MarketConditioningResponse | null
   concentration: ConcentrationResponse | null
+  exposure: ExposureResponse | null
   risk: RiskResponse | null
   fees: FeesResponse | null
   exits: ExitsResponse | null
