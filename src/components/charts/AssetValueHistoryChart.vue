@@ -9,6 +9,7 @@ import type { AssetHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { useChartMeasure } from '@/composables/useChartMeasure'
+import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
@@ -20,6 +21,7 @@ const props = defineProps<{
 
 const { chartRef, containerRef, canRenderChart, containerWidth } = useChartResize()
 const chartTheme = useChartTheme()
+const { privacyMode } = usePrivacyMode()
 const loadingOptions = computed(() => chartLoading(chartTheme.value))
 
 const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
@@ -36,6 +38,9 @@ const { measure, measuring } = useChartMeasure({
 })
 
 const option = computed(() => {
+  // Read here, not only inside the formatters: ECharts calls those later, so
+  // toggling privacy would otherwise leave the drawn axis unmasked.
+  const hidden = privacyMode.value
   const theme = chartTheme.value
   const textColor = theme.text
   const gridColor = theme.grid
@@ -82,8 +87,12 @@ const option = computed(() => {
       axisLabel: {
         color: textColor,
         fontSize: 11,
+        // One decimal, dropped when it is zero: rounded to the thousand, two
+        // neighbouring ticks could both read "12k €".
         formatter: (val: number) =>
-          Math.abs(val) >= 1000 ? `${(val / 1000).toFixed(0)}k €` : `${Math.round(val)} €`,
+          hidden ? '' : Math.abs(val) >= 1000
+            ? `${(val / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k €`
+            : `${Math.round(val)} €`,
       },
       splitLine: { lineStyle: { color: gridColor } },
       axisLine: { show: false },
@@ -111,12 +120,12 @@ const option = computed(() => {
           maximumFractionDigits: 0,
         })
 
-        return `<div style="font-weight:600;margin-bottom:6px">${date}</div><div>Assets: <span style="font-weight:700">${value} €</span></div>`
+        return `<div style="font-weight:600;margin-bottom:6px">${date}</div><div>Valeur : <span style="font-weight:700">${hidden ? '•••' : `${value} €`}</span></div>`
       },
     },
     series: [
       {
-        name: 'Assets',
+        name: 'Valeur',
         type: 'line',
         data: values,
         smooth: true,
