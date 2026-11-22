@@ -14,7 +14,7 @@ import VChart from 'vue-echarts'
 import type { ElementEvent, Payload } from 'echarts/core'
 import type { AssetPriceTimelineResponse, AssetTimelineEvent } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
+import { TRADE_MARKERS, chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import {
   MAX_MARKER_SIZE,
   SMALL_SCREEN_MAX_MARKER_SIZE,
@@ -57,17 +57,6 @@ const chartTheme = useChartTheme()
  */
 const updateOptions = { replaceMerge: ['legend', 'xAxis', 'series', 'dataZoom'] }
 
-/**
- * The trade markers keep their own validated sets whatever the palette: buy and
- * sell read like gains and losses. Both sets were checked with the dataviz
- * palette checker against their own surface rather than flipped from one
- * another: on the dark surface the red and the violet each move a step, while
- * the green holds in both.
- */
-const MARKERS = {
-  light: { buy: '#059669', sell: '#dc2626', income: '#7c3aed' },
-  dark: { buy: '#059669', sell: '#ef4444', income: '#8b5cf6' },
-}
 
 const EVENT_LABELS: Record<AssetTimelineEvent['type'], string> = {
   BUY: 'Achat',
@@ -90,7 +79,7 @@ const TAP_RADIUS_POINTER = 16
 const colors = computed(() => {
   const theme = chartTheme.value
   return {
-    ...(props.isDark ? MARKERS.dark : MARKERS.light),
+    ...(props.isDark ? TRADE_MARKERS.dark : TRADE_MARKERS.light),
     price: theme.categorical[0]!,
     costBasis: theme.reference,
     ring: theme.surface,

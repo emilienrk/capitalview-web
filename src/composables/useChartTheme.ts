@@ -121,6 +121,18 @@ export function chartLoading(theme: ChartTheme) {
  * Entrance shared by every chart. ECharts' default is a one-second draw that
  * replays on each mount, and these charts are opened daily to read a figure.
  */
+/**
+ * Trade markers keep their own validated sets whatever the palette: buy and
+ * sell read like gains and losses. Both sets were checked with the dataviz
+ * palette checker against their own surface rather than flipped from one
+ * another: on the dark surface the red and the violet each move a step, while
+ * the green holds in both.
+ */
+export const TRADE_MARKERS = {
+  light: { buy: '#059669', sell: '#dc2626', income: '#7c3aed' },
+  dark: { buy: '#059669', sell: '#ef4444', income: '#8b5cf6' },
+}
+
 export function chartAnimation() {
   const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   return reduce

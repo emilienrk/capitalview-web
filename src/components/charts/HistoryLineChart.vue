@@ -8,17 +8,18 @@ import {
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,
+  MarkLineComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import type { Payload } from 'echarts/core'
 import type { AccountHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
-import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
+import { TRADE_MARKERS, chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useChartMeasure } from '@/composables/useChartMeasure'
 import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
+use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, MarkLineComponent])
 
 const props = defineProps<{
   /** `hidden` starts a line switched off in the legend. */
@@ -28,6 +29,8 @@ const props = defineProps<{
   hideControls?: boolean
   showPerformance?: boolean
   loading?: boolean
+  /** Buys and sells, drawn as a thin line on the date of each. */
+  trades?: Array<{ date: string; type: 'BUY' | 'SELL' }>
 }>()
 
 const emit = defineEmits<{
@@ -164,6 +167,40 @@ watch([allDates, selectedRangeMonths], () => {
 
 const isMobile = computed(() => containerWidth.value < 640)
 
+/** The line the header badge, the measure and the trade lines go on: the total when there is one. */
+const mainSeriesIndex = computed(() => {
+  const index = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
+  return index !== -1 ? index : 0
+})
+
+/**
+ * Trades counted on the axis date that carries them. A weekly, monthly or
+ * yearly point is the last snapshot of its period, so a trade belongs to the
+ * first point on or after its day.
+ */
+const tradesByAxisDate = computed(() => {
+  const byDate = new Map<string, { buy: number; sell: number }>()
+  const dates = allDates.value
+  if (!props.trades?.length || !dates.length) return byDate
+  for (const trade of props.trades) {
+    const day = trade.date.slice(0, 10)
+    let lo = 0
+    let hi = dates.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (dates[mid]! < day) lo = mid + 1
+      else hi = mid
+    }
+    const axisDate = dates[lo]
+    if (!axisDate || day < dates[0]!) continue
+    const count = byDate.get(axisDate) ?? { buy: 0, sell: 0 }
+    if (trade.type === 'BUY') count.buy++
+    else count.sell++
+    byDate.set(axisDate, count)
+  }
+  return byDate
+})
+
 const option = computed(() => {
   // Read here, not only inside the formatters: ECharts calls those later, so
   // toggling privacy would otherwise leave the drawn axis unmasked.
@@ -179,6 +216,19 @@ const option = computed(() => {
   const gridColor = theme.grid
   const bgColor = 'transparent'
 
+  const trade = props.isDark ? TRADE_MARKERS.dark : TRADE_MARKERS.light
+  // A date with both kinds takes the neutral text colour rather than either one.
+  const tradeLines = [...tradesByAxisDate.value].map(([date, count]) => ({
+    xAxis: date,
+    lineStyle: {
+      color: count.sell === 0 ? trade.buy : count.buy === 0 ? trade.sell : textColor,
+      // Solid, so they never read as the dashed axis pointer that follows the cursor.
+      type: 'solid',
+      width: 1,
+      opacity: 0.45,
+    },
+  }))
+
   const series = props.series.map((line, index) => {
     const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
     return {
@@ -193,6 +243,17 @@ const option = computed(() => {
       color: SERIES_COLORS[index % SERIES_COLORS.length],
       data: dates.map((date) => byDate.get(date) ?? null),
       z: line.name === 'Solde total' ? 10 : 5,
+      ...(index === mainSeriesIndex.value && tradeLines.length
+        ? {
+            markLine: {
+              silent: true,
+              symbol: ['none', 'none'],
+              label: { show: false },
+              animation: false,
+              data: tradeLines,
+            },
+          }
+        : {}),
     }
   })
 
@@ -329,6 +390,15 @@ const option = computed(() => {
           }
         }
 
+        const traded = tradesByAxisDate.value.get(String(params[0].axisValue ?? ''))
+        if (traded) {
+          const parts = [
+            traded.buy ? `<span style="color:${trade.buy}">${traded.buy} achat${traded.buy > 1 ? 's' : ''}</span>` : '',
+            traded.sell ? `<span style="color:${trade.sell}">${traded.sell} vente${traded.sell > 1 ? 's' : ''}</span>` : '',
+          ].filter(Boolean)
+          tooltip += `<div style="margin-top:6px;font-size:11px">${parts.join(' · ')}</div>`
+        }
+
         return tooltip
       },
     },
@@ -398,10 +468,8 @@ function handleDataZoom(event: Payload): void {
   }
 }
 
-/** The line the header badge and the measure read: the total when there is one. */
 const mainValues = computed<Array<number | null>>(() => {
-  const mainSeriesIndex = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
-  const line = props.series[mainSeriesIndex !== -1 ? mainSeriesIndex : 0]
+  const line = props.series[mainSeriesIndex.value]
   if (!line) return []
   const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
   return allDates.value.map((date) => byDate.get(date) ?? null)
