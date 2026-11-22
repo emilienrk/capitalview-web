@@ -34,7 +34,8 @@ export function useChartTools(chartRef: Ref<InstanceType<typeof VChart> | null>)
   })
 
   function downloadPng(backgroundColor: string): void {
-    const url = chartRef.value?.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor })
+    // The range slider is a control, not part of the curve.
+    const url = chartRef.value?.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor, excludeComponents: ['dataZoom'] })
     if (!url) return
     const link = document.createElement('a')
     link.href = url
