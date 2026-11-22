@@ -182,6 +182,7 @@ const option = computed(() => {
   const series = props.series.map((line, index) => {
     const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
     return {
+      id: line.name,
       name: line.name,
       type: 'line',
       smooth: !isDaily,
@@ -246,6 +247,7 @@ const option = computed(() => {
     backgroundColor: bgColor,
     textStyle: { fontFamily: theme.fontFamily },
     legend: {
+      id: 'legend',
       // A single series is already named by the card it sits in; the legend
       // would only repeat it, and it costs a row of the plot.
       show: props.series.length > 1,
@@ -268,6 +270,7 @@ const option = computed(() => {
       bottom: 72,
     },
     xAxis: {
+      id: 'dates',
       type: 'category',
       data: dates,
       boundaryGap: false,
@@ -332,6 +335,7 @@ const option = computed(() => {
     dataZoom: (!props.hideControls && dates.length > 10)
       ? [
           {
+            id: 'zoom',
             type: 'slider',
             bottom: 2,
             left: '3%',

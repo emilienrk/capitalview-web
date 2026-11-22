@@ -202,6 +202,7 @@ const option = computed(() => {
 
   if (props.bankEnabled !== false) {
     series.push({
+      id: 'Cash',
       name: 'Cash',
       type: 'line',
       stack: 'wealth',
@@ -217,6 +218,7 @@ const option = computed(() => {
   }
 
   series.push({
+    id: 'Bourse',
     name: 'Bourse',
     type: 'line',
     stack: 'wealth',
@@ -231,6 +233,7 @@ const option = computed(() => {
   })
 
   series.push({
+    id: 'Crypto',
     name: 'Crypto',
     type: 'line',
     stack: 'wealth',
@@ -246,6 +249,7 @@ const option = computed(() => {
 
   if (hasPlacements.value) {
     series.push({
+      id: 'Placements',
       name: 'Placements',
       type: 'line',
       stack: 'wealth',
@@ -262,6 +266,7 @@ const option = computed(() => {
 
   if (props.wealthEnabled !== false) {
     series.push({
+      id: 'Patrimoine matériel',
       name: 'Patrimoine matériel',
       type: 'line',
       stack: 'wealth',
@@ -278,6 +283,7 @@ const option = computed(() => {
 
   // Total wealth as a standalone line on top
   series.push({
+    id: 'Patrimoine total',
     name: 'Patrimoine total',
     type: 'line',
     smooth: !isDaily,
@@ -341,6 +347,7 @@ const option = computed(() => {
     backgroundColor: bgColor,
     textStyle: { fontFamily: theme.fontFamily },
     legend: {
+      id: 'legend',
       bottom: 28,
       type: 'scroll',  // scrollable on mobile when items overflow
       selectedMode: true,
@@ -359,6 +366,7 @@ const option = computed(() => {
       bottom: 72,
     },
     xAxis: {
+      id: 'dates',
       type: 'category',
       data: dates,
       boundaryGap: false,
@@ -418,6 +426,7 @@ const option = computed(() => {
     dataZoom: dates.length > 30
       ? [
           {
+            id: 'zoom',
             type: 'slider',
             bottom: 2,
             left: '2%',
