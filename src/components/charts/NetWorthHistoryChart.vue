@@ -186,7 +186,7 @@ watch(
 )
 
 const isMobile = computed(() => containerWidth.value < 640)
-const { fullscreen, downloadPng } = useChartTools(chartRef)
+const { showLegend, fullscreen, downloadPng } = useChartTools(chartRef)
 
 const option = computed(() => {
   // Read here, not only inside the formatters: ECharts calls those later, so
@@ -352,6 +352,7 @@ const option = computed(() => {
     textStyle: { fontFamily: theme.fontFamily },
     legend: {
       id: 'legend',
+      show: showLegend.value,
       bottom: 28,
       type: 'scroll',  // scrollable on mobile when items overflow
       selectedMode: true,
@@ -367,7 +368,7 @@ const option = computed(() => {
       top: 16,
       left: isSmall ? 32 : 38,
       right: isSmall ? 4 : 12,
-      bottom: 72,
+      bottom: showLegend.value ? 72 : 44,
     },
     xAxis: {
       id: 'dates',
@@ -557,6 +558,9 @@ watch(visiblePerformance, (newVal) => {
             </div>
             <ChartToolsMenu
               :fullscreen="fullscreen"
+              has-legend
+              :show-legend="showLegend"
+              @update:show-legend="showLegend = $event"
               @toggle-fullscreen="fullscreen = !fullscreen"
               @download="downloadPng(chartTheme.surface)"
             />

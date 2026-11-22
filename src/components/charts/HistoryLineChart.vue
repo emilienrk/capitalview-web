@@ -19,7 +19,7 @@ import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useChartMeasure } from '@/composables/useChartMeasure'
 import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 import ChartToolsMenu from './ChartToolsMenu.vue'
-import { useChartTools } from '@/composables/useChartTools'
+import { useChartTools, type AxisMode } from '@/composables/useChartTools'
 import { X } from 'lucide-vue-next'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, MarkLineComponent])
@@ -169,7 +169,18 @@ watch([allDates, selectedRangeMonths], () => {
 }, { immediate: true })
 
 const isMobile = computed(() => containerWidth.value < 640)
-const { showTrades, fullscreen, downloadPng } = useChartTools(chartRef)
+const { showTrades, showLegend, axisMode, fullscreen, downloadPng } = useChartTools(chartRef)
+
+// A log axis cannot draw a loss, so a P/L curve keeps the linear choices.
+// Zeros are fine: ECharts leaves non-positive points off a log axis by itself.
+const allPositive = computed(() =>
+  props.series.length > 0 && props.series.every((line) =>
+    line.history.every((point) => point.total_value == null || Number(point.total_value) >= 0)),
+)
+const axisModes = computed<AxisMode[]>(() => (allPositive.value ? ['fit', 'zero', 'log'] : ['fit', 'zero']))
+const effectiveAxisMode = computed<AxisMode>(() =>
+  axisMode.value === 'log' && !allPositive.value ? 'fit' : axisMode.value)
+const legendShown = computed(() => props.series.length > 1 && showLegend.value)
 
 /** The line the header badge, the measure and the trade lines go on: the total when there is one. */
 const mainSeriesIndex = computed(() => {
@@ -320,7 +331,7 @@ const option = computed(() => {
       id: 'legend',
       // A single series is already named by the card it sits in; the legend
       // would only repeat it, and it costs a row of the plot.
-      show: props.series.length > 1,
+      show: legendShown.value,
       data: props.series.map((line) => line.name),
       bottom: 28,
       type: 'scroll',
@@ -338,7 +349,7 @@ const option = computed(() => {
       // "12,4k€" needs more room than "12k€" did — 32px clipped the decimal.
       left: isSmall ? 46 : 52,
       right: isSmall ? 4 : 12,
-      bottom: 72,
+      bottom: legendShown.value ? 72 : 44,
     },
     xAxis: {
       id: 'dates',
@@ -362,8 +373,14 @@ const option = computed(() => {
       splitLine: { show: false },
     },
     yAxis: {
-      type: 'value',
-      scale: true,
+      id: 'values',
+      type: effectiveAxisMode.value === 'log' ? 'log' : 'value',
+      scale: effectiveAxisMode.value === 'fit',
+      // A log axis otherwise snaps to powers of ten, and 13k–16k € would sit
+      // flat between 10k and 100k.
+      ...(effectiveAxisMode.value === 'log'
+        ? { min: (extent: { min: number }) => extent.min * 0.95, max: (extent: { max: number }) => extent.max * 1.05 }
+        : { min: null, max: null }),
       axisLine: { show: false },
       axisLabel: {
         color: textColor,
@@ -572,7 +589,13 @@ const loadingOptions = computed(() => chartLoading(chartTheme.value))
               :fullscreen="fullscreen"
               :has-trades="!!trades"
               :show-trades="showTrades"
+              :has-legend="series.length > 1"
+              :show-legend="showLegend"
+              :axis-modes="axisModes"
+              :axis-mode="effectiveAxisMode"
               @update:show-trades="showTrades = $event"
+              @update:show-legend="showLegend = $event"
+              @update:axis-mode="axisMode = $event"
               @toggle-fullscreen="fullscreen = !fullscreen"
               @download="downloadPng(chartTheme.surface)"
             />
