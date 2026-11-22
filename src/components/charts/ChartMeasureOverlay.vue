@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChartMeasure } from '@/composables/useChartMeasure'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -14,8 +14,21 @@ const props = defineProps<{
 const { formatCurrency, formatPercent } = useFormatters()
 const { maskValue } = usePrivacyMode()
 
-// Half the label's usual width, so it never hangs off either side of the plot.
-const LABEL_HALF_WIDTH = 84
+// The label's real width, so it can be kept inside the plot whatever its text.
+const labelRef = ref<HTMLElement | null>(null)
+const labelWidth = ref(0)
+let labelObserver: ResizeObserver | null = null
+
+watch(labelRef, (el) => {
+  labelObserver?.disconnect()
+  labelObserver = null
+  if (!el) return
+  labelWidth.value = el.offsetWidth
+  labelObserver = new ResizeObserver(() => { labelWidth.value = el.offsetWidth })
+  labelObserver.observe(el)
+}, { flush: 'post' })
+
+onBeforeUnmount(() => labelObserver?.disconnect())
 
 const view = computed(() => {
   const m = props.measure
@@ -36,7 +49,7 @@ const view = computed(() => {
       top: `${m.plot.top}px`,
       height: `${m.plot.bottom - m.plot.top}px`,
     },
-    labelLeft: `${Math.min(m.plot.right - LABEL_HALF_WIDTH, Math.max(m.plot.left + LABEL_HALF_WIDTH, center))}px`,
+    labelLeft: `${Math.max(m.plot.left, Math.min(m.plot.right - labelWidth.value, center - labelWidth.value / 2))}px`,
     labelTop: `${m.plot.top + 4}px`,
     from: { left: `${m.fromX}px`, top: `${m.fromY}px` },
     to: { left: `${m.toX}px`, top: `${m.toY}px` },
@@ -57,7 +70,8 @@ const view = computed(() => {
       :style="point"
     />
     <div
-      class="absolute -translate-x-1/2 whitespace-nowrap rounded-secondary border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark px-2.5 py-1.5 text-center shadow-sm"
+      ref="labelRef"
+      class="absolute whitespace-nowrap rounded-secondary border border-surface-border dark:border-surface-dark-border bg-surface dark:bg-surface-dark px-2.5 py-1.5 text-center shadow-sm"
       :style="{ left: view.labelLeft, top: view.labelTop }"
     >
       <div :class="['text-xs font-semibold tabular-nums', view.up ? 'text-success' : 'text-danger']">
