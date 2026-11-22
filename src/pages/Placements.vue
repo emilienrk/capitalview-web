@@ -381,6 +381,7 @@ onMounted(async () => {
           <HistoryLineChart
             v-else-if="evolutionSeries.length"
             :series="evolutionSeries"
+            show-flows
             :is-dark="isDark"
             :granularity="historyGranularity"
             :loading="store.historyLoading"

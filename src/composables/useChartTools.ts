@@ -12,7 +12,7 @@ function stored<T extends string>(key: string, fallback: T, allowed: readonly T[
 }
 
 // Module-level, like the privacy mode: one setting for every chart of the app.
-const tradesSetting = stored('chart_show_trades', 'true', ['true', 'false'] as const)
+const flowsSetting = stored('chart_show_flows', 'true', ['true', 'false'] as const)
 const legendSetting = stored('chart_show_legend', 'true', ['true', 'false'] as const)
 const axisMode = stored<AxisMode>('chart_axis_mode', 'fit', ['fit', 'zero', 'log'])
 
@@ -24,7 +24,7 @@ function flag(setting: Ref<'true' | 'false'>) {
 }
 
 /**
- * What the gear menu of a history chart drives: trade lines, the value axis,
+ * What the gear menu of a history chart drives: money-in/out lines, the value axis,
  * the legend, a full-screen view and a PNG of the curve.
  *
  * Full screen is a fixed overlay rather than the Fullscreen API, which iPhone
@@ -59,7 +59,7 @@ export function useChartTools(chartRef: Ref<InstanceType<typeof VChart> | null>)
   }
 
   return {
-    showTrades: flag(tradesSetting),
+    showFlows: flag(flowsSetting),
     showLegend: flag(legendSetting),
     axisMode,
     fullscreen,

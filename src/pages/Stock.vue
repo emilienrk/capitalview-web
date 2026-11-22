@@ -657,12 +657,6 @@ const stockChartSeries = computed(() => {
   return series.filter((line) => line.history.length > 0)
 })
 
-const stockChartTrades = computed(() =>
-  stocks.transactions
-    .filter((tx) => tx.type === 'BUY' || tx.type === 'SELL')
-    .map((tx) => ({ date: tx.executed_at, type: tx.type as 'BUY' | 'SELL' })),
-)
-
 async function loadStockChartHistories(force = false): Promise<void> {
   await Promise.all([
     stocks.fetchHistory(force),
@@ -1469,7 +1463,7 @@ onMounted(async () => {
         <template v-if="stockChartSeries.length > 0">
           <HistoryLineChart
             :series="stockChartSeries"
-            :trades="stockChartTrades"
+            show-flows
             :is-dark="isDark"
             :granularity="historyGranularity"
             :loading="stocks.historyLoading"

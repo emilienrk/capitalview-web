@@ -7,9 +7,9 @@ import type { AxisMode } from '@/composables/useChartTools'
 
 const props = defineProps<{
   fullscreen: boolean
-  /** Only a chart that has trades to draw offers the switch. */
-  hasTrades?: boolean
-  showTrades?: boolean
+  /** Only a chart that can mark money in and out offers the switch. */
+  hasFlows?: boolean
+  showFlows?: boolean
   /** Only a chart that draws a legend offers to hide it. */
   hasLegend?: boolean
   showLegend?: boolean
@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:showTrades': [value: boolean]
+  'update:showFlows': [value: boolean]
   'update:showLegend': [value: boolean]
   'update:axisMode': [value: AxisMode]
   'toggle-fullscreen': []
@@ -67,12 +67,12 @@ const actionClass = 'w-full flex items-center gap-2.5 text-left px-4 py-2.5 text
             @update:model-value="emit('update:axisMode', $event as AxisMode)"
           />
         </div>
-        <label v-if="props.hasTrades" :class="[rowClass, 'cursor-pointer']">
-          Achats et ventes
+        <label v-if="props.hasFlows" :class="[rowClass, 'cursor-pointer']">
+          Entrées et sorties d'argent
           <BaseToggle
-            :model-value="!!props.showTrades"
-            aria-label="Afficher les achats et ventes"
-            @update:model-value="emit('update:showTrades', $event)"
+            :model-value="!!props.showFlows"
+            aria-label="Afficher les entrées et sorties d'argent"
+            @update:model-value="emit('update:showFlows', $event)"
           />
         </label>
         <label v-if="props.hasLegend" :class="[rowClass, 'cursor-pointer']">

@@ -32,8 +32,8 @@ const props = defineProps<{
   hideControls?: boolean
   showPerformance?: boolean
   loading?: boolean
-  /** Buys and sells, drawn as a thin line on the date of each. */
-  trades?: Array<{ date: string; type: 'BUY' | 'SELL' }>
+  /** Draws a thin line where money came in or left, read from the main line's deposit totals. */
+  showFlows?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -169,7 +169,7 @@ watch([allDates, selectedRangeMonths], () => {
 }, { immediate: true })
 
 const isMobile = computed(() => containerWidth.value < 640)
-const { showTrades, showLegend, axisMode, fullscreen, downloadPng } = useChartTools(chartRef)
+const { showFlows: flowsOn, showLegend, axisMode, fullscreen, downloadPng } = useChartTools(chartRef)
 
 // A log axis cannot draw a loss, so a P/L curve keeps the linear choices.
 // Zeros are fine: ECharts leaves non-positive points off a log axis by itself.
@@ -189,29 +189,25 @@ const mainSeriesIndex = computed(() => {
 })
 
 /**
- * Trades counted on the axis date that carries them. A weekly, monthly or
- * yearly point is the last snapshot of its period, so a trade belongs to the
- * first point on or after its day.
+ * Money that came in and left between one point and the one before, from the
+ * running totals the API keeps on each snapshot: its own rules decide what a
+ * deposit is, gifts and transfers included. On a weekly, monthly or yearly
+ * axis each point is the end of its period, so the gap covers the whole period.
  */
-const tradesByAxisDate = computed(() => {
-  const byDate = new Map<string, { buy: number; sell: number }>()
-  const dates = allDates.value
-  if (!showTrades.value || !props.trades?.length || !dates.length) return byDate
-  for (const trade of props.trades) {
-    const day = trade.date.slice(0, 10)
-    let lo = 0
-    let hi = dates.length
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1
-      if (dates[mid]! < day) lo = mid + 1
-      else hi = mid
-    }
-    const axisDate = dates[lo]
-    if (!axisDate || day < dates[0]!) continue
-    const count = byDate.get(axisDate) ?? { buy: 0, sell: 0 }
-    if (trade.type === 'BUY') count.buy++
-    else count.sell++
-    byDate.set(axisDate, count)
+const flowsByAxisDate = computed(() => {
+  const byDate = new Map<string, { in: number; out: number }>()
+  const line = props.series[mainSeriesIndex.value]
+  if (!props.showFlows || !flowsOn.value || !line) return byDate
+  let previousIn = 0
+  let previousOut = 0
+  for (const point of [...line.history].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))) {
+    const totalIn = Number(point.total_deposits ?? 0)
+    const totalOut = Number(point.total_withdrawals ?? 0)
+    const flow = { in: totalIn - previousIn, out: totalOut - previousOut }
+    // Under a euro is rounding between snapshots, not money moving.
+    if (flow.in >= 1 || flow.out >= 1) byDate.set(point.snapshot_date, flow)
+    previousIn = totalIn
+    previousOut = totalOut
   }
   return byDate
 })
@@ -231,12 +227,12 @@ const option = computed(() => {
   const gridColor = theme.grid
   const bgColor = 'transparent'
 
-  const trade = props.isDark ? TRADE_MARKERS.dark : TRADE_MARKERS.light
-  // A date with both kinds takes the neutral text colour rather than either one.
-  const tradeLines = [...tradesByAxisDate.value].map(([date, count]) => ({
+  const flowColors = props.isDark ? TRADE_MARKERS.dark : TRADE_MARKERS.light
+  // A period with money both in and out takes the neutral text colour.
+  const flowLines = [...flowsByAxisDate.value].map(([date, flow]) => ({
     xAxis: date,
     lineStyle: {
-      color: count.sell === 0 ? trade.buy : count.buy === 0 ? trade.sell : textColor,
+      color: flow.out < 1 ? flowColors.buy : flow.in < 1 ? flowColors.sell : textColor,
       // Solid, so they never read as the dashed axis pointer that follows the cursor.
       type: 'solid',
       width: 1,
@@ -270,7 +266,7 @@ const option = computed(() => {
               symbol: ['none', 'none'],
               label: { show: false },
               animation: false,
-              data: tradeLines,
+              data: flowLines,
             },
           }
         : {}),
@@ -419,11 +415,12 @@ const option = computed(() => {
           }
         }
 
-        const traded = tradesByAxisDate.value.get(String(params[0].axisValue ?? ''))
-        if (traded) {
+        const flow = flowsByAxisDate.value.get(String(params[0].axisValue ?? ''))
+        if (flow) {
+          const amount = (value: number) => `${Math.round(value).toLocaleString('fr-FR')} €`
           const parts = [
-            traded.buy ? `<span style="color:${trade.buy}">${traded.buy} achat${traded.buy > 1 ? 's' : ''}</span>` : '',
-            traded.sell ? `<span style="color:${trade.sell}">${traded.sell} vente${traded.sell > 1 ? 's' : ''}</span>` : '',
+            flow.in >= 1 ? `<span style="color:${flowColors.buy}">${hidden ? 'Versement' : `+${amount(flow.in)} versés`}</span>` : '',
+            flow.out >= 1 ? `<span style="color:${flowColors.sell}">${hidden ? 'Retrait' : `−${amount(flow.out)} retirés`}</span>` : '',
           ].filter(Boolean)
           tooltip += `<div style="margin-top:6px;font-size:11px">${parts.join(' · ')}</div>`
         }
@@ -587,13 +584,13 @@ const loadingOptions = computed(() => chartLoading(chartTheme.value))
             </div>
             <ChartToolsMenu
               :fullscreen="fullscreen"
-              :has-trades="!!trades"
-              :show-trades="showTrades"
+              :has-flows="!!showFlows"
+              :show-flows="flowsOn"
               :has-legend="series.length > 1"
               :show-legend="showLegend"
               :axis-modes="axisModes"
               :axis-mode="effectiveAxisMode"
-              @update:show-trades="showTrades = $event"
+              @update:show-flows="flowsOn = $event"
               @update:show-legend="showLegend = $event"
               @update:axis-mode="axisMode = $event"
               @toggle-fullscreen="fullscreen = !fullscreen"

@@ -1718,6 +1718,7 @@ onMounted(async () => {
             <template v-if="cryptoChartSeries.length > 0">
               <HistoryLineChart
                 :series="cryptoChartSeries"
+                show-flows
                 :is-dark="isDark"
                 :granularity="historyGranularity"
                 :loading="crypto.historyLoading"
@@ -1868,6 +1869,7 @@ onMounted(async () => {
             <template v-if="cryptoChartSeries.length > 0">
               <HistoryLineChart
                 :series="cryptoChartSeries"
+                show-flows
                 :is-dark="isDark"
                 :granularity="historyGranularity"
                 :loading="crypto.historyLoading"
