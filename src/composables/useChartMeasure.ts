@@ -236,5 +236,14 @@ export function useChartMeasure(options: {
     return swallowed
   }
 
-  return { measure, takeClick }
+  /** For the chart to drop its own tooltip, which would repeat one end of the span. */
+  const measuring = computed(() => measure.value !== null)
+
+  // `tooltip.show: false` only stops new tooltips; the one already open under
+  // the cursor stays until told to go.
+  watch(measuring, (on) => {
+    if (on) options.chartRef.value?.dispatchAction({ type: 'hideTip' })
+  }, { flush: 'post' })
+
+  return { measure, measuring, takeClick }
 }

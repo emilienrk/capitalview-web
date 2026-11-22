@@ -28,7 +28,7 @@ const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
   )
 })
 
-const { measure } = useChartMeasure({
+const { measure, measuring } = useChartMeasure({
   chartRef,
   containerRef,
   values: () => sortedHistory.value.map((row) => Number(row.total_value)),
@@ -90,6 +90,7 @@ const option = computed(() => {
       axisTick: { show: false },
     },
     tooltip: {
+      show: !measuring.value,
       trigger: 'axis',
       confine: true,
       backgroundColor: theme.tooltipBg,

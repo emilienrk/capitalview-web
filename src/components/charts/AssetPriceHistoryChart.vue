@@ -114,7 +114,7 @@ const priceByDate = computed(() => {
 
 const priceValues = computed(() => dates.value.map((date) => priceByDate.value.get(date) ?? null))
 
-const { measure, takeClick } = useChartMeasure({
+const { measure, measuring, takeClick } = useChartMeasure({
   chartRef,
   containerRef,
   values: () => priceValues.value,
@@ -417,7 +417,7 @@ const option = computed(() => {
       // On a phone the detail card below is the reading surface: a floating
       // tooltip there lands under the finger, covers the curve, and repeats
       // what the card already says.
-      show: !isSmall.value,
+      show: !isSmall.value && !measuring.value,
       trigger: 'axis',
       confine: true,
       axisPointer: { type: 'line' },

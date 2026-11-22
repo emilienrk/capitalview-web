@@ -92,7 +92,7 @@ const rangeOptions = computed<RangeOption[]>(() => granularityRangeOptions[effec
 
 const allDates = computed<string[]>(() => props.history.map(s => s.snapshot_date))
 
-const { measure } = useChartMeasure({
+const { measure, measuring } = useChartMeasure({
   chartRef,
   containerRef,
   values: () => props.history.map(s => (s.total_wealth == null ? null : Number(s.total_wealth))),
@@ -392,6 +392,7 @@ const option = computed(() => {
       axisTick: { show: false },
     },
     tooltip: {
+      show: !measuring.value,
       trigger: 'axis',
       confine: true,  // keeps tooltip inside chart bounds on mobile
       backgroundColor: theme.tooltipBg,

@@ -306,6 +306,7 @@ const option = computed(() => {
       splitLine: { lineStyle: { color: gridColor } },
     },
     tooltip: {
+      show: !measuring.value,
       trigger: 'axis',
       confine: true,
       backgroundColor: theme.tooltipBg,
@@ -402,7 +403,7 @@ const mainValues = computed<Array<number | null>>(() => {
   return allDates.value.map((date) => byDate.get(date) ?? null)
 })
 
-const { measure } = useChartMeasure({
+const { measure, measuring } = useChartMeasure({
   chartRef,
   containerRef,
   values: () => mainValues.value,
