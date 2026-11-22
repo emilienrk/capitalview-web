@@ -10,10 +10,13 @@ import {
   DataZoomComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
+import type { Payload } from 'echarts/core'
 import type { GlobalHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useChartMeasure } from '@/composables/useChartMeasure'
+import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -88,6 +91,13 @@ const effectiveGranularity = computed<Granularity>(() => props.granularity ?? 'd
 const rangeOptions = computed<RangeOption[]>(() => granularityRangeOptions[effectiveGranularity.value])
 
 const allDates = computed<string[]>(() => props.history.map(s => s.snapshot_date))
+
+const { measure } = useChartMeasure({
+  chartRef,
+  containerRef,
+  values: () => props.history.map(s => (s.total_wealth == null ? null : Number(s.total_wealth))),
+  dates: () => allDates.value,
+})
 
 // A user with no placement gets no empty band in the stack or the legend.
 const hasPlacements = computed(() => props.history.some(s => Number(s.placements_value ?? 0) > 0))
@@ -370,8 +380,12 @@ const option = computed(() => {
         color: textColor,
         fontSize: 11,
         // The curve's shape stays readable in privacy mode; its scale does not.
+        // One decimal, dropped when it is zero: rounded to the thousand, two
+        // neighbouring ticks could both read "12k €".
         formatter: (val: number) =>
-          hidden ? '' : val >= 1000 ? `${(val / 1000).toFixed(0)}k €` : `${val} €`,
+          hidden ? '' : val >= 1000
+            ? `${(val / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k €`
+            : `${val} €`,
       },
       splitLine: { lineStyle: { color: gridColor } },
       axisLine: { show: false },
@@ -438,11 +452,7 @@ const option = computed(() => {
   }
 })
 
-function handleDataZoom(event: {
-  startValue?: number
-  endValue?: number
-  batch?: Array<{ startValue?: number; endValue?: number }>
-}): void {
+function handleDataZoom(event: Payload): void {
   const payload = event.batch?.[0] ?? event
   if (typeof payload.startValue === 'number') {
     zoomStartIndex.value = Math.max(0, Math.floor(payload.startValue))
@@ -452,7 +462,7 @@ function handleDataZoom(event: {
   }
 }
 
-function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
+function handleLegendSelectChanged(event: Payload): void {
   if (!event?.selected) return
   legendSelection.value = {
     ...legendSelection.value,
@@ -525,7 +535,7 @@ watch(visiblePerformance, (newVal) => {
     </div>
 
     <!-- pan-y: a vertical swipe starting on the curve still scrolls the page. -->
-    <div ref="containerRef" class="w-full h-72" style="touch-action: pan-y;">
+    <div ref="containerRef" class="relative w-full h-72" style="touch-action: pan-y;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"
@@ -538,6 +548,7 @@ watch(visiblePerformance, (newVal) => {
         @legendselectchanged="handleLegendSelectChanged"
         @datazoom="handleDataZoom"
       />
+      <ChartMeasureOverlay :measure="measure" :format-date="formatTooltipDate" />
     </div>
   </div>
 </template>

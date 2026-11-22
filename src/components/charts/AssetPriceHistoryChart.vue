@@ -11,6 +11,7 @@ import {
   DataZoomComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
+import type { ElementEvent, Payload } from 'echarts/core'
 import type { AssetPriceTimelineResponse, AssetTimelineEvent } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
@@ -28,6 +29,9 @@ import {
 } from '@/utils/assetPriceTimeline'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useCanHover } from '@/composables/useMediaQuery'
+import { useChartMeasure } from '@/composables/useChartMeasure'
+import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
 use([CanvasRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -100,10 +104,22 @@ const points = computed(() => props.timeline.points ?? [])
 
 const dates = computed<string[]>(() => buildTimelineDates(points.value, events.value))
 
+const canHover = useCanHover()
+
 const priceByDate = computed(() => {
   const map = new Map<string, number>()
   for (const point of points.value) map.set(point.date, Number(point.price))
   return map
+})
+
+const priceValues = computed(() => dates.value.map((date) => priceByDate.value.get(date) ?? null))
+
+const { measure, takeClick } = useChartMeasure({
+  chartRef,
+  containerRef,
+  values: () => priceValues.value,
+  dates: () => dates.value,
+  minBase: 0,
 })
 
 const markers = computed<PlottedMarker[]>(() =>
@@ -213,7 +229,8 @@ function step(delta: number): void {
  * a cluster it picks whichever disc happens to be on top. A tap on empty plot
  * clears the selection.
  */
-function onCanvasClick(event: { offsetX?: number; offsetY?: number }): void {
+function onCanvasClick(event: ElementEvent): void {
+  if (takeClick()) return
   const chart = chartRef.value
   if (!chart || event.offsetX == null || event.offsetY == null) return
 
@@ -230,7 +247,7 @@ function onCanvasClick(event: { offsetX?: number; offsetY?: number }): void {
   select(nearestMarker(positions, { x: event.offsetX, y: event.offsetY }, radius))
 }
 
-function onDataZoom(event: { start?: number; end?: number; batch?: Array<{ start?: number; end?: number }> }): void {
+function onDataZoom(event: Payload): void {
   const payload = event.batch?.[0] ?? event
   const start = payload.start ?? 0
   const end = payload.end ?? 100
@@ -292,7 +309,7 @@ const option = computed(() => {
       id: 'price',
       name: 'Cours',
       type: 'line',
-      data: axisDates.map((date) => priceByDate.value.get(date) ?? null),
+      data: priceValues.value,
       symbol: 'none',
       showSymbol: false,
       // Gaps are quoteless days, not missing money: bridging them keeps one
@@ -412,8 +429,10 @@ const option = computed(() => {
     // Zoom in place rather than a range slider: the whole point of this chart is
     // the span since the first trade, so it opens on all of it, and a slider
     // pinned at 100% is a full-width bar that only reads as decoration.
-    dataZoom: axisDates.length > 10
-      ? [{ id: 'zoom', type: 'inside', throttle: 50, zoomOnMouseWheel: true, moveOnMouseMove: true }]
+    // Wheel only: a press-and-drag measures, and on a touch screen two fingers
+    // measure too, which a pinch-zoom would fight.
+    dataZoom: axisDates.length > 10 && canHover.value
+      ? [{ id: 'zoom', type: 'inside', throttle: 50, zoomOnMouseWheel: true, moveOnMouseMove: false }]
       : undefined,
     series,
   }
@@ -523,9 +542,9 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
 <template>
   <div class="space-y-3">
     <!-- pan-y hands vertical swipes back to the page, so the modal still
-         scrolls over the chart on a phone; horizontal drags and pinches stay
-         with the chart for panning and zooming. -->
-    <div ref="containerRef" class="price-chart-canvas w-full" style="touch-action: pan-y;">
+         scrolls over the chart on a phone; horizontal drags and two-finger
+         measures stay with the chart. -->
+    <div ref="containerRef" class="price-chart-canvas relative w-full" style="touch-action: pan-y;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"
@@ -535,6 +554,7 @@ watch(performance, (value) => emit('update:performance', value), { immediate: tr
         @zr:click="onCanvasClick"
         @datazoom="onDataZoom"
       />
+      <ChartMeasureOverlay :measure="measure" :format-value="formatPrice" :format-date="formatLongDate" />
     </div>
 
     <div v-if="isZoomed" class="flex justify-end">

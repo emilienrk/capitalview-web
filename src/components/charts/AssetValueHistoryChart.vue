@@ -8,6 +8,8 @@ import VChart from 'vue-echarts'
 import type { AssetHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
+import { useChartMeasure } from '@/composables/useChartMeasure'
+import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
 
@@ -24,6 +26,13 @@ const sortedHistory = computed<AssetHistorySnapshotResponse[]>(() => {
   return [...props.history].sort((a, b) =>
     new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime()
   )
+})
+
+const { measure } = useChartMeasure({
+  chartRef,
+  containerRef,
+  values: () => sortedHistory.value.map((row) => Number(row.total_value)),
+  dates: () => sortedHistory.value.map((row) => row.snapshot_date),
 })
 
 const option = computed(() => {
@@ -121,7 +130,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-64" style="touch-action: pan-y;">
+  <div ref="containerRef" class="relative w-full h-64" style="touch-action: pan-y;">
     <VChart
       v-if="canRenderChart"
       ref="chartRef"
@@ -131,5 +140,6 @@ const option = computed(() => {
       autoresize
       class="w-full h-full"
     />
+    <ChartMeasureOverlay :measure="measure" />
   </div>
 </template>

@@ -8,6 +8,7 @@ import {
   LegendComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
+import type { Payload } from 'echarts/core'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
@@ -112,7 +113,7 @@ const option = computed(() => {
   }
 })
 
-function handleLegendSelectChanged(event: { selected?: Record<string, boolean> }): void {
+function handleLegendSelectChanged(event: Payload): void {
   if (!event?.selected) return
   legendSelection.value = {
     ...legendSelection.value,

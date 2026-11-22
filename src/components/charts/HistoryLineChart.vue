@@ -10,10 +10,13 @@ import {
   DataZoomComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
+import type { Payload } from 'echarts/core'
 import type { AccountHistorySnapshotResponse } from '@/types'
 import { useChartResize } from '@/composables/useChartResize'
 import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useChartTheme'
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
+import { useChartMeasure } from '@/composables/useChartMeasure'
+import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -372,7 +375,7 @@ function handleChartReady(): void {
   if (hasSize) containerWidth.value = container.clientWidth
 }
 
-function handleLegendSelectChanged(event: { name?: string; selected?: Record<string, boolean> }): void {
+function handleLegendSelectChanged(event: Payload): void {
   if (!event?.name || !event.selected) return
   legendChoices.value = {
     ...legendChoices.value,
@@ -380,11 +383,7 @@ function handleLegendSelectChanged(event: { name?: string; selected?: Record<str
   }
 }
 
-function handleDataZoom(event: {
-  startValue?: number
-  endValue?: number
-  batch?: Array<{ startValue?: number; endValue?: number }>
-}): void {
+function handleDataZoom(event: Payload): void {
   const payload = event.batch?.[0] ?? event
   if (typeof payload.startValue === 'number') {
     zoomStartIndex.value = Math.max(0, Math.floor(payload.startValue))
@@ -394,16 +393,26 @@ function handleDataZoom(event: {
   }
 }
 
+/** The line the header badge and the measure read: the total when there is one. */
+const mainValues = computed<Array<number | null>>(() => {
+  const mainSeriesIndex = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
+  const line = props.series[mainSeriesIndex !== -1 ? mainSeriesIndex : 0]
+  if (!line) return []
+  const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
+  return allDates.value.map((date) => byDate.get(date) ?? null)
+})
+
+const { measure } = useChartMeasure({
+  chartRef,
+  containerRef,
+  values: () => mainValues.value,
+  dates: () => allDates.value,
+})
+
 const visiblePerformance = computed(() => {
   if (!props.showPerformance || props.series.length === 0 || allDates.value.length === 0) return null
 
-  const mainSeriesIndex = props.series.findIndex(s => s.name === 'Solde total' || s.name === 'Portefeuille')
-  const index = mainSeriesIndex !== -1 ? mainSeriesIndex : 0
-  const line = props.series[index]
-  if (!line) return null
-
-  const byDate = new Map(line.history.map((point) => [point.snapshot_date, point.total_value]))
-  const data = allDates.value.map((date) => byDate.get(date) ?? null)
+  const data = mainValues.value
 
   let startVal = null
   for (let i = zoomStartIndex.value; i <= zoomEndIndex.value; i++) {
@@ -467,7 +476,7 @@ const loadingOptions = computed(() => chartLoading(chartTheme.value))
       </div>
     </div>
 
-    <div ref="containerRef" class="w-full h-72" style="touch-action: none;">
+    <div ref="containerRef" class="relative w-full h-72" style="touch-action: none;">
       <VChart
         v-if="canRenderChart"
         ref="chartRef"
@@ -480,6 +489,7 @@ const loadingOptions = computed(() => chartLoading(chartTheme.value))
         @legendselectchanged="handleLegendSelectChanged"
         @datazoom="handleDataZoom"
       />
+      <ChartMeasureOverlay :measure="measure" :format-date="formatTooltipDate" />
     </div>
   </div>
 </template>
