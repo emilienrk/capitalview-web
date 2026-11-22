@@ -17,6 +17,9 @@ import { chartAnimation, chartLoading, useChartTheme } from '@/composables/useCh
 import { usePrivacyMode } from '@/composables/usePrivacyMode'
 import { useChartMeasure } from '@/composables/useChartMeasure'
 import ChartMeasureOverlay from './ChartMeasureOverlay.vue'
+import ChartToolsMenu from './ChartToolsMenu.vue'
+import { useChartTools } from '@/composables/useChartTools'
+import { X } from 'lucide-vue-next'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
 
@@ -183,6 +186,7 @@ watch(
 )
 
 const isMobile = computed(() => containerWidth.value < 640)
+const { fullscreen, downloadPng } = useChartTools(chartRef)
 
 const option = computed(() => {
   // Read here, not only inside the formatters: ECharts calls those later, so
@@ -518,48 +522,78 @@ watch(visiblePerformance, (newVal) => {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <!-- Controls row: slot for parent (granularity) + range pills -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-      <!-- Left slot: parent can inject granularity selector here -->
-      <div class="flex items-center gap-2 shrink-0">
-        <slot name="leading" />
-      </div>
-      <!-- Range pills (right-aligned) -->
-      <div class="flex items-center gap-1 overflow-x-auto hide-scrollbar">
-        <button
-          v-for="opt in rangeOptions"
-          :key="opt.label"
-          type="button"
-          :class="[
-            'px-2.5 py-1 text-xs font-medium whitespace-nowrap rounded-full transition duration-150 select-none',
-            selectedRangeMonths === opt.months
-              ? 'bg-primary text-primary-content shadow-sm'
-              : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40',
-          ]"
-          @click="selectedRangeMonths = opt.months"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
-    </div>
+  <div>
+    <!-- Teleported while full screen: a card's transform would otherwise pin
+         the fixed overlay to the card instead of the viewport. -->
+    <Teleport to="body" :disabled="!fullscreen">
+      <div
+        :class="fullscreen
+          ? 'fixed inset-0 z-50 flex flex-col gap-2 bg-surface dark:bg-surface-dark p-4 sm:p-8'
+          : 'space-y-2'"
+      >
+        <!-- Controls row: slot for parent (granularity) + range pills -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <!-- Left slot: parent can inject granularity selector here -->
+          <div class="flex items-center gap-2 shrink-0">
+            <slot name="leading" />
+          </div>
+          <div class="flex items-center gap-1 min-w-0">
+            <!-- Range pills (right-aligned) -->
+            <div class="flex items-center gap-1 overflow-x-auto hide-scrollbar">
+              <button
+                v-for="opt in rangeOptions"
+                :key="opt.label"
+                type="button"
+                :class="[
+                  'px-2.5 py-1 text-xs font-medium whitespace-nowrap rounded-full transition duration-150 select-none',
+                  selectedRangeMonths === opt.months
+                    ? 'bg-primary text-primary-content shadow-sm'
+                    : 'text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40',
+                ]"
+                @click="selectedRangeMonths = opt.months"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+            <ChartToolsMenu
+              :fullscreen="fullscreen"
+              @toggle-fullscreen="fullscreen = !fullscreen"
+              @download="downloadPng(chartTheme.surface)"
+            />
+            <button
+              v-if="fullscreen"
+              type="button"
+              aria-label="Quitter le plein écran"
+              class="p-1.5 rounded-full text-text-muted dark:text-text-dark-muted hover:text-text-main dark:hover:text-text-dark-main hover:bg-surface-border/60 dark:hover:bg-surface-dark-border/40 transition duration-150"
+              @click="fullscreen = false"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-    <!-- pan-y: a vertical swipe starting on the curve still scrolls the page. -->
-    <div ref="containerRef" class="relative w-full h-72" style="touch-action: pan-y;">
-      <VChart
-        v-if="canRenderChart"
-        ref="chartRef"
-        :option="option"
-        :update-options="updateOptions"
-        :loading="loading"
-        :loading-options="loadingOptions"
-        autoresize
-        class="w-full h-full"
-        @legendselectchanged="handleLegendSelectChanged"
-        @datazoom="handleDataZoom"
-      />
-      <ChartMeasureOverlay :measure="measure" :format-date="formatTooltipDate" />
-    </div>
+        <!-- pan-y: a vertical swipe starting on the curve still scrolls the page. -->
+        <div
+          ref="containerRef"
+          :class="['relative w-full', fullscreen ? 'flex-1 min-h-0' : 'h-72']"
+          style="touch-action: pan-y;"
+        >
+          <VChart
+            v-if="canRenderChart"
+            ref="chartRef"
+            :option="option"
+            :update-options="updateOptions"
+            :loading="loading"
+            :loading-options="loadingOptions"
+            autoresize
+            class="w-full h-full"
+            @legendselectchanged="handleLegendSelectChanged"
+            @datazoom="handleDataZoom"
+          />
+          <ChartMeasureOverlay :measure="measure" :format-date="formatTooltipDate" />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
