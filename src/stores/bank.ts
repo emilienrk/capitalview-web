@@ -257,7 +257,18 @@ export const useBankStore = defineStore('bank', () => {
     const response = await apiClient.post<BankEntryResponse>(`/bank/accounts/${accountId}/entries`, entry)
     await fetchAccounts()
     invalidateHistoryCache()
+    // Paired or typed as it lands: the pairing of its months moves.
+    operationsRead()
     return response
+  }
+
+  /** The operations an entry about to be typed could pair with, nearest first (R56). */
+  function fetchEntryCounterparts(
+    accountId: string, day: string, amount: number, editing?: string | null,
+  ): Promise<BankTransactionItem[]> {
+    const params = new URLSearchParams({ day, amount: String(amount) })
+    if (editing) params.set('editing', editing)
+    return apiClient.get<BankTransactionItem[]>(`/bank/accounts/${accountId}/counterparts?${params}`)
   }
 
   /** What an unsynced account's operations add up to at the end of `day`, and today. */
@@ -641,6 +652,7 @@ export const useBankStore = defineStore('bank', () => {
     deleteAccount,
     confirmUpToDate,
     addEntry,
+    fetchEntryCounterparts,
     fetchBalance,
     deleteTransaction,
     fetchHistory,

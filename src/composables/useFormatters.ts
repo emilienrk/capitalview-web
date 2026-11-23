@@ -139,6 +139,7 @@ export function useFormatters(): {
     LDD: 'LDD',
     PEL: 'PEL',
     CEL: 'CEL',
+    CASH: 'Espèces',
     PEA: 'PEA',
     CTO: 'CTO',
     PEA_PME: 'PEA-PME',

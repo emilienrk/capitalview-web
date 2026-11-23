@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Landmark, PiggyBank, TrendingUp, Wallet } from 'lucide-vue-next'
+import { Banknote, Landmark, PiggyBank, TrendingUp, Wallet } from 'lucide-vue-next'
 
 import type { BankAccountResponse } from '@/types'
 
@@ -7,7 +7,7 @@ import type { BankAccountResponse } from '@/types'
 export const INVESTMENT_ACCOUNT_ICON: Component = TrendingUp
 
 /**
- * A bank account marked by what it is — current account or savings — never by
+ * A bank account marked by what it is — current account, savings or cash — never by
  * what the operation looks like: without a dictionary, a card payment and a
  * transfer cannot be told apart (docs/bank-sorting.md, R34). Known by its id,
  * or by its name when one account alone bears it; otherwise a neutral bank.
@@ -19,5 +19,7 @@ export function bankAccountIcon(
   const byId = account.id ? accounts.filter((candidate) => candidate.id === account.id) : []
   const found = byId.length ? byId : accounts.filter((candidate) => account.name && candidate.name === account.name)
   if (found.length !== 1) return Landmark
-  return found[0]!.account_type === 'CHECKING' ? Wallet : PiggyBank
+  const type = found[0]!.account_type
+  if (type === 'CASH') return Banknote
+  return type === 'CHECKING' ? Wallet : PiggyBank
 }
