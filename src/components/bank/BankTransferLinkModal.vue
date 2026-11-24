@@ -5,8 +5,9 @@
  * rejected transfer, a refunded card payment. The candidates are the API's:
  * same amount, opposite direction, a few weeks either side. Each says what
  * binding it does, and what pair it undoes; none fitting, the type is the way.
- * A payment out may also be cash withdrawn: its entry on a cash account is
- * typed here and bound to it at once (docs/bank-sorting.md, R56).
+ * A payment out may also be cash withdrawn, an entry cash deposited: its other
+ * leg on a cash account is typed here and bound to it at once
+ * (docs/bank-sorting.md, R56).
  */
 import { computed, ref, watch } from 'vue'
 import { ArrowLeftRight, Banknote, Undo2 } from 'lucide-vue-next'
@@ -75,11 +76,12 @@ function sameAccount(candidate: BankTransactionItem): boolean {
 }
 
 const CASH_WITHDRAWAL_LABEL = 'Retrait'
+const CASH_DEPOSIT_LABEL = 'Dépôt'
 
-/** The cash accounts this payment out could have filled: one already facing it is linked above instead. */
+/** The cash accounts this operation could have filled or emptied: one already facing it is linked above instead. */
 const wallets = computed(() => {
   const tx = props.tx
-  if (!tx || tx.is_credit || !candidates.value) return []
+  if (!tx || !candidates.value) return []
   const accounts = bank.summary?.accounts ?? []
   if (accounts.find((a) => a.id === tx.account_id)?.account_type === 'CASH') return []
   const isWallet = (id: string) => accounts.some((a) => a.id === id && a.account_type === 'CASH')
@@ -118,15 +120,16 @@ async function withdraw(walletId: string): Promise<void> {
   saving.value = walletId
   error.value = null
   try {
+    // The wallet's leg goes the other way.
     await bank.addEntry(walletId, {
       day: tx.operation_date,
-      amount: Number(tx.amount),
-      label: CASH_WITHDRAWAL_LABEL,
+      amount: tx.is_credit ? -Number(tx.amount) : Number(tx.amount),
+      label: tx.is_credit ? CASH_DEPOSIT_LABEL : CASH_WITHDRAWAL_LABEL,
       transfer_with: tx.id,
     })
     emit('close')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Impossible de mettre ce retrait sur votre compte Espèces.'
+    error.value = e instanceof Error ? e.message : 'Impossible de lier cette opération à votre compte Espèces.'
   } finally {
     saving.value = null
   }
@@ -200,10 +203,17 @@ async function withdraw(walletId: string): Promise<void> {
         </ul>
       </div>
       <div v-if="wallets.length" class="rounded-lg border border-surface-border dark:border-surface-dark-border px-3 py-2.5">
-        <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Retiré en espèces ?</p>
+        <p class="text-sm font-medium text-text-main dark:text-text-dark-main">
+          {{ tx.is_credit ? 'Déposé depuis mes espèces ?' : 'Retiré en espèces ?' }}
+        </p>
         <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
-          L'entrée en face est ajoutée à votre compte Espèces et liée à ce retrait : la dépense comptera quand l'argent
-          sortira du porte-monnaie.
+          <template v-if="tx.is_credit">
+            La sortie en face est ajoutée à votre compte Espèces et liée à ce dépôt : ni dépense ni entrée.
+          </template>
+          <template v-else>
+            L'entrée en face est ajoutée à votre compte Espèces et liée à ce retrait : la dépense comptera quand
+            l'argent sortira du porte-monnaie.
+          </template>
         </p>
         <div class="mt-2 flex flex-wrap gap-2">
           <BaseButton
@@ -212,7 +222,7 @@ async function withdraw(walletId: string): Promise<void> {
             :loading="saving === wallet.id" :disabled="saving !== null"
             @click="withdraw(wallet.id)"
           >
-            <Banknote class="w-4 h-4" /> {{ wallets.length > 1 ? `Sur ${wallet.name}` : 'Retiré en espèces' }}
+            <Banknote class="w-4 h-4" /> {{ wallets.length > 1 ? `${tx.is_credit ? 'Depuis' : 'Sur'} ${wallet.name}` : tx.is_credit ? 'Déposé depuis mes espèces' : 'Retiré en espèces' }}
           </BaseButton>
         </div>
       </div>

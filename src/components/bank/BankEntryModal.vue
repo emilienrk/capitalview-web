@@ -81,6 +81,7 @@ const CASH_LABELS: Record<Exclude<Nature, ''>, string> = {
   NEUTRAL: 'Entrée non comptée',
 }
 const CASH_SPENT_LABEL = 'Dépense en espèces'
+const CASH_DEPOSIT_LABEL = 'Dépôt'
 const COUNT_LABEL = 'Écart de comptage'
 
 const CREDIT_ANSWERS: CashflowType[] = ['INCOME', 'EXPENSE', 'SAVING', 'INVESTMENT', 'NEUTRAL']
@@ -91,6 +92,9 @@ const NATURE_OPTIONS: { label: string; value: Nature }[] = [
 // No pick, kept apart from the operations offered: a payment out that was
 // spent, an entry whose withdrawal the bank has not sent yet.
 const NONE = 'NONE'
+// A payment out deposited on an account the bank has not reported yet: it
+// counts nowhere, and its pair is offered once the deposit lands (R56).
+const PENDING = 'PENDING'
 const nature = ref<Nature>('')
 const counterpartId = ref<string>('')
 const counterparts = ref<BankTransactionItem[]>([])
@@ -101,7 +105,7 @@ const natureHint = computed(() =>
 const labelPlaceholder = computed(() => {
   if (!isCash.value) return 'ex. Virement vers Livret A'
   if (isCounting.value) return COUNT_LABEL
-  if (form.type === 'OUT') return CASH_SPENT_LABEL
+  if (form.type === 'OUT') return isDeposit.value ? CASH_DEPOSIT_LABEL : CASH_SPENT_LABEL
   return nature.value ? CASH_LABELS[nature.value] : 'Facultatif'
 })
 const counterpartOptions = computed(() => [
@@ -112,12 +116,14 @@ const counterpartOptions = computed(() => [
     value: tx.id,
   })),
   ...(form.type === 'IN' ? [{ label: 'Aucune de celles-ci', value: NONE }] : []),
+  ...(form.type === 'OUT' ? [{ label: 'Oui, pas encore arrivé sur mon compte', value: PENDING }] : []),
 ])
-/** The pick shows for an entry said to be a withdrawal, and for a payment out
- * only when something faces it: spent is the rule (R55). */
+/** The pick shows for an entry said to be a withdrawal when something faces
+ * it, and for every payment out, spent by default (R55). */
 const asksCounterpart = computed(() =>
-  isCash.value && (form.type === 'IN' ? nature.value === 'TRANSFER' : true) && counterparts.value.length > 0,
+  isCash.value && (form.type === 'IN' ? nature.value === 'TRANSFER' && counterparts.value.length > 0 : form.type === 'OUT'),
 )
+const isDeposit = computed(() => form.type === 'OUT' && !!counterpartId.value && counterpartId.value !== NONE)
 
 watch(
   () => props.open,
@@ -136,12 +142,20 @@ watch(
     // Typed again, an operation keeps what it was filed as.
     const paired = tx?.transfer_id && tx.transfer_status === 'confirmed' ? tx.transfer_id : null
     nature.value = tx?.is_credit ? (paired ? 'TRANSFER' : tx.type_source === 'override' ? tx.cashflow_type : '') : ''
-    counterpartId.value = paired ?? (tx && !tx.is_credit ? NONE : '')
+    const pending = tx && !tx.is_credit && !paired && tx.type_source === 'override' && tx.cashflow_type === 'NEUTRAL'
+    counterpartId.value = paired ?? (pending ? PENDING : tx && !tx.is_credit ? NONE : '')
     counterparts.value = []
     // The labels to pick from; the browser answers 304 while nothing changed.
     void ledger.fetchLedger()
   },
 )
+
+// Spent is the rule for a payment out, shown as soon as it is picked (R55).
+watch(() => form.type, (type) => {
+  if (type === 'OUT' && !counterpartId.value) counterpartId.value = NONE
+  // An entry's withdrawal is always picked by hand (R7).
+  if (type === 'IN' && (counterpartId.value === NONE || counterpartId.value === PENDING)) counterpartId.value = ''
+})
 
 /** The label is what groups the entry with its kin and lets a rule reach it:
  * one already used here, taken as it is, files it with them. */
@@ -190,7 +204,8 @@ watch(
         if (asked !== latestCounterparts) return
         counterparts.value = found
         // A pick the new amount or day no longer offers is dropped, never sent.
-        if (counterpartId.value !== NONE && !found.some((tx) => tx.id === counterpartId.value)) {
+        const picked = counterpartId.value
+        if (picked !== NONE && picked !== PENDING && !found.some((tx) => tx.id === picked)) {
           counterpartId.value = type === 'OUT' ? NONE : ''
         }
         if (type === 'OUT' && !counterpartId.value) counterpartId.value = NONE
@@ -260,13 +275,19 @@ function entryToSend(): { amount: number; label: string; type: CashflowType | nu
       transfer_with: null,
     }
   }
-  const pairedWith = asksCounterpart.value && counterpartId.value !== NONE ? counterpartId.value : null
+  const picked = asksCounterpart.value ? counterpartId.value : NONE
+  const pairedWith = picked && picked !== NONE && picked !== PENDING ? picked : null
   let type: CashflowType | null = null
   if (asksNature.value && nature.value) {
     // A withdrawal with nothing to bind yet counts nowhere until its pair comes.
     type = nature.value === 'TRANSFER' ? (pairedWith ? null : 'NEUTRAL') : nature.value
   }
-  const fallback = !isCash.value ? '' : form.type === 'OUT' ? CASH_SPENT_LABEL : nature.value ? CASH_LABELS[nature.value] : ''
+  // Likewise a deposit the bank has not reported yet.
+  if (form.type === 'OUT' && picked === PENDING) type = 'NEUTRAL'
+  const fallback = !isCash.value
+    ? ''
+    : form.type === 'OUT' ? (isDeposit.value ? CASH_DEPOSIT_LABEL : CASH_SPENT_LABEL)
+    : nature.value ? CASH_LABELS[nature.value] : ''
   return {
     amount: signedOf(form.type, Number(form.amount)),
     label: label || fallback,
@@ -433,14 +454,19 @@ async function remove(): Promise<void> {
           proposée dans À trier dès que votre banque aura remonté le retrait.
         </p>
       </div>
-      <BaseSelect
-        v-if="asksCounterpart"
-        v-model="counterpartId"
-        :label="form.type === 'IN' ? 'Opération en face' : 'Déposé sur un de mes comptes ?'"
-        :options="counterpartOptions"
-        placeholder="Choisir…"
-        :required="form.type === 'IN'"
-      />
+      <div v-if="asksCounterpart">
+        <BaseSelect
+          v-model="counterpartId"
+          :label="form.type === 'IN' ? 'Opération en face' : 'Déposé sur un de mes comptes ?'"
+          :options="counterpartOptions"
+          placeholder="Choisir…"
+          :required="form.type === 'IN'"
+        />
+        <p v-if="counterpartId === PENDING" class="mt-1 text-xs text-text-muted dark:text-text-dark-muted">
+          La sortie ne comptera nulle part en attendant : la paire vous sera proposée dans À trier dès que votre banque
+          aura remonté le dépôt.
+        </p>
+      </div>
     </form>
     <template #footer>
       <div class="flex justify-between w-full">
