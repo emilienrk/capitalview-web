@@ -128,7 +128,8 @@ watch(
     fromStatement.value = false
     statementBalance.value = ''
     const tx = props.editing
-    form.type = tx ? (tx.is_credit ? 'IN' : 'OUT') : 'OUT'
+    // A wallet is mostly counted, seldom typed line by line (L13).
+    form.type = tx ? (tx.is_credit ? 'IN' : 'OUT') : isCash.value ? 'COUNT' : 'OUT'
     form.amount = tx ? Number(tx.amount) : ''
     form.day = tx?.operation_date ?? today()
     form.label = tx?.label ?? ''
@@ -370,6 +371,12 @@ async function remove(): Promise<void> {
             <template v-else-if="countGap > 0">une entrée de {{ money(countGap) }} sera ajoutée, en Non compté.</template>
             <template v-else>rien à ajouter.</template>
           </template>
+        </p>
+        <!-- More than expected is most often a withdrawal not yet bound: left as
+             it is, the withdrawal counts as spent and the gap is spent again. -->
+        <p v-if="countGap !== null && countGap > 0" class="mt-1 text-xs text-warning">
+          Un retrait oublié ? Liez-le d'abord depuis l'opération de votre compte (« Lier », puis « Retiré en
+          espèces »), puis recomptez : sinon il comptera deux fois en dépense.
         </p>
       </div>
       <div v-if="fromStatement">
