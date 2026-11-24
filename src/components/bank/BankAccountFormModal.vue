@@ -89,6 +89,7 @@ const ACCOUNT_TYPE_LABELS: Array<{ label: string; value: BankAccountType }> = [
   { label: 'LDD', value: 'LDD' },
   { label: 'PEL', value: 'PEL' },
   { label: 'CEL', value: 'CEL' },
+  { label: 'Espèces', value: 'CASH' },
 ]
 
 const accountTypeOptions = computed(() => {
@@ -216,11 +217,15 @@ defineExpose({ openCreate, openEdit })
           Le type d'un compte est fixé à sa création.
         </p>
       </div>
-      <BaseInput v-model="form.institution_name" label="Banque" placeholder="Nom de la banque" />
-      <BaseInput v-model="form.identifier" label="Identifiant" placeholder="IBAN" />
+      <!-- Notes and coins: no bank, no IBAN, and never synced. -->
+      <template v-if="form.account_type !== 'CASH'">
+        <BaseInput v-model="form.institution_name" label="Banque" placeholder="Nom de la banque" />
+        <BaseInput v-model="form.identifier" label="Identifiant" placeholder="IBAN" />
+      </template>
       <p v-if="!editingId" class="text-xs text-text-muted dark:text-text-dark-muted">
-        Le solde est la somme des opérations : une fois le compte créé, ajoutez l'argent déjà présent
-        comme une première entrée.
+        {{ form.account_type === 'CASH'
+          ? 'Votre argent liquide, saisi à la main : il ne se synchronise avec aucune banque. Une fois le compte créé, ajoutez ce que vous avez en poche comme une première entrée.'
+          : 'Le solde est la somme des opérations : une fois le compte créé, ajoutez l\'argent déjà présent comme une première entrée.' }}
       </p>
       <div>
         <BaseSelect

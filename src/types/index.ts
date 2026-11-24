@@ -136,6 +136,7 @@ export type BankAccountType =
   | 'LDD'
   | 'PEL'
   | 'CEL'
+  | 'CASH'
 
 export interface BankAccountCreate {
   name: string
@@ -507,6 +508,10 @@ export interface BankEntryRequest {
   /** Signed, negative for money out. */
   amount: number
   label?: string | null
+  /** Filed as it is typed (docs/bank-sorting.md, R56): its type, or the
+   *  operation on another account it pairs with — one or the other. */
+  type?: CashflowType | null
+  transfer_with?: string | null
 }
 
 export interface BankEntryResponse {

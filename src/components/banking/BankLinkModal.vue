@@ -176,8 +176,11 @@ function retrySessionAccounts(): void {
   if (props.bankSessionUuid) void loadSessionAccounts(props.bankSessionUuid)
 }
 
+// A cash account is never fed by a bank (docs/bank-ledger.md, L13).
 const capitalViewAccountOptions = computed(() =>
-  (bank.summary?.accounts ?? []).map((a) => ({ value: a.id, label: a.name })),
+  (bank.summary?.accounts ?? [])
+    .filter((a) => a.account_type !== 'CASH')
+    .map((a) => ({ value: a.id, label: a.name })),
 )
 
 /**

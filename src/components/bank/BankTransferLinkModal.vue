@@ -5,9 +5,12 @@
  * rejected transfer, a refunded card payment. The candidates are the API's:
  * same amount, opposite direction, a few weeks either side. Each says what
  * binding it does, and what pair it undoes; none fitting, the type is the way.
+ * A payment out may also be cash withdrawn, an entry cash deposited: its other
+ * leg on a cash account is typed here and bound to it at once
+ * (docs/bank-sorting.md, R56).
  */
 import { computed, ref, watch } from 'vue'
-import { ArrowLeftRight, Undo2 } from 'lucide-vue-next'
+import { ArrowLeftRight, Banknote, Undo2 } from 'lucide-vue-next'
 
 import { BaseAlert, BaseButton, BaseEmptyState, BaseModal, BaseSkeleton } from '@/components'
 import { useFormatters } from '@/composables/useFormatters'
@@ -72,6 +75,20 @@ function sameAccount(candidate: BankTransactionItem): boolean {
   return candidate.account_id === props.tx?.account_id
 }
 
+const CASH_WITHDRAWAL_LABEL = 'Retrait'
+const CASH_DEPOSIT_LABEL = 'Dépôt'
+
+/** The cash accounts this operation could have filled or emptied: one already facing it is linked above instead. */
+const wallets = computed(() => {
+  const tx = props.tx
+  if (!tx || !candidates.value) return []
+  const accounts = bank.summary?.accounts ?? []
+  if (accounts.find((a) => a.id === tx.account_id)?.account_type === 'CASH') return []
+  const isWallet = (id: string) => accounts.some((a) => a.id === id && a.account_type === 'CASH')
+  if (candidates.value.some((c) => isWallet(c.account_id))) return []
+  return accounts.filter((a) => a.account_type === 'CASH' && a.currency === tx.currency)
+})
+
 /** Paired with another operation already: binding it here takes it from that pair. */
 function pairedElsewhere(candidate: BankTransactionItem): boolean {
   return candidate.transfer_account_name !== null
@@ -93,6 +110,26 @@ async function bind(candidate: BankTransactionItem): Promise<void> {
     emit('close')
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Impossible de lier ces opérations.'
+  } finally {
+    saving.value = null
+  }
+}
+async function withdraw(walletId: string): Promise<void> {
+  const tx = props.tx
+  if (!tx?.operation_date) return
+  saving.value = walletId
+  error.value = null
+  try {
+    // The wallet's leg goes the other way.
+    await bank.addEntry(walletId, {
+      day: tx.operation_date,
+      amount: tx.is_credit ? -Number(tx.amount) : Number(tx.amount),
+      label: tx.is_credit ? CASH_DEPOSIT_LABEL : CASH_WITHDRAWAL_LABEL,
+      transfer_with: tx.id,
+    })
+    emit('close')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Impossible de lier cette opération à votre compte Espèces.'
   } finally {
     saving.value = null
   }
@@ -124,11 +161,11 @@ async function bind(candidate: BankTransactionItem): Promise<void> {
         <BaseSkeleton v-for="i in 3" :key="i" variant="rect" width="100%" height="2.75rem" />
       </div>
       <BaseEmptyState
-        v-else-if="!sorted.length"
+        v-else-if="!sorted.length && !wallets.length"
         title="Aucune opération à lier"
         description="Aucune opération du même montant, en sens inverse, à quelques semaines près."
       />
-      <div v-else>
+      <div v-else-if="sorted.length">
         <p class="text-sm font-medium text-text-main dark:text-text-dark-main">Avec laquelle ?</p>
         <ul class="divide-y divide-surface-border dark:divide-surface-dark-border -mx-2">
           <li v-for="candidate in sorted" :key="candidate.id" class="flex items-start gap-3 px-2 py-3">
@@ -164,6 +201,30 @@ async function bind(candidate: BankTransactionItem): Promise<void> {
             </div>
           </li>
         </ul>
+      </div>
+      <div v-if="wallets.length" class="rounded-lg border border-surface-border dark:border-surface-dark-border px-3 py-2.5">
+        <p class="text-sm font-medium text-text-main dark:text-text-dark-main">
+          {{ tx.is_credit ? 'Déposé depuis mes espèces ?' : 'Retiré en espèces ?' }}
+        </p>
+        <p class="mt-0.5 text-xs text-text-muted dark:text-text-dark-muted">
+          <template v-if="tx.is_credit">
+            La sortie en face est ajoutée à votre compte Espèces et liée à ce dépôt : ni dépense ni entrée.
+          </template>
+          <template v-else>
+            L'entrée en face est ajoutée à votre compte Espèces et liée à ce retrait : la dépense comptera quand
+            l'argent sortira du porte-monnaie.
+          </template>
+        </p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <BaseButton
+            v-for="wallet in wallets" :key="wallet.id"
+            size="sm" variant="outline"
+            :loading="saving === wallet.id" :disabled="saving !== null"
+            @click="withdraw(wallet.id)"
+          >
+            <Banknote class="w-4 h-4" /> {{ wallets.length > 1 ? `${tx.is_credit ? 'Depuis' : 'Sur'} ${wallet.name}` : tx.is_credit ? 'Déposé depuis mes espèces' : 'Retiré en espèces' }}
+          </BaseButton>
+        </div>
       </div>
     </div>
 

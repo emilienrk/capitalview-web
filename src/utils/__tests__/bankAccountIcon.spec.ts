@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Landmark, PiggyBank, Wallet } from 'lucide-vue-next'
+import { Banknote, Landmark, PiggyBank, Wallet } from 'lucide-vue-next'
 
 import { bankAccountIcon } from '@/utils/bankAccountIcon'
 
@@ -9,6 +9,7 @@ const accounts = [
   { id: 'acc-3', name: 'Compte plaisir', account_type: 'LIVRET_DEVE' as const },
   { id: 'acc-4', name: 'Joint', account_type: 'CHECKING' as const },
   { id: 'acc-5', name: 'Joint', account_type: 'SAVINGS' as const },
+  { id: 'acc-6', name: 'Porte-monnaie', account_type: 'CASH' as const },
 ]
 
 describe('bankAccountIcon', () => {
@@ -16,6 +17,10 @@ describe('bankAccountIcon', () => {
     expect(bankAccountIcon(accounts, { id: 'acc-1' })).toBe(Wallet)
     expect(bankAccountIcon(accounts, { id: 'acc-2' })).toBe(PiggyBank)
     expect(bankAccountIcon(accounts, { name: 'Compte plaisir' })).toBe(PiggyBank)
+  })
+
+  it('marks a cash account with a banknote', () => {
+    expect(bankAccountIcon(accounts, { id: 'acc-6' })).toBe(Banknote)
   })
 
   it('stays neutral when the account cannot be told for sure', () => {
